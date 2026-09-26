@@ -19,6 +19,22 @@ if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
 
+const operationMethods = new Set([
+  'get',
+  'put',
+  'post',
+  'delete',
+  'options',
+  'head',
+  'patch',
+  'trace',
+  'query',
+]);
+
+function pointerSegment(value) {
+  return value.replaceAll('~', '~0').replaceAll('/', '~1');
+}
+
 for (const [index, file] of files.entries()) {
   const spec = JSON.parse(await readFile(join(directory, file), 'utf8'));
   test(`real OAS ${index + 1} validates`, () => {
@@ -27,10 +43,34 @@ for (const [index, file] of files.entries()) {
   });
   test(`real OAS ${index + 1} exposes operations`, async () => {
     const operations = await operationsFromSpec(spec);
-    assert.ok(operations.length > 0);
-    assert.equal(
-      new Set(operations.map(({ operationRef }) => operationRef)).size,
-      operations.length,
+    const expected = Object.entries(spec.paths).flatMap(([path, pathItem]) => [
+      ...Object.entries(pathItem)
+        .filter(([key]) => operationMethods.has(key))
+        .map(([key, operation]) => ({
+          operationRef: `#/paths/${pointerSegment(path)}/${key}`,
+          operationId: operation.operationId,
+          method: key.toUpperCase(),
+          path,
+          summary: operation.summary ?? '',
+        })),
+      ...Object.entries(pathItem.additionalOperations ?? {}).map(
+        ([method, operation]) => ({
+          operationRef: `#/paths/${pointerSegment(path)}/additionalOperations/${pointerSegment(method)}`,
+          operationId: operation.operationId,
+          method,
+          path,
+          summary: operation.summary ?? '',
+        }),
+      ),
+    ]);
+    assert.ok(expected.length > 0);
+    assert.deepEqual(
+      operations.toSorted((left, right) =>
+        left.operationRef.localeCompare(right.operationRef),
+      ),
+      expected.toSorted((left, right) =>
+        left.operationRef.localeCompare(right.operationRef),
+      ),
     );
   });
 }
