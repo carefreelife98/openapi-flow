@@ -2,13 +2,17 @@
 
 An importable Node.js library that selects an OpenAPI operation from a natural-language scenario, checks the selected operation against the supplied contract, and builds an n8n workflow with the official workflow SDK. It does not run an HTTP server, execute the workflow, or publish it to n8n.
 
-This repository is an early v1 implementation, **not an npm release**. The package is marked `private` while its final name and distribution license are undecided. The n8n SDK is a separate dependency under [n8n's Sustainable Use License](https://docs.n8n.io/n8n-community-license/).
+The importable package is published as [`@openapi-flow/core`](https://www.npmjs.com/package/@openapi-flow/core). Its own code is MIT-licensed. The n8n SDK is a separate dependency under [n8n's Sustainable Use License](https://docs.n8n.io/n8n-community-license/); the MIT license does not change that dependency's terms.
 
 The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Types live in `src/types/`, LangChain structured-output schemas in `src/schemas/`, OpenAPI parsing in `src/openapi/`, AI planning in `src/planning/`, n8n compilation in `src/workflow/`, and shared validation in `src/utils/` under that package.
 
 ## Current API
 
 Use Node.js 24 or later. The host application supplies an OAS JSON object and a LangChain chat model (for example `ChatOpenAI` configured with an OpenAI-compatible endpoint such as Chomsky):
+
+```sh
+npm install @openapi-flow/core @langchain/core @langchain/openai
+```
 
 ```ts
 import { readFile } from 'node:fs/promises';

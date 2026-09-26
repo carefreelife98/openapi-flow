@@ -1,8 +1,22 @@
 {
   "name": "@openapi-flow/core",
   "version": "0.1.0",
-  "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "description": "Build reviewable n8n workflows from OpenAPI documents and natural-language scenarios",
+  "keywords": [
+    "openapi",
+    "n8n",
+    "workflow",
+    "langchain"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carefreelife98/openapi-flow.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/carefreelife98/openapi-flow#readme",
+  "bugs": "https://github.com/carefreelife98/openapi-flow/issues",
+  "author": "carefreelife98",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -14,10 +28,19 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
   ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src test integration",
     "format:check": "prettier --check src test integration package.json tsconfig.json eslint.config.mjs",
