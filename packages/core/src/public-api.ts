@@ -1,0 +1,16 @@
+export { operationsFromSpec } from './openapi/parse-spec.js';
+export { validateOpenApi } from './openapi/validate-spec.js';
+export { generateWorkflow } from './planning/generate-workflow.js';
+export { compileSequence } from './workflow/compile-sequence.js';
+export { compileWorkflow } from './workflow/compile-workflow.js';
+export type { Operation, OperationCandidate } from './types/openapi.js';
+export type {
+  CompileRequest,
+  CompileResult,
+  GenerateRequest,
+  ResponseReference,
+  SequencePlan,
+  SequenceRequest,
+  SequenceResult,
+  WorkflowPlan,
+} from './types/workflow.js';

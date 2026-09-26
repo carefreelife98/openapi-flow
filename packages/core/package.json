@@ -1,0 +1,45 @@
+{
+  "name": "@openapi-flow/core",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/public-api.d.ts",
+      "default": "./dist/public-api.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test integration",
+    "format:check": "prettier --check src test integration package.json tsconfig.json eslint.config.mjs",
+    "format": "prettier --write src test integration package.json tsconfig.json eslint.config.mjs",
+    "test": "npm run build && node --test",
+    "test:real-oas": "npm run build && node --test integration/real-oas.mjs"
+  },
+  "dependencies": {
+    "@n8n/workflow-sdk": "0.33.1",
+    "@scalar/openapi-parser": "0.29.7",
+    "@scalar/openapi-validator": "0.1.6"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@langchain/core": "1.2.12",
+    "@types/node": "^24.0.0",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
+  }
+}
