@@ -28,12 +28,17 @@ export interface OperationBody {
   properties: ScalarProperties;
 }
 
-export interface Operation {
-  operationRef: string;
+export interface OperationMetadata {
   operationId?: string;
+  summary: string;
+  description: string;
+  tags: string[];
+}
+
+export interface Operation extends OperationMetadata {
+  operationRef: string;
   method: OperationMethod;
   path: string;
-  summary: string;
   effect: 'read' | 'write' | 'unknown';
   status: number;
   parameters: OperationParameter[];
@@ -43,7 +48,13 @@ export interface Operation {
 
 export type OperationCandidate = Pick<
   Operation,
-  'operationRef' | 'operationId' | 'method' | 'path' | 'summary'
+  | 'operationRef'
+  | 'operationId'
+  | 'method'
+  | 'path'
+  | 'summary'
+  | 'description'
+  | 'tags'
 >;
 
 export interface ObjectSchemaProperties {

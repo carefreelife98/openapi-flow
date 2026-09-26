@@ -17,6 +17,8 @@ const spec = {
       get: {
         operationId: 'getItem',
         summary: 'Read one item',
+        description: 'Fetch an item by ID',
+        tags: ['inventory'],
         'x-openapi-flow-effect': 'read',
         parameters: [{ $ref: '#/components/parameters/ItemId' }],
         responses: {
@@ -379,6 +381,9 @@ test('document acceptance follows OAS instead of prototype size, version, and id
     candidates.map(({ operationRef }) => operationRef),
     ['#/paths/~1items~1{id}/get', '#/paths/~1items/post'],
   );
+  assert.deepEqual(candidates[0].tags, ['inventory']);
+  assert.deepEqual(candidates[1].tags, []);
+  assert.equal(candidates[1].description, '');
   const result = await compileWorkflow({
     spec: withoutId,
     baseUrl: 'https://example.test',
@@ -582,7 +587,13 @@ test('LangChain structured output selects an operation and proposes validated bi
           '#/paths/~1items/post',
         ]);
         return {
-          async invoke() {
+          async invoke(messages) {
+            const request = JSON.parse(messages[1][1]);
+            assert.deepEqual(request.operations[0].tags, ['inventory']);
+            assert.equal(
+              request.operations[0].description,
+              'Fetch an item by ID',
+            );
             return { operationRef: '#/paths/~1items~1{id}/get' };
           },
         };

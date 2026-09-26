@@ -4,6 +4,7 @@ import type {
   OperationBody,
   OperationCandidate,
   OperationMethod,
+  OperationMetadata,
   OperationParameter,
   ParsedDocument,
   ScalarProperties,
@@ -16,6 +17,44 @@ import {
 } from './parse-spec-utils.js';
 import { operationEntries, operationReference } from './operation-reference.js';
 import { validatedDocument } from './validate-spec.js';
+
+function operationMetadata(
+  operation: JsonObject,
+  source: string,
+): OperationMetadata {
+  if (
+    operation.operationId !== undefined &&
+    typeof operation.operationId !== 'string'
+  ) {
+    throw new Error(`${source}.operationId must be a string`);
+  }
+  if (
+    operation.tags !== undefined &&
+    (!Array.isArray(operation.tags) ||
+      !operation.tags.every((tag) => typeof tag === 'string'))
+  ) {
+    throw new Error(`${source}.tags must be an array of strings`);
+  }
+  if (
+    operation.summary !== undefined &&
+    typeof operation.summary !== 'string'
+  ) {
+    throw new Error(`${source}.summary must be a string`);
+  }
+  if (
+    operation.description !== undefined &&
+    typeof operation.description !== 'string'
+  ) {
+    throw new Error(`${source}.description must be a string`);
+  }
+  return {
+    operationId: operation.operationId,
+    summary: operation.summary === undefined ? '' : operation.summary,
+    description:
+      operation.description === undefined ? '' : operation.description,
+    tags: operation.tags === undefined ? [] : operation.tags,
+  };
+}
 
 function parseParameter(
   raw: unknown,
@@ -67,10 +106,7 @@ function parseOperation(
   raw: unknown,
 ): Operation {
   const operation = object(raw, `spec.paths[${path}].${method.toLowerCase()}`);
-  const operationId =
-    typeof operation.operationId === 'string'
-      ? operation.operationId
-      : undefined;
+  const metadata = operationMetadata(operation, `operationRef ${operationRef}`);
   const pathShape = path.replace(/\{[A-Za-z][A-Za-z0-9_]*\}/g, 'x');
   if (
     path.length > 500 ||
@@ -212,10 +248,9 @@ function parseOperation(
   }
   return {
     operationRef,
-    operationId,
+    ...metadata,
     method,
     path,
-    summary: typeof operation.summary === 'string' ? operation.summary : '',
     effect: effect ?? 'unknown',
     status,
     parameters,
@@ -234,13 +269,9 @@ export function operationsFromDocument({
       const operation = object(value, `spec.paths[${path}].${key}`);
       operations.push({
         operationRef: operationReference(path, key),
-        operationId:
-          typeof operation.operationId === 'string'
-            ? operation.operationId
-            : undefined,
+        ...operationMetadata(operation, `spec.paths[${path}].${key}`),
         method,
         path,
-        summary: typeof operation.summary === 'string' ? operation.summary : '',
       });
     }
   }

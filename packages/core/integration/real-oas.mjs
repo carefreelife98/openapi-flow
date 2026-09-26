@@ -52,6 +52,8 @@ for (const [index, file] of files.entries()) {
           method: key.toUpperCase(),
           path,
           summary: operation.summary ?? '',
+          description: operation.description ?? '',
+          tags: operation.tags ?? [],
         })),
       ...Object.entries(pathItem.additionalOperations ?? {}).map(
         ([method, operation]) => ({
@@ -60,6 +62,8 @@ for (const [index, file] of files.entries()) {
           method,
           path,
           summary: operation.summary ?? '',
+          description: operation.description ?? '',
+          tags: operation.tags ?? [],
         }),
       ),
     ]);

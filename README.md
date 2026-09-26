@@ -38,7 +38,7 @@ if (result.status === 'complete') {
 }
 ```
 
-The model first chooses an OAS `operationRef` (a JSON Pointer to a path operation), then proposes literal input bindings and body assertions in a second structured response. `operationId` is optional metadata, not required input. Every proposed field and value is validated against the selected OAS operation. It cannot choose a URL or author n8n node code. Credential binding is not supported: known secret-like field names are rejected, but the host must still keep secrets out of scenarios and literal inputs. `baseUrl` is a required trusted deployment origin supplied by the host application; the library does not use OAS `servers`. To skip the model or supply missing inputs explicitly, call `await compileWorkflow({ spec, baseUrl, profile, plan })` with a version-`1` plan:
+The model first chooses an OAS `operationRef` (a JSON Pointer to a path operation) using the operation's method, path, summary, description, and tags, then proposes literal input bindings and body assertions in a second structured response. `operationId` is optional metadata, not required input. Every proposed field and value is validated against the selected OAS operation. It cannot choose a URL or author n8n node code. Credential binding is not supported: known secret-like field names are rejected, but the host must still keep secrets out of scenarios and literal inputs. `baseUrl` is a required trusted deployment origin supplied by the host application; the library does not use OAS `servers`. To skip the model or supply missing inputs explicitly, call `await compileWorkflow({ spec, baseUrl, profile, plan })` with a version-`1` plan:
 
 ```ts
 const plan = {

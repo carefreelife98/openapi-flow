@@ -52,12 +52,22 @@ export async function generateWorkflow(
         JSON.stringify({
           scenario: input.scenario,
           operations: operations.map(
-            ({ operationRef, operationId, method, path, summary }) => ({
+            ({
               operationRef,
               operationId,
               method,
               path,
               summary,
+              description,
+              tags,
+            }) => ({
+              operationRef,
+              operationId,
+              method,
+              path,
+              summary,
+              description,
+              tags,
             }),
           ),
         }),
