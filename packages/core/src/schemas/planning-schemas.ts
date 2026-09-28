@@ -11,9 +11,6 @@ export function createOperationPlanSchema(
   inputNames: string[],
   responseNames: string[],
 ) {
-  const primitiveSchema = {
-    anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
-  };
   return {
     type: 'object',
     properties: {
@@ -25,9 +22,9 @@ export function createOperationPlanSchema(
             key: inputNames.length
               ? { type: 'string', enum: inputNames }
               : { type: 'string' },
-            value: primitiveSchema,
+            valueJson: { type: 'string' },
           },
-          required: ['key', 'value'],
+          required: ['key', 'valueJson'],
           additionalProperties: false,
         },
       },
@@ -39,9 +36,9 @@ export function createOperationPlanSchema(
             key: responseNames.length
               ? { type: 'string', enum: responseNames }
               : { type: 'string' },
-            value: primitiveSchema,
+            valueJson: { type: 'string' },
           },
-          required: ['key', 'value'],
+          required: ['key', 'valueJson'],
           additionalProperties: false,
         },
       },

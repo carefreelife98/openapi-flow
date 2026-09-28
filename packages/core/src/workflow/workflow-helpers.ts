@@ -4,6 +4,7 @@ import type {
   InputValues,
   RequiredFields,
 } from '../types/workflow.js';
+import { checkSchemaValue } from '../openapi/check-schema-value.js';
 import {
   checkPrimitive,
   isObject,
@@ -12,6 +13,10 @@ import {
 
 export function isSafeMethod(method: string): boolean {
   return ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'QUERY'].includes(method);
+}
+
+export function absoluteOperationPath(baseUrl: URL, path: string): string {
+  return baseUrl.origin + baseUrl.pathname.replace(/\/$/, '') + path;
 }
 
 export function makeUrl(
@@ -35,7 +40,7 @@ export function makeUrl(
         encodeURIComponent(String(value)),
       );
   }
-  const url = new URL(path, origin);
+  const url = new URL(absoluteOperationPath(origin, path));
   for (const parameter of operation.parameters) {
     if (parameter.in !== 'query') continue;
     const key = 'query.' + parameter.name;
@@ -56,25 +61,27 @@ export function makeBody(
     if (operation.body.required) missing.push('body');
     return undefined;
   }
-  if (!isObject(value)) throw new Error('plan.inputs.body must be an object');
-  for (const [name, field] of Object.entries(value)) {
-    const schema = operation.body.properties[name];
-    if (!schema)
-      throw new Error(
-        'plan.inputs.body.' + name + ' is not declared in the OAS schema',
-      );
-    if (looksLikeCredential(name)) {
-      throw new Error(
-        'plan.inputs.body.' +
-          name +
-          ' looks like a credential; v1 has no credential binding',
-      );
+  if (isObject(value)) {
+    for (const name of Object.keys(value)) {
+      if (looksLikeCredential(name)) {
+        throw new Error(
+          'plan.inputs.body.' +
+            name +
+            ' looks like a credential; v1 has no credential binding',
+        );
+      }
     }
-    checkPrimitive(field, schema, 'plan.inputs.body.' + name);
+    if (Array.isArray(operation.body.schema?.required)) {
+      for (const name of operation.body.schema.required) {
+        if (typeof name === 'string' && !Object.hasOwn(value, name)) {
+          missing.push('body.' + name);
+        }
+      }
+    }
   }
-  for (const name of operation.body.requiredProperties) {
-    if (!Object.hasOwn(value, name)) missing.push('body.' + name);
-  }
+  if (missing.some((key) => key.startsWith('body.'))) return undefined;
+  if (operation.body.schema !== undefined)
+    checkSchemaValue(value, operation.body.schema, 'plan.inputs.body');
   return JSON.stringify(value);
 }
 
@@ -96,13 +103,21 @@ export function assertionCode(
       ', got " + response.statusCode);',
     'const expected = ' + expected + ';',
     'const required = ' + required + ';',
+    'function equal(actual, expectedValue) {',
+    '  if (Object.is(actual, expectedValue)) return true;',
+    '  if (actual === null || expectedValue === null || typeof actual !== "object" || typeof expectedValue !== "object") return false;',
+    '  if (Array.isArray(actual) !== Array.isArray(expectedValue)) return false;',
+    '  const keys = Object.keys(expectedValue);',
+    '  if (Object.keys(actual).length !== keys.length) return false;',
+    '  return keys.every((key) => Object.prototype.hasOwnProperty.call(actual, key) && equal(actual[key], expectedValue[key]));',
+    '}',
     'for (const [key, type] of Object.entries(required)) {',
     '  const value = response.body?.[key];',
     '  const valid = type === "integer" ? Number.isSafeInteger(value) : type === "number" ? typeof value === "number" && Number.isFinite(value) : typeof value === type;',
     '  if (!valid) throw new Error("Missing or invalid response body field: " + key);',
     '}',
     'for (const [key, value] of Object.entries(expected)) {',
-    '  if (response.body?.[key] !== value) throw new Error("Unexpected response body field: " + key);',
+    '  if (!equal(response.body?.[key], value)) throw new Error("Unexpected response body field: " + key);',
     '}',
     'return items;',
   ].join('\n');

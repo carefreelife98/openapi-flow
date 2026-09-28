@@ -1,5 +1,7 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
 import { operationFromDocument } from '../openapi/parse-spec.js';
+import { scalarSchema } from '../openapi/parse-spec-utils.js';
+import { checkSchemaValue } from '../openapi/check-schema-value.js';
 import { validatedDocument } from '../openapi/validate-spec.js';
 import type {
   ExpectedBody,
@@ -11,8 +13,7 @@ import type {
   SequenceResult,
 } from '../types/workflow.js';
 import {
-  checkPlanSize,
-  checkPrimitive,
+  assertSerializablePlan,
   isObject,
   looksLikeCredential,
   originFrom,
@@ -35,14 +36,12 @@ export async function compileSequence({
     plan.version !== '1' ||
     typeof plan.goal !== 'string' ||
     !plan.goal.trim() ||
-    plan.goal.length > 2_000 ||
     !Array.isArray(plan.steps) ||
-    plan.steps.length < 1 ||
-    plan.steps.length > 5
+    plan.steps.length < 1
   ) {
-    throw new Error('plan must contain version 1, goal, and 1–5 steps');
+    throw new Error('plan must contain version 1, goal, and non-empty steps');
   }
-  checkPlanSize(plan);
+  assertSerializablePlan(plan);
   const document = await validatedDocument(spec);
   const previous: PreviousOperations = new Map();
   const requiredOutputs: RequiredOutputs = new Map();
@@ -54,13 +53,17 @@ export async function compileSequence({
     if (
       !isObject(step) ||
       typeof step.id !== 'string' ||
-      !/^[A-Za-z][A-Za-z0-9_-]*$/.test(step.id) ||
+      !step.id.trim() ||
       previous.has(step.id) ||
       typeof step.operationRef !== 'string'
     ) {
       throw new Error('plan.steps must have unique id and operationRef values');
     }
-    const operation = operationFromDocument(document, step.operationRef);
+    const operation = operationFromDocument(
+      document,
+      step.operationRef,
+      step.expectedStatus,
+    );
     const inputs = step.inputs === undefined ? {} : step.inputs;
     const expectedBody =
       step.expectedBody === undefined ? {} : step.expectedBody;
@@ -88,7 +91,7 @@ export async function compileSequence({
             ' is not in the OAS response schema',
         );
       }
-      checkPrimitive(
+      checkSchemaValue(
         value,
         operation.responseProperties[key],
         'plan.steps[' + step.id + '].expectedBody.' + key,
@@ -168,7 +171,15 @@ export async function compileSequence({
   nodes.forEach(({ operation, id, url, body, expectedBody }, index) => {
     const requiredFields: RequiredFields = {};
     for (const field of requiredOutputs.get(id) ?? []) {
-      requiredFields[field] = operation.responseProperties[field].type;
+      requiredFields[field] = scalarSchema(
+        operation.responseProperties[field],
+        'operationRef ' +
+          operation.operationRef +
+          '.responses.' +
+          operation.status +
+          '.schema.properties.' +
+          field,
+      ).type;
     }
     const request = node({
       type: 'n8n-nodes-base.httpRequest',
@@ -185,7 +196,7 @@ export async function compileSequence({
             : { sendBody: true, specifyBody: 'json', jsonBody: body }),
           options: {
             response: {
-              response: { fullResponse: true, responseFormat: 'json' },
+              response: { fullResponse: true, responseFormat: 'autodetect' },
             },
           },
         },

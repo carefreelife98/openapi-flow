@@ -65,12 +65,8 @@ export function assertSelectionInput(
   scenario: string,
   model: BaseChatModel,
 ): void {
-  if (
-    typeof scenario !== 'string' ||
-    !scenario.trim() ||
-    scenario.length > 2_000
-  ) {
-    throw new Error('scenario must be non-empty and at most 2000 characters');
+  if (typeof scenario !== 'string' || !scenario.trim()) {
+    throw new Error('scenario must be non-empty');
   }
   if (!model || typeof model.withStructuredOutput !== 'function') {
     throw new Error(

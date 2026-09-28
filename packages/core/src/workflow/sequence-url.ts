@@ -1,4 +1,5 @@
 import type { Operation } from '../types/openapi.js';
+import { scalarSchema } from '../openapi/parse-spec-utils.js';
 import type {
   InputValues,
   PreviousOperations,
@@ -9,7 +10,7 @@ import {
   isObject,
   looksLikeCredential,
 } from '../utils/validation.js';
-import { makeUrl } from './workflow-helpers.js';
+import { absoluteOperationPath, makeUrl } from './workflow-helpers.js';
 
 export function sequenceUrl(
   operation: Operation,
@@ -47,7 +48,15 @@ export function sequenceUrl(
           'plan.inputs.' + key + ' must reference a prior response field',
         );
       }
-      const sourceType = source.responseProperties[value.field].type;
+      const sourceType = scalarSchema(
+        source.responseProperties[value.field],
+        'operationRef ' +
+          source.operationRef +
+          '.responses.' +
+          source.status +
+          '.schema.properties.' +
+          value.field,
+      ).type;
       if (
         sourceType !== parameter.schema.type &&
         !(sourceType === 'integer' && parameter.schema.type === 'number')
@@ -76,10 +85,10 @@ export function sequenceUrl(
   }
   if (missing.length) return '';
   if (references.size === 0) return makeUrl(operation, origin, inputs, []);
-  const absolute = origin.href.slice(0, -1) + path;
+  const absolute = absoluteOperationPath(origin, path);
   const parts: string[] = [];
   let offset = 0;
-  for (const match of absolute.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)) {
+  for (const match of absolute.matchAll(/\{([^}]+)\}/g)) {
     const key = 'path.' + match[1];
     const reference = references.get(key);
     if (!reference) throw new Error('plan.inputs.' + key + ' is required');

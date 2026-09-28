@@ -3,8 +3,8 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { Operation, Scalar } from './openapi.js';
 
 export type Primitive = Scalar;
-export type ExpectedBody = Record<string, Primitive>;
-export type WorkflowInputs = Record<string, Primitive | ExpectedBody>;
+export type ExpectedBody = Record<string, unknown>;
+export type WorkflowInputs = Record<string, unknown>;
 export type InputValues = Record<string, unknown>;
 export type RequiredFields = Record<string, string>;
 export type PreviousOperations = Map<string, Operation>;
@@ -19,6 +19,7 @@ export interface WorkflowPlan {
   version: '1';
   goal: string;
   operationRef: string;
+  expectedStatus?: number;
   inputs?: WorkflowInputs;
   expectedBody?: ExpectedBody;
 }
@@ -51,7 +52,8 @@ export interface ResponseReference {
 export interface SequenceStep {
   id: string;
   operationRef: string;
-  inputs?: Record<string, Primitive | ResponseReference | ExpectedBody>;
+  expectedStatus?: number;
+  inputs?: Record<string, unknown>;
   expectedBody?: ExpectedBody;
 }
 

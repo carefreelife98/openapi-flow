@@ -219,7 +219,7 @@ test('POST JSON body is checked against required schema fields', async () => {
         profile: 'test',
         plan: plan('createItem', { body: { name: 12 } }),
       }),
-    /body.name must be string/,
+    /plan.inputs.body does not match the OAS schema/,
   );
 });
 
@@ -244,7 +244,7 @@ test('OAS primitive types and enum values constrain supplied inputs and assertio
         profile: 'read-only',
         plan: plan('getItem', { 'path.id': 'allowed' }, { ok: 'yes' }),
       }),
-    /plan.expectedBody.ok must be boolean/,
+    /plan.expectedBody.ok does not match the OAS schema/,
   );
   const password = globalThis.structuredClone(spec);
   password.components.schemas.NewItem.properties.password = { type: 'string' };
@@ -268,15 +268,15 @@ test('untrusted or unsupported contract data fails before workflow generation', 
     (await operationsFromSpec({ ...spec, openapi: '3.1.0' })).length,
     2,
   );
-  await assert.rejects(
-    () =>
-      compileWorkflow({
-        spec,
-        baseUrl: 'https://example.test/path',
-        profile: 'test',
-        plan: plan('getItem', { 'path.id': 'x' }),
-      }),
-    /baseUrl/,
+  const prefixed = await compileWorkflow({
+    spec,
+    baseUrl: 'https://example.test/path',
+    profile: 'test',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(
+    prefixed.workflow.nodes[1].parameters.url,
+    'https://example.test/path/items/x',
   );
   const external = globalThis.structuredClone(spec);
   external.paths['/items/{id}'].get.parameters[0].$ref =
@@ -496,20 +496,236 @@ test('external references are rejected even outside the selected operation', asy
   );
 });
 
-test('a recursive selected schema cannot bypass the simple-schema policy', async () => {
+test('unused recursive response fields do not block a selected operation', async () => {
   const recursive = globalThis.structuredClone(spec);
   recursive.components.schemas.Item.properties.next = {
     $ref: '#/components/schemas/Item',
   };
+  const result = await compileWorkflow({
+    spec: recursive,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(result.status, 'complete');
+});
+
+test('array and object response fields can be asserted against OAS schemas', async () => {
+  const complex = globalThis.structuredClone(spec);
+  complex.components.schemas.Item.properties.values = {
+    type: 'array',
+    items: { type: 'integer' },
+  };
+  complex.components.schemas.Item.properties.details = {
+    type: 'object',
+    properties: { label: { type: 'string' } },
+    required: ['label'],
+  };
+  const request = {
+    spec: complex,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan(
+      'getItem',
+      { 'path.id': 'x' },
+      { values: [1, 2], details: { label: 'ok' } },
+    ),
+  };
+  const result = await compileWorkflow(request);
+  assert.equal(result.status, 'complete');
+  const code = result.workflow.nodes[2].parameters.jsCode;
+  const run = (body) =>
+    runInNewContext('(function() { ' + code + ' })()', {
+      $input: { all: () => [{ json: { statusCode: 200, body } }] },
+    });
+  assert.equal(run({ values: [1, 2], details: { label: 'ok' } }).length, 1);
+  assert.throws(
+    () => run({ values: [1, 3], details: { label: 'ok' } }),
+    /Unexpected response body field: values/,
+  );
+  assert.throws(
+    () => run({ values: [1, 2], details: { label: 'wrong' } }),
+    /Unexpected response body field: details/,
+  );
   await assert.rejects(
     () =>
       compileWorkflow({
-        spec: recursive,
+        ...request,
+        plan: plan('getItem', { 'path.id': 'x' }, { values: ['wrong'] }),
+      }),
+    /plan.expectedBody.values does not match the OAS schema/,
+  );
+});
+
+test('multiple, ranged, default, and non-2xx OAS responses use an explicit expected status', async () => {
+  const varied = globalThis.structuredClone(spec);
+  const responses = varied.paths['/items/{id}'].get.responses;
+  responses[202] = { description: 'Accepted' };
+  responses['4XX'] = { description: 'Client error' };
+  responses.default = { description: 'Other outcome' };
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: varied,
         baseUrl: 'https://example.test',
         profile: 'read-only',
         plan: plan('getItem', { 'path.id': 'x' }),
       }),
-    /must be a primitive schema/,
+    /plan.expectedStatus is required/,
+  );
+  for (const status of [200, 202, 404, 503]) {
+    const result = await compileWorkflow({
+      spec: varied,
+      baseUrl: 'https://example.test',
+      profile: 'read-only',
+      plan: { ...plan('getItem', { 'path.id': 'x' }), expectedStatus: status },
+    });
+    assert.equal(result.status, 'complete');
+    assert.equal(result.evidence.status, status);
+  }
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: varied,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        plan: { ...plan('getItem', { 'path.id': 'x' }), expectedStatus: 99 },
+      }),
+    /plan.expectedStatus must be an HTTP status code/,
+  );
+});
+
+test('valid unusual paths remain pinned to the supplied origin', async () => {
+  const unusual = globalThis.structuredClone(spec);
+  unusual.paths['//items/{item-id}'] = {
+    get: {
+      'x-openapi-flow-effect': 'read',
+      parameters: [
+        {
+          name: 'item-id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      responses: { 204: { description: 'No content' } },
+    },
+  };
+  const result = await compileWorkflow({
+    spec: unusual,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('#/paths/~1~1items~1{item-id}/get', { 'path.item-id': 'x' }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(
+    result.workflow.nodes[1].parameters.url,
+    'https://example.test//items/x',
+  );
+  assert.equal(
+    result.workflow.nodes[1].parameters.options.response.response
+      .responseFormat,
+    'autodetect',
+  );
+});
+
+test('request body follows OAS array and nested object schemas', async () => {
+  const nested = globalThis.structuredClone(spec);
+  nested.paths['/items'].post.requestBody.content['application/json'].schema = {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['labels'],
+      properties: {
+        labels: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  };
+  const result = await compileWorkflow({
+    spec: nested,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+    plan: plan('createItem', { body: [{ labels: ['one', 'two'] }] }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(
+    result.workflow.nodes[1].parameters.jsonBody,
+    '[{"labels":["one","two"]}]',
+  );
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: nested,
+        baseUrl: 'https://example.test',
+        profile: 'test',
+        plan: plan('createItem', { body: [{ labels: [1] }] }),
+      }),
+    /plan.inputs.body does not match the OAS schema/,
+  );
+});
+
+test('OAS media entries without a schema allow status checks and JSON bodies', async () => {
+  const unspecified = globalThis.structuredClone(spec);
+  delete unspecified.paths['/items'].post.requestBody.content[
+    'application/json'
+  ].schema;
+  delete unspecified.paths['/items'].post.responses[201].content[
+    'application/json'
+  ].schema;
+  const result = await compileWorkflow({
+    spec: unspecified,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+    plan: plan('createItem', { body: { items: [1, 2] } }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(result.workflow.nodes[1].parameters.jsonBody, '{"items":[1,2]}');
+});
+
+test('plan length, step count, and assertion count have no prototype caps', async () => {
+  const long = await compileWorkflow({
+    spec,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: { ...plan('getItem', { 'path.id': 'x' }), goal: 'x'.repeat(2_100) },
+  });
+  assert.equal(long.status, 'complete');
+  const steps = Array.from({ length: 6 }, (_, index) => ({
+    id: `read-${index}`,
+    operationRef: 'getItem',
+    inputs: { 'path.id': 'x' },
+  }));
+  const sequence = await compileSequence({
+    spec,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: { version: '1', goal: 'Read many', steps },
+  });
+  assert.equal(sequence.status, 'complete');
+  assert.equal(sequence.evidence.length, 6);
+});
+
+test('sequence retains trusted base path and accepts descriptive step IDs', async () => {
+  const result = await compileSequence({
+    spec,
+    baseUrl: 'https://example.test/api/v1/',
+    profile: 'read-only',
+    plan: {
+      version: '1',
+      goal: 'Read item',
+      steps: [
+        {
+          id: 'read item 1',
+          operationRef: 'getItem',
+          inputs: { 'path.id': 'x' },
+        },
+      ],
+    },
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(
+    result.workflow.nodes[1].parameters.url,
+    'https://example.test/api/v1/items/x',
   );
 });
 
@@ -605,8 +821,8 @@ test('LangChain structured output selects an operation and proposes validated bi
       return {
         async invoke() {
           return {
-            inputs: [{ key: 'path.id', value: 'x' }],
-            expectedBody: [{ key: 'ok', value: true }],
+            inputs: [{ key: 'path.id', valueJson: '"x"' }],
+            expectedBody: [{ key: 'ok', valueJson: 'true' }],
           };
         },
       };
@@ -668,8 +884,8 @@ test('LangChain structured output selects an operation and proposes validated bi
           }
           mutable.components.schemas.Item.properties.ok.type = 'string';
           return {
-            inputs: [{ key: 'path.id', value: 'x' }],
-            expectedBody: [{ key: 'ok', value: true }],
+            inputs: [{ key: 'path.id', valueJson: '"x"' }],
+            expectedBody: [{ key: 'ok', valueJson: 'true' }],
           };
         },
       };
@@ -684,4 +900,48 @@ test('LangChain structured output selects an operation and proposes validated bi
   });
   assert.equal(stable.status, 'complete');
   assert.deepEqual(stable.plan.expectedBody, { ok: true });
+});
+
+test('structured planning accepts JSON arrays and nested objects without primitive limits', async () => {
+  const complex = globalThis.structuredClone(spec);
+  complex.paths['/items'].post.requestBody.content['application/json'].schema =
+    {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      },
+    };
+  complex.components.schemas.Item.properties.values = {
+    type: 'array',
+    items: { type: 'integer' },
+  };
+  const model = {
+    withStructuredOutput(schema, options) {
+      return {
+        async invoke() {
+          if (options.name === 'select_operation') {
+            return { operationRef: '#/paths/~1items/post' };
+          }
+          assert.ok(
+            schema.properties.inputs.items.properties.key.enum.includes('body'),
+          );
+          return {
+            inputs: [{ key: 'body', valueJson: '[{"name":"demo"}]' }],
+            expectedBody: [{ key: 'values', valueJson: '[1,2]' }],
+          };
+        },
+      };
+    },
+  };
+  const result = await generateWorkflow({
+    spec: complex,
+    scenario: 'Create item with nested data',
+    model,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+  });
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.plan.inputs.body, [{ name: 'demo' }]);
+  assert.deepEqual(result.plan.expectedBody.values, [1, 2]);
 });

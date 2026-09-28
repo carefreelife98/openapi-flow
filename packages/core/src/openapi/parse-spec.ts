@@ -7,13 +7,12 @@ import type {
   OperationMetadata,
   OperationParameter,
   ParsedDocument,
-  ScalarProperties,
+  ResponseProperties,
 } from '../types/openapi.js';
 import {
   dereferencedObject,
   object,
   scalarSchema,
-  schemaProperties,
 } from './parse-spec-utils.js';
 import { operationEntries, operationReference } from './operation-reference.js';
 import { validatedDocument } from './validate-spec.js';
@@ -67,7 +66,7 @@ function parseParameter(
   );
   if (
     typeof parameter.name !== 'string' ||
-    !/^[A-Za-z][A-Za-z0-9_-]*$/.test(parameter.name) ||
+    !parameter.name ||
     (parameter.in !== 'path' && parameter.in !== 'query') ||
     (parameter.in === 'path' && parameter.required !== true)
   ) {
@@ -104,19 +103,12 @@ function parseOperation(
   operationRef: string,
   pathItem: JsonObject,
   raw: unknown,
+  expectedStatus?: number,
 ): Operation {
   const operation = object(raw, `spec.paths[${path}].${method.toLowerCase()}`);
   const metadata = operationMetadata(operation, `operationRef ${operationRef}`);
-  const pathShape = path.replace(/\{[A-Za-z][A-Za-z0-9_]*\}/g, 'x');
-  if (
-    path.length > 500 ||
-    !/^\/[A-Za-z0-9/._~-]*$/.test(pathShape) ||
-    path.includes('//') ||
-    pathShape.split('/').some((part) => part === '.' || part === '..')
-  ) {
-    throw new Error(
-      `operationRef ${operationRef} has an unsupported path template`,
-    );
+  if (!path.startsWith('/')) {
+    throw new Error(`operationRef ${operationRef} path must start with /`);
   }
   const security =
     operation.security === undefined ? spec.security : operation.security;
@@ -184,20 +176,23 @@ function parseOperation(
       content['application/json'],
       `operationRef ${operationRef}.requestBody.application/json`,
     );
-    const bodySchema = schemaProperties(
-      media.schema,
-      `operationRef ${operationRef}.requestBody.schema`,
-    );
-    const properties: ScalarProperties = {};
-    for (const [name, property] of Object.entries(bodySchema.properties)) {
-      properties[name] = scalarSchema(
-        property,
-        `operationRef ${operationRef}.requestBody.schema.properties.${name}`,
-      );
-    }
+    const bodySchema =
+      media.schema === undefined
+        ? undefined
+        : dereferencedObject(
+            media.schema,
+            `operationRef ${operationRef}.requestBody.schema`,
+          );
+    const properties =
+      bodySchema?.properties === undefined
+        ? {}
+        : object(
+            bodySchema.properties,
+            `operationRef ${operationRef}.requestBody.schema.properties`,
+          );
     body = {
       required: requestBody.required === true,
-      requiredProperties: bodySchema.required,
+      schema: bodySchema,
       properties,
     };
   }
@@ -206,37 +201,75 @@ function parseOperation(
     operation.responses,
     `operationRef ${operationRef}.responses`,
   );
-  const successes = Object.keys(responses).filter((code) =>
-    /^2\d\d$/.test(code),
-  );
-  if (successes.length !== 1)
+  const responseCodes = Object.keys(responses);
+  if (
+    expectedStatus !== undefined &&
+    (!Number.isInteger(expectedStatus) ||
+      expectedStatus < 100 ||
+      expectedStatus > 599)
+  ) {
+    throw new Error(`plan.expectedStatus must be an HTTP status code`);
+  }
+  let status = expectedStatus;
+  if (status === undefined) {
+    if (responseCodes.length !== 1 || !/^[1-5]\d\d$/.test(responseCodes[0])) {
+      throw new Error(
+        `plan.expectedStatus is required for operationRef ${operationRef} with multiple or ranged OAS responses`,
+      );
+    }
+    status = Number(responseCodes[0]);
+  }
+  const exactCode = String(status);
+  const rangeCode = String(Math.floor(status / 100)) + 'XX';
+  const responseCode = Object.hasOwn(responses, exactCode)
+    ? exactCode
+    : Object.hasOwn(responses, rangeCode)
+      ? rangeCode
+      : Object.hasOwn(responses, 'default')
+        ? 'default'
+        : undefined;
+  if (responseCode === undefined) {
     throw new Error(
-      `operationRef ${operationRef} must declare exactly one 2xx response`,
+      `plan.expectedStatus ${status} is not declared in operationRef ${operationRef}.responses`,
     );
-  const status = Number(successes[0]);
+  }
   const response = dereferencedObject(
-    responses[successes[0]],
-    `operationRef ${operationRef}.responses.${status}`,
+    responses[responseCode],
+    `operationRef ${operationRef}.responses.${responseCode}`,
   );
-  const responseProperties: ScalarProperties = {};
+  const responseProperties: ResponseProperties = {};
   if (response.content !== undefined) {
     const content = object(
       response.content,
-      `operationRef ${operationRef}.responses.${status}.content`,
+      `operationRef ${operationRef}.responses.${responseCode}.content`,
     );
-    const media = object(
-      content['application/json'],
-      `operationRef ${operationRef}.responses.${status}.application/json`,
-    );
-    const responseSchema = schemaProperties(
-      media.schema,
-      `operationRef ${operationRef}.responses.${status}.schema`,
-    );
-    for (const [name, property] of Object.entries(responseSchema.properties)) {
-      responseProperties[name] = scalarSchema(
-        property,
-        `operationRef ${operationRef}.responses.${status}.schema.properties.${name}`,
+    if (content['application/json'] !== undefined) {
+      const media = object(
+        content['application/json'],
+        `operationRef ${operationRef}.responses.${responseCode}.application/json`,
       );
+      const responseSchema =
+        media.schema === undefined
+          ? undefined
+          : dereferencedObject(
+              media.schema,
+              `operationRef ${operationRef}.responses.${responseCode}.schema`,
+            );
+      if (
+        responseSchema?.type === 'object' &&
+        responseSchema.properties !== undefined
+      ) {
+        const properties = object(
+          responseSchema.properties,
+          `operationRef ${operationRef}.responses.${responseCode}.schema.properties`,
+        );
+        for (const [name, property] of Object.entries(properties)) {
+          responseProperties[name] = dereferencedObject(
+            property,
+            `operationRef ${operationRef}.responses.${responseCode}.schema.properties.${name}`,
+          );
+        }
+      }
     }
   }
 
@@ -292,13 +325,19 @@ export async function operationsFromSpec(
 export async function operationFromSpec(
   input: unknown,
   operationRef: string,
+  expectedStatus?: number,
 ): Promise<Operation> {
-  return operationFromDocument(await validatedDocument(input), operationRef);
+  return operationFromDocument(
+    await validatedDocument(input),
+    operationRef,
+    expectedStatus,
+  );
 }
 
 export function operationFromDocument(
   parsed: ParsedDocument,
   operationRef: string,
+  expectedStatus?: number,
 ): Operation {
   const candidates = operationsFromDocument(parsed);
   const matches = candidates.filter(
@@ -331,5 +370,6 @@ export function operationFromDocument(
     candidate.operationRef,
     pathItem,
     operationEntry.value,
+    expectedStatus,
   );
 }

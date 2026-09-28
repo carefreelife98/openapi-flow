@@ -1,5 +1,6 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
 import { operationFromSpec } from '../openapi/parse-spec.js';
+import { checkSchemaValue } from '../openapi/check-schema-value.js';
 import type { Operation } from '../types/openapi.js';
 import type {
   CompileOperationRequest,
@@ -7,11 +8,10 @@ import type {
   CompileResult,
 } from '../types/workflow.js';
 import {
-  checkPlanSize,
+  assertSerializablePlan,
   isObject,
   looksLikeCredential,
   originFrom,
-  checkPrimitive,
 } from '../utils/validation.js';
 import { workflowId } from '../utils/workflow-id.js';
 import {
@@ -33,6 +33,7 @@ export async function compileWorkflow(
   const operation = await operationFromSpec(
     request.spec,
     request.plan.operationRef,
+    request.plan.expectedStatus,
   );
   return compileWorkflowFromOperation(request, operation);
 }
@@ -49,12 +50,11 @@ export function compileWorkflowFromOperation(
     plan.version !== '1' ||
     typeof plan.goal !== 'string' ||
     !plan.goal.trim() ||
-    plan.goal.length > 2_000 ||
     typeof plan.operationRef !== 'string'
   ) {
     throw new Error('plan must contain version 1, goal, and operationRef');
   }
-  checkPlanSize(plan);
+  assertSerializablePlan(plan);
   const evidence = {
     operationRef: operation.operationRef,
     operationId: operation.operationId,
@@ -77,7 +77,7 @@ export function compileWorkflowFromOperation(
         'plan.expectedBody.' + key + ' is not in the OAS response schema',
       );
     }
-    checkPrimitive(
+    checkSchemaValue(
       value,
       operation.responseProperties[key],
       'plan.expectedBody.' + key,
@@ -135,7 +135,7 @@ export function compileWorkflowFromOperation(
           : { sendBody: true, specifyBody: 'json', jsonBody: body }),
         options: {
           response: {
-            response: { fullResponse: true, responseFormat: 'json' },
+            response: { fullResponse: true, responseFormat: 'autodetect' },
           },
         },
       },

@@ -13,7 +13,7 @@ export interface ScalarSchema {
   enum?: Scalar[];
 }
 
-export type ScalarProperties = Record<string, ScalarSchema>;
+export type ResponseProperties = Record<string, JsonObject>;
 
 export interface OperationParameter {
   name: string;
@@ -24,8 +24,8 @@ export interface OperationParameter {
 
 export interface OperationBody {
   required: boolean;
-  requiredProperties: string[];
-  properties: ScalarProperties;
+  schema?: JsonObject;
+  properties: JsonObject;
 }
 
 export interface OperationMetadata {
@@ -43,7 +43,7 @@ export interface Operation extends OperationMetadata {
   status: number;
   parameters: OperationParameter[];
   body?: OperationBody;
-  responseProperties: ScalarProperties;
+  responseProperties: ResponseProperties;
 }
 
 export type OperationCandidate = Pick<
@@ -56,11 +56,6 @@ export type OperationCandidate = Pick<
   | 'description'
   | 'tags'
 >;
-
-export interface ObjectSchemaProperties {
-  properties: JsonObject;
-  required: string[];
-}
 
 export interface ParsedDocument {
   spec: JsonObject;
