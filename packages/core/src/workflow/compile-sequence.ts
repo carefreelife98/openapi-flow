@@ -208,7 +208,11 @@ export async function compileSequence({
               : { sendBody: true, specifyBody: 'json', jsonBody: body }),
             options: {
               response: {
-                response: { fullResponse: true, responseFormat: 'autodetect' },
+                response: {
+                  fullResponse: true,
+                  neverError: true,
+                  responseFormat: 'autodetect',
+                },
               },
             },
           },

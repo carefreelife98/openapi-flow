@@ -16,6 +16,7 @@ import {
   assertSelectionInput,
   selectOperationFromCandidates,
 } from './select-operation.js';
+import { planExpectedStatus } from './plan-expected-status.js';
 
 export async function generateWorkflow(
   input: GenerateRequest,
@@ -28,7 +29,25 @@ export async function generateWorkflow(
     input.scenario,
     input.model,
   );
-  const operation = operationFromDocument(document, operationRef);
+  const selected = operations.find(
+    (candidate) => candidate.operationRef === operationRef,
+  );
+  if (!selected) {
+    throw new Error(
+      'model operationRef is outside spec.paths: ' + operationRef,
+    );
+  }
+  const expectedStatus = await planExpectedStatus(
+    document,
+    selected,
+    input.scenario,
+    input.model,
+  );
+  const operation = operationFromDocument(
+    document,
+    operationRef,
+    expectedStatus,
+  );
   const inputNames = operation.parameters.map(
     (parameter) => parameter.in + '.' + parameter.name,
   );
@@ -65,6 +84,7 @@ export async function generateWorkflow(
             summary: operation.summary,
             description: operation.description,
             tags: operation.tags,
+            expectedStatus,
             parameters: operation.parameters,
             bodyFields: operation.body
               ? Object.keys(operation.body.properties)
@@ -146,6 +166,7 @@ export async function generateWorkflow(
         version: '1',
         goal: input.scenario,
         operationRef,
+        expectedStatus,
         inputs,
         expectedBody,
       },

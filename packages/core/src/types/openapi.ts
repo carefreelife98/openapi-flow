@@ -8,6 +8,17 @@ export interface OperationEntry {
   value: unknown;
 }
 
+export interface OperationSource {
+  candidate: OperationCandidate;
+  pathItem: JsonObject;
+  entry: OperationEntry;
+}
+
+export interface ResponseCandidate {
+  code: string;
+  description: string;
+}
+
 export interface ScalarSchema {
   type: string;
   enum?: Scalar[];

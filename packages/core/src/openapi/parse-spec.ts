@@ -6,7 +6,9 @@ import type {
   OperationMethod,
   OperationMetadata,
   OperationParameter,
+  OperationSource,
   ParsedDocument,
+  ResponseCandidate,
   ResponseProperties,
 } from '../types/openapi.js';
 import {
@@ -320,11 +322,10 @@ export async function operationFromSpec(
   );
 }
 
-export function operationFromDocument(
+function selectedOperationSource(
   parsed: ParsedDocument,
   operationRef: string,
-  expectedStatus?: number,
-): Operation {
+): OperationSource {
   const candidates = operationsFromDocument(parsed);
   const matches = candidates.filter(
     (item) =>
@@ -349,13 +350,52 @@ export function operationFromDocument(
     throw new Error(
       'spec.paths is missing operation: ' + candidate.operationRef,
     );
+  return { candidate, pathItem, entry: operationEntry };
+}
+
+export function responseCandidatesFromDocument(
+  parsed: ParsedDocument,
+  operationRef: string,
+): ResponseCandidate[] {
+  const { candidate, entry } = selectedOperationSource(parsed, operationRef);
+  const operation = object(
+    entry.value,
+    `spec.paths[${candidate.path}].${entry.key}`,
+  );
+  const responses = object(
+    operation.responses,
+    `operationRef ${candidate.operationRef}.responses`,
+  );
+  return Object.entries(responses).map(([code, value]) => {
+    const response = dereferencedObject(
+      value,
+      `operationRef ${candidate.operationRef}.responses.${code}`,
+    );
+    if (typeof response.description !== 'string') {
+      throw new Error(
+        `operationRef ${candidate.operationRef}.responses.${code}.description must be a string`,
+      );
+    }
+    return { code, description: response.description };
+  });
+}
+
+export function operationFromDocument(
+  parsed: ParsedDocument,
+  operationRef: string,
+  expectedStatus?: number,
+): Operation {
+  const { candidate, pathItem, entry } = selectedOperationSource(
+    parsed,
+    operationRef,
+  );
   return parseOperation(
     parsed.spec,
     candidate.path,
     candidate.method,
     candidate.operationRef,
     pathItem,
-    operationEntry.value,
+    entry.value,
     expectedStatus,
   );
 }
