@@ -104,6 +104,7 @@ export interface PreparedSequenceNode {
   url: string;
   body?: string;
   expectedBody: ExpectedBody;
+  expectedStatus?: number;
   authentication?: ResolvedAuthentication;
 }
 

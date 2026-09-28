@@ -8,7 +8,7 @@ import type {
   OperationParameter,
   OperationSource,
   ParsedDocument,
-  ResponseCandidate,
+  OperationResponses,
   ResponseProperties,
 } from '../types/openapi.js';
 import {
@@ -195,7 +195,6 @@ function parseOperation(
     operation.responses,
     `operationRef ${operationRef}.responses`,
   );
-  const responseCodes = Object.keys(responses);
   if (
     expectedStatus !== undefined &&
     (!Number.isInteger(expectedStatus) ||
@@ -204,66 +203,63 @@ function parseOperation(
   ) {
     throw new Error(`plan.expectedStatus must be an HTTP status code`);
   }
-  let status = expectedStatus;
-  if (status === undefined) {
-    if (responseCodes.length !== 1 || !/^[1-5]\d\d$/.test(responseCodes[0])) {
-      throw new Error(
-        `plan.expectedStatus is required for operationRef ${operationRef} with multiple or ranged OAS responses`,
-      );
-    }
-    status = Number(responseCodes[0]);
-  }
-  const exactCode = String(status);
-  const rangeCode = String(Math.floor(status / 100)) + 'XX';
-  const responseCode = Object.hasOwn(responses, exactCode)
-    ? exactCode
-    : Object.hasOwn(responses, rangeCode)
-      ? rangeCode
-      : Object.hasOwn(responses, 'default')
-        ? 'default'
-        : undefined;
-  if (responseCode === undefined) {
-    throw new Error(
-      `plan.expectedStatus ${status} is not declared in operationRef ${operationRef}.responses`,
+  const parsedResponses: OperationResponses = {};
+  for (const [responseCode, rawResponse] of Object.entries(responses)) {
+    const response = dereferencedObject(
+      rawResponse,
+      `operationRef ${operationRef}.responses.${responseCode}`,
     );
-  }
-  const response = dereferencedObject(
-    responses[responseCode],
-    `operationRef ${operationRef}.responses.${responseCode}`,
-  );
-  const responseProperties: ResponseProperties = {};
-  if (response.content !== undefined) {
-    const content = object(
-      response.content,
-      `operationRef ${operationRef}.responses.${responseCode}.content`,
-    );
-    if (content['application/json'] !== undefined) {
-      const media = object(
-        content['application/json'],
-        `operationRef ${operationRef}.responses.${responseCode}.application/json`,
+    const responseProperties: ResponseProperties = {};
+    if (response.content !== undefined) {
+      const content = object(
+        response.content,
+        `operationRef ${operationRef}.responses.${responseCode}.content`,
       );
-      const responseSchema =
-        media.schema === undefined
-          ? undefined
-          : dereferencedObject(
-              media.schema,
-              `operationRef ${operationRef}.responses.${responseCode}.schema`,
-            );
-      if (
-        responseSchema?.type === 'object' &&
-        responseSchema.properties !== undefined
-      ) {
-        const properties = object(
-          responseSchema.properties,
-          `operationRef ${operationRef}.responses.${responseCode}.schema.properties`,
+      if (content['application/json'] !== undefined) {
+        const media = object(
+          content['application/json'],
+          `operationRef ${operationRef}.responses.${responseCode}.application/json`,
         );
-        for (const [name, property] of Object.entries(properties)) {
-          responseProperties[name] = dereferencedObject(
-            property,
-            `operationRef ${operationRef}.responses.${responseCode}.schema.properties.${name}`,
+        const responseSchema =
+          media.schema === undefined || typeof media.schema === 'boolean'
+            ? undefined
+            : dereferencedObject(
+                media.schema,
+                `operationRef ${operationRef}.responses.${responseCode}.schema`,
+              );
+        if (
+          responseSchema?.type === 'object' &&
+          responseSchema.properties !== undefined
+        ) {
+          const properties = object(
+            responseSchema.properties,
+            `operationRef ${operationRef}.responses.${responseCode}.schema.properties`,
           );
+          for (const [name, property] of Object.entries(properties)) {
+            responseProperties[name] =
+              typeof property === 'boolean'
+                ? property
+                : dereferencedObject(
+                    property,
+                    `operationRef ${operationRef}.responses.${responseCode}.schema.properties.${name}`,
+                  );
+          }
         }
       }
+    }
+    parsedResponses[responseCode] = responseProperties;
+  }
+  if (expectedStatus !== undefined) {
+    const exactCode = String(expectedStatus);
+    const rangeCode = String(Math.floor(expectedStatus / 100)) + 'XX';
+    if (
+      !Object.hasOwn(parsedResponses, exactCode) &&
+      !Object.hasOwn(parsedResponses, rangeCode) &&
+      !Object.hasOwn(parsedResponses, 'default')
+    ) {
+      throw new Error(
+        `plan.expectedStatus ${expectedStatus} is not declared in operationRef ${operationRef}.responses`,
+      );
     }
   }
 
@@ -272,11 +268,11 @@ function parseOperation(
     ...metadata,
     method,
     path,
-    status,
+    status: expectedStatus,
     authentication,
     parameters,
     body,
-    responseProperties,
+    responses: parsedResponses,
   };
 }
 
@@ -351,33 +347,6 @@ function selectedOperationSource(
       'spec.paths is missing operation: ' + candidate.operationRef,
     );
   return { candidate, pathItem, entry: operationEntry };
-}
-
-export function responseCandidatesFromDocument(
-  parsed: ParsedDocument,
-  operationRef: string,
-): ResponseCandidate[] {
-  const { candidate, entry } = selectedOperationSource(parsed, operationRef);
-  const operation = object(
-    entry.value,
-    `spec.paths[${candidate.path}].${entry.key}`,
-  );
-  const responses = object(
-    operation.responses,
-    `operationRef ${candidate.operationRef}.responses`,
-  );
-  return Object.entries(responses).map(([code, value]) => {
-    const response = dereferencedObject(
-      value,
-      `operationRef ${candidate.operationRef}.responses.${code}`,
-    );
-    if (typeof response.description !== 'string') {
-      throw new Error(
-        `operationRef ${candidate.operationRef}.responses.${code}.description must be a string`,
-      );
-    }
-    return { code, description: response.description };
-  });
 }
 
 export function operationFromDocument(

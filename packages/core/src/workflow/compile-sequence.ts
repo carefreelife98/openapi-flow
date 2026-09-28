@@ -1,7 +1,9 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
 import { operationFromDocument } from '../openapi/parse-spec.js';
-import { scalarSchema } from '../openapi/parse-spec-utils.js';
-import { checkSchemaValue } from '../openapi/check-schema-value.js';
+import {
+  responseFieldType,
+  validateResponseField,
+} from '../openapi/response-contract.js';
 import { validatedDocument } from '../openapi/validate-spec.js';
 import type {
   ExpectedBody,
@@ -91,19 +93,12 @@ export async function compileSequence({
             ' looks like a credential',
         );
       }
-      if (!Object.hasOwn(operation.responseProperties, key)) {
-        throw new Error(
-          'plan.steps[' +
-            step.id +
-            '].expectedBody.' +
-            key +
-            ' is not in the OAS response schema',
-        );
-      }
-      checkSchemaValue(
+      validateResponseField(
+        operation,
+        key,
         value,
-        operation.responseProperties[key],
         'plan.steps[' + step.id + '].expectedBody.' + key,
+        step.expectedStatus,
       );
     }
     const allowed = new Set(
@@ -155,7 +150,7 @@ export async function compileSequence({
       operationId: operation.operationId,
       method: operation.method,
       path: operation.path,
-      status: operation.status,
+      ...(operation.status === undefined ? {} : { status: operation.status }),
       effect,
     });
     nodes.push({
@@ -164,6 +159,7 @@ export async function compileSequence({
       url,
       body,
       expectedBody: expectedBody as ExpectedBody,
+      expectedStatus: step.expectedStatus,
       authentication,
     });
     previous.set(step.id, operation);
@@ -179,19 +175,26 @@ export async function compileSequence({
     }),
   );
   nodes.forEach(
-    ({ operation, id, url, body, expectedBody, authentication }, index) => {
+    (
+      {
+        operation,
+        id,
+        url,
+        body,
+        expectedBody,
+        expectedStatus,
+        authentication,
+      },
+      index,
+    ) => {
       const requiredFields: RequiredFields = {};
       for (const field of requiredOutputs.get(id) ?? []) {
-        requiredFields[field] = scalarSchema(
-          operation.responseProperties[field],
-          'operationRef ' +
-            operation.operationRef +
-            '.responses.' +
-            operation.status +
-            '.schema.properties.' +
-            field,
-        ).type;
+        requiredFields[field] = responseFieldType(operation, field);
       }
+      const shouldAssert =
+        expectedStatus !== undefined ||
+        Object.keys(expectedBody).length > 0 ||
+        Object.keys(requiredFields).length > 0;
       const request = node({
         type: 'n8n-nodes-base.httpRequest',
         version: 4.3,
@@ -210,7 +213,7 @@ export async function compileSequence({
               response: {
                 response: {
                   fullResponse: true,
-                  neverError: true,
+                  ...(shouldAssert ? { neverError: true } : {}),
                   responseFormat: 'autodetect',
                 },
               },
@@ -221,6 +224,8 @@ export async function compileSequence({
             : {}),
         },
       });
+      built = built.to(request);
+      if (!shouldAssert) return;
       const assert = node({
         type: 'n8n-nodes-base.code',
         version: 2,
@@ -230,15 +235,11 @@ export async function compileSequence({
           position: [720 + index * 480, 300],
           parameters: {
             mode: 'runOnceForAllItems',
-            jsCode: assertionCode(
-              operation.status,
-              expectedBody,
-              requiredFields,
-            ),
+            jsCode: assertionCode(expectedStatus, expectedBody, requiredFields),
           },
         },
       });
-      built = built.to(request).to(assert);
+      built = built.to(assert);
     },
   );
   const validation = validateWorkflow(built);

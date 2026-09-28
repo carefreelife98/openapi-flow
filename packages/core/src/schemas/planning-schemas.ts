@@ -7,22 +7,6 @@ export function createOperationSelectionSchema(refs: string[]) {
   };
 }
 
-export function createExpectedStatusSchema(explicitStatus?: number) {
-  return {
-    type: 'object',
-    properties: {
-      expectedStatus: {
-        type: 'integer',
-        minimum: 100,
-        maximum: 599,
-        ...(explicitStatus === undefined ? {} : { enum: [explicitStatus] }),
-      },
-    },
-    required: ['expectedStatus'],
-    additionalProperties: false,
-  };
-}
-
 export function createOperationPlanSchema(
   inputNames: string[],
   responseNames: string[],

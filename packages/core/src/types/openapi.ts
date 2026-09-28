@@ -14,17 +14,13 @@ export interface OperationSource {
   entry: OperationEntry;
 }
 
-export interface ResponseCandidate {
-  code: string;
-  description: string;
-}
-
 export interface ScalarSchema {
   type: string;
   enum?: Scalar[];
 }
 
-export type ResponseProperties = Record<string, JsonObject>;
+export type ResponseProperties = Record<string, JsonObject | boolean>;
+export type OperationResponses = Record<string, ResponseProperties>;
 
 export interface OperationParameter {
   name: string;
@@ -55,11 +51,11 @@ export interface Operation extends OperationMetadata {
   operationRef: string;
   method: OperationMethod;
   path: string;
-  status: number;
+  status?: number;
   authentication?: OperationAuthentication;
   parameters: OperationParameter[];
   body?: OperationBody;
-  responseProperties: ResponseProperties;
+  responses: OperationResponses;
 }
 
 export type OperationCandidate = Pick<

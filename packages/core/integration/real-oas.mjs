@@ -3,7 +3,11 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import process from 'node:process';
 import test from 'node:test';
-import { operationsFromSpec, validateOpenApi } from '@openapi-flow/core';
+import {
+  compileWorkflow,
+  operationsFromSpec,
+  validateOpenApi,
+} from '@openapi-flow/core';
 
 const directory = process.env.OPENAPI_FLOW_REAL_OAS_DIR;
 if (!directory) {
@@ -77,4 +81,27 @@ for (const [index, file] of files.entries()) {
       ),
     );
   });
+  if (file === 'honeypot-service.openapi.json') {
+    test('Honeypot multi-response operation compiles without a planned status', async () => {
+      const operationRef = '#/paths/~1smoke~1changed/get';
+      const result = await compileWorkflow({
+        spec,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        effectPolicy: { [operationRef]: 'read' },
+        credentialBindings: {},
+        plan: {
+          version: '1',
+          goal: 'Read changed items',
+          operationRef,
+        },
+      });
+      assert.equal(result.status, 'complete');
+      assert.equal(Object.hasOwn(result.evidence, 'status'), false);
+      assert.deepEqual(
+        result.workflow.nodes.map((node) => node.type),
+        ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.httpRequest'],
+      );
+    });
+  }
 }

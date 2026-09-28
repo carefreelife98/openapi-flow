@@ -136,7 +136,6 @@ test('GET with a local $ref compiles to an SDK-validated workflow', async () => 
     operationId: 'getItem',
     method: 'GET',
     path: '/items/{id}',
-    status: 200,
     effect: 'read',
   });
   assert.deepEqual(
@@ -674,21 +673,30 @@ test('array and object response fields can be asserted against OAS schemas', asy
   );
 });
 
-test('multiple, ranged, default, and non-2xx OAS responses use an explicit expected status', async () => {
+test('multiple, ranged, and default OAS responses compile without choosing a status', async () => {
   const varied = globalThis.structuredClone(spec);
   const responses = varied.paths['/items/{id}'].get.responses;
   responses[202] = { description: 'Accepted' };
   responses['4XX'] = { description: 'Client error' };
   responses.default = { description: 'Other outcome' };
-  await assert.rejects(
-    () =>
-      compileWorkflow({
-        spec: varied,
-        baseUrl: 'https://example.test',
-        profile: 'read-only',
-        plan: plan('getItem', { 'path.id': 'x' }),
-      }),
-    /plan.expectedStatus is required/,
+  const general = await compileWorkflow({
+    spec: varied,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(general.status, 'complete');
+  assert.equal(Object.hasOwn(general.evidence, 'status'), false);
+  assert.equal(
+    Object.hasOwn(
+      general.workflow.nodes[1].parameters.options.response.response,
+      'neverError',
+    ),
+    false,
+  );
+  assert.deepEqual(
+    general.workflow.nodes.map((node) => node.name),
+    ['Start', 'GET /items/{id}'],
   );
   for (const status of [200, 202, 404, 503]) {
     const result = await compileWorkflow({
@@ -703,6 +711,20 @@ test('multiple, ranged, default, and non-2xx OAS responses use an explicit expec
       result.workflow.nodes[1].parameters.options.response.response.neverError,
       true,
     );
+    const code = result.workflow.nodes[2].parameters.jsCode;
+    assert.equal(
+      runInNewContext('(function() { ' + code + ' })()', {
+        $input: { all: () => [{ json: { statusCode: status, body: {} } }] },
+      }).length,
+      1,
+    );
+    assert.throws(
+      () =>
+        runInNewContext('(function() { ' + code + ' })()', {
+          $input: { all: () => [{ json: { statusCode: 418, body: {} } }] },
+        }),
+      new RegExp(`Expected HTTP ${status}`),
+    );
   }
   await assert.rejects(
     () =>
@@ -714,6 +736,82 @@ test('multiple, ranged, default, and non-2xx OAS responses use an explicit expec
       }),
     /plan.expectedStatus must be an HTTP status code/,
   );
+});
+
+test('an explicit body assertion uses its declared response schema without forcing a status', async () => {
+  const varied = globalThis.structuredClone(spec);
+  varied.paths['/items/{id}'].get.responses[400] = {
+    description: 'Bad request',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: { message: { type: 'string' } },
+        },
+      },
+    },
+  };
+  const result = await compileWorkflow({
+    spec: varied,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }, { message: 'bad' }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(Object.hasOwn(result.plan, 'expectedStatus'), false);
+  assert.deepEqual(
+    result.workflow.nodes.map((node) => node.name),
+    ['Start', 'GET /items/{id}', 'Assert response'],
+  );
+  const code = result.workflow.nodes[2].parameters.jsCode;
+  assert.doesNotMatch(code, /Expected HTTP/);
+  assert.equal(
+    runInNewContext('(function() { ' + code + ' })()', {
+      $input: {
+        all: () => [{ json: { statusCode: 400, body: { message: 'bad' } } }],
+      },
+    }).length,
+    1,
+  );
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: varied,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        plan: plan('getItem', { 'path.id': 'x' }, { message: 1 }),
+      }),
+    /plan.expectedBody.message does not match the OAS schema/,
+  );
+});
+
+test('valid boolean OAS response schemas do not block an ordinary workflow', async () => {
+  const booleanSchema = {
+    openapi: '3.1.1',
+    info: { title: 'Boolean response schemas', version: '1' },
+    paths: {
+      '/items': {
+        get: {
+          responses: {
+            200: {
+              description: 'Any JSON response',
+              content: { 'application/json': { schema: true } },
+            },
+            400: { description: 'Bad request' },
+          },
+        },
+      },
+    },
+  };
+  const result = await compileWorkflow({
+    spec: booleanSchema,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    effectPolicy: { '#/paths/~1items/get': 'read' },
+    plan: plan('#/paths/~1items/get'),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(result.workflow.nodes.length, 2);
 });
 
 test('valid unusual paths remain pinned to the supplied origin', async () => {
@@ -846,6 +944,17 @@ test('sequence retains trusted base path and accepts descriptive step IDs', asyn
   assert.equal(
     result.workflow.nodes[1].parameters.url,
     'https://example.test/api/v1/items/x',
+  );
+  assert.deepEqual(
+    result.workflow.nodes.map((node) => node.name),
+    ['Start', 'Request read item 1'],
+  );
+  assert.equal(
+    Object.hasOwn(
+      result.workflow.nodes[1].parameters.options.response.response,
+      'neverError',
+    ),
+    false,
   );
 });
 
@@ -1068,33 +1177,27 @@ test('LangChain structured output selects an operation and proposes validated bi
   assert.deepEqual(stable.plan.expectedBody, { ok: true });
 });
 
-test('natural-language generation plans an OAS response before parsing a multi-response operation', async () => {
+test('natural-language generation uses two model calls for multi-response OAS without asserting a status', async () => {
   const varied = globalThis.structuredClone(spec);
   varied.paths['/items/{id}'].get.responses[202] = {
     description: 'The item request was accepted',
   };
   const calls = [];
   const model = {
-    withStructuredOutput(schema, options) {
+    withStructuredOutput(_schema, options) {
       calls.push(options.name);
       return {
         async invoke(messages) {
           if (options.name === 'select_operation') {
             return { operationRef: '#/paths/~1items~1{id}/get' };
           }
-          if (options.name === 'plan_expected_status') {
-            assert.equal(schema.properties.expectedStatus.type, 'integer');
-            const request = JSON.parse(messages[1][1]);
-            assert.deepEqual(request.responses, [
-              { code: '200', description: 'Item response' },
-              { code: '202', description: 'The item request was accepted' },
-            ]);
-            return { expectedStatus: 202 };
-          }
           assert.equal(options.name, 'plan_operation');
           const request = JSON.parse(messages[1][1]);
-          assert.equal(request.operation.expectedStatus, 202);
-          assert.deepEqual(request.operation.responseFields, []);
+          assert.equal(
+            Object.hasOwn(request.operation, 'expectedStatus'),
+            false,
+          );
+          assert.deepEqual(request.operation.responseFields, ['id', 'ok']);
           return {
             inputs: [{ key: 'path.id', valueJson: '"x"' }],
             expectedBody: [],
@@ -1110,54 +1213,48 @@ test('natural-language generation plans an OAS response before parsing a multi-r
     baseUrl: 'https://example.test',
     profile: 'read-only',
   });
-  assert.deepEqual(calls, [
-    'select_operation',
-    'plan_expected_status',
-    'plan_operation',
-  ]);
+  assert.deepEqual(calls, ['select_operation', 'plan_operation']);
   assert.equal(result.status, 'complete');
-  assert.equal(result.plan.expectedStatus, 202);
-  assert.equal(result.evidence.status, 202);
+  assert.equal(Object.hasOwn(result.plan, 'expectedStatus'), false);
+  assert.deepEqual(
+    result.workflow.nodes.map((node) => node.name),
+    ['Start', 'GET /items/{id}'],
+  );
 });
 
-test('natural-language status planning rejects missing or undeclared responses before input planning', async () => {
+test('natural-language generation does not ask the model to invent a response status', async () => {
   const varied = globalThis.structuredClone(spec);
   varied.paths['/items/{id}'].get.responses[202] = {
     description: 'Accepted',
   };
-  for (const proposed of [{}, { expectedStatus: 418 }]) {
-    let inputPlanningReached = false;
-    const model = {
-      withStructuredOutput(_schema, options) {
-        return {
-          async invoke() {
-            if (options.name === 'select_operation') {
-              return { operationRef: '#/paths/~1items~1{id}/get' };
-            }
-            if (options.name === 'plan_expected_status') return proposed;
-            inputPlanningReached = true;
-            return { inputs: [], expectedBody: [] };
-          },
-        };
-      },
-    };
-    await assert.rejects(
-      generateWorkflow({
-        spec: varied,
-        scenario: 'Read an item',
-        model,
-        baseUrl: 'https://example.test',
-        profile: 'read-only',
-      }),
-      proposed.expectedStatus === undefined
-        ? /model plan.expectedStatus must be an HTTP status code/
-        : /plan.expectedStatus 418 is not declared/,
-    );
-    assert.equal(inputPlanningReached, false);
-  }
+  const calls = [];
+  const model = {
+    withStructuredOutput(_schema, options) {
+      calls.push(options.name);
+      return {
+        async invoke() {
+          return options.name === 'select_operation'
+            ? { operationRef: '#/paths/~1items~1{id}/get' }
+            : {
+                inputs: [{ key: 'path.id', valueJson: '"x"' }],
+                expectedBody: [],
+              };
+        },
+      };
+    },
+  };
+  const result = await generateWorkflow({
+    spec: varied,
+    scenario: 'Read an item',
+    model,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+  });
+  assert.deepEqual(calls, ['select_operation', 'plan_operation']);
+  assert.equal(Object.hasOwn(result.plan, 'expectedStatus'), false);
 });
 
-test('natural-language status planning accepts ranged and default OAS responses', async () => {
+test('explicit test status accepts ranged and default OAS responses without another model call', async () => {
   const varied = globalThis.structuredClone(spec);
   varied.paths['/items/{id}'].get.responses['4XX'] = {
     description: 'Client error',
@@ -1173,9 +1270,7 @@ test('natural-language status planning accepts ranged and default OAS responses'
             if (options.name === 'select_operation') {
               return { operationRef: '#/paths/~1items~1{id}/get' };
             }
-            if (options.name === 'plan_expected_status') {
-              return { expectedStatus };
-            }
+            assert.equal(options.name, 'plan_operation');
             return {
               inputs: [{ key: 'path.id', valueJson: '"x"' }],
               expectedBody: [],
@@ -1186,70 +1281,51 @@ test('natural-language status planning accepts ranged and default OAS responses'
     };
     const result = await generateWorkflow({
       spec: varied,
-      scenario: 'Inspect the declared response',
+      scenario: `Expect HTTP ${expectedStatus}`,
       model,
       baseUrl: 'https://example.test',
       profile: 'read-only',
     });
     assert.equal(result.status, 'complete');
     assert.equal(result.evidence.status, expectedStatus);
+    assert.deepEqual(
+      result.workflow.nodes.map((node) => node.name),
+      ['Start', 'GET /items/{id}', 'Assert response'],
+    );
   }
 });
 
-test('an explicitly expected HTTP status constrains the model plan', async () => {
+test('an explicitly expected HTTP status is taken from the scenario without model status planning', async () => {
   const varied = globalThis.structuredClone(spec);
   varied.paths['/items/{id}'].get.responses[400] = {
     description: 'Bad Request',
   };
-  for (const [proposedStatus, shouldComplete] of [
-    [200, false],
-    [400, true],
-  ]) {
-    let inputPlanningReached = false;
-    const model = {
-      withStructuredOutput(schema, options) {
-        return {
-          async invoke(messages) {
-            if (options.name === 'select_operation') {
-              return { operationRef: '#/paths/~1items~1{id}/get' };
-            }
-            if (options.name === 'plan_expected_status') {
-              assert.deepEqual(schema.properties.expectedStatus.enum, [400]);
-              assert.equal(
-                JSON.parse(messages[1][1]).explicitExpectedStatus,
-                400,
-              );
-              return { expectedStatus: proposedStatus };
-            }
-            inputPlanningReached = true;
-            return {
-              inputs: [{ key: 'path.id', valueJson: '"x"' }],
-              expectedBody: [],
-            };
-          },
-        };
-      },
-    };
-    const request = {
-      spec: varied,
-      scenario: 'Read an item. Expect HTTP 400 Bad Request.',
-      model,
-      baseUrl: 'https://example.test',
-      profile: 'read-only',
-    };
-    if (shouldComplete) {
-      const result = await generateWorkflow(request);
-      assert.equal(result.status, 'complete');
-      assert.equal(result.plan.expectedStatus, 400);
-      assert.equal(inputPlanningReached, true);
-    } else {
-      await assert.rejects(
-        generateWorkflow(request),
-        /model plan.expectedStatus 200 conflicts with scenario expected HTTP status 400/,
-      );
-      assert.equal(inputPlanningReached, false);
-    }
-  }
+  const calls = [];
+  const model = {
+    withStructuredOutput(_schema, options) {
+      calls.push(options.name);
+      return {
+        async invoke() {
+          return options.name === 'select_operation'
+            ? { operationRef: '#/paths/~1items~1{id}/get' }
+            : {
+                inputs: [{ key: 'path.id', valueJson: '"x"' }],
+                expectedBody: [],
+              };
+        },
+      };
+    },
+  };
+  const result = await generateWorkflow({
+    spec: varied,
+    scenario: 'Read an item. Expect HTTP 400 Bad Request.',
+    model,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+  });
+  assert.deepEqual(calls, ['select_operation', 'plan_operation']);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.plan.expectedStatus, 400);
 });
 
 test('explicit HTTP status conflicts fail without a fallback', async () => {
@@ -1266,7 +1342,7 @@ test('explicit HTTP status conflicts fail without a fallback', async () => {
     },
   };
   for (const [scenario, message] of [
-    ['Expect HTTP 400', /scenario expected HTTP status 400 is not declared/],
+    ['Expect HTTP 400', /plan.expectedStatus 400 is not declared/],
     ['Expect HTTP 999', /scenario expected HTTP status must be 100–599/],
     [
       'Expect HTTP 200 and expect HTTP 400',

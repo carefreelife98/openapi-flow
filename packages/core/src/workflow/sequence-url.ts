@@ -1,5 +1,8 @@
 import type { Operation } from '../types/openapi.js';
-import { scalarSchema } from '../openapi/parse-spec-utils.js';
+import {
+  responseFieldSchemas,
+  responseFieldType,
+} from '../openapi/response-contract.js';
 import type {
   InputValues,
   PreviousOperations,
@@ -43,20 +46,15 @@ export function sequenceUrl(
         );
       }
       const source = previous.get(value.fromStep);
-      if (!source || !Object.hasOwn(source.responseProperties, value.field)) {
+      if (
+        !source ||
+        responseFieldSchemas(source, value.field, source.status).length === 0
+      ) {
         throw new Error(
           'plan.inputs.' + key + ' must reference a prior response field',
         );
       }
-      const sourceType = scalarSchema(
-        source.responseProperties[value.field],
-        'operationRef ' +
-          source.operationRef +
-          '.responses.' +
-          source.status +
-          '.schema.properties.' +
-          value.field,
-      ).type;
+      const sourceType = responseFieldType(source, value.field);
       if (
         sourceType !== parameter.schema.type &&
         !(sourceType === 'integer' && parameter.schema.type === 'number')

@@ -1,6 +1,6 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
 import { operationFromSpec } from '../openapi/parse-spec.js';
-import { checkSchemaValue } from '../openapi/check-schema-value.js';
+import { validateResponseField } from '../openapi/response-contract.js';
 import type { Operation } from '../types/openapi.js';
 import type {
   CompileOperationRequest,
@@ -73,7 +73,7 @@ export function compileWorkflowFromOperation(
     operationId: operation.operationId,
     method: operation.method,
     path: operation.path,
-    status: operation.status,
+    ...(operation.status === undefined ? {} : { status: operation.status }),
     effect,
   };
   const inputs = plan.inputs === undefined ? {} : plan.inputs;
@@ -85,15 +85,12 @@ export function compileWorkflowFromOperation(
     if (looksLikeCredential(key)) {
       throw new Error('plan.expectedBody.' + key + ' looks like a credential');
     }
-    if (!Object.hasOwn(operation.responseProperties, key)) {
-      throw new Error(
-        'plan.expectedBody.' + key + ' is not in the OAS response schema',
-      );
-    }
-    checkSchemaValue(
+    validateResponseField(
+      operation,
+      key,
       value,
-      operation.responseProperties[key],
       'plan.expectedBody.' + key,
+      plan.expectedStatus,
     );
   }
   const allowed = new Set(
@@ -128,6 +125,8 @@ export function compileWorkflowFromOperation(
   }
   if (missingInputs.length)
     return { status: 'needs_input', plan, evidence, missingInputs };
+  const shouldAssert =
+    plan.expectedStatus !== undefined || Object.keys(expectedBody).length > 0;
   const start = trigger({
     type: 'n8n-nodes-base.manualTrigger',
     version: 1,
@@ -151,7 +150,7 @@ export function compileWorkflowFromOperation(
           response: {
             response: {
               fullResponse: true,
-              neverError: true,
+              ...(shouldAssert ? { neverError: true } : {}),
               responseFormat: 'autodetect',
             },
           },
@@ -160,27 +159,30 @@ export function compileWorkflowFromOperation(
       ...(authentication ? { credentials: authentication.credentials } : {}),
     },
   });
-  const assert = node({
-    type: 'n8n-nodes-base.code',
-    version: 2,
-    config: {
-      id: 'assert',
-      name: 'Assert response',
-      position: [720, 300],
-      parameters: {
-        mode: 'runOnceForAllItems',
-        jsCode: assertionCode(operation.status, expectedBody),
-      },
-    },
-  });
   const built = workflow(
     workflowId(baseUrl, plan),
     'OpenAPI ' + operation.method + ' ' + operation.path,
   )
     .add(start)
-    .to(request)
-    .to(assert);
-  const validation = validateWorkflow(built);
+    .to(request);
+  const result = shouldAssert
+    ? built.to(
+        node({
+          type: 'n8n-nodes-base.code',
+          version: 2,
+          config: {
+            id: 'assert',
+            name: 'Assert response',
+            position: [720, 300],
+            parameters: {
+              mode: 'runOnceForAllItems',
+              jsCode: assertionCode(plan.expectedStatus, expectedBody),
+            },
+          },
+        }),
+      )
+    : built;
+  const validation = validateWorkflow(result);
   if (!validation.valid) {
     throw new Error(
       'n8n SDK validation failed: ' +
@@ -192,6 +194,6 @@ export function compileWorkflowFromOperation(
     plan,
     evidence,
     missingInputs,
-    workflow: built.toJSON(),
+    workflow: result.toJSON(),
   };
 }

@@ -86,7 +86,7 @@ export function makeBody(
 }
 
 export function assertionCode(
-  status: number,
+  status: number | undefined,
   expectedBody: ExpectedBody,
   requiredFields: RequiredFields = {},
 ): string {
@@ -96,11 +96,15 @@ export function assertionCode(
     'const items = $input.all();',
     "if (items.length !== 1) throw new Error('Expected one response item');",
     'const response = items[0].json;',
-    'if (response.statusCode !== ' +
-      status +
-      ') throw new Error("Expected HTTP ' +
-      status +
-      ', got " + response.statusCode);',
+    ...(status === undefined
+      ? []
+      : [
+          'if (response.statusCode !== ' +
+            status +
+            ') throw new Error("Expected HTTP ' +
+            status +
+            ', got " + response.statusCode);',
+        ]),
     'const expected = ' + expected + ';',
     'const required = ' + required + ';',
     'function equal(actual, expectedValue) {',
