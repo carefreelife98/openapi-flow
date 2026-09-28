@@ -380,6 +380,28 @@ test('untrusted or unsupported contract data fails before workflow generation', 
   assert.deepEqual(bound.workflow.nodes[1].credentials, {
     httpBearerAuth: { id: 'existing-credential-id', name: 'Test bearer' },
   });
+  const publicOperation = globalThis.structuredClone(secure);
+  publicOperation.paths['/items/{id}'].get.security = [];
+  const publicResult = await compileWorkflow({
+    spec: publicOperation,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(publicResult.status, 'complete');
+  assert.equal(publicResult.workflow.nodes[1].credentials, undefined);
+  const alternative = globalThis.structuredClone(secure);
+  alternative.paths['/items/{id}'].get.security = [{}, { bearerAuth: [] }];
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: alternative,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        plan: plan('getItem', { 'path.id': 'x' }),
+      }),
+    /unsupported alternatives/,
+  );
   await assert.rejects(
     () =>
       compileWorkflow({

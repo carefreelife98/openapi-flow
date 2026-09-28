@@ -67,7 +67,7 @@ export function makeBody(
         throw new Error(
           'plan.inputs.body.' +
             name +
-            ' looks like a credential; v1 has no credential binding',
+            ' looks like a credential; bind an existing n8n credential through credentialBindings instead',
         );
       }
     }
