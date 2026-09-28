@@ -22,7 +22,7 @@ export type ResolvedAuthentication = Required<
 >;
 export interface OperationEvidence extends Pick<
   Operation,
-  'operationRef' | 'operationId' | 'method' | 'path' | 'status'
+  'operationRef' | 'operationId' | 'method' | 'path'
 > {
   effect: OperationEffect;
 }
@@ -31,7 +31,6 @@ export interface WorkflowPlan {
   version: '1';
   goal: string;
   operationRef: string;
-  expectedStatus?: number;
   inputs?: WorkflowInputs;
   expectedBody?: ExpectedBody;
 }
@@ -66,7 +65,6 @@ export interface ResponseReference {
 export interface SequenceStep {
   id: string;
   operationRef: string;
-  expectedStatus?: number;
   inputs?: Record<string, unknown>;
   expectedBody?: ExpectedBody;
 }
@@ -104,7 +102,6 @@ export interface PreparedSequenceNode {
   url: string;
   body?: string;
   expectedBody: ExpectedBody;
-  expectedStatus?: number;
   authentication?: ResolvedAuthentication;
 }
 

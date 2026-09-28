@@ -46,10 +46,7 @@ export function sequenceUrl(
         );
       }
       const source = previous.get(value.fromStep);
-      if (
-        !source ||
-        responseFieldSchemas(source, value.field, source.status).length === 0
-      ) {
+      if (!source || responseFieldSchemas(source, value.field).length === 0) {
         throw new Error(
           'plan.inputs.' + key + ' must reference a prior response field',
         );

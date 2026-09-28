@@ -65,11 +65,7 @@ export async function compileSequence({
     ) {
       throw new Error('plan.steps must have unique id and operationRef values');
     }
-    const operation = operationFromDocument(
-      document,
-      step.operationRef,
-      step.expectedStatus,
-    );
+    const operation = operationFromDocument(document, step.operationRef);
     const effect = approvedEffect(operation, effectPolicy);
     const authentication = resolveCredentialBinding(
       operation,
@@ -98,7 +94,6 @@ export async function compileSequence({
         key,
         value,
         'plan.steps[' + step.id + '].expectedBody.' + key,
-        step.expectedStatus,
       );
     }
     const allowed = new Set(
@@ -150,7 +145,6 @@ export async function compileSequence({
       operationId: operation.operationId,
       method: operation.method,
       path: operation.path,
-      ...(operation.status === undefined ? {} : { status: operation.status }),
       effect,
     });
     nodes.push({
@@ -159,7 +153,6 @@ export async function compileSequence({
       url,
       body,
       expectedBody: expectedBody as ExpectedBody,
-      expectedStatus: step.expectedStatus,
       authentication,
     });
     previous.set(step.id, operation);
@@ -175,24 +168,12 @@ export async function compileSequence({
     }),
   );
   nodes.forEach(
-    (
-      {
-        operation,
-        id,
-        url,
-        body,
-        expectedBody,
-        expectedStatus,
-        authentication,
-      },
-      index,
-    ) => {
+    ({ operation, id, url, body, expectedBody, authentication }, index) => {
       const requiredFields: RequiredFields = {};
       for (const field of requiredOutputs.get(id) ?? []) {
         requiredFields[field] = responseFieldType(operation, field);
       }
       const shouldAssert =
-        expectedStatus !== undefined ||
         Object.keys(expectedBody).length > 0 ||
         Object.keys(requiredFields).length > 0;
       const request = node({
@@ -235,7 +216,7 @@ export async function compileSequence({
           position: [720 + index * 480, 300],
           parameters: {
             mode: 'runOnceForAllItems',
-            jsCode: assertionCode(expectedStatus, expectedBody, requiredFields),
+            jsCode: assertionCode(expectedBody, requiredFields),
           },
         },
       });

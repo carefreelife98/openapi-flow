@@ -3,10 +3,7 @@ import {
   operationsFromDocument,
 } from '../openapi/parse-spec.js';
 import { validatedDocument } from '../openapi/validate-spec.js';
-import {
-  responseFieldNames,
-  responseProperties,
-} from '../openapi/response-contract.js';
+import { responseFieldNames } from '../openapi/response-contract.js';
 import { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
 import type {
   CompileResult,
@@ -20,7 +17,6 @@ import {
   assertSelectionInput,
   selectOperationFromCandidates,
 } from './select-operation.js';
-import { explicitExpectedStatusFromScenario } from './explicit-expected-status.js';
 
 export async function generateWorkflow(
   input: GenerateRequest,
@@ -33,12 +29,7 @@ export async function generateWorkflow(
     input.scenario,
     input.model,
   );
-  const expectedStatus = explicitExpectedStatusFromScenario(input.scenario);
-  const operation = operationFromDocument(
-    document,
-    operationRef,
-    expectedStatus,
-  );
+  const operation = operationFromDocument(document, operationRef);
   const inputNames = operation.parameters.map(
     (parameter) => parameter.in + '.' + parameter.name,
   );
@@ -48,10 +39,7 @@ export async function generateWorkflow(
       ...Object.keys(operation.body.properties).map((name) => 'body.' + name),
     );
   }
-  const responseNames =
-    expectedStatus === undefined
-      ? responseFieldNames(operation)
-      : responseProperties(operation, expectedStatus).flatMap(Object.keys);
+  const responseNames = responseFieldNames(operation);
   const planSchema = createOperationPlanSchema(inputNames, responseNames);
   const proposed: unknown = await input.model
     .withStructuredOutput(planSchema, {
@@ -76,7 +64,6 @@ export async function generateWorkflow(
             summary: operation.summary,
             description: operation.description,
             tags: operation.tags,
-            ...(expectedStatus === undefined ? {} : { expectedStatus }),
             parameters: operation.parameters,
             bodyFields: operation.body
               ? Object.keys(operation.body.properties)
@@ -131,7 +118,6 @@ export async function generateWorkflow(
         version: '1',
         goal: input.scenario,
         operationRef,
-        ...(expectedStatus === undefined ? {} : { expectedStatus }),
         inputs,
         ...(Object.keys(expectedBody).length === 0 ? {} : { expectedBody }),
       },

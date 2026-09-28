@@ -106,7 +106,6 @@ function parseOperation(
   operationRef: string,
   pathItem: JsonObject,
   raw: unknown,
-  expectedStatus?: number,
 ): Operation {
   const operation = object(raw, `spec.paths[${path}].${method.toLowerCase()}`);
   const metadata = operationMetadata(operation, `operationRef ${operationRef}`);
@@ -195,14 +194,6 @@ function parseOperation(
     operation.responses,
     `operationRef ${operationRef}.responses`,
   );
-  if (
-    expectedStatus !== undefined &&
-    (!Number.isInteger(expectedStatus) ||
-      expectedStatus < 100 ||
-      expectedStatus > 599)
-  ) {
-    throw new Error(`plan.expectedStatus must be an HTTP status code`);
-  }
   const parsedResponses: OperationResponses = {};
   for (const [responseCode, rawResponse] of Object.entries(responses)) {
     const response = dereferencedObject(
@@ -249,26 +240,11 @@ function parseOperation(
     }
     parsedResponses[responseCode] = responseProperties;
   }
-  if (expectedStatus !== undefined) {
-    const exactCode = String(expectedStatus);
-    const rangeCode = String(Math.floor(expectedStatus / 100)) + 'XX';
-    if (
-      !Object.hasOwn(parsedResponses, exactCode) &&
-      !Object.hasOwn(parsedResponses, rangeCode) &&
-      !Object.hasOwn(parsedResponses, 'default')
-    ) {
-      throw new Error(
-        `plan.expectedStatus ${expectedStatus} is not declared in operationRef ${operationRef}.responses`,
-      );
-    }
-  }
-
   return {
     operationRef,
     ...metadata,
     method,
     path,
-    status: expectedStatus,
     authentication,
     parameters,
     body,
@@ -309,13 +285,8 @@ export async function operationsFromSpec(
 export async function operationFromSpec(
   input: unknown,
   operationRef: string,
-  expectedStatus?: number,
 ): Promise<Operation> {
-  return operationFromDocument(
-    await validatedDocument(input),
-    operationRef,
-    expectedStatus,
-  );
+  return operationFromDocument(await validatedDocument(input), operationRef);
 }
 
 function selectedOperationSource(
@@ -352,7 +323,6 @@ function selectedOperationSource(
 export function operationFromDocument(
   parsed: ParsedDocument,
   operationRef: string,
-  expectedStatus?: number,
 ): Operation {
   const { candidate, pathItem, entry } = selectedOperationSource(
     parsed,
@@ -365,6 +335,5 @@ export function operationFromDocument(
     candidate.operationRef,
     pathItem,
     entry.value,
-    expectedStatus,
   );
 }

@@ -35,7 +35,6 @@ export async function compileWorkflow(
   const operation = await operationFromSpec(
     request.spec,
     request.plan.operationRef,
-    request.plan.expectedStatus,
   );
   return compileWorkflowFromOperation(request, operation);
 }
@@ -73,7 +72,6 @@ export function compileWorkflowFromOperation(
     operationId: operation.operationId,
     method: operation.method,
     path: operation.path,
-    ...(operation.status === undefined ? {} : { status: operation.status }),
     effect,
   };
   const inputs = plan.inputs === undefined ? {} : plan.inputs;
@@ -85,13 +83,7 @@ export function compileWorkflowFromOperation(
     if (looksLikeCredential(key)) {
       throw new Error('plan.expectedBody.' + key + ' looks like a credential');
     }
-    validateResponseField(
-      operation,
-      key,
-      value,
-      'plan.expectedBody.' + key,
-      plan.expectedStatus,
-    );
+    validateResponseField(operation, key, value, 'plan.expectedBody.' + key);
   }
   const allowed = new Set(
     operation.parameters.map(
@@ -125,8 +117,7 @@ export function compileWorkflowFromOperation(
   }
   if (missingInputs.length)
     return { status: 'needs_input', plan, evidence, missingInputs };
-  const shouldAssert =
-    plan.expectedStatus !== undefined || Object.keys(expectedBody).length > 0;
+  const shouldAssert = Object.keys(expectedBody).length > 0;
   const start = trigger({
     type: 'n8n-nodes-base.manualTrigger',
     version: 1,
@@ -176,7 +167,7 @@ export function compileWorkflowFromOperation(
             position: [720, 300],
             parameters: {
               mode: 'runOnceForAllItems',
-              jsCode: assertionCode(plan.expectedStatus, expectedBody),
+              jsCode: assertionCode(expectedBody),
             },
           },
         }),

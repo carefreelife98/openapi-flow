@@ -51,7 +51,6 @@ export interface Operation extends OperationMetadata {
   operationRef: string;
   method: OperationMethod;
   path: string;
-  status?: number;
   authentication?: OperationAuthentication;
   parameters: OperationParameter[];
   body?: OperationBody;
