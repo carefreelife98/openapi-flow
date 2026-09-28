@@ -4,7 +4,11 @@ export { UnsupportedOperationError } from './openapi/unsupported-operation-error
 export { generateWorkflow } from './planning/generate-workflow.js';
 export { compileSequence } from './workflow/compile-sequence.js';
 export { compileWorkflow } from './workflow/compile-workflow.js';
-export type { Operation, OperationCandidate } from './types/openapi.js';
+export type {
+  Operation,
+  OperationCandidate,
+  OperationSourceKind,
+} from './types/openapi.js';
 export type {
   CompileRequest,
   CompileResult,

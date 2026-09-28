@@ -2,9 +2,12 @@ import type { Operation } from '../types/openapi.js';
 import type {
   ExpectedBody,
   InputValues,
+  PreparedRequestBody,
+  RequestHeader,
   RequiredFields,
 } from '../types/workflow.js';
 import { checkSchemaValue } from '../openapi/check-schema-value.js';
+import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
 import {
   checkPrimitive,
   isObject,
@@ -27,6 +30,7 @@ export function makeUrl(
 ): string {
   let path = operation.path;
   for (const parameter of operation.parameters) {
+    if (parameter.in !== 'path' && parameter.in !== 'query') continue;
     const key = parameter.in + '.' + parameter.name;
     const value = inputs[key];
     if (value === undefined) {
@@ -54,12 +58,54 @@ export function makeBody(
   operation: Operation,
   inputs: InputValues,
   missing: string[],
-): string | undefined {
-  if (!operation.body) return undefined;
+  requestMediaType?: string,
+): PreparedRequestBody | undefined {
+  if (!operation.body) {
+    if (requestMediaType !== undefined)
+      throw new Error(
+        'plan.requestMediaType is not declared by the OAS operation',
+      );
+    return undefined;
+  }
+  if (
+    requestMediaType !== undefined &&
+    !Object.hasOwn(operation.body.mediaTypes, requestMediaType)
+  ) {
+    throw new Error(
+      'plan.requestMediaType is not declared by the OAS operation',
+    );
+  }
   const value = inputs.body;
   if (value === undefined) {
     if (operation.body.required) missing.push('body');
     return undefined;
+  }
+  const declared = Object.keys(operation.body.mediaTypes);
+  const mediaType =
+    requestMediaType ?? (declared.length === 1 ? declared[0] : undefined);
+  if (mediaType === undefined) {
+    missing.push('requestMediaType');
+    return undefined;
+  }
+  const media = operation.body.mediaTypes[mediaType];
+  if (
+    mediaType !== 'application/json' &&
+    mediaType !== 'application/x-www-form-urlencoded'
+  ) {
+    throw new UnsupportedOperationError(
+      operation.operationRef,
+      `operationRef ${operation.operationRef}.requestBody media type ${mediaType} has no n8n mapping`,
+    );
+  }
+  if (
+    mediaType === 'application/x-www-form-urlencoded' &&
+    media.encoding !== undefined &&
+    Object.keys(media.encoding).length > 0
+  ) {
+    throw new UnsupportedOperationError(
+      operation.operationRef,
+      `operationRef ${operation.operationRef}.requestBody.encoding needs explicit form serialization`,
+    );
   }
   if (isObject(value)) {
     for (const name of Object.keys(value)) {
@@ -71,8 +117,11 @@ export function makeBody(
         );
       }
     }
-    if (Array.isArray(operation.body.schema?.required)) {
-      for (const name of operation.body.schema.required) {
+    if (
+      typeof media.schema === 'object' &&
+      Array.isArray(media.schema.required)
+    ) {
+      for (const name of media.schema.required) {
         if (typeof name === 'string' && !Object.hasOwn(value, name)) {
           missing.push('body.' + name);
         }
@@ -80,9 +129,64 @@ export function makeBody(
     }
   }
   if (missing.some((key) => key.startsWith('body.'))) return undefined;
-  if (operation.body.schema !== undefined)
-    checkSchemaValue(value, operation.body.schema, 'plan.inputs.body');
-  return JSON.stringify(value);
+  if (media.schema !== undefined)
+    checkSchemaValue(value, media.schema, 'plan.inputs.body');
+  if (mediaType === 'application/json') {
+    return { contentType: 'json', value: JSON.stringify(value) };
+  }
+  if (!isObject(value)) {
+    throw new Error(
+      'plan.inputs.body must be an object for application/x-www-form-urlencoded',
+    );
+  }
+  const form = new URLSearchParams();
+  for (const [name, field] of Object.entries(value)) {
+    if (
+      typeof field !== 'string' &&
+      typeof field !== 'number' &&
+      typeof field !== 'boolean'
+    ) {
+      throw new UnsupportedOperationError(
+        operation.operationRef,
+        `operationRef ${operation.operationRef}.requestBody form field ${name} needs non-scalar serialization`,
+      );
+    }
+    form.set(name, String(field));
+  }
+  return { contentType: 'form-urlencoded', value: form.toString() };
+}
+
+export function makeHeaders(
+  operation: Operation,
+  inputs: InputValues,
+  missing: string[],
+): RequestHeader[] {
+  const headers: RequestHeader[] = [];
+  const cookies: string[] = [];
+  for (const parameter of operation.parameters) {
+    if (parameter.in !== 'header' && parameter.in !== 'cookie') continue;
+    const key = parameter.in + '.' + parameter.name;
+    const value = inputs[key];
+    if (value === undefined) {
+      if (parameter.required) missing.push(key);
+      continue;
+    }
+    checkPrimitive(value, parameter.schema, 'plan.inputs.' + key);
+    if (parameter.in === 'header') {
+      if (/[\r\n]/.test(String(value)))
+        throw new Error('plan.inputs.' + key + ' must not contain a newline');
+      headers.push({ name: parameter.name, value: String(value) });
+    } else {
+      cookies.push(
+        encodeURIComponent(parameter.name) +
+          '=' +
+          encodeURIComponent(String(value)),
+      );
+    }
+  }
+  if (cookies.length)
+    headers.push({ name: 'Cookie', value: cookies.join('; ') });
+  return headers;
 }
 
 export function assertionCode(

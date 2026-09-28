@@ -1,6 +1,7 @@
 export type JsonObject = Record<string, unknown>;
 export type Scalar = string | number | boolean;
 export type OperationMethod = string;
+export type OperationSourceKind = 'paths' | 'webhooks' | 'callbacks';
 
 export interface OperationEntry {
   method: string;
@@ -24,15 +25,20 @@ export type OperationResponses = Record<string, ResponseProperties>;
 
 export interface OperationParameter {
   name: string;
-  in: 'path' | 'query';
+  in: 'path' | 'query' | 'header' | 'cookie';
   required: boolean;
   schema: ScalarSchema;
 }
 
 export interface OperationBody {
   required: boolean;
-  schema?: JsonObject;
+  mediaTypes: Record<string, OperationBodyMedia>;
+}
+
+export interface OperationBodyMedia {
+  schema?: JsonObject | boolean;
   properties: JsonObject;
+  encoding?: JsonObject;
 }
 
 export interface OperationAuthentication {
@@ -48,6 +54,7 @@ export interface OperationMetadata {
 }
 
 export interface Operation extends OperationMetadata {
+  source: OperationSourceKind;
   operationRef: string;
   method: OperationMethod;
   path: string;
@@ -60,6 +67,7 @@ export interface Operation extends OperationMetadata {
 export type OperationCandidate = Pick<
   Operation,
   | 'operationRef'
+  | 'source'
   | 'operationId'
   | 'method'
   | 'path'

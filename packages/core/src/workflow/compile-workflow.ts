@@ -20,8 +20,10 @@ import {
   assertionCode,
   isSafeMethod,
   makeBody,
+  makeHeaders,
   makeUrl,
 } from './workflow-helpers.js';
+import { operationNode } from './operation-node.js';
 
 export async function compileWorkflow(
   request: CompileRequest,
@@ -106,7 +108,13 @@ export function compileWorkflowFromOperation(
   }
   const missingInputs: string[] = [];
   const url = makeUrl(operation, origin, inputs, missingInputs);
-  const body = makeBody(operation, inputs, missingInputs);
+  const body = makeBody(
+    operation,
+    inputs,
+    missingInputs,
+    plan.requestMediaType,
+  );
+  const headers = makeHeaders(operation, inputs, missingInputs);
   if (
     effect === 'unknown' ||
     (!isSafeMethod(operation.method) && effect !== 'write') ||
@@ -123,32 +131,16 @@ export function compileWorkflowFromOperation(
     version: 1,
     config: { id: 'start', name: 'Start', position: [240, 300] },
   });
-  const request = node({
-    type: 'n8n-nodes-base.httpRequest',
-    version: 4.3,
-    config: {
-      id: 'request',
-      name: operation.method + ' ' + operation.path,
-      position: [480, 300],
-      parameters: {
-        method: operation.method,
-        url,
-        ...authentication?.parameters,
-        ...(body === undefined
-          ? {}
-          : { sendBody: true, specifyBody: 'json', jsonBody: body }),
-        options: {
-          response: {
-            response: {
-              fullResponse: true,
-              ...(shouldAssert ? { neverError: true } : {}),
-              responseFormat: 'autodetect',
-            },
-          },
-        },
-      },
-      ...(authentication ? { credentials: authentication.credentials } : {}),
-    },
+  const request = operationNode({
+    operation,
+    id: 'request',
+    name: operation.method + ' ' + operation.path,
+    position: [480, 300],
+    url,
+    body,
+    headers,
+    authentication,
+    shouldAssert,
   });
   const built = workflow(
     workflowId(baseUrl, plan),

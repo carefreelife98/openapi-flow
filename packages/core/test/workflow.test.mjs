@@ -474,30 +474,46 @@ test('unrelated unsupported operations do not prevent selection of a supported o
   );
 });
 
-test('valid OAS operations remain selectable when a chosen conversion is unsupported', async () => {
+test('path requests map OAS header and form body inputs to HTTP Request parameters', async () => {
   const withHeader = globalThis.structuredClone(spec);
   withHeader.paths['/items/{id}'].get.parameters.push({
     name: 'X-Trace',
     in: 'header',
+    required: true,
+    schema: { type: 'string' },
+  });
+  withHeader.paths['/items/{id}'].get.parameters.push({
+    name: 'locale',
+    in: 'cookie',
     schema: { type: 'string' },
   });
   assert.equal(validateOpenApi(withHeader).openapi, '3.0.4');
   assert.equal((await operationsFromSpec(withHeader)).length, 2);
-  await assert.rejects(
-    () =>
-      compileWorkflow({
-        spec: withHeader,
-        baseUrl: 'https://example.test',
-        profile: 'read-only',
-        plan: plan('getItem', { 'path.id': 'x' }),
-      }),
-    (error) => {
-      assert.ok(error instanceof UnsupportedOperationError);
-      assert.equal(error.operationRef, '#/paths/~1items~1{id}/get');
-      assert.match(error.message, /unsupported parameter/);
-      return true;
-    },
-  );
+  const missing = await compileWorkflow({
+    spec: withHeader,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.deepEqual(missing.missingInputs, ['header.X-Trace']);
+  const result = await compileWorkflow({
+    spec: withHeader,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', {
+      'path.id': 'x',
+      'header.X-Trace': 'trace-1',
+      'cookie.locale': 'ko KR',
+    }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(result.workflow.nodes[1].parameters.sendHeaders, true);
+  assert.deepEqual(result.workflow.nodes[1].parameters.headerParameters, {
+    parameters: [
+      { name: 'X-Trace', value: 'trace-1' },
+      { name: 'Cookie', value: 'locale=ko%20KR' },
+    ],
+  });
 
   const withForm = globalThis.structuredClone(spec);
   withForm.paths['/items'].post.requestBody.content = {
@@ -507,20 +523,109 @@ test('valid OAS operations remain selectable when a chosen conversion is unsuppo
   };
   assert.equal(validateOpenApi(withForm).openapi, '3.0.4');
   assert.equal((await operationsFromSpec(withForm)).length, 2);
+  const form = await compileWorkflow({
+    spec: withForm,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+    plan: plan('createItem', { body: { name: 'a b' } }),
+  });
+  assert.equal(form.status, 'complete');
+  assert.equal(
+    form.workflow.nodes[1].parameters.contentType,
+    'form-urlencoded',
+  );
+  assert.equal(form.workflow.nodes[1].parameters.specifyBody, 'string');
+  assert.equal(form.workflow.nodes[1].parameters.body, 'name=a+b');
+});
+
+test('OAS reserved header parameters are ignored instead of becoming plan inputs', async () => {
+  const withReservedHeader = globalThis.structuredClone(spec);
+  withReservedHeader.paths['/items/{id}'].get.parameters.push({
+    name: 'Authorization',
+    in: 'header',
+    required: true,
+    schema: { type: 'string' },
+  });
+  const result = await compileWorkflow({
+    spec: withReservedHeader,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(result.workflow.nodes[1].parameters.sendHeaders, undefined);
+});
+
+test('unsupported REST conversion is reported for the selected path only', async () => {
+  const withXml = globalThis.structuredClone(spec);
+  withXml.paths['/items'].post.requestBody.content = {
+    'application/xml': { schema: { type: 'string' } },
+  };
+  assert.equal((await operationsFromSpec(withXml)).length, 2);
   await assert.rejects(
     () =>
       compileWorkflow({
-        spec: withForm,
+        spec: withXml,
         baseUrl: 'https://example.test',
         profile: 'test',
-        plan: plan('createItem', { body: { name: 'demo' } }),
+        plan: plan('createItem', { body: '<item />' }),
       }),
     (error) => {
       assert.ok(error instanceof UnsupportedOperationError);
       assert.equal(error.operationRef, '#/paths/~1items/post');
-      assert.match(error.message, /no application\/json media type/);
+      assert.match(error.message, /application\/xml/);
       return true;
     },
+  );
+});
+
+test('multiple OAS body media types remain available until the plan chooses one', async () => {
+  const multi = globalThis.structuredClone(spec);
+  multi.paths['/items'].post.requestBody.content[
+    'application/x-www-form-urlencoded'
+  ] = {
+    schema: { type: 'object', properties: { name: { type: 'string' } } },
+  };
+  const request = {
+    spec: multi,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+    plan: plan('createItem', { body: { name: 'a b' } }),
+  };
+  const missing = await compileWorkflow(request);
+  assert.equal(missing.status, 'needs_input');
+  assert.deepEqual(missing.missingInputs, ['requestMediaType']);
+  const form = await compileWorkflow({
+    ...request,
+    plan: {
+      ...request.plan,
+      requestMediaType: 'application/x-www-form-urlencoded',
+    },
+  });
+  assert.equal(form.status, 'complete');
+  assert.equal(form.workflow.nodes[1].parameters.body, 'name=a+b');
+  const json = await compileWorkflow({
+    ...request,
+    plan: { ...request.plan, requestMediaType: 'application/json' },
+  });
+  assert.equal(json.workflow.nodes[1].parameters.jsonBody, '{"name":"a b"}');
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        ...request,
+        plan: { ...request.plan, requestMediaType: 'application/xml' },
+      }),
+    /plan.requestMediaType is not declared by the OAS operation/,
+  );
+  multi.paths['/items'].post.requestBody.required = false;
+  const withoutOptionalBody = await compileWorkflow({
+    ...request,
+    plan: plan('createItem', {}),
+  });
+  assert.equal(withoutOptionalBody.status, 'complete');
+  assert.equal(
+    withoutOptionalBody.workflow.nodes[1].parameters.sendBody,
+    undefined,
   );
 });
 
@@ -600,6 +705,119 @@ test('document acceptance follows OAS instead of prototype size, version, and id
       }),
     /version/,
   );
+});
+
+test('OAS 3.2.1 path requests are distinct from webhook and callback operations', async () => {
+  const kinds = {
+    openapi: '3.2.1',
+    info: { title: 'Kinds', version: '1' },
+    paths: {
+      '/items': {
+        get: {
+          responses: { 200: { description: 'ok' } },
+          callbacks: {
+            onDone: {
+              '{$request.body#/callbackUrl}': {
+                post: { responses: { 200: { description: 'ok' } } },
+              },
+            },
+          },
+        },
+      },
+    },
+    webhooks: {
+      onEvent: { post: { responses: { 200: { description: 'ok' } } } },
+    },
+  };
+  assert.equal(validateOpenApi(kinds).openapi, '3.2.1');
+  const operations = await operationsFromSpec(kinds);
+  assert.deepEqual(
+    operations.map(({ source, operationRef }) => ({ source, operationRef })),
+    [{ source: 'paths', operationRef: '#/paths/~1items/get' }],
+  );
+  const result = await compileWorkflow({
+    spec: kinds,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    effectPolicy: { '#/paths/~1items/get': 'read' },
+    plan: plan('#/paths/~1items/get', {}),
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(result.workflow.nodes[1].type, 'n8n-nodes-base.httpRequest');
+});
+
+test('an OAS method not exposed by HTTP Request v4.3 stays listed but cannot compile', async () => {
+  const query = {
+    openapi: '3.2.1',
+    info: { title: 'Query', version: '1' },
+    paths: {
+      '/search': {
+        query: { responses: { 200: { description: 'ok' } } },
+      },
+    },
+  };
+  const operationRef = '#/paths/~1search/query';
+  assert.deepEqual(
+    (await operationsFromSpec(query)).map((item) => item.operationRef),
+    [operationRef],
+  );
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: query,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        effectPolicy: { [operationRef]: 'read' },
+        plan: plan(operationRef, {}),
+      }),
+    (error) => {
+      assert.ok(error instanceof UnsupportedOperationError);
+      assert.equal(error.operationRef, operationRef);
+      assert.match(error.message, /HTTP method QUERY.*v4\.3/);
+      return true;
+    },
+  );
+});
+
+test('sequence uses the same REST body and header mapping as a single workflow', async () => {
+  const rest = globalThis.structuredClone(spec);
+  rest.paths['/items'].post.parameters = [
+    {
+      name: 'X-Trace',
+      in: 'header',
+      required: true,
+      schema: { type: 'string' },
+    },
+  ];
+  rest.paths['/items'].post.requestBody.content = {
+    'application/x-www-form-urlencoded': {
+      schema: { type: 'object', properties: { name: { type: 'string' } } },
+    },
+  };
+  const result = await compileSequence({
+    spec: rest,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+    plan: {
+      version: '1',
+      goal: 'Create an item',
+      steps: [
+        {
+          id: 'create',
+          operationRef: 'createItem',
+          inputs: { 'header.X-Trace': 'trace-1', body: { name: 'a b' } },
+        },
+      ],
+    },
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(
+    result.workflow.nodes[1].parameters.contentType,
+    'form-urlencoded',
+  );
+  assert.deepEqual(result.workflow.nodes[1].parameters.headerParameters, {
+    parameters: [{ name: 'X-Trace', value: 'trace-1' }],
+  });
 });
 
 test('external references are valid OAS but require supplied resolution before compilation', async () => {

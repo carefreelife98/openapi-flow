@@ -32,6 +32,7 @@ export interface WorkflowPlan {
   goal: string;
   operationRef: string;
   inputs?: WorkflowInputs;
+  requestMediaType?: string;
   expectedBody?: ExpectedBody;
 }
 
@@ -66,6 +67,7 @@ export interface SequenceStep {
   id: string;
   operationRef: string;
   inputs?: Record<string, unknown>;
+  requestMediaType?: string;
   expectedBody?: ExpectedBody;
 }
 
@@ -100,12 +102,36 @@ export interface PreparedSequenceNode {
   operation: Operation;
   id: string;
   url: string;
-  body?: string;
+  body?: PreparedRequestBody;
+  headers: RequestHeader[];
   expectedBody: ExpectedBody;
   authentication?: ResolvedAuthentication;
+}
+
+export interface RequestHeader {
+  name: string;
+  value: string;
+}
+
+export interface PreparedRequestBody {
+  contentType: 'json' | 'form-urlencoded';
+  value: string;
+}
+
+export interface OperationNodeInput {
+  operation: Operation;
+  id: string;
+  name: string;
+  position: [number, number];
+  url: string;
+  body?: PreparedRequestBody;
+  headers: RequestHeader[];
+  authentication?: ResolvedAuthentication;
+  shouldAssert: boolean;
 }
 
 export interface GenerateRequest extends Omit<CompileRequest, 'plan'> {
   scenario: string;
   model: BaseChatModel;
+  requestMediaType?: string;
 }

@@ -26,6 +26,7 @@ export function sequenceUrl(
   let path = operation.path;
   const references = new Map<string, string>();
   for (const parameter of operation.parameters) {
+    if (parameter.in !== 'path' && parameter.in !== 'query') continue;
     const key = parameter.in + '.' + parameter.name;
     const value = inputs[key];
     if (value === undefined) {

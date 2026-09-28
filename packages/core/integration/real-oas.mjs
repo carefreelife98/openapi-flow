@@ -54,6 +54,7 @@ for (const [index, file] of files.entries()) {
         .filter(([key]) => operationMethods.has(key))
         .map(([key, operation]) => ({
           operationRef: `#/paths/${pointerSegment(path)}/${key}`,
+          source: 'paths',
           operationId: operation.operationId,
           method: key.toUpperCase(),
           path,
@@ -64,6 +65,7 @@ for (const [index, file] of files.entries()) {
       ...Object.entries(pathItem.additionalOperations ?? {}).map(
         ([method, operation]) => ({
           operationRef: `#/paths/${pointerSegment(path)}/additionalOperations/${pointerSegment(method)}`,
+          source: 'paths',
           operationId: operation.operationId,
           method,
           path,

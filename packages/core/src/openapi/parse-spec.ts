@@ -20,6 +20,7 @@ export function operationsFromDocument({
       const operation = object(value, `spec.paths[${path}].${key}`);
       operations.push({
         operationRef: operationReference(path, key),
+        source: 'paths',
         ...operationMetadata(operation, `spec.paths[${path}].${key}`),
         method,
         path,

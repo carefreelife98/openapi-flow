@@ -32,6 +32,7 @@ export async function selectOperationFromCandidates(
           operations: operations.map(
             ({
               operationRef,
+              source,
               operationId,
               method,
               path,
@@ -40,6 +41,7 @@ export async function selectOperationFromCandidates(
               tags,
             }) => ({
               operationRef,
+              source,
               operationId,
               method,
               path,

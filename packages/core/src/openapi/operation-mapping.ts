@@ -2,6 +2,7 @@ import type {
   JsonObject,
   Operation,
   OperationBody,
+  OperationBodyMedia,
   OperationMethod,
   OperationParameter,
   OperationResponses,
@@ -20,7 +21,7 @@ function parseParameter(
   raw: unknown,
   operationRef: string,
   index: number,
-): OperationParameter {
+): OperationParameter | undefined {
   const parameter = dereferencedObject(
     raw,
     `operationRef ${operationRef} parameter ${index}`,
@@ -32,10 +33,24 @@ function parseParameter(
   ) {
     throw new Error(`operationRef ${operationRef} has an invalid parameter`);
   }
-  if (parameter.in !== 'path' && parameter.in !== 'query') {
+  if (!['path', 'query', 'header', 'cookie'].includes(String(parameter.in))) {
     throw new UnsupportedOperationError(
       operationRef,
       `operationRef ${operationRef} has an unsupported parameter`,
+    );
+  }
+  if (
+    parameter.in === 'header' &&
+    ['accept', 'content-type', 'authorization'].includes(
+      parameter.name.toLowerCase(),
+    )
+  ) {
+    return undefined;
+  }
+  if (parameter.content !== undefined) {
+    throw new UnsupportedOperationError(
+      operationRef,
+      `operationRef ${operationRef} parameter ${parameter.name} uses content-based serialization`,
     );
   }
   const schema = scalarSchema(
@@ -45,8 +60,10 @@ function parseParameter(
   );
   if (
     (parameter.style !== undefined &&
-      parameter.style !== (parameter.in === 'query' ? 'form' : 'simple')) ||
-    (parameter.explode === true && parameter.in === 'path') ||
+      parameter.style !==
+        (parameter.in === 'path' || parameter.in === 'header'
+          ? 'simple'
+          : 'form')) ||
     parameter.allowReserved === true
   ) {
     throw new UnsupportedOperationError(
@@ -56,7 +73,7 @@ function parseParameter(
   }
   return {
     name: parameter.name,
-    in: parameter.in,
+    in: parameter.in as OperationParameter['in'],
     required: parameter.required === true,
     schema,
   };
@@ -94,6 +111,7 @@ export function mapOperationForWorkflow(
     const namesAtLevel = new Set<string>();
     for (const [index, rawParameter] of rawParameters.entries()) {
       const parameter = parseParameter(rawParameter, operationRef, index);
+      if (parameter === undefined) continue;
       const name = `${parameter.in}.${parameter.name}`;
       if (namesAtLevel.has(name))
         throw new Error(
@@ -128,34 +146,44 @@ export function mapOperationForWorkflow(
       requestBody.content,
       `operationRef ${operationRef}.requestBody.content`,
     );
-    if (content['application/json'] === undefined) {
-      throw new UnsupportedOperationError(
-        operationRef,
-        `operationRef ${operationRef}.requestBody.application/json is not supported: no application/json media type`,
+    const mediaTypes: Record<string, OperationBodyMedia> = Object.create(null);
+    for (const [mediaType, value] of Object.entries(content)) {
+      const media = object(
+        value,
+        `operationRef ${operationRef}.requestBody.${mediaType}`,
       );
+      const bodySchema =
+        media.schema === undefined
+          ? undefined
+          : typeof media.schema === 'boolean'
+            ? media.schema
+            : dereferencedObject(
+                media.schema,
+                `operationRef ${operationRef}.requestBody.${mediaType}.schema`,
+              );
+      const properties =
+        typeof bodySchema !== 'object' || bodySchema.properties === undefined
+          ? {}
+          : object(
+              bodySchema.properties,
+              `operationRef ${operationRef}.requestBody.${mediaType}.schema.properties`,
+            );
+      mediaTypes[mediaType] = {
+        schema: bodySchema,
+        properties,
+        ...(media.encoding === undefined
+          ? {}
+          : {
+              encoding: object(
+                media.encoding,
+                `operationRef ${operationRef}.requestBody.${mediaType}.encoding`,
+              ),
+            }),
+      };
     }
-    const media = object(
-      content['application/json'],
-      `operationRef ${operationRef}.requestBody.application/json`,
-    );
-    const bodySchema =
-      media.schema === undefined
-        ? undefined
-        : dereferencedObject(
-            media.schema,
-            `operationRef ${operationRef}.requestBody.schema`,
-          );
-    const properties =
-      bodySchema?.properties === undefined
-        ? {}
-        : object(
-            bodySchema.properties,
-            `operationRef ${operationRef}.requestBody.schema.properties`,
-          );
     body = {
       required: requestBody.required === true,
-      schema: bodySchema,
-      properties,
+      mediaTypes,
     };
   }
 
@@ -211,6 +239,7 @@ export function mapOperationForWorkflow(
   }
   return {
     operationRef,
+    source: 'paths',
     ...metadata,
     method,
     path,

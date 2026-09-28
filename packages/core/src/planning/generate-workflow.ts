@@ -36,7 +36,11 @@ export async function generateWorkflow(
   if (operation.body) {
     inputNames.push('body');
     inputNames.push(
-      ...Object.keys(operation.body.properties).map((name) => 'body.' + name),
+      ...new Set(
+        Object.values(operation.body.mediaTypes).flatMap((media) =>
+          Object.keys(media.properties).map((name) => 'body.' + name),
+        ),
+      ),
     );
   }
   const responseNames = responseFieldNames(operation);
@@ -65,8 +69,17 @@ export async function generateWorkflow(
             description: operation.description,
             tags: operation.tags,
             parameters: operation.parameters,
+            bodyMediaTypes: operation.body
+              ? Object.keys(operation.body.mediaTypes)
+              : undefined,
             bodyFields: operation.body
-              ? Object.keys(operation.body.properties)
+              ? [
+                  ...new Set(
+                    Object.values(operation.body.mediaTypes).flatMap((media) =>
+                      Object.keys(media.properties),
+                    ),
+                  ),
+                ]
               : undefined,
             responseFields: responseNames,
           },
@@ -119,6 +132,9 @@ export async function generateWorkflow(
         goal: input.scenario,
         operationRef,
         inputs,
+        ...(input.requestMediaType === undefined
+          ? {}
+          : { requestMediaType: input.requestMediaType }),
         ...(Object.keys(expectedBody).length === 0 ? {} : { expectedBody }),
       },
     },

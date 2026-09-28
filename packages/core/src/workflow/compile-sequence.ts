@@ -23,7 +23,13 @@ import {
 import { workflowId } from '../utils/workflow-id.js';
 import { approvedEffect } from './effect-policy.js';
 import { resolveCredentialBinding } from './credential-binding.js';
-import { assertionCode, isSafeMethod, makeBody } from './workflow-helpers.js';
+import {
+  assertionCode,
+  isSafeMethod,
+  makeBody,
+  makeHeaders,
+} from './workflow-helpers.js';
+import { operationNode } from './operation-node.js';
 import { sequenceUrl } from './sequence-url.js';
 
 export async function compileSequence({
@@ -130,7 +136,13 @@ export async function compileSequence({
       requiredOutputs,
       stepMissing,
     );
-    const body = makeBody(operation, inputs, stepMissing);
+    const body = makeBody(
+      operation,
+      inputs,
+      stepMissing,
+      step.requestMediaType,
+    );
+    const headers = makeHeaders(operation, inputs, stepMissing);
     missingInputs.push(...stepMissing.map((key) => step.id + '.' + key));
     if (
       effect === 'unknown' ||
@@ -152,6 +164,7 @@ export async function compileSequence({
       id: step.id,
       url,
       body,
+      headers,
       expectedBody: expectedBody as ExpectedBody,
       authentication,
     });
@@ -168,7 +181,10 @@ export async function compileSequence({
     }),
   );
   nodes.forEach(
-    ({ operation, id, url, body, expectedBody, authentication }, index) => {
+    (
+      { operation, id, url, body, headers, expectedBody, authentication },
+      index,
+    ) => {
       const requiredFields: RequiredFields = {};
       for (const field of requiredOutputs.get(id) ?? []) {
         requiredFields[field] = responseFieldType(operation, field);
@@ -176,34 +192,16 @@ export async function compileSequence({
       const shouldAssert =
         Object.keys(expectedBody).length > 0 ||
         Object.keys(requiredFields).length > 0;
-      const request = node({
-        type: 'n8n-nodes-base.httpRequest',
-        version: 4.3,
-        config: {
-          id: 'request-' + id,
-          name: 'Request ' + id,
-          position: [480 + index * 480, 300],
-          parameters: {
-            method: operation.method,
-            url,
-            ...authentication?.parameters,
-            ...(body === undefined
-              ? {}
-              : { sendBody: true, specifyBody: 'json', jsonBody: body }),
-            options: {
-              response: {
-                response: {
-                  fullResponse: true,
-                  ...(shouldAssert ? { neverError: true } : {}),
-                  responseFormat: 'autodetect',
-                },
-              },
-            },
-          },
-          ...(authentication
-            ? { credentials: authentication.credentials }
-            : {}),
-        },
+      const request = operationNode({
+        operation,
+        id: 'request-' + id,
+        name: 'Request ' + id,
+        position: [480 + index * 480, 300],
+        url,
+        body,
+        headers,
+        authentication,
+        shouldAssert,
       });
       built = built.to(request);
       if (!shouldAssert) return;
