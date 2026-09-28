@@ -3,11 +3,13 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import process from 'node:process';
 import test from 'node:test';
+import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import {
   compileWorkflow,
   operationsFromSpec,
   validateOpenApi,
 } from '@openapi-flow/core';
+import { createOperationSelectionSchema } from '../dist/schemas/operation-selection-schema.js';
 
 const directory = process.env.OPENAPI_FLOW_REAL_OAS_DIR;
 if (!directory) {
@@ -80,6 +82,16 @@ for (const [index, file] of files.entries()) {
         left.operationRef.localeCompare(right.operationRef),
       ),
     );
+  });
+  test(`real OAS ${index + 1} builds a Zod selection schema from its operations`, async () => {
+    const operations = await operationsFromSpec(spec);
+    const refs = operations.map((operation) => operation.operationRef);
+    const schema = createOperationSelectionSchema(refs);
+    const wireSchema = toJsonSchema(schema);
+    assert.deepEqual(wireSchema.properties.operationRef.enum, refs);
+    assert.deepEqual(schema.parse({ operationRef: refs[0] }), {
+      operationRef: refs[0],
+    });
   });
   if (file === 'honeypot-service.openapi.json') {
     test('Honeypot multi-response operation compiles without a planned status', async () => {

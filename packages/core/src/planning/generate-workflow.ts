@@ -14,7 +14,7 @@ import type {
   GenerateRequest,
   WorkflowInputs,
 } from '../types/workflow.js';
-import { isObject } from '../utils/validation.js';
+import { parseStructuredOutput } from '../utils/parse-structured-output.js';
 import { compileWorkflowFromOperation } from '../workflow/compile-workflow.js';
 import {
   assertSelectionInput,
@@ -86,30 +86,15 @@ export async function generateWorkflow(
         }),
       ],
     ]);
-  if (
-    !isObject(proposed) ||
-    !Array.isArray(proposed.inputs) ||
-    !Array.isArray(proposed.expectedBody)
-  ) {
-    throw new Error('model plan must contain inputs and expectedBody arrays');
-  }
+  const { inputs: bindings, expectedBody: assertions } = parseStructuredOutput(
+    planSchema,
+    proposed,
+    'model operation plan',
+  );
   const inputs: WorkflowInputs = {};
   const body: ExpectedBody = {};
-  for (const entry of proposed.inputs) {
-    if (
-      !isObject(entry) ||
-      typeof entry.key !== 'string' ||
-      !inputNames.includes(entry.key) ||
-      typeof entry.valueJson !== 'string'
-    ) {
-      throw new Error('model plan has an invalid input binding');
-    }
-    let value: unknown;
-    try {
-      value = JSON.parse(entry.valueJson);
-    } catch {
-      throw new Error('model plan input ' + entry.key + ' must be JSON');
-    }
+  for (const entry of bindings) {
+    const value: unknown = JSON.parse(entry.valueJson);
     if (entry.key === 'body') {
       if (Object.hasOwn(inputs, 'body'))
         throw new Error('model plan has a duplicate input binding');
@@ -131,22 +116,10 @@ export async function generateWorkflow(
     inputs.body = body;
   }
   const expectedBody: ExpectedBody = {};
-  for (const entry of proposed.expectedBody) {
-    if (
-      !isObject(entry) ||
-      typeof entry.key !== 'string' ||
-      !responseNames.includes(entry.key) ||
-      typeof entry.valueJson !== 'string'
-    ) {
-      throw new Error('model plan has an invalid body assertion');
-    }
+  for (const entry of assertions) {
     if (Object.hasOwn(expectedBody, entry.key))
       throw new Error('model plan has a duplicate body assertion');
-    try {
-      expectedBody[entry.key] = JSON.parse(entry.valueJson);
-    } catch {
-      throw new Error('model plan assertion ' + entry.key + ' must be JSON');
-    }
+    expectedBody[entry.key] = JSON.parse(entry.valueJson);
   }
   return compileWorkflowFromOperation(
     {

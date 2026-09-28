@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
+import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import {
   compileSequence as compileSequenceCore,
   compileWorkflow as compileWorkflowCore,
@@ -1073,7 +1074,7 @@ test('LangChain structured output selects an operation and proposes validated bi
   const model = {
     withStructuredOutput(schema, options) {
       if (options.name === 'select_operation') {
-        assert.deepEqual(schema.properties.operationRef.enum, [
+        assert.deepEqual(toJsonSchema(schema).properties.operationRef.enum, [
           '#/paths/~1items~1{id}/get',
           '#/paths/~1items/post',
         ]);
@@ -1092,12 +1093,13 @@ test('LangChain structured output selects an operation and proposes validated bi
       assert.equal(options.name, 'plan_operation');
       assert.equal(options.method, 'jsonSchema');
       assert.equal(options.strict, true);
-      assert.ok(schema.properties.inputs.items.properties.key.description);
+      const wireSchema = toJsonSchema(schema);
+      assert.ok(wireSchema.properties.inputs.items.properties.key.description);
       assert.ok(
-        schema.properties.inputs.items.properties.valueJson.description,
+        wireSchema.properties.inputs.items.properties.valueJson.description,
       );
-      assert.ok(schema.properties.expectedBody.description);
-      assert.deepEqual(schema.properties.inputs.items.properties.key.enum, [
+      assert.ok(wireSchema.properties.expectedBody.description);
+      assert.deepEqual(wireSchema.properties.inputs.items.properties.key.enum, [
         'path.id',
       ]);
       return {
@@ -1134,7 +1136,7 @@ test('LangChain structured output selects an operation and proposes validated bi
       baseUrl: 'https://example.test',
       profile: 'read-only',
     }),
-    /outside spec.paths/,
+    /model operation selection is invalid: operationRef: Invalid enum value/,
   );
   const omitted = {
     withStructuredOutput(_schema, options) {
@@ -1182,6 +1184,101 @@ test('LangChain structured output selects an operation and proposes validated bi
   });
   assert.equal(stable.status, 'complete');
   assert.deepEqual(stable.plan.expectedBody, { ok: true });
+});
+
+test('Zod rejects invalid model plans even when a chat model bypasses its output parser', async () => {
+  const invalidPlans = [
+    { inputs: [] },
+    { inputs: [{ key: 'query.unknown', valueJson: '1' }], expectedBody: [] },
+    { inputs: [{ key: 'path.id', valueJson: 'not JSON' }], expectedBody: [] },
+    { inputs: [], expectedBody: [{ key: 'unknown', valueJson: 'true' }] },
+  ];
+  for (const invalidPlan of invalidPlans) {
+    const model = {
+      withStructuredOutput(_schema, options) {
+        return {
+          async invoke() {
+            return options.name === 'select_operation'
+              ? { operationRef: '#/paths/~1items~1{id}/get' }
+              : invalidPlan;
+          },
+        };
+      },
+    };
+    await assert.rejects(
+      generateWorkflow({
+        spec,
+        scenario: 'Read an item',
+        model,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+      }),
+      (error) =>
+        error.message.includes('model operation plan is invalid:') &&
+        error.cause?.name === 'ZodError',
+    );
+  }
+});
+
+test('planning keeps duplicate and conflicting body binding checks after Zod parsing', async () => {
+  const cases = [
+    {
+      operationRef: '#/paths/~1items~1{id}/get',
+      plan: {
+        inputs: [
+          { key: 'path.id', valueJson: '"a"' },
+          { key: 'path.id', valueJson: '"b"' },
+        ],
+        expectedBody: [],
+      },
+      error: /duplicate input binding/,
+    },
+    {
+      operationRef: '#/paths/~1items~1{id}/get',
+      plan: {
+        inputs: [{ key: 'path.id', valueJson: '"a"' }],
+        expectedBody: [
+          { key: 'ok', valueJson: 'true' },
+          { key: 'ok', valueJson: 'false' },
+        ],
+      },
+      error: /duplicate body assertion/,
+    },
+    {
+      operationRef: '#/paths/~1items/post',
+      plan: {
+        inputs: [
+          { key: 'body', valueJson: '{"name":"a"}' },
+          { key: 'body.name', valueJson: '"b"' },
+        ],
+        expectedBody: [],
+      },
+      error: /cannot combine body and body fields/,
+    },
+  ];
+  for (const entry of cases) {
+    const model = {
+      withStructuredOutput(_schema, options) {
+        return {
+          async invoke() {
+            return options.name === 'select_operation'
+              ? { operationRef: entry.operationRef }
+              : entry.plan;
+          },
+        };
+      },
+    };
+    await assert.rejects(
+      generateWorkflow({
+        spec,
+        scenario: 'Check an item',
+        model,
+        baseUrl: 'https://example.test',
+        profile: 'test',
+      }),
+      entry.error,
+    );
+  }
 });
 
 test('natural-language generation uses two model calls for multi-response OAS without asserting a status', async () => {
@@ -1397,8 +1494,11 @@ test('structured planning accepts JSON arrays and nested objects without primiti
           if (options.name === 'select_operation') {
             return { operationRef: '#/paths/~1items/post' };
           }
+          const wireSchema = toJsonSchema(schema);
           assert.ok(
-            schema.properties.inputs.items.properties.key.enum.includes('body'),
+            wireSchema.properties.inputs.items.properties.key.enum.includes(
+              'body',
+            ),
           );
           return {
             inputs: [{ key: 'body', valueJson: '[{"name":"demo"}]' }],

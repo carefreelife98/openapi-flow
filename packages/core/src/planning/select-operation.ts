@@ -1,7 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { OperationCandidate } from '../types/openapi.js';
-import { isObject } from '../utils/validation.js';
 import { createOperationSelectionSchema } from '../schemas/operation-selection-schema.js';
+import { parseStructuredOutput } from '../utils/parse-structured-output.js';
 
 export async function selectOperationFromCandidates(
   operations: OperationCandidate[],
@@ -51,14 +51,8 @@ export async function selectOperationFromCandidates(
         }),
       ],
     ]);
-  if (
-    !isObject(result) ||
-    typeof result.operationRef !== 'string' ||
-    !refs.includes(result.operationRef)
-  ) {
-    throw new Error('model returned an operationRef outside spec.paths');
-  }
-  return result.operationRef;
+  return parseStructuredOutput(schema, result, 'model operation selection')
+    .operationRef;
 }
 
 export function assertSelectionInput(
