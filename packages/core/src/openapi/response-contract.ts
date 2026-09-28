@@ -45,6 +45,7 @@ export function responseFieldType(operation: Operation, field: string): string {
         scalarSchema(
           schema,
           'operationRef ' + operation.operationRef + ' response field ' + field,
+          operation.operationRef,
         ).type,
     ),
   );

@@ -1,4 +1,5 @@
 import type { JsonObject, Scalar, ScalarSchema } from '../types/openapi.js';
+import { UnsupportedOperationError } from './unsupported-operation-error.js';
 
 export function object(value: unknown, source: string): JsonObject {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -14,12 +15,19 @@ export function dereferencedObject(value: unknown, source: string): JsonObject {
   return item;
 }
 
-export function scalarSchema(value: unknown, source: string): ScalarSchema {
+export function scalarSchema(
+  value: unknown,
+  source: string,
+  operationRef: string,
+): ScalarSchema {
   const schema = dereferencedObject(value, source);
   if (
     !['string', 'integer', 'number', 'boolean'].includes(String(schema.type))
   ) {
-    throw new Error(`${source} must be a primitive schema`);
+    throw new UnsupportedOperationError(
+      operationRef,
+      `${source} must be a primitive schema`,
+    );
   }
   if (
     schema.enum !== undefined &&
@@ -32,7 +40,10 @@ export function scalarSchema(value: unknown, source: string): ScalarSchema {
           typeof entry !== 'boolean',
       ))
   ) {
-    throw new Error(`${source}.enum must contain primitive values`);
+    throw new UnsupportedOperationError(
+      operationRef,
+      `${source}.enum must contain primitive values`,
+    );
   }
   return {
     type: schema.type as string,

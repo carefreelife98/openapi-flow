@@ -1,5 +1,6 @@
 import type { JsonObject, OperationAuthentication } from '../types/openapi.js';
 import { dereferencedObject, object } from './parse-spec-utils.js';
+import { UnsupportedOperationError } from './unsupported-operation-error.js';
 
 export function parseOperationSecurity(
   spec: JsonObject,
@@ -14,7 +15,8 @@ export function parseOperationSecurity(
   }
   if (security.length === 0) return undefined;
   if (security.length !== 1) {
-    throw new Error(
+    throw new UnsupportedOperationError(
+      operationRef,
       `operationRef ${operationRef}.security has unsupported alternatives`,
     );
   }
@@ -25,7 +27,8 @@ export function parseOperationSecurity(
   const names = Object.keys(requirement);
   if (names.length === 0) return undefined;
   if (names.length !== 1) {
-    throw new Error(
+    throw new UnsupportedOperationError(
+      operationRef,
       `operationRef ${operationRef}.security has unsupported combined schemes`,
     );
   }
@@ -43,7 +46,8 @@ export function parseOperationSecurity(
     scheme.type !== 'http' ||
     String(scheme.scheme).toLowerCase() !== 'bearer'
   ) {
-    throw new Error(
+    throw new UnsupportedOperationError(
+      operationRef,
       `operationRef ${operationRef}.security.${schemeName} cannot be mapped to a supported n8n credential`,
     );
   }

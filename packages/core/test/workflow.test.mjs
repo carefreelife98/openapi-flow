@@ -7,6 +7,7 @@ import {
   compileWorkflow as compileWorkflowCore,
   generateWorkflow as generateWorkflowCore,
   operationsFromSpec,
+  UnsupportedOperationError,
   validateOpenApi,
 } from '@openapi-flow/core';
 
@@ -404,7 +405,12 @@ test('untrusted or unsupported contract data fails before workflow generation', 
         profile: 'read-only',
         plan: plan('getItem', { 'path.id': 'x' }),
       }),
-    /unsupported alternatives/,
+    (error) => {
+      assert.ok(error instanceof UnsupportedOperationError);
+      assert.equal(error.operationRef, '#/paths/~1items~1{id}/get');
+      assert.match(error.message, /unsupported alternatives/);
+      return true;
+    },
   );
   await assert.rejects(
     () =>
@@ -468,12 +474,69 @@ test('unrelated unsupported operations do not prevent selection of a supported o
   );
 });
 
+test('valid OAS operations remain selectable when a chosen conversion is unsupported', async () => {
+  const withHeader = globalThis.structuredClone(spec);
+  withHeader.paths['/items/{id}'].get.parameters.push({
+    name: 'X-Trace',
+    in: 'header',
+    schema: { type: 'string' },
+  });
+  assert.equal(validateOpenApi(withHeader).openapi, '3.0.4');
+  assert.equal((await operationsFromSpec(withHeader)).length, 2);
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: withHeader,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        plan: plan('getItem', { 'path.id': 'x' }),
+      }),
+    (error) => {
+      assert.ok(error instanceof UnsupportedOperationError);
+      assert.equal(error.operationRef, '#/paths/~1items~1{id}/get');
+      assert.match(error.message, /unsupported parameter/);
+      return true;
+    },
+  );
+
+  const withForm = globalThis.structuredClone(spec);
+  withForm.paths['/items'].post.requestBody.content = {
+    'application/x-www-form-urlencoded': {
+      schema: { type: 'object', properties: { name: { type: 'string' } } },
+    },
+  };
+  assert.equal(validateOpenApi(withForm).openapi, '3.0.4');
+  assert.equal((await operationsFromSpec(withForm)).length, 2);
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: withForm,
+        baseUrl: 'https://example.test',
+        profile: 'test',
+        plan: plan('createItem', { body: { name: 'demo' } }),
+      }),
+    (error) => {
+      assert.ok(error instanceof UnsupportedOperationError);
+      assert.equal(error.operationRef, '#/paths/~1items/post');
+      assert.match(error.message, /no application\/json media type/);
+      return true;
+    },
+  );
+});
+
 test('OAS validation rejects malformed responses before operation selection', async () => {
   const malformed = globalThis.structuredClone(spec);
   delete malformed.paths['/items/{id}'].get.responses[200].description;
   await assert.rejects(
     () => operationsFromSpec(malformed),
-    /spec OpenAPI validation failed:.*description/,
+    (error) => {
+      assert.equal(error instanceof UnsupportedOperationError, false);
+      assert.match(
+        error.message,
+        /spec OpenAPI validation failed:.*description/,
+      );
+      return true;
+    },
   );
   const unrelated = globalThis.structuredClone(spec);
   delete unrelated.paths['/items'].post.responses[201].description;
