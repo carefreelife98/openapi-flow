@@ -15,6 +15,7 @@ import {
   scalarSchema,
 } from './parse-spec-utils.js';
 import { operationEntries, operationReference } from './operation-reference.js';
+import { parseOperationSecurity } from './parse-security.js';
 import { validatedDocument } from './validate-spec.js';
 
 function operationMetadata(
@@ -110,16 +111,7 @@ function parseOperation(
   if (!path.startsWith('/')) {
     throw new Error(`operationRef ${operationRef} path must start with /`);
   }
-  const security =
-    operation.security === undefined ? spec.security : operation.security;
-  if (
-    security !== undefined &&
-    (!Array.isArray(security) || security.length > 0)
-  ) {
-    throw new Error(
-      `operationRef ${operationRef} requires credentials; workflow compilation has no credential binding`,
-    );
-  }
+  const authentication = parseOperationSecurity(spec, operation, operationRef);
   if (
     (pathItem.parameters !== undefined &&
       !Array.isArray(pathItem.parameters)) ||
@@ -273,19 +265,13 @@ function parseOperation(
     }
   }
 
-  const effect = operation['x-openapi-flow-effect'];
-  if (effect !== undefined && effect !== 'read' && effect !== 'write') {
-    throw new Error(
-      `operationRef ${operationRef}.x-openapi-flow-effect must be read or write`,
-    );
-  }
   return {
     operationRef,
     ...metadata,
     method,
     path,
-    effect: effect ?? 'unknown',
     status,
+    authentication,
     parameters,
     body,
     responseProperties,

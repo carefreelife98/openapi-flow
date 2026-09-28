@@ -19,6 +19,8 @@ import {
   originFrom,
 } from '../utils/validation.js';
 import { workflowId } from '../utils/workflow-id.js';
+import { approvedEffect } from './effect-policy.js';
+import { resolveCredentialBinding } from './credential-binding.js';
 import { assertionCode, isSafeMethod, makeBody } from './workflow-helpers.js';
 import { sequenceUrl } from './sequence-url.js';
 
@@ -26,6 +28,8 @@ export async function compileSequence({
   spec,
   baseUrl,
   profile,
+  effectPolicy,
+  credentialBindings,
   plan,
 }: SequenceRequest): Promise<SequenceResult> {
   const origin = originFrom(baseUrl);
@@ -63,6 +67,11 @@ export async function compileSequence({
       document,
       step.operationRef,
       step.expectedStatus,
+    );
+    const effect = approvedEffect(operation, effectPolicy);
+    const authentication = resolveCredentialBinding(
+      operation,
+      credentialBindings,
     );
     const inputs = step.inputs === undefined ? {} : step.inputs;
     const expectedBody =
@@ -134,10 +143,10 @@ export async function compileSequence({
     const body = makeBody(operation, inputs, stepMissing);
     missingInputs.push(...stepMissing.map((key) => step.id + '.' + key));
     if (
-      operation.effect === 'unknown' ||
-      (!isSafeMethod(operation.method) && operation.effect !== 'write') ||
+      effect === 'unknown' ||
+      (!isSafeMethod(operation.method) && effect !== 'write') ||
       (profile === 'read-only' &&
-        (!isSafeMethod(operation.method) || operation.effect !== 'read'))
+        (!isSafeMethod(operation.method) || effect !== 'read'))
     )
       blocked = true;
     evidence.push({
@@ -147,7 +156,7 @@ export async function compileSequence({
       method: operation.method,
       path: operation.path,
       status: operation.status,
-      effect: operation.effect,
+      effect,
     });
     nodes.push({
       operation,
@@ -155,6 +164,7 @@ export async function compileSequence({
       url,
       body,
       expectedBody: expectedBody as ExpectedBody,
+      authentication,
     });
     previous.set(step.id, operation);
   }
@@ -168,55 +178,65 @@ export async function compileSequence({
       config: { id: 'start', name: 'Start', position: [240, 300] },
     }),
   );
-  nodes.forEach(({ operation, id, url, body, expectedBody }, index) => {
-    const requiredFields: RequiredFields = {};
-    for (const field of requiredOutputs.get(id) ?? []) {
-      requiredFields[field] = scalarSchema(
-        operation.responseProperties[field],
-        'operationRef ' +
-          operation.operationRef +
-          '.responses.' +
-          operation.status +
-          '.schema.properties.' +
-          field,
-      ).type;
-    }
-    const request = node({
-      type: 'n8n-nodes-base.httpRequest',
-      version: 4.3,
-      config: {
-        id: 'request-' + id,
-        name: 'Request ' + id,
-        position: [480 + index * 480, 300],
-        parameters: {
-          method: operation.method,
-          url,
-          ...(body === undefined
-            ? {}
-            : { sendBody: true, specifyBody: 'json', jsonBody: body }),
-          options: {
-            response: {
-              response: { fullResponse: true, responseFormat: 'autodetect' },
+  nodes.forEach(
+    ({ operation, id, url, body, expectedBody, authentication }, index) => {
+      const requiredFields: RequiredFields = {};
+      for (const field of requiredOutputs.get(id) ?? []) {
+        requiredFields[field] = scalarSchema(
+          operation.responseProperties[field],
+          'operationRef ' +
+            operation.operationRef +
+            '.responses.' +
+            operation.status +
+            '.schema.properties.' +
+            field,
+        ).type;
+      }
+      const request = node({
+        type: 'n8n-nodes-base.httpRequest',
+        version: 4.3,
+        config: {
+          id: 'request-' + id,
+          name: 'Request ' + id,
+          position: [480 + index * 480, 300],
+          parameters: {
+            method: operation.method,
+            url,
+            ...authentication?.parameters,
+            ...(body === undefined
+              ? {}
+              : { sendBody: true, specifyBody: 'json', jsonBody: body }),
+            options: {
+              response: {
+                response: { fullResponse: true, responseFormat: 'autodetect' },
+              },
             },
           },
+          ...(authentication
+            ? { credentials: authentication.credentials }
+            : {}),
         },
-      },
-    });
-    const assert = node({
-      type: 'n8n-nodes-base.code',
-      version: 2,
-      config: {
-        id: 'assert-' + id,
-        name: 'Assert ' + id,
-        position: [720 + index * 480, 300],
-        parameters: {
-          mode: 'runOnceForAllItems',
-          jsCode: assertionCode(operation.status, expectedBody, requiredFields),
+      });
+      const assert = node({
+        type: 'n8n-nodes-base.code',
+        version: 2,
+        config: {
+          id: 'assert-' + id,
+          name: 'Assert ' + id,
+          position: [720 + index * 480, 300],
+          parameters: {
+            mode: 'runOnceForAllItems',
+            jsCode: assertionCode(
+              operation.status,
+              expectedBody,
+              requiredFields,
+            ),
+          },
         },
-      },
-    });
-    built = built.to(request).to(assert);
-  });
+      });
+      built = built.to(request).to(assert);
+    },
+  );
   const validation = validateWorkflow(built);
   if (!validation.valid)
     throw new Error(

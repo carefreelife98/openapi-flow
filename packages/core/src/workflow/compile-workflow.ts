@@ -14,6 +14,8 @@ import {
   originFrom,
 } from '../utils/validation.js';
 import { workflowId } from '../utils/workflow-id.js';
+import { approvedEffect } from './effect-policy.js';
+import { resolveCredentialBinding } from './credential-binding.js';
 import {
   assertionCode,
   isSafeMethod,
@@ -39,7 +41,13 @@ export async function compileWorkflow(
 }
 
 export function compileWorkflowFromOperation(
-  { baseUrl, profile, plan }: CompileOperationRequest,
+  {
+    baseUrl,
+    profile,
+    effectPolicy,
+    credentialBindings,
+    plan,
+  }: CompileOperationRequest,
   operation: Operation,
 ): CompileResult {
   const origin = originFrom(baseUrl);
@@ -55,13 +63,18 @@ export function compileWorkflowFromOperation(
     throw new Error('plan must contain version 1, goal, and operationRef');
   }
   assertSerializablePlan(plan);
+  const effect = approvedEffect(operation, effectPolicy);
+  const authentication = resolveCredentialBinding(
+    operation,
+    credentialBindings,
+  );
   const evidence = {
     operationRef: operation.operationRef,
     operationId: operation.operationId,
     method: operation.method,
     path: operation.path,
     status: operation.status,
-    effect: operation.effect,
+    effect,
   };
   const inputs = plan.inputs === undefined ? {} : plan.inputs;
   if (!isObject(inputs)) throw new Error('plan.inputs must be an object');
@@ -98,7 +111,7 @@ export function compileWorkflowFromOperation(
       throw new Error(
         'plan.inputs.' +
           key +
-          ' looks like a credential; v1 has no credential binding',
+          ' looks like a credential; bind an existing n8n credential through credentialBindings instead',
       );
     }
   }
@@ -106,10 +119,10 @@ export function compileWorkflowFromOperation(
   const url = makeUrl(operation, origin, inputs, missingInputs);
   const body = makeBody(operation, inputs, missingInputs);
   if (
-    operation.effect === 'unknown' ||
-    (!isSafeMethod(operation.method) && operation.effect !== 'write') ||
+    effect === 'unknown' ||
+    (!isSafeMethod(operation.method) && effect !== 'write') ||
     (profile === 'read-only' &&
-      (!isSafeMethod(operation.method) || operation.effect !== 'read'))
+      (!isSafeMethod(operation.method) || effect !== 'read'))
   ) {
     return { status: 'blocked', plan, evidence, missingInputs };
   }
@@ -130,6 +143,7 @@ export function compileWorkflowFromOperation(
       parameters: {
         method: operation.method,
         url,
+        ...authentication?.parameters,
         ...(body === undefined
           ? {}
           : { sendBody: true, specifyBody: 'json', jsonBody: body }),
@@ -139,6 +153,7 @@ export function compileWorkflowFromOperation(
           },
         },
       },
+      ...(authentication ? { credentials: authentication.credentials } : {}),
     },
   });
   const assert = node({

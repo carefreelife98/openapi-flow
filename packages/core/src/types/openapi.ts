@@ -28,6 +28,11 @@ export interface OperationBody {
   properties: JsonObject;
 }
 
+export interface OperationAuthentication {
+  schemeName: string;
+  credentialType: 'httpBearerAuth';
+}
+
 export interface OperationMetadata {
   operationId?: string;
   summary: string;
@@ -39,8 +44,8 @@ export interface Operation extends OperationMetadata {
   operationRef: string;
   method: OperationMethod;
   path: string;
-  effect: 'read' | 'write' | 'unknown';
   status: number;
+  authentication?: OperationAuthentication;
   parameters: OperationParameter[];
   body?: OperationBody;
   responseProperties: ResponseProperties;

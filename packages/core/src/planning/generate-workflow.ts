@@ -140,6 +140,8 @@ export async function generateWorkflow(
     {
       baseUrl: input.baseUrl,
       profile: input.profile,
+      effectPolicy: input.effectPolicy,
+      credentialBindings: input.credentialBindings,
       plan: {
         version: '1',
         goal: input.scenario,

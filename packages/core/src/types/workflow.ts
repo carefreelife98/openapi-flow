@@ -1,4 +1,4 @@
-import type { WorkflowJSON } from '@n8n/workflow-sdk';
+import type { NodeConfig, WorkflowJSON } from '@n8n/workflow-sdk';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Operation, Scalar } from './openapi.js';
 
@@ -10,10 +10,22 @@ export type RequiredFields = Record<string, string>;
 export type PreviousOperations = Map<string, Operation>;
 export type RequiredOutputs = Map<string, Set<string>>;
 export type CompileStatus = 'complete' | 'needs_input' | 'blocked';
-export type OperationEvidence = Pick<
-  Operation,
-  'operationRef' | 'operationId' | 'method' | 'path' | 'status' | 'effect'
+export type OperationEffect = 'read' | 'write' | 'unknown';
+export type EffectPolicy = Record<string, 'read' | 'write'>;
+export interface CredentialBinding {
+  id: string;
+  name: string;
+}
+export type CredentialBindings = Record<string, CredentialBinding>;
+export type ResolvedAuthentication = Required<
+  Pick<NodeConfig, 'parameters' | 'credentials'>
 >;
+export interface OperationEvidence extends Pick<
+  Operation,
+  'operationRef' | 'operationId' | 'method' | 'path' | 'status'
+> {
+  effect: OperationEffect;
+}
 
 export interface WorkflowPlan {
   version: '1';
@@ -28,12 +40,14 @@ export interface CompileRequest {
   spec: unknown;
   baseUrl: string;
   profile: 'read-only' | 'test';
+  effectPolicy: EffectPolicy;
+  credentialBindings: CredentialBindings;
   plan: WorkflowPlan;
 }
 
 export type CompileOperationRequest = Pick<
   CompileRequest,
-  'baseUrl' | 'profile' | 'plan'
+  'baseUrl' | 'profile' | 'effectPolicy' | 'credentialBindings' | 'plan'
 >;
 
 export interface CompileResult {
@@ -67,6 +81,8 @@ export interface SequenceRequest {
   spec: unknown;
   baseUrl: string;
   profile: CompileRequest['profile'];
+  effectPolicy: EffectPolicy;
+  credentialBindings: CredentialBindings;
   plan: SequencePlan;
 }
 
@@ -88,6 +104,7 @@ export interface PreparedSequenceNode {
   url: string;
   body?: string;
   expectedBody: ExpectedBody;
+  authentication?: ResolvedAuthentication;
 }
 
 export interface GenerateRequest extends Omit<CompileRequest, 'plan'> {

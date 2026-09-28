@@ -32,6 +32,8 @@ const result = await generateWorkflow({
   model,
   baseUrl: 'https://api.example.com',
   profile: 'read-only',
+  effectPolicy: { '#/paths/~1items~1{id}/get': 'read' },
+  credentialBindings: {},
 });
 
 if (result.status === 'complete') {
@@ -42,7 +44,7 @@ if (result.status === 'complete') {
 }
 ```
 
-The model first chooses an OAS `operationRef` (a JSON Pointer to a path operation) using the operation's method, path, summary, description, and tags, then proposes literal input bindings and body assertions in a second structured response. The host-supplied model receives these operation metadata fields for every operation, so the host must approve that data flow before using `generateWorkflow` with a remote provider. `operationId` is optional metadata, not required input. Every proposed field and value is validated against the selected OAS operation. It cannot choose a URL or author n8n node code. Credential binding is not supported: known secret-like field names are rejected, but the host must still keep secrets out of scenarios and literal inputs. `baseUrl` is a required trusted HTTP(S) deployment URL supplied by the host application; an optional path prefix is preserved, and the library does not use OAS `servers`. To skip the model or supply missing inputs explicitly, call `await compileWorkflow({ spec, baseUrl, profile, plan })` with a version-`1` plan:
+The model first chooses an OAS `operationRef` (a JSON Pointer to a path operation) using the operation's method, path, summary, description, and tags, then proposes literal input bindings and body assertions in a second structured response. The host-supplied model receives these operation metadata fields for every operation, so the host must approve that data flow before using `generateWorkflow` with a remote provider. `operationId` is optional metadata, not required input. Every proposed field and value is validated against the selected OAS operation. It cannot choose a URL or author n8n node code. The host must keep secrets out of scenarios and literal inputs; authenticated operations refer only to existing n8n credentials by ID and name. `baseUrl` is a required trusted HTTP(S) deployment URL supplied by the host application; an optional path prefix is preserved, and the library does not use OAS `servers`. To skip the model or supply missing inputs explicitly, call `await compileWorkflow({ spec, baseUrl, profile, effectPolicy, credentialBindings, plan })` with a version-`1` plan:
 
 ```ts
 const plan = {
@@ -56,7 +58,9 @@ const plan = {
 };
 ```
 
-The OAS operation must explicitly declare `x-openapi-flow-effect: read` or `write`. An absent effect is `unknown` and returns `blocked`; `read-only` blocks writes, while `test` permits explicitly marked writes. `test` does **not** execute the workflow. Missing required inputs return `needs_input` with no workflow. Invalid or unsupported contract data throws a source-specific error.
+The trusted host, not the OAS document or model, supplies `effectPolicy`, a map from canonical `operationRef` to approved `read` or `write` effect. A missing entry is `unknown` and returns `blocked`; `read-only` blocks writes, while `test` permits explicitly approved writes. No `x-openapi-flow-effect` annotation is needed. `test` does **not** execute the workflow. Missing required inputs return `needs_input` with no workflow. Invalid or unsupported selected-operation data throws a source-specific error.
+
+For an operation whose OAS `security` selects an HTTP Bearer scheme, the host supplies `credentialBindings` keyed by the OAS security-scheme name. For example, `credentialBindings: { bearerAuth: { id: 'existing-n8n-credential-id', name: 'Bearer for staging' } }` links the generated HTTP Request node to an existing n8n credential. The ID and name are references, not a token; the host must verify that the credential exists on the target n8n instance and is accessible to the importing workflow. Missing bindings fail compilation. Use `{}` when the selected operation needs no authentication. Do not put token values in the plan or bindings.
 
 For an explicitly planned linear workflow, `compileSequence` can bind a prior response field to a later path or query parameter:
 
@@ -67,6 +71,11 @@ const result = await compileSequence({
   spec: openApiJson,
   baseUrl: 'https://api.example.com',
   profile: 'test',
+  effectPolicy: {
+    '#/paths/~1items/post': 'write',
+    '#/paths/~1items~1{id}/get': 'read',
+  },
+  credentialBindings: {},
   plan: {
     version: '1',
     goal: 'Create an item and read it back',
@@ -93,10 +102,10 @@ References must point to an earlier step and a declared response field of a comp
 
 - `validateOpenApi(spec)` checks a JSON object against Scalar's OpenAPI schema validator. It does not impose a project-specific version, byte-size, method, operation-count, or `operationId` requirement. It accepts standard external `$ref` syntax without fetching referenced documents. A missing required OAS field fails validation rather than being filled in automatically.
 - `operationsFromSpec(spec)` resolves references and lists path operations, including operations without `operationId`; each candidate has a canonical `operationRef`. This API currently takes one in-memory document, so callers must bundle external references before passing it. An unbundled external reference makes operation listing fail even though `validateOpenApi` accepts the entry document's OAS structure. The library does not fetch remote URLs automatically.
-- Workflow generation remains narrower than document acceptance: selected operations currently require unauthenticated requests, primitive path/query parameters using supported serialization, and `application/json` when a request body is present. The complete JSON request body and selected top-level response assertions are checked against their OAS schemas, including arrays and nested objects. Unsupported selected-operation features fail explicitly; unrelated valid OAS operations do not make the document invalid. The SDK emits a Manual Trigger → HTTP Request → Code assertion workflow.
+- Workflow generation remains narrower than document acceptance: selected operations currently support no authentication or one HTTP Bearer security requirement backed by an existing n8n credential, primitive path/query parameters using supported serialization, and `application/json` when a request body is present. Other security schemes, combined schemes, and alternative security requirements fail explicitly for the selected operation. The complete JSON request body and selected top-level response assertions are checked against their OAS schemas, including arrays and nested objects. Unsupported selected-operation features fail explicitly; unrelated valid OAS operations do not make the document invalid. The SDK emits a Manual Trigger → HTTP Request → Code assertion workflow.
 - The compiler accepts exact, ranged, and `default` OAS response entries. Supply `plan.expectedStatus` (or a step's `expectedStatus`) when the response is ambiguous; it must match an OAS response entry. Status-only checks do not require a JSON response schema. Assertions can compare top-level response fields containing nested JSON values. Linear plans have no project-specific step-count cap, and prior-response bindings are currently for primitive path/query values.
 
-Natural-language generation currently handles **one operation per workflow** and requires an unambiguous response status; for a multi-response operation, use an explicit `compileWorkflow` plan with `expectedStatus`. `operationsFromSpec`, `compileWorkflow`, and `compileSequence` are asynchronous because reference resolution is asynchronous. It does not yet support AI-planned multi-step workflows, wait/branch steps, YAML input, auth/credential binding, all OAS parameter styles and media types, instance-level n8n MCP validation, remote draft creation, or execution. These are conversion capabilities that have not been implemented, not restrictions on whether the input OAS document is valid. OAS effect annotations and the trusted `baseUrl` are supplied by the host, so review is still required before importing or running a workflow against a production API.
+Natural-language generation currently handles **one operation per workflow** and requires an unambiguous response status; for a multi-response operation, use an explicit `compileWorkflow` plan with `expectedStatus`. `operationsFromSpec`, `compileWorkflow`, and `compileSequence` are asynchronous because reference resolution is asynchronous. It does not yet support AI-planned multi-step workflows, wait/branch steps, YAML input, other OAS authentication schemes, all OAS parameter styles and media types, instance-level n8n MCP validation, remote draft creation, or execution. These are conversion capabilities that have not been implemented, not restrictions on whether the input OAS document is valid. The trusted `baseUrl`, effect approvals, and credential references are supplied by the host, so review is still required before importing or running a workflow against a production API.
 
 ## Development
 
@@ -130,3 +139,5 @@ OPENAPI_FLOW_EVAL_CASES=/absolute/path/to/private-cases.json \
 Set `LLM_MODEL_HEADER_NAME` if the endpoint requires the model name in a request header. The evaluator reads an OAS file or fetches an OAS URL, checks the gold references, and sends each scenario plus the operation catalogue to the supplied model. It reports exact-match accuracy and per-case latency. It never calls the service operations, creates a workflow, or contacts n8n. Keep credentials, company OAS documents, and private evaluation cases out of this public repository.
 
 On 2026-09-24, workflows generated by this library were imported into an isolated local n8n 2.37.10 instance. GET and POST calls succeeded; mismatched body and status assertions failed as intended; a POST → GET sequence using a response-field binding succeeded. This manual smoke check is not part of `npm test`. A real LangChain/Chomsky two-call planning run and target-instance MCP validation remain unverified.
+
+On 2026-09-28, a workflow compiled from a private Honeypot OAS GET operation was imported and executed in isolated n8n 2.37.10 against a synthetic HTTP responder. The HTTP Request and response assertion nodes completed successfully. No Honeypot service was called. A private ICL OAS with global HTTP Bearer security also produced structurally valid workflows when given a placeholder credential reference; this did not verify credential existence, authenticated execution, or service behavior.

@@ -7,6 +7,9 @@ export type { Operation, OperationCandidate } from './types/openapi.js';
 export type {
   CompileRequest,
   CompileResult,
+  EffectPolicy,
+  CredentialBinding,
+  CredentialBindings,
   GenerateRequest,
   ResponseReference,
   SequencePlan,

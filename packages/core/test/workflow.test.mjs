@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import {
-  compileSequence,
-  compileWorkflow,
-  generateWorkflow,
+  compileSequence as compileSequenceCore,
+  compileWorkflow as compileWorkflowCore,
+  generateWorkflow as generateWorkflowCore,
   operationsFromSpec,
   validateOpenApi,
 } from '@openapi-flow/core';
@@ -19,7 +19,6 @@ const spec = {
         summary: 'Read one item',
         description: 'Fetch an item by ID',
         tags: ['inventory'],
-        'x-openapi-flow-effect': 'read',
         parameters: [{ $ref: '#/components/parameters/ItemId' }],
         responses: {
           200: {
@@ -37,7 +36,6 @@ const spec = {
       post: {
         operationId: 'createItem',
         summary: 'Create an item',
-        'x-openapi-flow-effect': 'write',
         requestBody: {
           required: true,
           content: {
@@ -81,6 +79,36 @@ const spec = {
     },
   },
 };
+
+const effectPolicy = {
+  '#/paths/~1items~1{id}/get': 'read',
+  '#/paths/~1items/post': 'write',
+  '#/paths/~1~1items~1{item-id}/get': 'read',
+};
+
+function compileWorkflow(request) {
+  return compileWorkflowCore({
+    effectPolicy,
+    credentialBindings: {},
+    ...request,
+  });
+}
+
+function compileSequence(request) {
+  return compileSequenceCore({
+    effectPolicy,
+    credentialBindings: {},
+    ...request,
+  });
+}
+
+function generateWorkflow(request) {
+  return generateWorkflowCore({
+    effectPolicy,
+    credentialBindings: {},
+    ...request,
+  });
+}
 
 function plan(operationRef, inputs, expectedBody) {
   return {
@@ -179,17 +207,42 @@ test('required input and policy block cannot yield a workflow', async () => {
   assert.equal(blocked.status, 'blocked');
   assert.equal(blocked.workflow, undefined);
   const unknown = globalThis.structuredClone(spec);
-  delete unknown.paths['/items/{id}'].get['x-openapi-flow-effect'];
   assert.equal(
     (
-      await compileWorkflow({
+      await compileWorkflowCore({
         spec: unknown,
         baseUrl: 'https://example.test',
         profile: 'test',
+        effectPolicy: {},
+        credentialBindings: {},
         plan: plan('getItem', { 'path.id': 'x' }),
       })
     ).status,
     'blocked',
+  );
+});
+
+test('only the host policy can approve an effect; OAS extensions do not grant it', async () => {
+  const annotated = globalThis.structuredClone(spec);
+  annotated.paths['/items/{id}'].get['x-openapi-flow-effect'] = 'write';
+  const request = {
+    spec: annotated,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    credentialBindings: {},
+    plan: plan('getItem', { 'path.id': 'x' }),
+  };
+  assert.equal(
+    (await compileWorkflowCore({ ...request, effectPolicy: {} })).status,
+    'blocked',
+  );
+  assert.equal(
+    (await compileWorkflowCore({ ...request, effectPolicy })).status,
+    'complete',
+  );
+  await assert.rejects(
+    () => compileWorkflowCore({ ...request, effectPolicy: undefined }),
+    /effectPolicy must be a trusted/,
   );
 });
 
@@ -304,7 +357,45 @@ test('untrusted or unsupported contract data fails before workflow generation', 
         profile: 'test',
         plan: plan('getItem', { 'path.id': 'x' }),
       }),
-    /requires credentials/,
+    /credentialBindings.bearerAuth must contain an existing n8n credential id and name/,
+  );
+  const bound = await compileWorkflow({
+    spec: secure,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    credentialBindings: {
+      bearerAuth: { id: 'existing-credential-id', name: 'Test bearer' },
+    },
+    plan: plan('getItem', { 'path.id': 'x' }),
+  });
+  assert.equal(bound.status, 'complete');
+  assert.equal(
+    bound.workflow.nodes[1].parameters.authentication,
+    'genericCredentialType',
+  );
+  assert.equal(
+    bound.workflow.nodes[1].parameters.genericAuthType,
+    'httpBearerAuth',
+  );
+  assert.deepEqual(bound.workflow.nodes[1].credentials, {
+    httpBearerAuth: { id: 'existing-credential-id', name: 'Test bearer' },
+  });
+  await assert.rejects(
+    () =>
+      compileWorkflow({
+        spec: secure,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        credentialBindings: {
+          bearerAuth: {
+            id: 'existing-credential-id',
+            name: 'Test bearer',
+            token: 'not-a-real-token',
+          },
+        },
+        plan: plan('getItem', { 'path.id': 'x' }),
+      }),
+    /credentialBindings.bearerAuth must contain an existing n8n credential id and name/,
   );
   const duplicate = globalThis.structuredClone(spec);
   duplicate.paths['/another/{id}'] = globalThis.structuredClone(
@@ -347,7 +438,7 @@ test('unrelated unsupported operations do not prevent selection of a supported o
         profile: 'test',
         plan: plan('createItem', { body: { name: 'demo' } }),
       }),
-    /requires credentials/,
+    /credentialBindings.bearerAuth must contain an existing n8n credential id and name/,
   );
 });
 
@@ -437,7 +528,6 @@ test('external references are valid OAS but require supplied resolution before c
 test('catalogue accepts DELETE while compilation keeps write safety', async () => {
   const withDelete = globalThis.structuredClone(spec);
   withDelete.paths['/items/{id}'].delete = {
-    'x-openapi-flow-effect': 'read',
     parameters: [{ $ref: '#/components/parameters/ItemId' }],
     responses: { 204: { description: 'Deleted' } },
   };
@@ -599,7 +689,6 @@ test('valid unusual paths remain pinned to the supplied origin', async () => {
   const unusual = globalThis.structuredClone(spec);
   unusual.paths['//items/{item-id}'] = {
     get: {
-      'x-openapi-flow-effect': 'read',
       parameters: [
         {
           name: 'item-id',
@@ -792,6 +881,48 @@ test('a POST response field can bind a later GET path without model-authored cod
     () => compileSequence({ ...request, plan: bad }),
     /prior response field/,
   );
+});
+
+test('sequence binds an OAS Bearer requirement without embedding token material', async () => {
+  const secure = globalThis.structuredClone(spec);
+  secure.components.securitySchemes = {
+    bearerAuth: { type: 'http', scheme: 'bearer' },
+  };
+  secure.security = [{ bearerAuth: [] }];
+  const request = {
+    spec: secure,
+    baseUrl: 'https://example.test',
+    profile: 'read-only',
+    plan: {
+      version: '1',
+      goal: 'Read item',
+      steps: [
+        {
+          id: 'read',
+          operationRef: 'getItem',
+          inputs: { 'path.id': 'x' },
+        },
+      ],
+    },
+  };
+  await assert.rejects(
+    () => compileSequence(request),
+    /credentialBindings.bearerAuth must contain an existing n8n credential id and name/,
+  );
+  const result = await compileSequence({
+    ...request,
+    credentialBindings: {
+      bearerAuth: { id: 'existing-credential-id', name: 'Test bearer' },
+    },
+  });
+  assert.equal(result.status, 'complete');
+  assert.equal(
+    result.workflow.nodes[1].parameters.genericAuthType,
+    'httpBearerAuth',
+  );
+  assert.deepEqual(result.workflow.nodes[1].credentials, {
+    httpBearerAuth: { id: 'existing-credential-id', name: 'Test bearer' },
+  });
 });
 
 test('LangChain structured output selects an operation and proposes validated bindings', async () => {
