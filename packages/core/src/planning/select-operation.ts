@@ -1,7 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { OperationCandidate } from '../types/openapi.js';
 import { isObject } from '../utils/validation.js';
-import { createOperationSelectionSchema } from '../schemas/planning-schemas.js';
+import { createOperationSelectionSchema } from '../schemas/operation-selection-schema.js';
 
 export async function selectOperationFromCandidates(
   operations: OperationCandidate[],

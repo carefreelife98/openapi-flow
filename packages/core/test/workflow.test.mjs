@@ -1090,6 +1090,13 @@ test('LangChain structured output selects an operation and proposes validated bi
         };
       }
       assert.equal(options.name, 'plan_operation');
+      assert.equal(options.method, 'jsonSchema');
+      assert.equal(options.strict, true);
+      assert.ok(schema.properties.inputs.items.properties.key.description);
+      assert.ok(
+        schema.properties.inputs.items.properties.valueJson.description,
+      );
+      assert.ok(schema.properties.expectedBody.description);
       assert.deepEqual(schema.properties.inputs.items.properties.key.enum, [
         'path.id',
       ]);

@@ -25,6 +25,9 @@ test('selection uses OAS metadata and returns only a declared operationRef', asy
   const model = {
     withStructuredOutput(schema, options) {
       assert.equal(options.name, 'select_operation');
+      assert.equal(options.method, 'jsonSchema');
+      assert.equal(options.strict, true);
+      assert.ok(schema.properties.operationRef.description);
       assert.deepEqual(schema.properties.operationRef.enum, [
         operations[0].operationRef,
         operations[1].operationRef,
