@@ -1,5 +1,5 @@
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
-import type { ParsedDocument } from './openapi.js';
+import type { OpenApiDocument, ParsedDocument } from './openapi.js';
 import type {
   InboundOperationCandidate,
   InboundOperationSource,
@@ -16,7 +16,7 @@ export interface InboundPlan {
 }
 
 export interface InboundRequest {
-  spec: unknown;
+  spec: OpenApiDocument;
   plan: InboundPlan;
 }
 

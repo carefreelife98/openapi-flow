@@ -7,6 +7,7 @@ export { compileSequence } from './workflow/request/compile-sequence.js';
 export { compileInboundWorkflow } from './workflow/inbound/compile-inbound-workflow.js';
 export { compileWorkflow } from './workflow/request/compile-workflow.js';
 export type {
+  OpenApiDocument,
   OperationCandidate,
   OperationSourceKind,
 } from './types/openapi.js';

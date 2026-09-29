@@ -1,5 +1,5 @@
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
-import type { ParsedDocument } from './openapi.js';
+import type { OpenApiDocument, ParsedDocument } from './openapi.js';
 import type { Operation } from './request.js';
 import type {
   PreparedRequestBody,
@@ -38,7 +38,7 @@ export interface SequencePlan {
 }
 
 export interface SequenceRequest {
-  spec: unknown;
+  spec: OpenApiDocument;
   baseUrl: string;
   profile: CompileRequest['profile'];
   effectPolicy: EffectPolicy;

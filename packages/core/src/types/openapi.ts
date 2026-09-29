@@ -1,3 +1,10 @@
+import type { Document as OpenApi30Document } from '@scalar/openapi-types/3.0';
+import type { Document as OpenApi31Document } from '@scalar/openapi-types/3.1';
+import type { Document as OpenApi32Document } from '@scalar/openapi-types/3.2';
+
+export type OpenApiDocument =
+  OpenApi30Document | OpenApi31Document | OpenApi32Document;
+
 export type JsonObject = Record<string, unknown>;
 export type Scalar = string | number | boolean;
 export type OperationMethod = string;
