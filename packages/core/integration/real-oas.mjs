@@ -3,9 +3,11 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import process from 'node:process';
 import test from 'node:test';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import {
   compileWorkflow,
+  generateWorkflow,
   operationsFromSpec,
   validateOpenApi,
 } from '@openapi-flow/core';
@@ -96,6 +98,69 @@ for (const [index, file] of files.entries()) {
     });
   });
   if (file === 'honeypot-service.openapi.json') {
+    test('Honeypot OAS generates a workflow from structured model selection and input', async () => {
+      const operationRef = '#/paths/~1smoke~1changed/get';
+      const model = {
+        withStructuredOutput(schema, options) {
+          assert.equal(options.method, 'jsonSchema');
+          assert.equal(options.strict, true);
+          if (options.name === 'select_operation') {
+            assert.ok(
+              toJsonSchema(schema).properties.operationRef.enum.includes(
+                operationRef,
+              ),
+            );
+            return {
+              async invoke(messages) {
+                assert.ok(messages[0] instanceof SystemMessage);
+                assert.ok(messages[1] instanceof HumanMessage);
+                const request = JSON.parse(messages[1].content);
+                assert.equal(request.scenario, 'Read changed items with max 5');
+                return { operationRef };
+              },
+            };
+          }
+          assert.equal(options.name, 'plan_operation');
+          assert.ok(
+            toJsonSchema(
+              schema,
+            ).properties.inputs.items.properties.key.enum.includes('query.max'),
+          );
+          return {
+            async invoke(messages) {
+              assert.ok(messages[0] instanceof SystemMessage);
+              assert.ok(messages[1] instanceof HumanMessage);
+              const request = JSON.parse(messages[1].content);
+              assert.equal(request.operation.operationRef, operationRef);
+              return {
+                inputs: [{ key: 'query.max', valueJson: '5' }],
+                expectedBody: [],
+              };
+            },
+          };
+        },
+      };
+      const result = await generateWorkflow({
+        spec,
+        scenario: 'Read changed items with max 5',
+        model,
+        baseUrl: 'https://example.test',
+        profile: 'read-only',
+        effectPolicy: { [operationRef]: 'read' },
+        credentialBindings: {},
+      });
+      assert.equal(result.status, 'complete');
+      assert.equal(result.plan.operationRef, operationRef);
+      assert.deepEqual(result.plan.inputs, { 'query.max': 5 });
+      assert.deepEqual(
+        result.workflow.nodes.map((node) => node.type),
+        ['n8n-nodes-base.manualTrigger', 'n8n-nodes-base.httpRequest'],
+      );
+      assert.equal(
+        result.workflow.nodes[1].parameters.url,
+        'https://example.test/smoke/changed?max=5',
+      );
+    });
     test('Honeypot multi-response operation compiles without a planned status', async () => {
       const operationRef = '#/paths/~1smoke~1changed/get';
       const result = await compileWorkflow({
