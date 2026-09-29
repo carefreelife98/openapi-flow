@@ -1,4 +1,5 @@
 import type {
+  OpenApiDocument,
   OperationCandidate,
   ParsedDocument,
 } from '../../types/openapi.js';
@@ -7,7 +8,7 @@ import { mapOperationForWorkflow } from './operation-mapping.js';
 import { operationMetadata } from '../common/operation-metadata.js';
 import { operationEntries } from '../common/operation-reference.js';
 import { dereferencedObject, object } from '../common/parse-spec-utils.js';
-import { validatedDocument } from '../common/validate-spec.js';
+import { validateAndResolveOpenApiDocument } from '../common/validate-spec.js';
 import { requestOperationReference } from './request-operation-reference.js';
 
 export function operationsFromDocument({
@@ -36,16 +37,19 @@ export function operationsFromDocument({
 }
 
 export async function operationsFromSpec(
-  input: unknown,
+  input: OpenApiDocument,
 ): Promise<OperationCandidate[]> {
-  return operationsFromDocument(await validatedDocument(input));
+  return operationsFromDocument(await validateAndResolveOpenApiDocument(input));
 }
 
 export async function operationFromSpec(
-  input: unknown,
+  input: OpenApiDocument,
   operationRef: string,
 ): Promise<Operation> {
-  return operationFromDocument(await validatedDocument(input), operationRef);
+  return operationFromDocument(
+    await validateAndResolveOpenApiDocument(input),
+    operationRef,
+  );
 }
 
 function selectedOperationSource(

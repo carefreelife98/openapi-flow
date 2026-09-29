@@ -1,6 +1,10 @@
 import { validate as resolveAndValidate } from '@scalar/openapi-parser';
 import { validate } from '@scalar/openapi-validator';
-import type { JsonObject, ParsedDocument } from '../../types/openapi.js';
+import type {
+  JsonObject,
+  OpenApiDocument,
+  ParsedDocument,
+} from '../../types/openapi.js';
 import { object } from './parse-spec-utils.js';
 
 export function validateOpenApi(input: unknown): JsonObject {
@@ -22,8 +26,8 @@ export function validateOpenApi(input: unknown): JsonObject {
   return spec;
 }
 
-export async function validatedDocument(
-  input: unknown,
+export async function validateAndResolveOpenApiDocument(
+  input: OpenApiDocument,
 ): Promise<ParsedDocument> {
   const spec = validateOpenApi(input);
   const result = await resolveAndValidate(spec);

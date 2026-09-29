@@ -1,4 +1,4 @@
-import { validatedDocument } from '../../openapi/common/validate-spec.js';
+import { validateAndResolveOpenApiDocument } from '../../openapi/common/validate-spec.js';
 import { inboundOperationSourcesFromDocument } from '../../openapi/inbound/list-inbound-operations.js';
 import type {
   InboundRequest,
@@ -28,7 +28,7 @@ export async function compileInboundWorkflow({
       'plan must contain version 1, goal, operationRef, webhookPath, and responseStatus',
     );
   assertSerializablePlan(plan);
-  const document = await validatedDocument(spec);
+  const document = await validateAndResolveOpenApiDocument(spec);
   const selected = inboundOperationSourcesFromDocument(document).find(
     ({ candidate }) => candidate.operationRef === plan.operationRef,
   );

@@ -1,4 +1,4 @@
-import { validatedDocument } from '../../openapi/common/validate-spec.js';
+import { validateAndResolveOpenApiDocument } from '../../openapi/common/validate-spec.js';
 import type {
   SequenceRequest,
   SequenceResult,
@@ -31,7 +31,7 @@ export async function compileSequence({
     throw new Error('plan must contain version 1, goal, and non-empty steps');
   }
   assertSerializablePlan(plan);
-  const document = await validatedDocument(spec);
+  const document = await validateAndResolveOpenApiDocument(spec);
   const prepared = prepareSequence({
     document,
     origin,

@@ -3,7 +3,7 @@ import {
   operationFromDocument,
   operationsFromDocument,
 } from '../openapi/request/parse-request-operations.js';
-import { validatedDocument } from '../openapi/common/validate-spec.js';
+import { validateAndResolveOpenApiDocument } from '../openapi/common/validate-spec.js';
 import { responseFieldNames } from '../openapi/request/response-contract.js';
 import { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
 import type {
@@ -26,7 +26,7 @@ export async function generateWorkflow(
   input: GenerateRequest,
 ): Promise<CompileResult> {
   assertSelectionInput(input.scenario, input.model);
-  const document = await validatedDocument(input.spec);
+  const document = await validateAndResolveOpenApiDocument(input.spec);
   const operations = operationsFromDocument(document);
   const operationRef = await selectOperationFromCandidates(
     operations,
