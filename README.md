@@ -6,6 +6,8 @@ The importable package is published as [`@openapi-flow/core`](https://www.npmjs.
 
 The latest published package is `0.1.0`. This `main` branch contains newer, unreleased API and workflow-generation changes; the examples below describe the repository source until a new version is published.
 
+To trace the current implementation from the public API through OAS parsing, LangChain planning, and n8n workflow construction, see the [Korean code walkthrough](docs/code-walkthrough.ko.md).
+
 The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Named types live in `src/types/`; LangChain structured-output schemas live in `src/schemas/`; model selection and value extraction live in `src/planning/`. `src/utils/` contains only domain-neutral helpers.
 
 OAS operation sources are separate from n8n node types. `paths` operations produce an HTTP Request node; both top-level `webhooks` and operation `callbacks` currently produce a Webhook trigger followed by Respond to Webhook. A callback also retains its parent operation and URL expression; its expression is **not** the n8n webhook path. The source layout follows the actual ownership boundaries:
