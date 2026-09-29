@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { selectOperationFromCandidates } from '../dist/planning/select-operation.js';
 
@@ -36,7 +37,9 @@ test('selection uses OAS metadata and returns only a declared operationRef', asy
       ]);
       return {
         async invoke(messages) {
-          const request = JSON.parse(messages[1][1]);
+          assert.ok(messages[0] instanceof SystemMessage);
+          assert.ok(messages[1] instanceof HumanMessage);
+          const request = JSON.parse(messages[1].content);
           assert.equal(request.scenario, 'Create an item');
           assert.deepEqual(request.operations[1].tags, ['Items']);
           return { operationRef: operations[1].operationRef };

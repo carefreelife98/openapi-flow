@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import {
   compileSequence as compileSequenceCore,
@@ -1318,7 +1319,7 @@ test('LangChain structured output selects an operation and proposes validated bi
         ]);
         return {
           async invoke(messages) {
-            const request = JSON.parse(messages[1][1]);
+            const request = JSON.parse(messages[1].content);
             assert.deepEqual(request.operations[0].tags, ['inventory']);
             assert.equal(
               request.operations[0].description,
@@ -1341,7 +1342,11 @@ test('LangChain structured output selects an operation and proposes validated bi
         'path.id',
       ]);
       return {
-        async invoke() {
+        async invoke(messages) {
+          assert.ok(messages[0] instanceof SystemMessage);
+          assert.ok(messages[1] instanceof HumanMessage);
+          const request = JSON.parse(messages[1].content);
+          assert.equal(request.operation.path, '/items/{id}');
           return {
             inputs: [{ key: 'path.id', valueJson: '"x"' }],
             expectedBody: [{ key: 'ok', valueJson: 'true' }],
@@ -1534,7 +1539,7 @@ test('natural-language generation uses two model calls for multi-response OAS wi
             return { operationRef: '#/paths/~1items~1{id}/get' };
           }
           assert.equal(options.name, 'plan_operation');
-          const request = JSON.parse(messages[1][1]);
+          const request = JSON.parse(messages[1].content);
           assert.deepEqual(request.operation.responseFields, ['id', 'ok']);
           return {
             inputs: [{ key: 'path.id', valueJson: '"x"' }],
