@@ -13,6 +13,7 @@
     "format": "npm run format --workspace @openapi-flow/core",
     "test": "npm run test --workspace @openapi-flow/core",
     "test:real-oas": "npm run test:real-oas --workspace @openapi-flow/core",
+    "test:local-n8n": "npm run test:local-n8n --workspace @openapi-flow/core",
     "eval:selection": "npm run eval:selection --workspace @openapi-flow/core"
   }
 }

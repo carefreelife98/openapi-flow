@@ -1,6 +1,10 @@
 import type { NodeConfig, WorkflowJSON } from '@n8n/workflow-sdk';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { Operation, Scalar } from './openapi.js';
+import type {
+  InboundOperationCandidate,
+  Operation,
+  Scalar,
+} from './openapi.js';
 
 export type Primitive = Scalar;
 export type ExpectedBody = Record<string, unknown>;
@@ -10,6 +14,28 @@ export type RequiredFields = Record<string, string>;
 export type PreviousOperations = Map<string, Operation>;
 export type RequiredOutputs = Map<string, Set<string>>;
 export type CompileStatus = 'complete' | 'needs_input' | 'blocked';
+
+export interface InboundPlan {
+  version: '1';
+  goal: string;
+  operationRef: string;
+  webhookPath: string;
+  responseStatus: number;
+  responseMediaType?: string;
+  responseBody?: unknown;
+}
+
+export interface InboundRequest {
+  spec: unknown;
+  plan: InboundPlan;
+}
+
+export interface InboundResult {
+  status: 'complete';
+  plan: InboundPlan;
+  evidence: InboundOperationCandidate;
+  workflow: WorkflowJSON;
+}
 export type OperationEffect = 'read' | 'write' | 'unknown';
 export type EffectPolicy = Record<string, 'read' | 'write'>;
 export interface CredentialBinding {

@@ -3,16 +3,18 @@ import {
   responseFieldSchemas,
   responseFieldType,
 } from '../openapi/response-contract.js';
+import { checkSchemaValue } from '../openapi/check-schema-value.js';
+import {
+  serializePathParameter,
+  serializeQueryParameter,
+} from '../openapi/serialize-parameter.js';
+import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
 import type {
   InputValues,
   PreviousOperations,
   RequiredOutputs,
 } from '../types/workflow.js';
-import {
-  checkPrimitive,
-  isObject,
-  looksLikeCredential,
-} from '../utils/validation.js';
+import { isObject, looksLikeCredential } from '../utils/validation.js';
 import { absoluteOperationPath, makeUrl } from './workflow-helpers.js';
 
 export function sequenceUrl(
@@ -53,9 +55,24 @@ export function sequenceUrl(
         );
       }
       const sourceType = responseFieldType(source, value.field);
+      const targetType =
+        typeof parameter.schema === 'object'
+          ? parameter.schema.type
+          : undefined;
       if (
-        sourceType !== parameter.schema.type &&
-        !(sourceType === 'integer' && parameter.schema.type === 'number')
+        (parameter.in === 'path' && parameter.style !== 'simple') ||
+        (parameter.in === 'query' && parameter.style !== 'form') ||
+        parameter.contentMediaType !== undefined ||
+        parameter.allowReserved ||
+        !['string', 'number', 'integer', 'boolean'].includes(String(targetType))
+      )
+        throw new UnsupportedOperationError(
+          operation.operationRef,
+          `operationRef ${operation.operationRef} parameter ${key} cannot serialize a sequence response reference`,
+        );
+      if (
+        sourceType !== targetType &&
+        !(sourceType === 'integer' && targetType === 'number')
       ) {
         throw new Error('plan.inputs.' + key + ' has a response type mismatch');
       }
@@ -71,11 +88,11 @@ export function sequenceUrl(
           ']',
       );
     } else {
-      checkPrimitive(value, parameter.schema, 'plan.inputs.' + key);
+      checkSchemaValue(value, parameter.schema, 'plan.inputs.' + key);
       if (parameter.in === 'path')
         path = path.replace(
           '{' + parameter.name + '}',
-          encodeURIComponent(String(value)),
+          serializePathParameter(parameter, operation.operationRef, value),
         );
     }
   }
@@ -105,15 +122,27 @@ export function sequenceUrl(
       continue;
     const key = 'query.' + parameter.name;
     const reference = references.get(key);
-    expression +=
-      ' + ' +
-      JSON.stringify(
-        (firstQuery ? '?' : '&') + encodeURIComponent(parameter.name) + '=',
-      ) +
-      ' + ' +
-      (reference
-        ? 'encodeURIComponent(' + reference + ')'
-        : JSON.stringify(encodeURIComponent(String(inputs[key]))));
+    if (reference) {
+      expression +=
+        ' + ' +
+        JSON.stringify(
+          (firstQuery ? '?' : '&') + encodeURIComponent(parameter.name) + '=',
+        ) +
+        ' + encodeURIComponent(' +
+        reference +
+        ')';
+    } else {
+      expression +=
+        ' + ' +
+        JSON.stringify(
+          (firstQuery ? '?' : '&') +
+            serializeQueryParameter(
+              parameter,
+              operation.operationRef,
+              inputs[key],
+            ).join('&'),
+        );
+    }
     firstQuery = false;
   }
   return '={{ ' + expression + ' }}';

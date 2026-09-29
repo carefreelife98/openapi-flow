@@ -292,7 +292,7 @@ test('OAS primitive types and enum values constrain supplied inputs and assertio
         profile: 'read-only',
         plan: plan('getItem', { 'path.id': 'other' }),
       }),
-    /outside the OAS enum/,
+    /does not match the OAS schema.*allowed values/,
   );
   await assert.rejects(
     () =>
@@ -530,11 +530,11 @@ test('path requests map OAS header and form body inputs to HTTP Request paramete
     plan: plan('createItem', { body: { name: 'a b' } }),
   });
   assert.equal(form.status, 'complete');
+  assert.equal(form.workflow.nodes[1].parameters.contentType, 'raw');
   assert.equal(
-    form.workflow.nodes[1].parameters.contentType,
-    'form-urlencoded',
+    form.workflow.nodes[1].parameters.rawContentType,
+    'application/x-www-form-urlencoded',
   );
-  assert.equal(form.workflow.nodes[1].parameters.specifyBody, 'string');
   assert.equal(form.workflow.nodes[1].parameters.body, 'name=a+b');
 });
 
@@ -811,10 +811,7 @@ test('sequence uses the same REST body and header mapping as a single workflow',
     },
   });
   assert.equal(result.status, 'complete');
-  assert.equal(
-    result.workflow.nodes[1].parameters.contentType,
-    'form-urlencoded',
-  );
+  assert.equal(result.workflow.nodes[1].parameters.contentType, 'raw');
   assert.deepEqual(result.workflow.nodes[1].parameters.headerParameters, {
     parameters: [{ name: 'X-Trace', value: 'trace-1' }],
   });

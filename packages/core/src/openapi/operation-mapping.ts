@@ -9,11 +9,7 @@ import type {
   ResponseProperties,
 } from '../types/openapi.js';
 import { operationMetadata } from './operation-metadata.js';
-import {
-  dereferencedObject,
-  object,
-  scalarSchema,
-} from './parse-spec-utils.js';
+import { dereferencedObject, object } from './parse-spec-utils.js';
 import { parseOperationSecurity } from './parse-security.js';
 import { UnsupportedOperationError } from './unsupported-operation-error.js';
 
@@ -47,35 +43,61 @@ function parseParameter(
   ) {
     return undefined;
   }
+  let schema: JsonObject | boolean;
+  let contentMediaType: string | undefined;
   if (parameter.content !== undefined) {
-    throw new UnsupportedOperationError(
-      operationRef,
-      `operationRef ${operationRef} parameter ${parameter.name} uses content-based serialization`,
+    const content = object(
+      parameter.content,
+      `operationRef ${operationRef} parameter ${parameter.name}.content`,
     );
-  }
-  const schema = scalarSchema(
-    parameter.schema,
-    `operationRef ${operationRef} parameter ${parameter.name}.schema`,
-    operationRef,
-  );
-  if (
-    (parameter.style !== undefined &&
-      parameter.style !==
-        (parameter.in === 'path' || parameter.in === 'header'
-          ? 'simple'
-          : 'form')) ||
-    parameter.allowReserved === true
-  ) {
-    throw new UnsupportedOperationError(
-      operationRef,
-      `operationRef ${operationRef} parameter ${parameter.name} has an unsupported schema/style`,
+    const types = Object.keys(content);
+    if (types.length !== 1 || types[0] !== 'application/json')
+      throw new UnsupportedOperationError(
+        operationRef,
+        `operationRef ${operationRef} parameter ${parameter.name} content media type is not mapped`,
+      );
+    contentMediaType = types[0];
+    const media = dereferencedObject(
+      content[contentMediaType],
+      `operationRef ${operationRef} parameter ${parameter.name}.content.${contentMediaType}`,
     );
+    schema =
+      media.schema === undefined
+        ? true
+        : typeof media.schema === 'boolean'
+          ? media.schema
+          : dereferencedObject(
+              media.schema,
+              `operationRef ${operationRef} parameter ${parameter.name}.content.${contentMediaType}.schema`,
+            );
+  } else {
+    schema =
+      typeof parameter.schema === 'boolean'
+        ? parameter.schema
+        : dereferencedObject(
+            parameter.schema,
+            `operationRef ${operationRef} parameter ${parameter.name}.schema`,
+          );
   }
+  const style =
+    typeof parameter.style === 'string'
+      ? parameter.style
+      : parameter.in === 'path' || parameter.in === 'header'
+        ? 'simple'
+        : 'form';
+  const explode =
+    typeof parameter.explode === 'boolean'
+      ? parameter.explode
+      : style === 'form' || style === 'cookie';
   return {
     name: parameter.name,
     in: parameter.in as OperationParameter['in'],
     required: parameter.required === true,
     schema,
+    style,
+    explode,
+    allowReserved: parameter.allowReserved === true,
+    ...(contentMediaType === undefined ? {} : { contentMediaType }),
   };
 }
 

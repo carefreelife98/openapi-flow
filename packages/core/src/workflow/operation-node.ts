@@ -70,8 +70,8 @@ export function operationNode({
               }
             : {
                 sendBody: true,
-                contentType: 'form-urlencoded',
-                specifyBody: 'string',
+                contentType: 'raw',
+                rawContentType: 'application/x-www-form-urlencoded',
                 body: body.value,
               }),
         options: {

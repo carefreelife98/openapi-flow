@@ -12,7 +12,7 @@ const methods = [
   'query',
 ] as const;
 
-function pointerSegment(value: string): string {
+export function pointerSegment(value: string): string {
   return value.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 

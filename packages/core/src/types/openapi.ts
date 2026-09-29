@@ -27,7 +27,11 @@ export interface OperationParameter {
   name: string;
   in: 'path' | 'query' | 'header' | 'cookie';
   required: boolean;
-  schema: ScalarSchema;
+  schema: JsonObject | boolean;
+  style: string;
+  explode: boolean;
+  allowReserved: boolean;
+  contentMediaType?: string;
 }
 
 export interface OperationBody {
@@ -75,6 +79,16 @@ export type OperationCandidate = Pick<
   | 'description'
   | 'tags'
 >;
+
+export interface InboundOperationCandidate extends OperationCandidate {
+  source: 'webhooks' | 'callbacks';
+  parentOperationRef?: string;
+}
+
+export interface InboundOperationSource {
+  candidate: InboundOperationCandidate;
+  operation: JsonObject;
+}
 
 export interface ParsedDocument {
   spec: JsonObject;

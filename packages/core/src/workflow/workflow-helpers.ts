@@ -7,12 +7,15 @@ import type {
   RequiredFields,
 } from '../types/workflow.js';
 import { checkSchemaValue } from '../openapi/check-schema-value.js';
-import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
+import { serializeFormBody } from '../openapi/serialize-form-body.js';
 import {
-  checkPrimitive,
-  isObject,
-  looksLikeCredential,
-} from '../utils/validation.js';
+  serializeCookieParameter,
+  serializeHeaderParameter,
+  serializePathParameter,
+  serializeQueryParameter,
+} from '../openapi/serialize-parameter.js';
+import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
+import { isObject, looksLikeCredential } from '../utils/validation.js';
 
 export function isSafeMethod(method: string): boolean {
   return ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'QUERY'].includes(method);
@@ -37,20 +40,28 @@ export function makeUrl(
       if (parameter.required) missing.push(key);
       continue;
     }
-    checkPrimitive(value, parameter.schema, 'plan.inputs.' + key);
+    checkSchemaValue(value, parameter.schema, 'plan.inputs.' + key);
     if (parameter.in === 'path')
       path = path.replace(
         '{' + parameter.name + '}',
-        encodeURIComponent(String(value)),
+        serializePathParameter(parameter, operation.operationRef, value),
       );
   }
   const url = new URL(absoluteOperationPath(origin, path));
+  const query: string[] = [];
   for (const parameter of operation.parameters) {
     if (parameter.in !== 'query') continue;
     const key = 'query.' + parameter.name;
     if (inputs[key] !== undefined)
-      url.searchParams.set(parameter.name, String(inputs[key]));
+      query.push(
+        ...serializeQueryParameter(
+          parameter,
+          operation.operationRef,
+          inputs[key],
+        ),
+      );
   }
+  if (query.length) url.search = query.join('&');
   return url.href;
 }
 
@@ -97,16 +108,6 @@ export function makeBody(
       `operationRef ${operation.operationRef}.requestBody media type ${mediaType} has no n8n mapping`,
     );
   }
-  if (
-    mediaType === 'application/x-www-form-urlencoded' &&
-    media.encoding !== undefined &&
-    Object.keys(media.encoding).length > 0
-  ) {
-    throw new UnsupportedOperationError(
-      operation.operationRef,
-      `operationRef ${operation.operationRef}.requestBody.encoding needs explicit form serialization`,
-    );
-  }
   if (isObject(value)) {
     for (const name of Object.keys(value)) {
       if (looksLikeCredential(name)) {
@@ -139,21 +140,10 @@ export function makeBody(
       'plan.inputs.body must be an object for application/x-www-form-urlencoded',
     );
   }
-  const form = new URLSearchParams();
-  for (const [name, field] of Object.entries(value)) {
-    if (
-      typeof field !== 'string' &&
-      typeof field !== 'number' &&
-      typeof field !== 'boolean'
-    ) {
-      throw new UnsupportedOperationError(
-        operation.operationRef,
-        `operationRef ${operation.operationRef}.requestBody form field ${name} needs non-scalar serialization`,
-      );
-    }
-    form.set(name, String(field));
-  }
-  return { contentType: 'form-urlencoded', value: form.toString() };
+  return {
+    contentType: 'form-urlencoded',
+    value: serializeFormBody(operation.operationRef, media, value),
+  };
 }
 
 export function makeHeaders(
@@ -171,16 +161,19 @@ export function makeHeaders(
       if (parameter.required) missing.push(key);
       continue;
     }
-    checkPrimitive(value, parameter.schema, 'plan.inputs.' + key);
+    checkSchemaValue(value, parameter.schema, 'plan.inputs.' + key);
     if (parameter.in === 'header') {
-      if (/[\r\n]/.test(String(value)))
-        throw new Error('plan.inputs.' + key + ' must not contain a newline');
-      headers.push({ name: parameter.name, value: String(value) });
+      headers.push({
+        name: parameter.name,
+        value: serializeHeaderParameter(
+          parameter,
+          operation.operationRef,
+          value,
+        ),
+      });
     } else {
       cookies.push(
-        encodeURIComponent(parameter.name) +
-          '=' +
-          encodeURIComponent(String(value)),
+        ...serializeCookieParameter(parameter, operation.operationRef, value),
       );
     }
   }
