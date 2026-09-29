@@ -1,12 +1,12 @@
 import { validatedDocument } from '../../openapi/common/validate-spec.js';
-import { inboundOperationSourcesFromDocument } from '../../openapi/list-inbound-operations.js';
+import { inboundOperationSourcesFromDocument } from '../../openapi/inbound/list-inbound-operations.js';
 import type {
   InboundRequest,
   InboundResult,
 } from '../../types/inbound-workflow.js';
-import { assertSerializablePlan, isObject } from '../../utils/validation.js';
-import { compileCallbackOperation } from '../callback/compile-callback-workflow.js';
-import { compileWebhookOperation } from '../webhook/compile-webhook-workflow.js';
+import { isObject } from '../../utils/is-object.js';
+import { assertSerializablePlan } from '../common/plan-validation.js';
+import { buildInboundWorkflow } from './build-inbound-workflow.js';
 
 export async function compileInboundWorkflow({
   spec,
@@ -37,11 +37,5 @@ export async function compileInboundWorkflow({
       'plan.operationRef is not in spec.webhooks or callbacks: ' +
         plan.operationRef,
     );
-  const context = { document, selected, plan };
-  switch (selected.candidate.source) {
-    case 'webhooks':
-      return compileWebhookOperation(context);
-    case 'callbacks':
-      return compileCallbackOperation(context);
-  }
+  return buildInboundWorkflow({ document, selected, plan });
 }

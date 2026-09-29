@@ -5,13 +5,13 @@ import {
 import { validatedDocument } from '../openapi/common/validate-spec.js';
 import { responseFieldNames } from '../openapi/request/response-contract.js';
 import { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
+import type { GenerateRequest } from '../types/planning.js';
 import type {
   CompileResult,
   ExpectedBody,
-  GenerateRequest,
   WorkflowInputs,
 } from '../types/request-workflow.js';
-import { parseStructuredOutput } from '../utils/parse-structured-output.js';
+import { parseStructuredOutput } from './parse-structured-output.js';
 import { compileWorkflowFromOperation } from '../workflow/request/compile-workflow.js';
 import {
   assertSelectionInput,

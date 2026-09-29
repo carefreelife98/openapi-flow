@@ -1,15 +1,14 @@
-import type { NodeConfig, WorkflowJSON } from '@n8n/workflow-sdk';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { Scalar } from './openapi.js';
+import type { WorkflowJSON } from '@n8n/workflow-sdk';
 import type { Operation } from './request.js';
+import type {
+  PreparedRequestBody,
+  RequestHeader,
+  ResolvedAuthentication,
+} from './request-node.js';
 
-export type Primitive = Scalar;
 export type ExpectedBody = Record<string, unknown>;
 export type WorkflowInputs = Record<string, unknown>;
 export type InputValues = Record<string, unknown>;
-export type RequiredFields = Record<string, string>;
-export type PreviousOperations = Map<string, Operation>;
-export type RequiredOutputs = Map<string, Set<string>>;
 export type CompileStatus = 'complete' | 'needs_input' | 'blocked';
 
 export type OperationEffect = 'read' | 'write' | 'unknown';
@@ -19,9 +18,6 @@ export interface CredentialBinding {
   name: string;
 }
 export type CredentialBindings = Record<string, CredentialBinding>;
-export type ResolvedAuthentication = Required<
-  Pick<NodeConfig, 'parameters' | 'credentials'>
->;
 export interface OperationEvidence extends Pick<
   Operation,
   'operationRef' | 'operationId' | 'method' | 'path'
@@ -60,80 +56,13 @@ export interface CompileResult {
   workflow?: WorkflowJSON;
 }
 
-export interface ResponseReference {
-  fromStep: string;
-  field: string;
-}
-
-export interface SequenceStep {
-  id: string;
-  operationRef: string;
-  inputs?: Record<string, unknown>;
-  requestMediaType?: string;
-  expectedBody?: ExpectedBody;
-}
-
-export interface SequencePlan {
-  version: '1';
-  goal: string;
-  steps: SequenceStep[];
-}
-
-export interface SequenceRequest {
-  spec: unknown;
+export interface BuildRequestWorkflowInput {
   baseUrl: string;
-  profile: CompileRequest['profile'];
-  effectPolicy: EffectPolicy;
-  credentialBindings: CredentialBindings;
-  plan: SequencePlan;
-}
-
-export interface SequenceEvidence extends OperationEvidence {
-  stepId: string;
-}
-
-export interface SequenceResult {
-  status: CompileStatus;
-  plan: SequencePlan;
-  evidence: SequenceEvidence[];
-  missingInputs: string[];
-  workflow?: WorkflowJSON;
-}
-
-export interface PreparedSequenceNode {
+  plan: WorkflowPlan;
   operation: Operation;
-  id: string;
   url: string;
   body?: PreparedRequestBody;
   headers: RequestHeader[];
+  authentication?: ResolvedAuthentication;
   expectedBody: ExpectedBody;
-  authentication?: ResolvedAuthentication;
-}
-
-export interface RequestHeader {
-  name: string;
-  value: string;
-}
-
-export interface PreparedRequestBody {
-  contentType: 'json' | 'form-urlencoded';
-  value: string;
-}
-
-export interface HttpRequestNodeInput {
-  operation: Operation;
-  id: string;
-  name: string;
-  position: [number, number];
-  url: string;
-  body?: PreparedRequestBody;
-  headers: RequestHeader[];
-  authentication?: ResolvedAuthentication;
-  shouldAssert: boolean;
-}
-
-export interface GenerateRequest extends Omit<CompileRequest, 'plan'> {
-  scenario: string;
-  model: BaseChatModel;
-  requestMediaType?: string;
 }

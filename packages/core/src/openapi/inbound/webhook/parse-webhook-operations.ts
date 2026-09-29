@@ -1,8 +1,8 @@
-import type { ParsedDocument } from '../../types/openapi.js';
-import type { WebhookOperationSource } from '../../types/inbound.js';
-import { inboundPathItemOperations } from '../common/inbound-path-item-operations.js';
-import { pointerSegment } from '../common/operation-reference.js';
-import { dereferencedObject, object } from '../common/parse-spec-utils.js';
+import type { ParsedDocument } from '../../../types/openapi.js';
+import type { WebhookOperationSource } from '../../../types/inbound.js';
+import { pointerSegment } from '../../common/operation-reference.js';
+import { dereferencedObject, object } from '../../common/parse-spec-utils.js';
+import { inboundPathItemOperations } from '../inbound-path-item-operations.js';
 
 export function webhookOperationsFromDocument(
   document: ParsedDocument,

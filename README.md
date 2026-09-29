@@ -6,27 +6,30 @@ The importable package is published as [`@openapi-flow/core`](https://www.npmjs.
 
 The latest published package is `0.1.0`. This `main` branch contains newer, unreleased API and workflow-generation changes; the examples below describe the repository source until a new version is published.
 
-The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Types live in `src/types/`, LangChain structured-output schemas in `src/schemas/`, AI planning in `src/planning/`, and general utilities in `src/utils/` under that package.
+The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Named types live in `src/types/`; LangChain structured-output schemas live in `src/schemas/`; model selection and value extraction live in `src/planning/`. `src/utils/` contains only domain-neutral helpers.
 
-OAS operation sources are separate from n8n node types. `paths` operations produce an HTTP Request node; both top-level `webhooks` and operation `callbacks` currently produce a Webhook trigger followed by Respond to Webhook. A callback also retains its parent operation and URL expression; its expression is **not** the n8n webhook path. Source-specific extraction and compilation are organized as follows:
+OAS operation sources are separate from n8n node types. `paths` operations produce an HTTP Request node; both top-level `webhooks` and operation `callbacks` currently produce a Webhook trigger followed by Respond to Webhook. A callback also retains its parent operation and URL expression; its expression is **not** the n8n webhook path. The source layout follows the actual ownership boundaries:
 
 ```text
 packages/core/src/
+  public-api.ts       package export boundary
   openapi/
-    common/       OAS validation, references, metadata, schema checks
-    request/      paths operations, request serialization and response contracts
-    webhook/      top-level webhooks extraction
-    callback/     operation callbacks extraction and parent reference
+    common/           OAS validation, references, metadata, schema checks
+    request/          paths operations, request parameter/body/response parsing and serialization
+    inbound/          shared inbound candidate extraction and listing
+      webhook/        top-level webhooks extraction
+      callback/       operation callbacks extraction and parent reference
+  planning/           model-based operation selection and input planning
+  schemas/            structured-output schemas and JSON-literal validation
   workflow/
-    common/       workflow identity shared by outgoing and inbound generation
-    request/      HTTP Request node and outgoing workflow compilation
-    inbound/      shared inbound plan, response and Webhook-node assembly
-    webhook/      webhook-specific compiler boundary
-    callback/     callback-specific compiler boundary
-  types/          named common OAS, request and inbound contracts
+    common/           plan serialization and workflow identity
+    request/          outgoing URL/body/header preparation, policy, and separate workflow builders
+    inbound/          inbound plan validation, OAS response checks, and Webhook-node assembly
+  types/              named OAS, request, sequence, planning and inbound contracts
+  utils/              domain-neutral object guard
 ```
 
-`inboundOperationsFromSpec` and `compileInboundWorkflow` remain the public entry points. The source discriminator selects the appropriate compiler boundary; shared inbound code does not imply that callback registration or correlation is implemented.
+`inboundOperationsFromSpec` and `compileInboundWorkflow` remain the public entry points. Webhook and callback have distinct OAS extractors; both use the same inbound n8n compilation because the generated node sequence is currently identical. Single-request and sequence compilers keep plan preparation separate from n8n workflow construction. Shared compilation does not imply that callback registration or correlation is implemented.
 
 ## Current API
 

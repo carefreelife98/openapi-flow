@@ -1,10 +1,10 @@
-import type { ParsedDocument } from '../types/openapi.js';
+import type { ParsedDocument } from '../../types/openapi.js';
 import type {
   InboundOperationCandidate,
   InboundOperationSource,
-} from '../types/inbound.js';
+} from '../../types/inbound.js';
+import { validatedDocument } from '../common/validate-spec.js';
 import { callbackOperationsFromDocument } from './callback/parse-callback-operations.js';
-import { validatedDocument } from './common/validate-spec.js';
 import { webhookOperationsFromDocument } from './webhook/parse-webhook-operations.js';
 
 export function inboundOperationSourcesFromDocument(

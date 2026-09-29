@@ -1,6 +1,6 @@
 import { node } from '@n8n/workflow-sdk';
 import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
-import type { HttpRequestNodeInput } from '../../types/request-workflow.js';
+import type { HttpRequestNodeInput } from '../../types/request-node.js';
 
 // n8n HTTP Request V3, node version 4.3 (verified against n8n 2.37.10).
 const httpRequestMethods = new Set([

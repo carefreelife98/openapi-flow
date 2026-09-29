@@ -4,9 +4,9 @@ import type {
   InboundOperationSource,
   WebhookOperationSource,
 } from '../../types/inbound.js';
-import { operationMetadata } from './operation-metadata.js';
-import { operationEntries } from './operation-reference.js';
-import { object } from './parse-spec-utils.js';
+import { operationMetadata } from '../common/operation-metadata.js';
+import { operationEntries } from '../common/operation-reference.js';
+import { object } from '../common/parse-spec-utils.js';
 
 function requiredCallbackParent(
   pointer: string,

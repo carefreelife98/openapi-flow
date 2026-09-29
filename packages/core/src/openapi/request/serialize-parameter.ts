@@ -1,6 +1,6 @@
 import type { Scalar } from '../../types/openapi.js';
 import type { OperationParameter } from '../../types/request.js';
-import { isObject } from '../../utils/validation.js';
+import { isObject } from '../../utils/is-object.js';
 import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 
 function unsupported(

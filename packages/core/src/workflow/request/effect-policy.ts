@@ -3,7 +3,11 @@ import type {
   EffectPolicy,
   OperationEffect,
 } from '../../types/request-workflow.js';
-import { isObject } from '../../utils/validation.js';
+import { isObject } from '../../utils/is-object.js';
+
+export function isSafeMethod(method: string): boolean {
+  return ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'QUERY'].includes(method);
+}
 
 export function approvedEffect(
   operation: Operation,

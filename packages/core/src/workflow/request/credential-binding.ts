@@ -1,7 +1,11 @@
 import { newCredential } from '@n8n/workflow-sdk';
 import type { Operation } from '../../types/request.js';
 import type { CredentialBindings } from '../../types/request-workflow.js';
-import { isObject } from '../../utils/validation.js';
+import { isObject } from '../../utils/is-object.js';
+
+export function looksLikeCredential(name: string): boolean {
+  return /(token|secret|password|authorization|api.?key)/i.test(name);
+}
 
 export function resolveCredentialBinding(
   operation: Operation,

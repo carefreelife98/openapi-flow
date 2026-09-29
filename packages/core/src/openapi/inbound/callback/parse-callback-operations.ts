@@ -1,11 +1,11 @@
-import type { ParsedDocument } from '../../types/openapi.js';
-import type { CallbackOperationSource } from '../../types/inbound.js';
-import { inboundPathItemOperations } from '../common/inbound-path-item-operations.js';
+import type { ParsedDocument } from '../../../types/openapi.js';
+import type { CallbackOperationSource } from '../../../types/inbound.js';
 import {
   operationEntries,
   pointerSegment,
-} from '../common/operation-reference.js';
-import { dereferencedObject, object } from '../common/parse-spec-utils.js';
+} from '../../common/operation-reference.js';
+import { dereferencedObject, object } from '../../common/parse-spec-utils.js';
+import { inboundPathItemOperations } from '../inbound-path-item-operations.js';
 
 export function callbackOperationsFromDocument(
   document: ParsedDocument,

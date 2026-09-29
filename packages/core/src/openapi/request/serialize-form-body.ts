@@ -6,7 +6,7 @@ import type {
 import { serializeQueryParameter } from './serialize-parameter.js';
 import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 import { dereferencedObject } from '../common/parse-spec-utils.js';
-import { isObject } from '../../utils/validation.js';
+import { isObject } from '../../utils/is-object.js';
 
 function defaultFieldMediaType(schema: JsonObject): string | undefined {
   const type =

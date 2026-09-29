@@ -1,4 +1,3 @@
-import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
 import { operationFromSpec } from '../../openapi/request/parse-request-operations.js';
 import { validateResponseField } from '../../openapi/request/response-contract.js';
 import type { Operation } from '../../types/request.js';
@@ -7,23 +6,18 @@ import type {
   CompileRequest,
   CompileResult,
 } from '../../types/request-workflow.js';
+import { isObject } from '../../utils/is-object.js';
+import { assertSerializablePlan } from '../common/plan-validation.js';
+import { originFrom } from './base-url.js';
+import { approvedEffect, isSafeMethod } from './effect-policy.js';
 import {
-  assertSerializablePlan,
-  isObject,
   looksLikeCredential,
-  originFrom,
-} from '../../utils/validation.js';
-import { workflowId } from '../common/workflow-id.js';
-import { approvedEffect } from './effect-policy.js';
-import { resolveCredentialBinding } from './credential-binding.js';
-import {
-  assertionCode,
-  isSafeMethod,
-  makeBody,
-  makeHeaders,
-  makeUrl,
-} from './workflow-helpers.js';
-import { httpRequestNode } from './http-request-node.js';
+  resolveCredentialBinding,
+} from './credential-binding.js';
+import { makeBody } from './request-body.js';
+import { makeHeaders } from './request-headers.js';
+import { makeUrl } from './request-url.js';
+import { buildRequestWorkflow } from './build-request-workflow.js';
 
 export async function compileWorkflow(
   request: CompileRequest,
@@ -125,58 +119,20 @@ export function compileWorkflowFromOperation(
   }
   if (missingInputs.length)
     return { status: 'needs_input', plan, evidence, missingInputs };
-  const shouldAssert = Object.keys(expectedBody).length > 0;
-  const start = trigger({
-    type: 'n8n-nodes-base.manualTrigger',
-    version: 1,
-    config: { id: 'start', name: 'Start', position: [240, 300] },
-  });
-  const request = httpRequestNode({
-    operation,
-    id: 'request',
-    name: operation.method + ' ' + operation.path,
-    position: [480, 300],
-    url,
-    body,
-    headers,
-    authentication,
-    shouldAssert,
-  });
-  const built = workflow(
-    workflowId(baseUrl, plan),
-    'OpenAPI ' + operation.method + ' ' + operation.path,
-  )
-    .add(start)
-    .to(request);
-  const result = shouldAssert
-    ? built.to(
-        node({
-          type: 'n8n-nodes-base.code',
-          version: 2,
-          config: {
-            id: 'assert',
-            name: 'Assert response',
-            position: [720, 300],
-            parameters: {
-              mode: 'runOnceForAllItems',
-              jsCode: assertionCode(expectedBody),
-            },
-          },
-        }),
-      )
-    : built;
-  const validation = validateWorkflow(result);
-  if (!validation.valid) {
-    throw new Error(
-      'n8n SDK validation failed: ' +
-        validation.errors.map((error) => error.message).join('; '),
-    );
-  }
   return {
     status: 'complete',
     plan,
     evidence,
     missingInputs,
-    workflow: result.toJSON(),
+    workflow: buildRequestWorkflow({
+      baseUrl,
+      plan,
+      operation,
+      url,
+      body,
+      headers,
+      authentication,
+      expectedBody,
+    }),
   };
 }

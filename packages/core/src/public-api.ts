@@ -1,5 +1,5 @@
 export { operationsFromSpec } from './openapi/request/parse-request-operations.js';
-export { inboundOperationsFromSpec } from './openapi/list-inbound-operations.js';
+export { inboundOperationsFromSpec } from './openapi/inbound/list-inbound-operations.js';
 export { validateOpenApi } from './openapi/common/validate-spec.js';
 export { UnsupportedOperationError } from './openapi/common/unsupported-operation-error.js';
 export { generateWorkflow } from './planning/generate-workflow.js';
@@ -27,10 +27,12 @@ export type {
   EffectPolicy,
   CredentialBinding,
   CredentialBindings,
-  GenerateRequest,
+  WorkflowPlan,
+} from './types/request-workflow.js';
+export type { GenerateRequest } from './types/planning.js';
+export type {
   ResponseReference,
   SequencePlan,
   SequenceRequest,
   SequenceResult,
-  WorkflowPlan,
-} from './types/request-workflow.js';
+} from './types/sequence-workflow.js';

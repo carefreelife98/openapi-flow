@@ -9,13 +9,14 @@ import {
   serializeQueryParameter,
 } from '../../openapi/request/serialize-parameter.js';
 import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
+import type { InputValues } from '../../types/request-workflow.js';
 import type {
-  InputValues,
   PreviousOperations,
   RequiredOutputs,
-} from '../../types/request-workflow.js';
-import { isObject, looksLikeCredential } from '../../utils/validation.js';
-import { absoluteOperationPath, makeUrl } from './workflow-helpers.js';
+} from '../../types/sequence-workflow.js';
+import { isObject } from '../../utils/is-object.js';
+import { looksLikeCredential } from './credential-binding.js';
+import { absoluteOperationPath, makeUrl } from './request-url.js';
 
 export function sequenceUrl(
   operation: Operation,
