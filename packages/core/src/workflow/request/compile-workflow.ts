@@ -1,19 +1,19 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
-import { operationFromSpec } from '../openapi/parse-spec.js';
-import { validateResponseField } from '../openapi/response-contract.js';
-import type { Operation } from '../types/openapi.js';
+import { operationFromSpec } from '../../openapi/request/parse-request-operations.js';
+import { validateResponseField } from '../../openapi/request/response-contract.js';
+import type { Operation } from '../../types/request.js';
 import type {
   CompileOperationRequest,
   CompileRequest,
   CompileResult,
-} from '../types/workflow.js';
+} from '../../types/request-workflow.js';
 import {
   assertSerializablePlan,
   isObject,
   looksLikeCredential,
   originFrom,
-} from '../utils/validation.js';
-import { workflowId } from '../utils/workflow-id.js';
+} from '../../utils/validation.js';
+import { workflowId } from '../common/workflow-id.js';
 import { approvedEffect } from './effect-policy.js';
 import { resolveCredentialBinding } from './credential-binding.js';
 import {
@@ -23,7 +23,7 @@ import {
   makeHeaders,
   makeUrl,
 } from './workflow-helpers.js';
-import { operationNode } from './operation-node.js';
+import { httpRequestNode } from './http-request-node.js';
 
 export async function compileWorkflow(
   request: CompileRequest,
@@ -131,7 +131,7 @@ export function compileWorkflowFromOperation(
     version: 1,
     config: { id: 'start', name: 'Start', position: [240, 300] },
   });
-  const request = operationNode({
+  const request = httpRequestNode({
     operation,
     id: 'request',
     name: operation.method + ' ' + operation.path,

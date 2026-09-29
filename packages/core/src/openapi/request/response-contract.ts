@@ -1,6 +1,7 @@
-import type { JsonObject, Operation } from '../types/openapi.js';
-import { checkSchemaValue } from './check-schema-value.js';
-import { scalarSchema } from './parse-spec-utils.js';
+import type { JsonObject } from '../../types/openapi.js';
+import type { Operation } from '../../types/request.js';
+import { checkSchemaValue } from '../common/check-schema-value.js';
+import { scalarResponseSchema } from './scalar-response-schema.js';
 
 export function responseFieldNames(operation: Operation): string[] {
   return [...new Set(Object.values(operation.responses).flatMap(Object.keys))];
@@ -42,7 +43,7 @@ export function responseFieldType(operation: Operation, field: string): string {
   const types = new Set(
     schemas.map(
       (schema) =>
-        scalarSchema(
+        scalarResponseSchema(
           schema,
           'operationRef ' + operation.operationRef + ' response field ' + field,
           operation.operationRef,

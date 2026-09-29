@@ -1,5 +1,5 @@
 import { validate } from '@scalar/json-schema-validator';
-import type { JsonObject } from '../types/openapi.js';
+import type { JsonObject } from '../../types/openapi.js';
 
 export function checkSchemaValue(
   value: unknown,

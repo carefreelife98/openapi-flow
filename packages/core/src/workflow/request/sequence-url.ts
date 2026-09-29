@@ -1,20 +1,20 @@
-import type { Operation } from '../types/openapi.js';
+import type { Operation } from '../../types/request.js';
 import {
   responseFieldSchemas,
   responseFieldType,
-} from '../openapi/response-contract.js';
-import { checkSchemaValue } from '../openapi/check-schema-value.js';
+} from '../../openapi/request/response-contract.js';
+import { checkSchemaValue } from '../../openapi/common/check-schema-value.js';
 import {
   serializePathParameter,
   serializeQueryParameter,
-} from '../openapi/serialize-parameter.js';
-import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
+} from '../../openapi/request/serialize-parameter.js';
+import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
 import type {
   InputValues,
   PreviousOperations,
   RequiredOutputs,
-} from '../types/workflow.js';
-import { isObject, looksLikeCredential } from '../utils/validation.js';
+} from '../../types/request-workflow.js';
+import { isObject, looksLikeCredential } from '../../utils/validation.js';
 import { absoluteOperationPath, makeUrl } from './workflow-helpers.js';
 
 export function sequenceUrl(

@@ -1,4 +1,4 @@
-import type { OperationEntry } from '../types/openapi.js';
+import type { OperationEntry } from '../../types/openapi.js';
 
 const methods = [
   'get',
@@ -45,8 +45,4 @@ export function operationEntries(
     }
   }
   return entries;
-}
-
-export function operationReference(path: string, key: string): string {
-  return '#/paths/' + pointerSegment(path) + '/' + key;
 }

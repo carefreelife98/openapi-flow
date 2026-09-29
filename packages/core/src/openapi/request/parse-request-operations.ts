@@ -1,14 +1,14 @@
 import type {
-  Operation,
   OperationCandidate,
-  OperationSource,
   ParsedDocument,
-} from '../types/openapi.js';
+} from '../../types/openapi.js';
+import type { Operation, OperationSource } from '../../types/request.js';
 import { mapOperationForWorkflow } from './operation-mapping.js';
-import { operationMetadata } from './operation-metadata.js';
-import { operationEntries, operationReference } from './operation-reference.js';
-import { dereferencedObject, object } from './parse-spec-utils.js';
-import { validatedDocument } from './validate-spec.js';
+import { operationMetadata } from '../common/operation-metadata.js';
+import { operationEntries } from '../common/operation-reference.js';
+import { dereferencedObject, object } from '../common/parse-spec-utils.js';
+import { validatedDocument } from '../common/validate-spec.js';
+import { requestOperationReference } from './request-operation-reference.js';
 
 export function operationsFromDocument({
   paths,
@@ -19,7 +19,7 @@ export function operationsFromDocument({
     for (const { method, key, value } of operationEntries(pathItem)) {
       const operation = object(value, `spec.paths[${path}].${key}`);
       operations.push({
-        operationRef: operationReference(path, key),
+        operationRef: requestOperationReference(path, key),
         source: 'paths',
         ...operationMetadata(operation, `spec.paths[${path}].${key}`),
         method,
@@ -70,7 +70,7 @@ function selectedOperationSource(
   );
   const operationEntry = operationEntries(pathItem).find(
     ({ key }) =>
-      operationReference(candidate.path, key) === candidate.operationRef,
+      requestOperationReference(candidate.path, key) === candidate.operationRef,
   );
   if (!operationEntry)
     throw new Error(

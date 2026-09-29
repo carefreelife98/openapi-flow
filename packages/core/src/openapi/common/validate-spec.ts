@@ -1,6 +1,6 @@
 import { validate as resolveAndValidate } from '@scalar/openapi-parser';
 import { validate } from '@scalar/openapi-validator';
-import type { JsonObject, ParsedDocument } from '../types/openapi.js';
+import type { JsonObject, ParsedDocument } from '../../types/openapi.js';
 import { object } from './parse-spec-utils.js';
 
 export function validateOpenApi(input: unknown): JsonObject {

@@ -1,21 +1,21 @@
-import type { Operation } from '../types/openapi.js';
+import type { Operation } from '../../types/request.js';
 import type {
   ExpectedBody,
   InputValues,
   PreparedRequestBody,
   RequestHeader,
   RequiredFields,
-} from '../types/workflow.js';
-import { checkSchemaValue } from '../openapi/check-schema-value.js';
-import { serializeFormBody } from '../openapi/serialize-form-body.js';
+} from '../../types/request-workflow.js';
+import { checkSchemaValue } from '../../openapi/common/check-schema-value.js';
+import { serializeFormBody } from '../../openapi/request/serialize-form-body.js';
 import {
   serializeCookieParameter,
   serializeHeaderParameter,
   serializePathParameter,
   serializeQueryParameter,
-} from '../openapi/serialize-parameter.js';
-import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
-import { isObject, looksLikeCredential } from '../utils/validation.js';
+} from '../../openapi/request/serialize-parameter.js';
+import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
+import { isObject, looksLikeCredential } from '../../utils/validation.js';
 
 export function isSafeMethod(method: string): boolean {
   return ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'QUERY'].includes(method);

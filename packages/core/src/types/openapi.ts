@@ -9,45 +9,9 @@ export interface OperationEntry {
   value: unknown;
 }
 
-export interface OperationSource {
-  candidate: OperationCandidate;
-  pathItem: JsonObject;
-  entry: OperationEntry;
-}
-
 export interface ScalarSchema {
   type: string;
   enum?: Scalar[];
-}
-
-export type ResponseProperties = Record<string, JsonObject | boolean>;
-export type OperationResponses = Record<string, ResponseProperties>;
-
-export interface OperationParameter {
-  name: string;
-  in: 'path' | 'query' | 'header' | 'cookie';
-  required: boolean;
-  schema: JsonObject | boolean;
-  style: string;
-  explode: boolean;
-  allowReserved: boolean;
-  contentMediaType?: string;
-}
-
-export interface OperationBody {
-  required: boolean;
-  mediaTypes: Record<string, OperationBodyMedia>;
-}
-
-export interface OperationBodyMedia {
-  schema?: JsonObject | boolean;
-  properties: JsonObject;
-  encoding?: JsonObject;
-}
-
-export interface OperationAuthentication {
-  schemeName: string;
-  credentialType: 'httpBearerAuth';
 }
 
 export interface OperationMetadata {
@@ -57,37 +21,11 @@ export interface OperationMetadata {
   tags: string[];
 }
 
-export interface Operation extends OperationMetadata {
+export interface OperationCandidate extends OperationMetadata {
   source: OperationSourceKind;
   operationRef: string;
   method: OperationMethod;
   path: string;
-  authentication?: OperationAuthentication;
-  parameters: OperationParameter[];
-  body?: OperationBody;
-  responses: OperationResponses;
-}
-
-export type OperationCandidate = Pick<
-  Operation,
-  | 'operationRef'
-  | 'source'
-  | 'operationId'
-  | 'method'
-  | 'path'
-  | 'summary'
-  | 'description'
-  | 'tags'
->;
-
-export interface InboundOperationCandidate extends OperationCandidate {
-  source: 'webhooks' | 'callbacks';
-  parentOperationRef?: string;
-}
-
-export interface InboundOperationSource {
-  candidate: InboundOperationCandidate;
-  operation: JsonObject;
 }
 
 export interface ParsedDocument {

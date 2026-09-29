@@ -1,6 +1,6 @@
 import { node } from '@n8n/workflow-sdk';
-import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
-import type { OperationNodeInput } from '../types/workflow.js';
+import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
+import type { HttpRequestNodeInput } from '../../types/request-workflow.js';
 
 // n8n HTTP Request V3, node version 4.3 (verified against n8n 2.37.10).
 const httpRequestMethods = new Set([
@@ -13,7 +13,7 @@ const httpRequestMethods = new Set([
   'PUT',
 ]);
 
-export function operationNode({
+export function httpRequestNode({
   operation,
   id,
   name,
@@ -23,7 +23,7 @@ export function operationNode({
   headers,
   authentication,
   shouldAssert,
-}: OperationNodeInput) {
+}: HttpRequestNodeInput) {
   if (operation.source !== 'paths') {
     throw new Error(
       `operationRef ${operation.operationRef} is not an outgoing path request`,

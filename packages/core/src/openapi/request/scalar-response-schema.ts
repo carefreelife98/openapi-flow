@@ -1,21 +1,8 @@
-import type { JsonObject, Scalar, ScalarSchema } from '../types/openapi.js';
-import { UnsupportedOperationError } from './unsupported-operation-error.js';
+import type { Scalar, ScalarSchema } from '../../types/openapi.js';
+import { dereferencedObject } from '../common/parse-spec-utils.js';
+import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 
-export function object(value: unknown, source: string): JsonObject {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${source} must be an object`);
-  }
-  return value as JsonObject;
-}
-
-export function dereferencedObject(value: unknown, source: string): JsonObject {
-  const item = object(value, source);
-  if (item.$ref !== undefined)
-    throw new Error(`${source} has an unresolved $ref`);
-  return item;
-}
-
-export function scalarSchema(
+export function scalarResponseSchema(
   value: unknown,
   source: string,
   operationRef: string,

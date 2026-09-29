@@ -1,6 +1,9 @@
-import type { Operation } from '../types/openapi.js';
-import type { EffectPolicy, OperationEffect } from '../types/workflow.js';
-import { isObject } from '../utils/validation.js';
+import type { Operation } from '../../types/request.js';
+import type {
+  EffectPolicy,
+  OperationEffect,
+} from '../../types/request-workflow.js';
+import { isObject } from '../../utils/validation.js';
 
 export function approvedEffect(
   operation: Operation,

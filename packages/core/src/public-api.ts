@@ -1,23 +1,29 @@
-export { operationsFromSpec } from './openapi/parse-spec.js';
-export { inboundOperationsFromSpec } from './openapi/parse-inbound-operations.js';
-export { validateOpenApi } from './openapi/validate-spec.js';
-export { UnsupportedOperationError } from './openapi/unsupported-operation-error.js';
+export { operationsFromSpec } from './openapi/request/parse-request-operations.js';
+export { inboundOperationsFromSpec } from './openapi/list-inbound-operations.js';
+export { validateOpenApi } from './openapi/common/validate-spec.js';
+export { UnsupportedOperationError } from './openapi/common/unsupported-operation-error.js';
 export { generateWorkflow } from './planning/generate-workflow.js';
-export { compileSequence } from './workflow/compile-sequence.js';
-export { compileInboundWorkflow } from './workflow/compile-inbound-workflow.js';
-export { compileWorkflow } from './workflow/compile-workflow.js';
+export { compileSequence } from './workflow/request/compile-sequence.js';
+export { compileInboundWorkflow } from './workflow/inbound/compile-inbound-workflow.js';
+export { compileWorkflow } from './workflow/request/compile-workflow.js';
 export type {
-  Operation,
   OperationCandidate,
-  InboundOperationCandidate,
   OperationSourceKind,
 } from './types/openapi.js';
+export type { Operation } from './types/request.js';
 export type {
-  CompileRequest,
-  CompileResult,
+  InboundOperationCandidate,
+  WebhookOperationCandidate,
+  CallbackOperationCandidate,
+} from './types/inbound.js';
+export type {
   InboundPlan,
   InboundRequest,
   InboundResult,
+} from './types/inbound-workflow.js';
+export type {
+  CompileRequest,
+  CompileResult,
   EffectPolicy,
   CredentialBinding,
   CredentialBindings,
@@ -27,4 +33,4 @@ export type {
   SequenceRequest,
   SequenceResult,
   WorkflowPlan,
-} from './types/workflow.js';
+} from './types/request-workflow.js';

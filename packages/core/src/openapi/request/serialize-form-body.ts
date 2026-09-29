@@ -1,12 +1,12 @@
+import type { JsonObject } from '../../types/openapi.js';
 import type {
-  JsonObject,
   OperationBodyMedia,
   OperationParameter,
-} from '../types/openapi.js';
+} from '../../types/request.js';
 import { serializeQueryParameter } from './serialize-parameter.js';
-import { UnsupportedOperationError } from './unsupported-operation-error.js';
-import { dereferencedObject } from './parse-spec-utils.js';
-import { isObject } from '../utils/validation.js';
+import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
+import { dereferencedObject } from '../common/parse-spec-utils.js';
+import { isObject } from '../../utils/validation.js';
 
 function defaultFieldMediaType(schema: JsonObject): string | undefined {
   const type =

@@ -1,4 +1,4 @@
-import type { JsonObject, OperationMetadata } from '../types/openapi.js';
+import type { JsonObject, OperationMetadata } from '../../types/openapi.js';
 
 export function operationMetadata(
   operation: JsonObject,

@@ -1,5 +1,5 @@
 import type { JsonObject, ScalarSchema } from '../types/openapi.js';
-import type { Primitive } from '../types/workflow.js';
+import type { Primitive } from '../types/request-workflow.js';
 
 export function isObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === 'object' && !Array.isArray(value);

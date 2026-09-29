@@ -1,17 +1,16 @@
+import type { JsonObject, OperationMethod } from '../../types/openapi.js';
 import type {
-  JsonObject,
   Operation,
   OperationBody,
   OperationBodyMedia,
-  OperationMethod,
   OperationParameter,
   OperationResponses,
   ResponseProperties,
-} from '../types/openapi.js';
-import { operationMetadata } from './operation-metadata.js';
-import { dereferencedObject, object } from './parse-spec-utils.js';
+} from '../../types/request.js';
+import { operationMetadata } from '../common/operation-metadata.js';
+import { dereferencedObject, object } from '../common/parse-spec-utils.js';
 import { parseOperationSecurity } from './parse-security.js';
-import { UnsupportedOperationError } from './unsupported-operation-error.js';
+import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 
 function parseParameter(
   raw: unknown,

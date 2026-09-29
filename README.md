@@ -6,7 +6,27 @@ The importable package is published as [`@openapi-flow/core`](https://www.npmjs.
 
 The latest published package is `0.1.0`. This `main` branch contains newer, unreleased API and workflow-generation changes; the examples below describe the repository source until a new version is published.
 
-The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Types live in `src/types/`, LangChain structured-output schemas in `src/schemas/`, OpenAPI parsing in `src/openapi/`, AI planning in `src/planning/`, n8n compilation in `src/workflow/`, and shared validation in `src/utils/` under that package.
+The repository root is a private npm workspace; the importable library lives in `packages/core/`. Its public exports are declared in `packages/core/src/public-api.ts` (there is no server or `index.tsx`). Types live in `src/types/`, LangChain structured-output schemas in `src/schemas/`, AI planning in `src/planning/`, and general utilities in `src/utils/` under that package.
+
+OAS operation sources are separate from n8n node types. `paths` operations produce an HTTP Request node; both top-level `webhooks` and operation `callbacks` currently produce a Webhook trigger followed by Respond to Webhook. A callback also retains its parent operation and URL expression; its expression is **not** the n8n webhook path. Source-specific extraction and compilation are organized as follows:
+
+```text
+packages/core/src/
+  openapi/
+    common/       OAS validation, references, metadata, schema checks
+    request/      paths operations, request serialization and response contracts
+    webhook/      top-level webhooks extraction
+    callback/     operation callbacks extraction and parent reference
+  workflow/
+    common/       workflow identity shared by outgoing and inbound generation
+    request/      HTTP Request node and outgoing workflow compilation
+    inbound/      shared inbound plan, response and Webhook-node assembly
+    webhook/      webhook-specific compiler boundary
+    callback/     callback-specific compiler boundary
+  types/          named common OAS, request and inbound contracts
+```
+
+`inboundOperationsFromSpec` and `compileInboundWorkflow` remain the public entry points. The source discriminator selects the appropriate compiler boundary; shared inbound code does not imply that callback registration or correlation is implemented.
 
 ## Current API
 

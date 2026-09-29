@@ -1,18 +1,18 @@
 import {
   operationFromDocument,
   operationsFromDocument,
-} from '../openapi/parse-spec.js';
-import { validatedDocument } from '../openapi/validate-spec.js';
-import { responseFieldNames } from '../openapi/response-contract.js';
+} from '../openapi/request/parse-request-operations.js';
+import { validatedDocument } from '../openapi/common/validate-spec.js';
+import { responseFieldNames } from '../openapi/request/response-contract.js';
 import { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
 import type {
   CompileResult,
   ExpectedBody,
   GenerateRequest,
   WorkflowInputs,
-} from '../types/workflow.js';
+} from '../types/request-workflow.js';
 import { parseStructuredOutput } from '../utils/parse-structured-output.js';
-import { compileWorkflowFromOperation } from '../workflow/compile-workflow.js';
+import { compileWorkflowFromOperation } from '../workflow/request/compile-workflow.js';
 import {
   assertSelectionInput,
   selectOperationFromCandidates,

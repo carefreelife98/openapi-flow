@@ -1,42 +1,21 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
-import { checkSchemaValue } from '../openapi/check-schema-value.js';
-import { inboundOperationSourcesFromDocument } from '../openapi/parse-inbound-operations.js';
-import { dereferencedObject, object } from '../openapi/parse-spec-utils.js';
-import { UnsupportedOperationError } from '../openapi/unsupported-operation-error.js';
-import { validatedDocument } from '../openapi/validate-spec.js';
-import type { InboundRequest, InboundResult } from '../types/workflow.js';
-import { assertSerializablePlan, isObject } from '../utils/validation.js';
-import { workflowId } from '../utils/workflow-id.js';
+import { checkSchemaValue } from '../../openapi/common/check-schema-value.js';
+import {
+  dereferencedObject,
+  object,
+} from '../../openapi/common/parse-spec-utils.js';
+import { UnsupportedOperationError } from '../../openapi/common/unsupported-operation-error.js';
+import type {
+  InboundResult,
+  InboundWorkflowContext,
+} from '../../types/inbound-workflow.js';
+import { workflowId } from '../common/workflow-id.js';
 
-export async function compileInboundWorkflow({
-  spec,
+export function buildInboundWorkflow({
+  document,
+  selected,
   plan,
-}: InboundRequest): Promise<InboundResult> {
-  if (
-    !isObject(plan) ||
-    plan.version !== '1' ||
-    typeof plan.goal !== 'string' ||
-    !plan.goal.trim() ||
-    typeof plan.operationRef !== 'string' ||
-    typeof plan.webhookPath !== 'string' ||
-    !plan.webhookPath.trim() ||
-    !Number.isInteger(plan.responseStatus) ||
-    plan.responseStatus < 100 ||
-    plan.responseStatus > 599
-  )
-    throw new Error(
-      'plan must contain version 1, goal, operationRef, webhookPath, and responseStatus',
-    );
-  assertSerializablePlan(plan);
-  const document = await validatedDocument(spec);
-  const selected = inboundOperationSourcesFromDocument(document).find(
-    ({ candidate }) => candidate.operationRef === plan.operationRef,
-  );
-  if (!selected)
-    throw new Error(
-      'plan.operationRef is not in spec.webhooks or callbacks: ' +
-        plan.operationRef,
-    );
+}: InboundWorkflowContext): InboundResult {
   const { candidate, operation } = selected;
   if (
     !['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'].includes(

@@ -1,7 +1,7 @@
 import { newCredential } from '@n8n/workflow-sdk';
-import type { Operation } from '../types/openapi.js';
-import type { CredentialBindings } from '../types/workflow.js';
-import { isObject } from '../utils/validation.js';
+import type { Operation } from '../../types/request.js';
+import type { CredentialBindings } from '../../types/request-workflow.js';
+import { isObject } from '../../utils/validation.js';
 
 export function resolveCredentialBinding(
   operation: Operation,

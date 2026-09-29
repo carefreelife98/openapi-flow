@@ -1,6 +1,7 @@
-import type { JsonObject, OperationAuthentication } from '../types/openapi.js';
-import { dereferencedObject, object } from './parse-spec-utils.js';
-import { UnsupportedOperationError } from './unsupported-operation-error.js';
+import type { JsonObject } from '../../types/openapi.js';
+import type { OperationAuthentication } from '../../types/request.js';
+import { dereferencedObject, object } from '../common/parse-spec-utils.js';
+import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 
 export function parseOperationSecurity(
   spec: JsonObject,

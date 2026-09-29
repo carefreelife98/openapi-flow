@@ -86,6 +86,18 @@ test('webhook and callback candidates retain distinct OAS sources and references
     ],
   );
   assert.equal(inbound[1].parentOperationRef, '#/paths/~1register/post');
+  const webhookOnly = globalThis.structuredClone(inboundSpec);
+  delete webhookOnly.paths;
+  assert.deepEqual(
+    (await inboundOperationsFromSpec(webhookOnly)).map(({ source }) => source),
+    ['webhooks'],
+  );
+  const callbackOnly = globalThis.structuredClone(inboundSpec);
+  delete callbackOnly.webhooks;
+  assert.deepEqual(
+    (await inboundOperationsFromSpec(callbackOnly)).map(({ source }) => source),
+    ['callbacks'],
+  );
 });
 
 test('webhook and callback compile to deterministic trigger and OAS-checked response', async () => {
@@ -110,6 +122,10 @@ test('webhook and callback compile to deterministic trigger and OAS-checked resp
       ['n8n-nodes-base.webhook', 'n8n-nodes-base.respondToWebhook'],
     );
     assert.equal(result.workflow.nodes[0].parameters.httpMethod, 'POST');
+    assert.equal(
+      result.workflow.nodes[0].parameters.path,
+      candidate.source + '/events',
+    );
     assert.equal(
       result.workflow.nodes[0].parameters.responseMode,
       'responseNode',

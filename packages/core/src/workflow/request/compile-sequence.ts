@@ -1,10 +1,10 @@
 import { node, trigger, validateWorkflow, workflow } from '@n8n/workflow-sdk';
-import { operationFromDocument } from '../openapi/parse-spec.js';
+import { operationFromDocument } from '../../openapi/request/parse-request-operations.js';
 import {
   responseFieldType,
   validateResponseField,
-} from '../openapi/response-contract.js';
-import { validatedDocument } from '../openapi/validate-spec.js';
+} from '../../openapi/request/response-contract.js';
+import { validatedDocument } from '../../openapi/common/validate-spec.js';
 import type {
   ExpectedBody,
   PreparedSequenceNode,
@@ -13,14 +13,14 @@ import type {
   RequiredOutputs,
   SequenceRequest,
   SequenceResult,
-} from '../types/workflow.js';
+} from '../../types/request-workflow.js';
 import {
   assertSerializablePlan,
   isObject,
   looksLikeCredential,
   originFrom,
-} from '../utils/validation.js';
-import { workflowId } from '../utils/workflow-id.js';
+} from '../../utils/validation.js';
+import { workflowId } from '../common/workflow-id.js';
 import { approvedEffect } from './effect-policy.js';
 import { resolveCredentialBinding } from './credential-binding.js';
 import {
@@ -29,7 +29,7 @@ import {
   makeBody,
   makeHeaders,
 } from './workflow-helpers.js';
-import { operationNode } from './operation-node.js';
+import { httpRequestNode } from './http-request-node.js';
 import { sequenceUrl } from './sequence-url.js';
 
 export async function compileSequence({
@@ -192,7 +192,7 @@ export async function compileSequence({
       const shouldAssert =
         Object.keys(expectedBody).length > 0 ||
         Object.keys(requiredFields).length > 0;
-      const request = operationNode({
+      const request = httpRequestNode({
         operation,
         id: 'request-' + id,
         name: 'Request ' + id,
