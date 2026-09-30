@@ -7,7 +7,7 @@ export function createOperationSelectionSchema(refs: string[]) {
   return z
     .object({
       operationRef: z
-        .enum([refs[0], ...refs.slice(1)])
+        .enum(refs)
         .describe(
           'The exact operationRef of the single OpenAPI operation that best matches the scenario. Choose one of the supplied references; do not invent a new one.',
         ),

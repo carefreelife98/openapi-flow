@@ -61,7 +61,7 @@ test('selection rejects an unknown reference and invalid input before workflow c
   };
   await assert.rejects(
     selectOperationFromCandidates(operations, 'Create an item', model),
-    /model operation selection is invalid: operationRef: Invalid enum value/,
+    /model operation selection is invalid: operationRef: Invalid option/,
   );
   await assert.rejects(
     selectOperationFromCandidates([], 'Create an item', model),

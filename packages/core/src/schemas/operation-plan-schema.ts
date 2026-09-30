@@ -8,7 +8,7 @@ export function createOperationPlanSchema(
   // An empty enum has no valid value; keep the wire schema usable and reject bindings locally.
   const inputKey = inputNames.length
     ? z
-        .enum([inputNames[0], ...inputNames.slice(1)])
+        .enum(inputNames)
         .describe(
           'An exact request input key from the selected operation, such as path.id, query.page, body, or body.name.',
         )
@@ -20,7 +20,7 @@ export function createOperationPlanSchema(
         .describe('No request input keys are available for this operation.');
   const responseKey = responseNames.length
     ? z
-        .enum([responseNames[0], ...responseNames.slice(1)])
+        .enum(responseNames)
         .describe(
           'An exact response-body field name declared by the selected operation.',
         )

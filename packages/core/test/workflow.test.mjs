@@ -1379,7 +1379,7 @@ test('LangChain structured output selects an operation and proposes validated bi
       baseUrl: 'https://example.test',
       profile: 'read-only',
     }),
-    /model operation selection is invalid: operationRef: Invalid enum value/,
+    /model operation selection is invalid: operationRef: Invalid option/,
   );
   const omitted = {
     withStructuredOutput(_schema, options) {

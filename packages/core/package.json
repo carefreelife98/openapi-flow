@@ -56,7 +56,7 @@
     "@scalar/openapi-parser": "0.29.7",
     "@scalar/openapi-types": "0.9.7",
     "@scalar/openapi-validator": "0.1.6",
-    "zod": "3.25.76"
+    "zod": "4.6.5"
   },
   "peerDependencies": {
     "@langchain/core": "^1.0.0"
