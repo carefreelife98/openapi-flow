@@ -9,8 +9,8 @@ This branch contains **unreleased 0.2.0 work**. The published `@openapi-flow/cor
 | Package                   | Responsibility                                                                | Main functions                                                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `@openapi-flow/core`      | OAS intake, operation provenance, full selected contracts and request schemas | `createApiCatalog`, `listApiOperations`, `resolveApiOperations`, `createApiArgumentsSchema`, `validateApiArguments` |
-| `@openapi-flow/langchain` | Independent model calls, typed proposals and missing-input reporting          | `selectApiOperations`, `generateApiArguments`                                                                       |
-| `@openapi-flow/n8n`       | Deterministic request-node construction and explicit DAG assembly             | `createHttpRequestNode`, `assembleN8nWorkflow`                                                                      |
+| `@openapi-flow/langchain` | Independent model calls, typed proposals and graph design                     | `selectApiOperations`, `generateApiArguments`, `planWorkflowGraph`                                                  |
+| `@openapi-flow/n8n`       | Deterministic request/native node construction and DAG compilation            | `createHttpRequestNode`, `createN8nNativeCapabilities`, `compilePlannedN8nWorkflow`, `assembleN8nWorkflow`          |
 
 Core has no LangChain or n8n dependency. The adapters each depend on core, not on each other. A host can put each function in a LangGraph node, replace a model call, provide values manually, retry one call, or require human approval before compilation/import/execution. Workflow topology is not stored in the OAS and operation selection order does not define execution order.
 
@@ -89,7 +89,9 @@ Request compilation requires a trusted base URL and credential references. It ne
 
 Implemented: package isolation, independent multi-document selection, full REST contract lookup, OAS-typed per-call values, literal HTTP Request nodes, explicit DAG assembly, and regression preservation. Unit tests cover independent calls; private service OAS fixtures and an isolated n8n instance exercise real parser and import/execution paths.
 
-Not implemented in the new path yet: `planWorkflowGraph`, a typed registry/compiler for native control nodes, runtime output-binding materialization and data-dependency checks, multi-node fragment internal wiring, and gap-preview generation. Output bindings can be represented in core proposals, but the standalone request compiler explicitly refuses them until runtime support exists; it never substitutes a made-up literal. Existing cross-document scalar response bindings remain exercised through `/legacy`.
+`planWorkflowGraph` now designs native nodes, typed conditions/assertions, ports, DAG edges and starts from the scenario and selected OAS API materials. `createN8nNativeCapabilities` supplies IF, Merge Append, response-assertion Code and StopAndError definitions; hosts can register additional typed schemas and deterministic compilers. `validateWorkflowGraphPlan` rejects missing IDs/ports, cycles, unavailable response references and structurally incompatible join branches. `compilePlannedN8nWorkflow` revalidates the plan and emits SDK-validated JSON. Model output contains neither arbitrary JavaScript nor deployment URLs/credentials.
+
+Not implemented in the new path yet: request output-binding materialization, exhaustive OAS response-pointer/type proof, multi-node fragment internal wiring, all native n8n node variants, and gap-preview JSON. Runtime comparison fails on missing response pointers rather than substituting a value. Structural validation does not prove natural-language coverage; review and execution tests remain necessary. Output bindings can be represented in core proposals, but the standalone request compiler explicitly refuses them until runtime support exists. Existing cross-document scalar response bindings remain exercised through `/legacy`.
 
 Webhook/callback extraction stays in core; inbound compilation lives in n8n. Receiving-request authentication/schema checks and callback registration/correlation remain pending. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
@@ -97,7 +99,7 @@ See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [desi
 
 ## Official usage example
 
-See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. The CLI composes one selected API call. `createDagWorkflowGenerationGraph` supports multiple selected calls with an explicit host selection review and topology callback, including host-created SDK native nodes. It does not generate topology/assertion code with the model or import/execute workflows automatically. The public fixtures contain no internal service metadata.
+See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. The CLI composes one selected API call. `createPlannedWorkflowGenerationGraph` adds model-designed native nodes, conditions and topology with no host composition callback. `createDagWorkflowGenerationGraph` remains available for explicit host-owned topology. Neither factory imports or executes workflows automatically. The public fixtures contain no internal service metadata.
 
 ## Development
 

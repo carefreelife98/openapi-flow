@@ -4,3 +4,6 @@ export { createHttpRequestNode } from './nodes/request/create-http-request-node.
 export { assembleN8nWorkflow } from './workflow/assemble-n8n-workflow.js';
 export type * from './types/node-fragment.js';
 export type * from './types/workflow-compilation.js';
+export { createN8nNativeCapabilities } from './nodes/native/create-native-capabilities.js';
+export { compilePlannedN8nWorkflow } from './workflow/compile-planned-n8n-workflow.js';
+export type * from './types/native-capability.js';

@@ -1,6 +1,6 @@
 # LangGraph 워크플로 생성 예제
 
-`openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API는 별도의 DAG factory에서 호스트가 연결을 명시해 조립한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 아직 배포하지 않은 `0.2.0` 소스를 대상으로 한다.
+`openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API에는 모델이 조건·연결까지 계획하는 factory와 호스트가 연결을 명시하는 factory를 제공한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 아직 배포하지 않은 `0.2.0` 소스를 대상으로 한다.
 
 ## 실행
 
@@ -111,4 +111,42 @@ Start → 코어 조회 → IF ─ false → Stop And Error
 
 ## 다음 확장
 
-호스트가 명시한 다중 API·제어 노드 DAG는 조립할 수 있다. 자연어에서 연결 구조까지 생성하는 DAG planner, 범용 제어 노드 registry/compiler, 새 요청 compiler의 선행 응답 바인딩 실행은 아직 구현하지 않았다. Code 노드가 앞선 응답을 읽는 예제와 API 요청값에 응답을 바인딩하는 기능도 서로 다르다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+새 요청 compiler의 선행 응답 파라미터 바인딩 실행, 다른 n8n 자체 기능의 매퍼, 결손 미리보기 JSON은 남은 작업이다. Code·IF가 앞선 응답을 읽는 기능과 API 요청값에 응답을 바인딩하는 기능은 서로 다르다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+
+## 자연어에서 조건·연결까지 계획하기
+
+`createPlannedWorkflowGenerationGraph`는 `composeDag` 없이 최종 그래프를 만든다. API 선택 1회, 선택한 API별 요청값 생성, 그래프 계획 1회를 각각 호출한다. 모델은 API 재료와 자체 노드의 설명·Zod schema를 받아 자체 노드 설정, 조건·검증 항목, `edges`, `starts`, `gaps`를 반환한다. HTTP method·URL·credential·n8n 노드 버전과 실행 JavaScript는 모델이 만들지 않는다.
+
+```text
+catalog → select(LLM) → resolve → arguments(LLM, 호출별)
+        → graph-plan(LLM) → validate/compile → import용 JSON
+```
+
+```ts
+import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
+import { createPlannedWorkflowGenerationGraph } from '@openapi-flow/example-langgraph-workflow';
+
+const graph = createPlannedWorkflowGenerationGraph({
+  model,
+  deployments,
+  capabilities: createN8nNativeCapabilities(),
+});
+const result = await graph.invoke({
+  workflowId: 'planned-review',
+  workflowName: 'Planned review',
+  scenario,
+  sources,
+  trace: [],
+});
+// 승인 전에 result.graphPlan과 result.workflow를 검토한다.
+```
+
+기본 registry는 IF, Merge Append, 응답 검증용 Code, StopAndError를 등록한다. 각 매퍼는 `packages/n8n/src/nodes/native/`의 별도 파일이며 공통 fragment·응답 참조 처리는 `common/`에 둔다. Code는 모델의 JavaScript가 아니라 타입 있는 비교 항목을 라이브러리가 변환한 코드다. 응답 참조는 `{source: 'response', nodeId, pointer: '/result/...'}`로 표현하며 `pointer`는 OAS 응답 본문 기준이다. n8n의 `body` envelope와 SDK 노드 이름은 컴파일러가 연결한다.
+
+독립적으로는 `planWorkflowGraph`와 `compilePlannedN8nWorkflow`를 호출한다. 호스트가 제공한 capability의 설명·설정 schema·포트·분기 의미·응답 참조 추출기·컴파일러를 등록해 확장한다. n8n의 모든 노드를 자동 지원한다는 뜻은 아니다. 현재 비교는 첫 응답 아이템의 본문을 대상으로 하며, 아이템별 반복 처리나 요청 바인딩은 별도 계약이 필요하다.
+
+검사는 존재하지 않는 노드·포트, 중복 ID·연결, 잘못된 시작점, 순환, 앞서 실행되지 않은 API 응답 참조, 서로 배타적인 IF 분기의 Merge를 거절한다. 응답 필드의 모든 OAS dialect·타입을 정적으로 증명하지는 않는다. 실행 중 없는 필드를 읽으면 오류를 내며 다른 값으로 채우지 않는다. 시나리오 요구를 빠짐없이 계획했는지는 사람 검토와 정상·실패 fixture 검증으로 확인해야 한다.
+
+`planWorkflowGraph`는 충족하지 못한 요구를 `gaps`로 반환한다. 이 예제는 결손이 있으면 컴파일을 중단한다. 호출자는 독립 계획 함수를 LangGraph의 승인·재계획 단계에 넣을 수 있다. `reviewPlan` 비동기 hook도 제공하지만 checkpointer·`interrupt`·자동 재시도를 내장한 것은 아니다.
+
+구조 회귀는 `test/planned-workflow.test.mjs`에서 확인한다. 실제 n8n의 [IF](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.if/)와 [Merge Append](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.merge/) 동작은 별도 실행 검증이 필요하며 SDK 검사만으로 성공을 판단하지 않는다.

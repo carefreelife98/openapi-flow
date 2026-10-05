@@ -15,7 +15,8 @@
 | 구현        | `createHttpRequestNode` — 리터럴 요청값, 기존 직렬화·credential 연결 재사용                                         |
 | 구현        | `assembleN8nWorkflow` — 명시적 node·port·edge·start, DAG·fan-out, SDK JSON 출력                                     |
 | 예제 구현   | `createDagWorkflowGenerationGraph` — 다중 API 선택·입력 생성, 호스트가 명시한 DAG와 SDK 자체 노드 조합              |
-| 다음 구현   | `planWorkflowGraph`, n8n 제어 노드 registry와 타입 있는 설정 컴파일                                                 |
+| 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                      |
+| 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력    |
 | 다음 구현   | 새 출력 바인딩의 런타임 값·데이터 의존성 검증, 복수 노드 fragment 내부 연결, 결손 미리보기                          |
 | 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
 

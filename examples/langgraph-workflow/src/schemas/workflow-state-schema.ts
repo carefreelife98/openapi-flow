@@ -6,6 +6,7 @@ import type {
   ApiSelection,
   ApiOperationContract,
   ApiCallArguments,
+  WorkflowGraphPlan,
 } from '@openapi-flow/core';
 import type { N8nCompileResult } from '@openapi-flow/n8n';
 
@@ -20,6 +21,7 @@ export const workflowStateSchema = new StateSchema({
   selection: z.custom<ApiSelection>().optional(),
   contracts: z.custom<ApiOperationContract[]>().optional(),
   arguments: z.custom<ApiCallArguments[]>().optional(),
+  graphPlan: z.custom<WorkflowGraphPlan>().optional(),
   workflow: z.custom<N8nCompileResult['workflow']>().optional(),
   trace: z.array(z.string()),
 });

@@ -7,6 +7,8 @@ import type {
 } from '@openapi-flow/core';
 import type { N8nNodeFragment, N8nGraphEdge } from '@openapi-flow/n8n';
 import type { workflowStateSchema } from '../schemas/workflow-state-schema.js';
+import type { WorkflowGraphPlan } from '@openapi-flow/core';
+import type { N8nNativeCapability } from '@openapi-flow/n8n';
 
 export type WorkflowState = typeof workflowStateSchema.State;
 export type WorkflowUpdate = typeof workflowStateSchema.Update;
@@ -20,6 +22,15 @@ export interface ServiceDeployment {
 export interface GraphDependencies {
   model: BaseChatModel;
   deployments: ServiceDeployment[];
+}
+
+export interface ApiPreparationDependencies extends GraphDependencies {
+  reviewSelection?: (selection: ApiSelection) => void;
+}
+
+export interface PlannedGraphDependencies extends ApiPreparationDependencies {
+  capabilities: N8nNativeCapability[];
+  reviewPlan?: (plan: WorkflowGraphPlan) => void | Promise<void>;
 }
 
 export interface ResolvedRequestNode {

@@ -31,6 +31,16 @@
 
 각 패키지의 `public-api.ts`가 실제 공개 함수 목록이다. core에는 모델이나 n8n SDK import가 없고, langchain과 n8n은 서로 의존하지 않는다. 외부 입력과 반환 타입은 각 패키지의 `types/`, structured-output 정의는 `schemas/`, 모델 지침은 `prompts/`에서 찾는다.
 
+## 조건·연결을 자동 계획하는 경로
+
+자동 조합은 [create-planned-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-planned-workflow-generation-graph.ts)를 연다. 공통 API 준비 단계 뒤 `planGraph`를 호출하고, `compileWorkflow`에서 계획을 n8n JSON으로 변환한다. 기존 호스트 명시 DAG와 이 경로의 공통 단계는 [prepare-api-workflow.ts](../examples/langgraph-workflow/src/graph/prepare-api-workflow.ts)에 있다.
+
+[plan-workflow-graph.ts](../packages/langchain/src/workflow/plan-workflow-graph.ts)는 선택한 OAS 계약·요청값과 자체 기능 설명을 모델에 전달한다. [workflow-graph-plan-schema.ts](../packages/langchain/src/schemas/workflow-graph-plan-schema.ts)는 등록된 설정 schema로 자체 노드, 조건·검증, edge·start·gap을 받는다. 모델은 API 노드 JSON이나 JavaScript를 생성하지 않는다.
+
+[validate-workflow-graph-plan.ts](../packages/core/src/workflow/validate-workflow-graph-plan.ts)는 모든 경로에서 선행 API 응답이 존재하는지, Merge 입력 분기가 함께 실행 가능한지까지 검사한다. [create-native-capabilities.ts](../packages/n8n/src/nodes/native/create-native-capabilities.ts)는 IF·Merge·검증·중단의 별도 매퍼를 등록하고, [compile-planned-n8n-workflow.ts](../packages/n8n/src/workflow/compile-planned-n8n-workflow.ts)는 이를 SDK JSON으로 조립한다. 본문 pointer와 n8n full-response envelope를 연결하는 코드는 `nodes/native/response-check-code.ts`에 있다.
+
+현재 응답 pointer의 모든 OAS 타입을 정적으로 증명하는 것은 아니며, 없는 필드는 런타임 오류로 드러낸다. API 파라미터에 선행 응답을 공급하는 기능은 아직 새 요청 compiler에서 실행하지 않는다. 조건·검증용 응답 읽기와 구분해야 한다.
+
 ## 두 번째 모델 호출을 확인하는 법
 
 `generateApiArguments`는 선택된 전체 계약을 받아 `createApiArgumentsSchema`를 호출한다. 예를 들어 `POST /items`의 body가 `{name: string, quantity: integer}`이면 모델 출력도 `values.body.name`, `values.body.quantity`를 그 타입으로 받는다. 모델이 OAS나 JSON Schema 문자열을 생성하는 것이 아니다.
@@ -62,6 +72,6 @@ npm run test:local-n8n
 
 ## 아직 따라갈 구현이 없는 범위
 
-`planWorkflowGraph`, n8n 제어 노드 기능 목록·설정 스키마, 새 출력 바인딩의 실행값 검증·직렬화, 복수 SDK 노드 fragment의 내부 연결, 결손 미리보기는 다음 구현이다. 새 `createHttpRequestNode`는 현재 리터럴 입력을 받으며 출력 바인딩은 명시적으로 거절한다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이다.
+새 출력 바인딩의 실행값 검증·직렬화, 기본 registry 외의 자체 노드 매퍼, 복수 SDK 노드 fragment의 내부 연결, 결손 미리보기는 다음 구현이다. 새 `createHttpRequestNode`는 현재 리터럴 입력을 받으며 출력 바인딩은 명시적으로 거절한다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이다.
 
 Webhook/callback의 수신 인증·요청 스키마 검사와 callback 등록·상관관계 처리는 앞서 기록한 미완료 범위다. SDK의 구조 검증 통과만으로 이 기능이나 실서비스 실행까지 검증했다고 볼 수는 없다.

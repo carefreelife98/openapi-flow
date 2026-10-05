@@ -14,4 +14,6 @@ The host supplies `{ id, spec }` documents. Catalog creation requires neither de
 
 `createApiArgumentsSchema` preserves OAS request types for model proposals. `validateApiArguments` checks original constraints and returns missing-input pointers; output bindings require runtime validation. Core does not call an LLM, import LangChain/n8n, execute APIs or provide a server. The `/internal` export is an unstable adapter boundary, not the application API. See the [workspace guide](https://github.com/carefreelife98/openapi-flow#independent-stages).
 
+`WorkflowGraphPlan` describes native capability settings, named-port edges, starts and unmet requirements. `validateWorkflowGraphPlan` uses host-supplied capability contracts to check graph identity/ports/cycles, exclusive-branch join compatibility and API response availability on every incoming route. It does not prove scenario coverage or exhaustively validate response pointer types against every OAS schema dialect; missing fields fail in the runtime compiler. This contract is engine-independent and does not import an n8n node registry.
+
 Our code is MIT-licensed. Core has no n8n SDK dependency. Dependency licenses remain separate; see [third-party notices](./THIRD_PARTY_NOTICES.md).
