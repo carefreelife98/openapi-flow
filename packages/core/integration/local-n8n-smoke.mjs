@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { URLSearchParams } from 'node:url';
 import { promisify } from 'node:util';
 import {
+  compileCatalogSequence,
   compileInboundWorkflow,
   compileWorkflow,
   inboundOperationsFromSpec,
@@ -46,7 +47,7 @@ function n8n(args, input) {
 }
 
 async function n8nAsync(args) {
-  await execFileAsync(
+  const { stdout } = await execFileAsync(
     'docker',
     [
       'run',
@@ -60,6 +61,7 @@ async function n8nAsync(args) {
     ],
     { timeout: 90_000 },
   );
+  return stdout;
 }
 
 function inboundSpec() {
@@ -144,7 +146,11 @@ const responder = createServer(async (request, response) => {
     body: Buffer.concat(chunks).toString('utf8'),
   });
   response.writeHead(200, { 'Content-Type': 'application/json' });
-  response.end(JSON.stringify({ ok: true }));
+  response.end(
+    JSON.stringify(
+      request.url === '/catalog/create' ? { id: 'c-42' } : { ok: true },
+    ),
+  );
 });
 
 let volumeCreated = false;
@@ -244,6 +250,98 @@ try {
     },
   });
   assert.equal(form.status, 'complete');
+  const createRef = '#/paths/~1catalog~1create/post';
+  const readRef = '#/paths/~1catalog~1read~1{id}/get';
+  const catalog = await compileCatalogSequence({
+    sources: [
+      {
+        id: 'catalog-writer',
+        spec: {
+          openapi: '3.1.0',
+          info: { title: 'Catalog writer', version: '1' },
+          paths: {
+            '/catalog/create': {
+              post: {
+                requestBody: {
+                  required: true,
+                  content: {
+                    'application/json': {
+                      schema: {
+                        type: 'object',
+                        required: ['name'],
+                        properties: { name: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+                responses: {
+                  200: {
+                    description: 'created',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          type: 'object',
+                          properties: { id: { type: 'string' } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        baseUrl: `http://host.docker.internal:${address.port}`,
+        effectPolicy: { [createRef]: 'write' },
+        credentialBindings: {},
+      },
+      {
+        id: 'catalog-reader',
+        spec: {
+          openapi: '3.1.0',
+          info: { title: 'Catalog reader', version: '1' },
+          paths: {
+            '/catalog/read/{id}': {
+              get: {
+                parameters: [
+                  {
+                    name: 'id',
+                    in: 'path',
+                    required: true,
+                    schema: { type: 'string' },
+                  },
+                ],
+                responses: { 200: { description: 'read' } },
+              },
+            },
+          },
+        },
+        baseUrl: `http://host.docker.internal:${address.port}`,
+        effectPolicy: { [readRef]: 'read' },
+        credentialBindings: {},
+      },
+    ],
+    profile: 'test',
+    plan: {
+      version: '1',
+      goal: 'Create and read across two OAS documents',
+      steps: [
+        {
+          id: 'create',
+          documentId: 'catalog-writer',
+          operationRef: createRef,
+          inputs: { body: { name: 'demo' } },
+        },
+        {
+          id: 'read',
+          documentId: 'catalog-reader',
+          operationRef: readRef,
+          inputs: { 'path.id': { fromStep: 'create', field: 'id' } },
+        },
+      ],
+    },
+  });
+  assert.equal(catalog.status, 'complete');
   const spec = inboundSpec();
   const candidates = await inboundOperationsFromSpec(spec);
   const inbound = await Promise.all(
@@ -263,7 +361,7 @@ try {
   );
   docker(['volume', 'create', volume]);
   volumeCreated = true;
-  for (const result of [rest, form, ...inbound]) {
+  for (const result of [rest, form, catalog, ...inbound]) {
     n8n(
       ['import:workflow', '--input=/dev/stdin'],
       JSON.stringify(result.workflow),
@@ -287,6 +385,15 @@ try {
   const submitted = new URLSearchParams(received[1].body);
   assert.deepEqual(JSON.parse(submitted.get('address')), { city: 'New York' });
   assert.deepEqual(submitted.getAll('tags'), ['a', 'b']);
+  const catalogExecution = await n8nAsync([
+    'execute',
+    `--id=${catalog.workflow.id}`,
+    '--rawOutput',
+  ]);
+  assert.match(catalogExecution, /"status"\s*:\s*"success"/);
+  assert.equal(received.length, 4);
+  assert.equal(received[2].url, '/catalog/create');
+  assert.equal(received[3].url, '/catalog/read/c-42');
   docker([
     'run',
     '--rm',
@@ -314,6 +421,7 @@ try {
     JSON.stringify({
       image,
       rest: 'matrix path, repeated query, and complex form verified',
+      catalog: 'cross-document response binding verified',
       inbound: inbound.map((item) => item.evidence.source),
       status: 202,
     }) + '\n',

@@ -7,6 +7,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import {
   compileWorkflow,
+  createOperationCatalog,
   generateWorkflow,
   operationsFromSpec,
   validateOpenApi,
@@ -26,6 +27,29 @@ const files = entries
 if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
+
+test('real OAS files form a multi-document operation catalog', async () => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      baseUrl: 'https://example.test',
+      effectPolicy: {},
+      credentialBindings: {},
+    })),
+  );
+  const catalog = await createOperationCatalog(sources);
+  assert.equal(catalog.sources.size, files.length);
+  assert.equal(
+    catalog.entries.length,
+    (
+      await Promise.all(
+        sources.map((source) => operationsFromSpec(source.spec)),
+      )
+    ).reduce((count, operations) => count + operations.length, 0),
+  );
+  assert.ok(catalog.entries.every((entry) => files.includes(entry.id)));
+});
 
 const operationMethods = new Set([
   'get',

@@ -4,18 +4,14 @@ import {
   operationsFromDocument,
 } from '../openapi/request/parse-request-operations.js';
 import { validateAndResolveOpenApiDocument } from '../openapi/common/validate-spec.js';
-import type { JsonObject } from '../types/openapi.js';
 import { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
 import type {
   GenerateRequest,
   OperationPlanOutput,
 } from '../types/planning.js';
-import type {
-  CompileResult,
-  WorkflowInputs,
-} from '../types/request-workflow.js';
-import { isObject } from '../utils/is-object.js';
+import type { CompileResult } from '../types/request-workflow.js';
 import { parseStructuredOutput } from './parse-structured-output.js';
+import { operationPlanInputs } from './operation-plan-inputs.js';
 import { compileWorkflowFromOperation } from '../workflow/request/compile-workflow.js';
 import {
   assertSelectionInput,
@@ -77,20 +73,7 @@ export async function generateWorkflow(
     proposed,
     'model operation plan',
   );
-  const inputs: WorkflowInputs = {};
-  const groupedInputs: JsonObject = plannedInputs;
-  for (const location of ['path', 'query', 'header', 'cookie'] as const) {
-    const values = groupedInputs[location];
-    if (values === undefined) continue;
-    if (!isObject(values))
-      throw new Error(
-        `model operation plan inputs.${location} must be an object`,
-      );
-    for (const [name, value] of Object.entries(values)) {
-      inputs[`${location}.${name}`] = value;
-    }
-  }
-  if (Object.hasOwn(plannedInputs, 'body')) inputs.body = plannedInputs.body;
+  const inputs = operationPlanInputs(plannedInputs);
   return compileWorkflowFromOperation(
     {
       baseUrl: input.baseUrl,

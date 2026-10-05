@@ -1,5 +1,6 @@
 import { operationFromDocument } from '../../openapi/request/parse-request-operations.js';
 import { validateResponseField } from '../../openapi/request/response-contract.js';
+import type { PrepareStepsInput } from '../../types/catalog-workflow.js';
 import type { ExpectedBody } from '../../types/request-workflow.js';
 import type {
   PreparedSequenceNode,
@@ -27,6 +28,23 @@ export function prepareSequence({
   credentialBindings,
   plan,
 }: PrepareSequenceInput): PreparedSequence {
+  return prepareSteps({
+    profile,
+    plan,
+    resolveStep: (step) => ({
+      operation: operationFromDocument(document, step.operationRef),
+      origin,
+      effectPolicy,
+      credentialBindings,
+    }),
+  });
+}
+
+export function prepareSteps({
+  profile,
+  plan,
+  resolveStep,
+}: PrepareStepsInput): PreparedSequence {
   const previous: PreviousOperations = new Map();
   const requiredOutputs: RequiredOutputs = new Map();
   const evidence: SequenceResult['evidence'] = [];
@@ -43,7 +61,8 @@ export function prepareSequence({
     ) {
       throw new Error('plan.steps must have unique id and operationRef values');
     }
-    const operation = operationFromDocument(document, step.operationRef);
+    const source = resolveStep(step);
+    const { operation, origin, effectPolicy, credentialBindings } = source;
     const effect = approvedEffect(operation, effectPolicy);
     const authentication = resolveCredentialBinding(
       operation,

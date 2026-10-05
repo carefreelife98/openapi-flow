@@ -22,7 +22,7 @@ packages/core/src/
       webhook/        top-level webhooks extraction
       callback/       operation callbacks extraction and parent reference
   planning/           model-based operation selection and input planning
-  schemas/            structured-output schemas and JSON-literal validation
+  schemas/            structured-output schemas for OAS-derived planning
   workflow/
     common/           plan serialization and workflow identity
     request/          outgoing URL/body/header preparation, policy, and separate workflow builders
@@ -122,7 +122,51 @@ const result = await compileSequence({
 });
 ```
 
-References must point to an earlier step and a declared response field of a compatible primitive type. The source assertion fails if the field is missing at runtime. The model does **not** generate multi-step plans yet; the host application supplies this plan.
+References must point to an earlier step and a declared response field of a compatible primitive type. The source assertion fails if the field is missing at runtime. This single-document plan is host-supplied; multi-document model planning is described below.
+
+### Multi-document scenarios
+
+The host supplies each service's OAS, trusted deployment URL, effect policy, and existing n8n credential references. No manifest or server process is required. `documentId` distinguishes identical `operationRef` values in different documents. `proposeCatalogScenario` returns an inspectable plan for a caller-owned LangGraph/HITL loop; `compileCatalogSequence` validates and compiles a reviewed or edited plan. `generateCatalogScenario` performs both calls for a simple path:
+
+```ts
+import {
+  proposeCatalogScenario,
+  compileCatalogSequence,
+} from '@openapi-flow/core';
+
+const sources = [
+  {
+    id: 'inventory',
+    spec: inventoryOpenApiJson,
+    baseUrl: 'https://inventory.example.com',
+    effectPolicy: { '#/paths/~1items/post': 'write' },
+    credentialBindings: {},
+  },
+  {
+    id: 'lookup',
+    spec: lookupOpenApiJson,
+    baseUrl: 'https://lookup.example.com',
+    effectPolicy: { '#/paths/~1items~1{id}/get': 'read' },
+    credentialBindings: {},
+  },
+];
+
+const plan = await proposeCatalogScenario({
+  sources,
+  scenario: 'Create an item named demo and read the created item',
+  model,
+});
+// Review, edit, or request another plan in the host application.
+const result = await compileCatalogSequence({ sources, profile: 'test', plan });
+if (result.status === 'complete') {
+  // Import result.workflow only after host review.
+  console.log(result.workflow);
+} else {
+  console.log(result.status, result.diagnostics);
+}
+```
+
+The first structured model call chooses an ordered list of catalog candidates and may propose unmet requirements. A typed call per selected operation extracts literal OAS request values and optional prior-response-to-path/query bindings. The model receives metadata for every catalog operation and request/response contract data for selected operations; the host must approve that disclosure to its model endpoint. The compiler rechecks every selected operation, input, response reference, effect, and credential. It emits Manual Trigger → HTTP Request nodes with Code checks only where a response binding or explicit host assertion requires one. `missing_operation`, `insufficient_contract`, `missing_input`, and `effect_not_approved` are diagnostics, not executable substitute nodes. An `insufficient_contract` gap identifies the existing `(documentId, operationRef)` that may need enhancement. A plan with a proposed capability gap returns `needs_capability` and **no workflow**, even if some steps are valid. Gap descriptions are model proposals for human review, not proof that an API is absent. The host owns retries, approvals, policy, n8n import, and execution.
 
 ## Document validation and workflow generation
 
@@ -132,7 +176,7 @@ References must point to an earlier step and a declared response field of a comp
 - Outgoing generation remains narrower than document acceptance: selected operations support no authentication or one HTTP Bearer requirement backed by an existing n8n credential; scalar, array, and flat-object path/query/header/cookie styles; JSON parameter content; JSON request bodies; and form-urlencoded bodies with scalar fields, repeated arrays, JSON-encoded complex values, or explicitly styled fields. If OAS declares multiple request media types, the plan must supply `requestMediaType` (or the host supplies it to `generateWorkflow`); without a choice the result is `needs_input`, not an invalid document. Other security schemes, combined schemes, alternative security requirements, nested `deepObject`, nested form encoding, binary/multipart bodies, and unmapped media types fail explicitly for the selected operation. JSON request bodies and explicitly requested top-level response assertions are checked against their OAS schemas. Known unsupported conversion features throw `UnsupportedOperationError` with the selected `operationRef`; OAS validation failures and missing host credential bindings remain separate errors. Unrelated valid OAS operations do not make the document invalid. The SDK normally emits Manual Trigger → HTTP Request and adds a Code assertion node only when needed.
 - The compiler accepts exact, ranged, and `default` OAS response entries without selecting a status. Assertions can compare top-level response fields containing nested JSON values. Linear plans have no project-specific step-count cap, and prior-response bindings are currently for primitive path/query values.
 
-Natural-language generation still handles **one outgoing path operation per workflow**. Inbound generation is separate and host-planned: `compileInboundWorkflow` creates an unauthenticated [Webhook trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/) → [Respond to Webhook](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.respondtowebhook/) workflow from a selected webhook or callback. The host must supply the n8n webhook path, an OAS-declared response status, and an OAS-valid JSON response body if used. The library does not derive the public callback URL, register it with the API provider, correlate callback requests with the parent operation, enforce inbound request schemas, map inbound authentication, or publish the workflow. A selected inbound operation with an OAS security requirement fails instead of silently creating an unauthenticated endpoint. Review network exposure before publishing.
+`generateWorkflow` still handles one outgoing path operation per workflow; `proposeCatalogScenario` and `generateCatalogScenario` handle ordered multi-document path operations. Inbound generation is separate and host-planned: `compileInboundWorkflow` creates an unauthenticated [Webhook trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/) → [Respond to Webhook](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.respondtowebhook/) workflow from a selected webhook or callback. The host must supply the n8n webhook path, an OAS-declared response status, and an OAS-valid JSON response body if used. The library does not derive the public callback URL, register it with the API provider, correlate callback requests with the parent operation, enforce inbound request schemas, map inbound authentication, or publish the workflow. A selected inbound operation with an OAS security requirement fails instead of silently creating an unauthenticated endpoint. Review network exposure before publishing.
 
 ```ts
 import { inboundOperationsFromSpec, compileInboundWorkflow } from '@openapi-flow/core';
@@ -155,13 +199,13 @@ const inbound = await compileInboundWorkflow({
 });
 ```
 
-The library does not yet support AI-planned multi-step workflows, wait/branch steps, YAML input, all OAS authentication schemes, all serialization/media types, instance-level n8n MCP validation, remote draft creation, or execution. Sequence response-field references currently bind only primitive path/query inputs. These are conversion capabilities, not restrictions on whether the OAS document is valid. The trusted `baseUrl`, effect approvals, and credential references are supplied by the host, so review remains necessary before importing or running a workflow against a production API.
+The library does not yet support n8n wait/branch/merge orchestration, model-planned response assertions, YAML input, all OAS authentication schemes, all serialization/media types, instance-level n8n MCP validation, remote draft creation, or execution. Sequence response-field references currently bind only primitive path/query inputs. No LangGraph loop or HITL UI is bundled; the proposal and compiler are separate so a host can implement those flows. These are conversion capabilities, not restrictions on whether the OAS document is valid. The trusted `baseUrl`, effect approvals, and credential references are supplied by the host, so review remains necessary before importing or running a workflow against a production API.
 
 The opt-in `npm run test:live-model-local-n8n` smoke test calls a host-supplied OpenAI-compatible model twice per scenario, imports each generated workflow into a disposable local n8n instance, executes it, and checks the execution status and HTTP request received by a local responder. Set `LLM_BASE_URL`, `LLM_API_KEY`, and `MODEL_NAME`; set `LLM_MODEL_HEADER_NAME` if the endpoint requires a model-name header. The built-in cases cover a typed GET path/query and a POST JSON body. To add a private OAS case, supply `OPENAPI_FLOW_REAL_CASE_JSON` with `specFile`, `scenario`, `profile`, `effect`, `expectedRef`, `expectedInputs`, and `expectedRequest` (method, URL, body). Keep this JSON and all credentials outside the public repository. The test never calls the service described by the OAS; it replaces the deployment URL with its own local responder.
 
 The mapping was checked against the [published OAS 3.2.1 specification](https://spec.openapis.org/oas/v3.2.1.html) and n8n's [HTTP Request V3 node definition](https://github.com/n8n-io/n8n/blob/master/packages/nodes-base/nodes/HttpRequest/V3/Description.ts) and [runtime implementation](https://github.com/n8n-io/n8n/blob/master/packages/nodes-base/nodes/HttpRequest/V3/HttpRequestV3.node.ts). The current source definition lists node version 4.3, used by this package, alongside newer versions. Upstream `master` can change; a target n8n instance must be checked separately. Unit tests inspect emitted workflow parameters and OAS validation; the focused local n8n smoke test also inspects received HTTP requests. Neither check proves every OAS contract can execute on another target n8n instance.
 
-For a focused runtime check, the `n8nio/n8n:2.37.10` image's installed HTTP Request description exposed the seven standard methods used by this compiler. Earlier disposable-container runs exercised a header/cookie GET. The repeatable `npm run test:local-n8n` check imports generated matrix-path/repeated-query and complex form POST workflows and runs them against a local synthetic HTTP responder. It also publishes generated webhook and callback workflows in a disposable local n8n instance and calls both production webhook URLs over HTTP. n8n's form-urlencoded string mode collapsed repeated fields in this test, so the compiler sends the already-serialized form body through the Raw body mode with `application/x-www-form-urlencoded`; the smoke test checks that the received bytes match. It removes the temporary container and volume afterward. This does not establish all OAS serialization styles, authentication schemes, inbound request validation, or another n8n instance's behavior.
+For a focused runtime check, the `n8nio/n8n:2.37.10` image's installed HTTP Request description exposed the seven standard methods used by this compiler. Earlier disposable-container runs exercised a header/cookie GET. The repeatable `npm run test:local-n8n` check imports generated matrix-path/repeated-query, complex form POST, and cross-document response-binding workflows and runs them against a local synthetic HTTP responder. It also publishes generated webhook and callback workflows in a disposable local n8n instance and calls both production webhook URLs over HTTP. n8n's form-urlencoded string mode collapsed repeated fields in this test, so the compiler sends the already-serialized form body through the Raw body mode with `application/x-www-form-urlencoded`; the smoke test checks that the received bytes match. It removes the temporary container and volume afterward. This does not establish all OAS serialization styles, authentication schemes, inbound request validation, or another n8n instance's behavior.
 
 ## Development
 

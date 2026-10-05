@@ -84,7 +84,18 @@ IDE에서 중단점을 쓴다면 위 표의 함수 순서대로 확인하면 된
 | `inboundOperationsFromSpec` | OAS의 최상위 `webhooks`와 작업 내부 `callbacks` 후보 확인 | [`list-inbound-operations.ts`](../packages/core/src/openapi/inbound/list-inbound-operations.ts) → [`webhook/parse-webhook-operations.ts`](../packages/core/src/openapi/inbound/webhook/parse-webhook-operations.ts) / [`callback/parse-callback-operations.ts`](../packages/core/src/openapi/inbound/callback/parse-callback-operations.ts) |
 | `compileInboundWorkflow` | 호출자가 수신 작업의 `operationRef`, n8n `webhookPath`, `responseStatus` 등을 직접 제공 | [`compile-inbound-workflow.ts`](../packages/core/src/workflow/inbound/compile-inbound-workflow.ts) → [`build-inbound-workflow.ts`](../packages/core/src/workflow/inbound/build-inbound-workflow.ts) |
 
-즉, **자연어 계획은 현재 단일 `paths` 작업에만 적용**된다. 다단계 Sequence나 Webhook·Callback 계획까지 LLM이 자동으로 생성하는 구조로 읽으면 안 된다. 수신형 컴파일 결과는 Webhook trigger와 Respond to Webhook 노드를 사용한다. OAS callback의 URL 표현식을 n8n `webhookPath`로 자동 변환하거나, callback을 원 요청에 등록·연결하는 기능은 없다. 수신 요청에 대한 인증·스키마 검사도 아직 생성하지 않는다.
+자연어 다단계 계획은 아래의 catalog 경로에서 별도로 제공한다. Webhook·Callback 계획은 여전히 호출자가 제공해야 한다. 수신형 컴파일 결과는 Webhook trigger와 Respond to Webhook 노드를 사용한다. OAS callback의 URL 표현식을 n8n `webhookPath`로 자동 변환하거나, callback을 원 요청에 등록·연결하는 기능은 없다. 수신 요청에 대한 인증·스키마 검사도 아직 생성하지 않는다.
+
+## 4.1 여러 OAS를 쓰는 시나리오 따라가기
+
+[`catalog-scenario.test.mjs`](../packages/core/test/catalog-scenario.test.mjs)의 `LangChain catalog planning selects ordered operations` 테스트를 보면 모델과 컴파일러의 경계가 드러난다.
+
+1. [`create-operation-catalog.ts`](../packages/core/src/openapi/request/create-operation-catalog.ts)는 각 문서를 따로 검증하고 후보에 문서 ID를 붙인다. 두 문서에 같은 `operationRef`가 있어도 `(documentId, operationRef)`로 구별한다.
+2. [`propose-catalog-scenario.ts`](../packages/core/src/planning/propose-catalog-scenario.ts)의 첫 모델 호출은 API 후보의 순서와 부족한 기능을 제안한다. `missing_operation`은 해당 작업을 찾지 못했다는 제안이고, `insufficient_contract`는 특정 작업의 요청·응답 계약 보강이 필요하다는 제안이다. 실제 API의 부재가 증명된 것은 아니다.
+3. 선택된 작업마다 [`catalog-step-schema.ts`](../packages/core/src/schemas/catalog-step-schema.ts)가 OAS 요청 필드의 Zod 스키마를 만든다. 두 번째 이후 단계는 이전 응답 필드를 `references`로 가리킬 수 있다. 모델은 n8n 노드 JSON이나 코드를 작성하지 않는다.
+4. [`compile-catalog-sequence.ts`](../packages/core/src/workflow/request/compile-catalog-sequence.ts)는 각 단계의 문서·배포 URL·효과 정책·credential 참조를 확인한다. 기존 [`prepare-sequence.ts`](../packages/core/src/workflow/request/prepare-sequence.ts)의 요청 조립과 [`build-sequence-workflow.ts`](../packages/core/src/workflow/request/build-sequence-workflow.ts)의 SDK 빌더를 재사용한다. 부족한 API·입력·승인이 있으면 `diagnostics`를 반환하고 실행할 `workflow`는 만들지 않는다.
+
+`proposeCatalogScenario`가 반환한 계획을 호스트의 LangGraph/HITL에서 검토·수정한 뒤 `compileCatalogSequence`에 넣으면 된다. 한 번에 두 단계를 호출하려면 `generateCatalogScenario`를 쓴다. 현재 시퀀스는 직선형 REST 호출이며 분기·대기·합류는 아직 없다. 로컬 n8n 실행 검사는 첫 서비스의 응답 `id`가 다음 서비스의 경로 값으로 넘어가는 것까지 확인한다.
 
 ## 5. 전체 검증과 확인 범위
 
