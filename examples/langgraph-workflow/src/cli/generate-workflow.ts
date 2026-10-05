@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { validateOpenApi } from '@openapi-flow/core';
 import { configurationSchema } from '../schemas/configuration-schema.js';
 import { createOpenAiCompatibleModel } from '../model/create-openai-compatible-model.js';
-import { createWorkflowGenerationGraph } from '../graph/create-workflow-generation-graph.js';
+import { createWorkflowGenerationGraph } from '../graph/create-single-call-workflow-generation-graph.js';
 
 async function generate(): Promise<void> {
   const config = configurationSchema.parse(process.env);

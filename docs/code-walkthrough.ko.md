@@ -54,6 +54,12 @@ npm run test:local-n8n
 
 [local-n8n-smoke.mjs](../integration/local-n8n-smoke.mjs)는 격리된 n8n 컨테이너와 로컬 HTTP 응답기를 만든다. 새 독립 API로 만든 세 요청의 fan-out 그래프를 import·실행해 직렬화된 요청을 검사한다. 기존 문서 간 응답 참조와 webhook/callback 회귀도 함께 실행한다. 테스트가 만든 임시 컨테이너와 볼륨만 종료·제거한다.
 
+## 공식 LangGraph 다중 API 예제
+
+공식 예제의 다중 호출 경로는 [create-dag-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-dag-workflow-generation-graph.ts)에서 확인한다. API 선택과 각 요청값 생성은 LLM 호출이며, `reviewSelection`과 `composeDag`는 호스트가 주입한다. `composeDag`는 계약과 HTTP Request fragment를 받아 SDK로 만든 자체 노드를 더하고 이름 있는 포트로 연결한다. 선택 배열의 순서로 DAG를 만들지 않는다. 단일 호출 CLI는 같은 경로를 한 요청으로 감싼다.
+
+[langgraph-dag-example.test.mjs](../test/langgraph-dag-example.test.mjs)는 공개 fixture의 API 5개와 IF·Merge·Code·Stop And Error 조립을 확인한다. HTTP Request의 실제 출력은 full response이므로 응답 본문은 `$json.body`다. 예제의 검증 코드와 범용 제어 노드 compiler는 구분한다. 사용 방법은 [공식 예제 가이드](../examples/langgraph-workflow/README.md)에 있다.
+
 ## 아직 따라갈 구현이 없는 범위
 
 `planWorkflowGraph`, n8n 제어 노드 기능 목록·설정 스키마, 새 출력 바인딩의 실행값 검증·직렬화, 복수 SDK 노드 fragment의 내부 연결, 결손 미리보기는 다음 구현이다. 새 `createHttpRequestNode`는 현재 리터럴 입력을 받으며 출력 바인딩은 명시적으로 거절한다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이다.

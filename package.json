@@ -23,6 +23,7 @@
     "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
   },
   "devDependencies": {
+    "@n8n/workflow-sdk": "0.33.1",
     "zod": "4.6.5",
     "@eslint/js": "10.0.1",
     "@langchain/core": "1.2.12",

@@ -1,5 +1,11 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { CreateHttpRequestNodeInput } from '@openapi-flow/n8n';
+import type {
+  ApiSelection,
+  ApiOperationContract,
+  ApiCallArguments,
+} from '@openapi-flow/core';
+import type { N8nNodeFragment, N8nGraphEdge } from '@openapi-flow/n8n';
 import type { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 
 export type WorkflowState = typeof workflowStateSchema.State;
@@ -14,4 +20,21 @@ export interface ServiceDeployment {
 export interface GraphDependencies {
   model: BaseChatModel;
   deployments: ServiceDeployment[];
+}
+
+export interface ResolvedRequestNode {
+  operation: ApiOperationContract;
+  arguments: ApiCallArguments;
+  fragment: N8nNodeFragment;
+}
+
+export interface HostDagTopology {
+  nodes: N8nNodeFragment[];
+  edges: N8nGraphEdge[];
+  starts: string[];
+}
+
+export interface DagGraphDependencies extends GraphDependencies {
+  reviewSelection: (selection: ApiSelection) => void;
+  composeDag: (requests: ResolvedRequestNode[]) => HostDagTopology;
 }

@@ -10,13 +10,15 @@ import {
 } from '@openapi-flow/langchain';
 import { createHttpRequestNode, assembleN8nWorkflow } from '@openapi-flow/n8n';
 import type {
-  GraphDependencies,
+  DagGraphDependencies,
   WorkflowState,
   WorkflowUpdate,
 } from '../types/workflow-graph.js';
 import { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 
-export function createWorkflowGenerationGraph(dependencies: GraphDependencies) {
+export function createDagWorkflowGenerationGraph(
+  dependencies: DagGraphDependencies,
+) {
   const deploymentIds = dependencies.deployments.map((item) => item.documentId);
   if (new Set(deploymentIds).size !== deploymentIds.length) {
     throw new Error('deployments contains duplicate documentId values');
@@ -42,12 +44,7 @@ export function createWorkflowGenerationGraph(dependencies: GraphDependencies) {
       throw new Error(
         `API selection needs review: ${JSON.stringify(selection.gaps)}`,
       );
-    // This teaching composition has no multi-call DAG planner. Do not infer edges.
-    if (selection.operations.length !== 1) {
-      throw new Error(
-        'Single-call example requires exactly one selected API; multi-call scenarios need an explicit host-owned DAG',
-      );
-    }
+    dependencies.reviewSelection(selection);
     return { selection, trace: [...state.trace, 'select'] };
   }
 
@@ -66,49 +63,63 @@ export function createWorkflowGenerationGraph(dependencies: GraphDependencies) {
   async function generateArguments(
     state: WorkflowState,
   ): Promise<WorkflowUpdate> {
-    const operation = state.contracts?.[0];
-    if (!operation)
+    if (!state.contracts?.length)
       throw new Error('generateArguments requires a resolved contract');
-    const args = await generateApiArguments({
-      callId: `${state.workflowId}-request`,
-      operation,
-      scenario: state.scenario,
-      model: dependencies.model,
-      bindings: [],
-    });
-    if (args.unresolvedInputs.length) {
-      throw new Error(
-        `Request inputs need user clarification: ${JSON.stringify(args.unresolvedInputs)}`,
-      );
+    const calls: NonNullable<WorkflowState['arguments']> = [];
+    for (const [index, operation] of state.contracts.entries()) {
+      const args = await generateApiArguments({
+        callId: `${state.workflowId}-request-${index + 1}`,
+        operation,
+        scenario: state.scenario,
+        model: dependencies.model,
+        bindings: [],
+      });
+      if (args.unresolvedInputs.length) {
+        throw new Error(
+          `Request inputs need user clarification: ${JSON.stringify(args.unresolvedInputs)}`,
+        );
+      }
+      calls.push(args);
     }
-    return { arguments: [args], trace: [...state.trace, 'arguments'] };
+    return { arguments: calls, trace: [...state.trace, 'arguments'] };
   }
 
   function compileWorkflow(state: WorkflowState): WorkflowUpdate {
-    const operation = state.contracts?.[0];
-    const args = state.arguments?.[0];
-    if (!operation || !args)
+    if (
+      !state.contracts?.length ||
+      !state.arguments ||
+      state.contracts.length !== state.arguments.length
+    )
       throw new Error('compileWorkflow requires contract and arguments');
-    const deployment = dependencies.deployments.find(
-      (item) => item.documentId === operation.key.documentId,
-    );
-    if (!deployment)
-      throw new Error(
-        `deployments is missing documentId ${operation.key.documentId}`,
+    const requests = state.contracts.map((operation, index) => {
+      const args = state.arguments![index];
+      const deployment = dependencies.deployments.find(
+        (item) => item.documentId === operation.key.documentId,
       );
-    const request = createHttpRequestNode({
-      operation,
-      arguments: args,
-      baseUrl: deployment.baseUrl,
-      credentialBindings: deployment.credentialBindings,
-      position: [300, 0],
+      if (!deployment)
+        throw new Error(
+          `deployments is missing documentId ${operation.key.documentId}`,
+        );
+      const request = createHttpRequestNode({
+        operation,
+        arguments: args,
+        baseUrl: deployment.baseUrl,
+        credentialBindings: deployment.credentialBindings,
+        position: [300, index * 200],
+      });
+      return { operation, arguments: args, fragment: request };
     });
+    const topology = dependencies.composeDag(requests);
+    for (const request of requests) {
+      if (!topology.nodes.includes(request.fragment))
+        throw new Error(
+          `Host DAG omitted selected request ${request.arguments.callId}`,
+        );
+    }
     const result = assembleN8nWorkflow({
       id: state.workflowId,
       name: state.workflowName,
-      nodes: [request],
-      edges: [],
-      starts: [request.nodeId],
+      ...topology,
     });
     return { workflow: result.workflow, trace: [...state.trace, 'compile'] };
   }

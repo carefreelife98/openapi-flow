@@ -97,7 +97,7 @@ See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [desi
 
 ## Official usage example
 
-See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. It composes one selected API call; it does not invent a multi-call DAG or import/execute workflows automatically. The public fixture contains no internal service metadata.
+See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. The CLI composes one selected API call. `createDagWorkflowGenerationGraph` supports multiple selected calls with an explicit host selection review and topology callback, including host-created SDK native nodes. It does not generate topology/assertion code with the model or import/execute workflows automatically. The public fixtures contain no internal service metadata.
 
 ## Development
 
