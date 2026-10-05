@@ -3,6 +3,9 @@ import type { z } from 'zod';
 import type { createOperationPlanSchema } from '../schemas/operation-plan-schema.js';
 import type { createOperationSelectionSchema } from '../schemas/operation-selection-schema.js';
 import type { CompileRequest } from './request-workflow.js';
+import type { ExpectedBody } from './request-workflow.js';
+
+export type SchemaDialect = 'openapi-3.0' | 'draft-2020-12';
 
 export type OperationSelectionOutput = z.infer<
   ReturnType<typeof createOperationSelectionSchema>
@@ -16,4 +19,5 @@ export interface GenerateRequest extends Omit<CompileRequest, 'plan'> {
   scenario: string;
   model: BaseChatModel;
   requestMediaType?: string;
+  expectedBody?: ExpectedBody;
 }

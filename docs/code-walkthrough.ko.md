@@ -18,8 +18,8 @@
   → OAS 검증·로컬 참조 해석 → paths 작업 후보 추출
   → 모델 호출 ①: operationRef 선택
   → 선택된 작업의 요청·응답 계약 읽기
-  → 모델 호출 ②: 명시된 입력값·응답 본문 단언 추출
-  → Zod 검증·값 변환 → OAS·호스트 정책 검증
+  → 모델 호출 ②: 명시된 요청 파라미터·본문 값 추출
+  → Zod 검증·입력 매핑 → OAS·호스트 정책 검증
   → n8n SDK 조립·검증 → complete / needs_input / blocked
 ```
 
@@ -33,7 +33,7 @@
 | 4 | [`parse-request-operations.ts`](../packages/core/src/openapi/request/parse-request-operations.ts) `operationsFromDocument` / `operationFromDocument` | 가벼운 후보 목록과 선택된 작업의 상세 매핑 차이 |
 | 5 | [`select-operation.ts`](../packages/core/src/planning/select-operation.ts) `selectOperationFromCandidates` | 첫 `withStructuredOutput` 호출, `SystemMessage`·`HumanMessage` |
 | 6 | [`operation-selection-schema.ts`](../packages/core/src/schemas/operation-selection-schema.ts) / [`operation-plan-schema.ts`](../packages/core/src/schemas/operation-plan-schema.ts) | 후보·요청 필드에서 만들어지는 Zod 스키마 |
-| 7 | [`generate-workflow.ts`](../packages/core/src/planning/generate-workflow.ts) `generateWorkflow` 후반 | 두 번째 모델 응답의 `valueJson`을 실제 값으로 바꾸는 부분 |
+| 7 | [`generate-workflow.ts`](../packages/core/src/planning/generate-workflow.ts) `generateWorkflow` 후반 | 두 번째 모델 응답의 중첩 입력값을 컴파일러 입력으로 옮기는 부분 |
 | 8 | [`compile-workflow.ts`](../packages/core/src/workflow/request/compile-workflow.ts) `compileWorkflowFromOperation` | URL·본문·헤더·인증·정책 검증, 세 가지 결과 상태 |
 | 9 | [`build-request-workflow.ts`](../packages/core/src/workflow/request/build-request-workflow.ts) `buildRequestWorkflow` | n8n SDK 노드 연결·검증·`toJSON()` |
 
@@ -53,11 +53,11 @@ node --test --test-name-pattern='LangChain structured output selects an operatio
 1. `validateAndResolveOpenApiDocument(spec)`가 OAS를 검증하고 로컬 `$ref`를 해석한다. 이어 `operationsFromDocument`가 두 후보를 만든다. 후보에는 HTTP 메서드·경로·요약·설명·태그·선택적 `operationId`가 들어가지만, 이 시점에 전체 요청을 n8n 노드로 변환하지는 않는다.
 2. `selectOperationFromCandidates`가 후보의 `operationRef`만 허용하는 Zod 스키마를 만든다. 첫 모델 호출의 이름은 `select_operation`이고, 테스트 모델은 `#/paths/~1items~1{id}/get`을 돌려준다. 이 응답은 [`parse-structured-output.ts`](../packages/core/src/planning/parse-structured-output.ts)에서 다시 검사한다.
 3. `operationFromDocument`가 선택된 GET 작업만 자세히 읽는다. [`operation-mapping.ts`](../packages/core/src/openapi/request/operation-mapping.ts)에서 매개변수, 요청 본문, 보안, 응답 계약의 매핑을 따라갈 수 있다.
-4. `generateWorkflow`는 선택된 작업의 입력 키(`path.id`)와 응답 본문 필드(`id`, `ok`)로 계획 스키마를 만든다. 두 번째 모델 호출 `plan_operation`은 이 작업의 메타데이터와 `scenario`를 받는다. 테스트 모델은 `inputs: [{ key: 'path.id', valueJson: '"x"' }]`와 `expectedBody: [{ key: 'ok', valueJson: 'true' }]`를 반환한다. `valueJson`은 문자열 안에 든 JSON 값이므로 `JSON.parse` 후 각각 `'x'`, `true`가 된다.
+4. `generateWorkflow`는 선택된 작업의 OAS 파라미터·요청 본문 스키마에서 타입이 있는 계획 스키마를 만든다. 두 번째 모델 호출 `plan_operation`은 이 작업의 메타데이터·요청 스키마와 `scenario`를 받는다. 테스트 모델은 `{ inputs: { path: { id: 'x' } } }`를 반환한다. 값은 JSON 문자열로 이중 인코딩하지 않는다. 시나리오에 없는 필드는 생략할 수 있다. 이 호출은 Zod 스키마를 `method: 'functionCalling'`에 직접 전달하고 `strict` 옵션은 지정하지 않는다. 로컬 Zod와 컴파일러가 결과를 다시 검사한다.
 5. `compileWorkflowFromOperation`은 모델 계획을 신뢰하지 않고 OAS에 선언된 필드·값 타입, 호출자가 준 `baseUrl`·효과 정책·credential 참조를 확인한다. [`request-url.ts`](../packages/core/src/workflow/request/request-url.ts), [`request-body.ts`](../packages/core/src/workflow/request/request-body.ts), [`request-headers.ts`](../packages/core/src/workflow/request/request-headers.ts)를 열어 실제 요청 값의 조립 지점을 확인한다.
-6. 입력이 충족되고 `read-only` 정책에서 GET이 `read`로 승인되어 있으므로 `buildRequestWorkflow`가 `Manual Trigger → HTTP Request → Code(응답 본문 검사)`를 조립한다. 응답 단언이 없다면 마지막 Code 노드는 없다. SDK의 `validateWorkflow`가 통과하면 `toJSON()` 결과를 돌려준다. 테스트는 `status === 'complete'`, `plan.inputs['path.id'] === 'x'`, `plan.expectedBody.ok === true`를 확인한다.
+6. 입력이 충족되고 `read-only` 정책에서 GET이 `read`로 승인되어 있으므로 `buildRequestWorkflow`가 `Manual Trigger → HTTP Request → Code(응답 본문 검사)`를 조립한다. 이 테스트에서는 호출자가 `expectedBody: { ok: true }`를 명시적으로 전달한다. 전달하지 않으면 마지막 Code 노드는 없다. SDK의 `validateWorkflow`가 통과하면 `toJSON()` 결과를 돌려준다. 테스트는 `status === 'complete'`, `plan.inputs['path.id'] === 'x'`, `plan.expectedBody.ok === true`를 확인한다.
 
-`expectedBody`는 OAS에 있는 모든 응답 필드를 자동 검사한다는 뜻이 아니다. 사용자가 시나리오에 **명시한 응답 본문 기대값**만 모델이 제안하고, 그 필드·값이 OAS 응답 계약에 맞는지 다시 확인한다. 응답 HTTP 상태 코드를 모델이 계획하거나 자동 단언하는 경로는 없다.
+`expectedBody`는 OAS에 있는 모든 응답 필드를 자동 검사한다는 뜻이 아니다. 호출자가 명시한 응답 본문 기대값만 컴파일러가 OAS 응답 계약과 대조한다. 두 번째 모델은 응답 단언이나 HTTP 상태 코드를 계획하지 않는다.
 
 IDE에서 중단점을 쓴다면 위 표의 함수 순서대로 확인하면 된다. 다만 이 테스트는 TypeScript 원본이 아니라 빌드된 `packages/core/dist/`의 JavaScript를 가져오며, 현재 [`tsconfig.json`](../packages/core/tsconfig.json)은 소스맵을 생성하지 않는다. 따라서 기본 설정으로는 원본 `.ts` 중단점이 자동으로 연결된다고 기대하면 안 된다. 실행 중단점은 대응하는 `dist/*.js`에 걸고, 원본 `.ts`에서 같은 함수의 코드를 함께 읽는 방식이 확실하다. `dist/`는 빌드 산출물이므로 수정하지 않는다.
 

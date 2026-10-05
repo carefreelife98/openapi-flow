@@ -14,6 +14,7 @@
     "test": "npm run test --workspace @openapi-flow/core",
     "test:real-oas": "npm run test:real-oas --workspace @openapi-flow/core",
     "test:local-n8n": "npm run test:local-n8n --workspace @openapi-flow/core",
+    "test:live-model-local-n8n": "npm run test:live-model-local-n8n --workspace @openapi-flow/core",
     "eval:selection": "npm run eval:selection --workspace @openapi-flow/core"
   },
   "devDependencies": {

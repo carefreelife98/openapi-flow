@@ -102,8 +102,16 @@ for (const [index, file] of files.entries()) {
       const operationRef = '#/paths/~1smoke~1changed/get';
       const model = {
         withStructuredOutput(schema, options) {
-          assert.equal(options.method, 'jsonSchema');
-          assert.equal(options.strict, true);
+          assert.equal(
+            options.method,
+            options.name === 'select_operation'
+              ? 'jsonSchema'
+              : 'functionCalling',
+          );
+          assert.equal(
+            options.strict,
+            options.name === 'select_operation' ? true : undefined,
+          );
           if (options.name === 'select_operation') {
             assert.ok(
               toJsonSchema(schema).properties.operationRef.enum.includes(
@@ -122,9 +130,8 @@ for (const [index, file] of files.entries()) {
           }
           assert.equal(options.name, 'plan_operation');
           assert.ok(
-            toJsonSchema(
-              schema,
-            ).properties.inputs.items.properties.key.enum.includes('query.max'),
+            toJsonSchema(schema).properties.inputs.properties.query.properties
+              .max,
           );
           return {
             async invoke(messages) {
@@ -132,10 +139,7 @@ for (const [index, file] of files.entries()) {
               assert.ok(messages[1] instanceof HumanMessage);
               const request = JSON.parse(messages[1].content);
               assert.equal(request.operation.operationRef, operationRef);
-              return {
-                inputs: [{ key: 'query.max', valueJson: '5' }],
-                expectedBody: [],
-              };
+              return { inputs: { query: { max: 5 } } };
             },
           };
         },

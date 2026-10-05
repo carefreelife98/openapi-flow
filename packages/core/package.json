@@ -48,6 +48,7 @@
     "test": "npm run build && node --test",
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
+    "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
     "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
   },
   "dependencies": {

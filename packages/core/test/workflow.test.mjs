@@ -1330,27 +1330,21 @@ test('LangChain structured output selects an operation and proposes validated bi
         };
       }
       assert.equal(options.name, 'plan_operation');
-      assert.equal(options.method, 'jsonSchema');
-      assert.equal(options.strict, true);
+      assert.equal(options.method, 'functionCalling');
+      assert.equal(options.strict, undefined);
       const wireSchema = toJsonSchema(schema);
-      assert.ok(wireSchema.properties.inputs.items.properties.key.description);
-      assert.ok(
-        wireSchema.properties.inputs.items.properties.valueJson.description,
+      assert.equal(
+        wireSchema.properties.inputs.properties.path.properties.id.type,
+        'string',
       );
-      assert.ok(wireSchema.properties.expectedBody.description);
-      assert.deepEqual(wireSchema.properties.inputs.items.properties.key.enum, [
-        'path.id',
-      ]);
+      assert.equal(wireSchema.properties.expectedBody, undefined);
       return {
         async invoke(messages) {
           assert.ok(messages[0] instanceof SystemMessage);
           assert.ok(messages[1] instanceof HumanMessage);
           const request = JSON.parse(messages[1].content);
           assert.equal(request.operation.path, '/items/{id}');
-          return {
-            inputs: [{ key: 'path.id', valueJson: '"x"' }],
-            expectedBody: [{ key: 'ok', valueJson: 'true' }],
-          };
+          return { inputs: { path: { id: 'x' } } };
         },
       };
     },
@@ -1361,6 +1355,7 @@ test('LangChain structured output selects an operation and proposes validated bi
     model,
     baseUrl: 'https://example.test',
     profile: 'read-only',
+    expectedBody: { ok: true },
   });
   assert.equal(result.status, 'complete');
   assert.equal(result.plan.operationRef, '#/paths/~1items~1{id}/get');
@@ -1387,7 +1382,7 @@ test('LangChain structured output selects an operation and proposes validated bi
         invoke: async () =>
           options.name === 'select_operation'
             ? { operationRef: '#/paths/~1items~1{id}/get' }
-            : { inputs: [], expectedBody: [] },
+            : { inputs: {} },
       };
     },
   };
@@ -1410,10 +1405,7 @@ test('LangChain structured output selects an operation and proposes validated bi
             return { operationRef: '#/paths/~1items~1{id}/get' };
           }
           mutable.components.schemas.Item.properties.ok.type = 'string';
-          return {
-            inputs: [{ key: 'path.id', valueJson: '"x"' }],
-            expectedBody: [{ key: 'ok', valueJson: 'true' }],
-          };
+          return { inputs: { path: { id: 'x' } } };
         },
       };
     },
@@ -1424,6 +1416,7 @@ test('LangChain structured output selects an operation and proposes validated bi
     model: mutatingModel,
     baseUrl: 'https://example.test',
     profile: 'read-only',
+    expectedBody: { ok: true },
   });
   assert.equal(stable.status, 'complete');
   assert.deepEqual(stable.plan.expectedBody, { ok: true });
@@ -1432,9 +1425,9 @@ test('LangChain structured output selects an operation and proposes validated bi
 test('Zod rejects invalid model plans even when a chat model bypasses its output parser', async () => {
   const invalidPlans = [
     { inputs: [] },
-    { inputs: [{ key: 'query.unknown', valueJson: '1' }], expectedBody: [] },
-    { inputs: [{ key: 'path.id', valueJson: 'not JSON' }], expectedBody: [] },
-    { inputs: [], expectedBody: [{ key: 'unknown', valueJson: 'true' }] },
+    { inputs: { query: { unknown: 1 } } },
+    { inputs: { path: { id: 1 } } },
+    { inputs: {}, expectedBody: { ok: true } },
   ];
   for (const invalidPlan of invalidPlans) {
     const model = {
@@ -1463,40 +1456,46 @@ test('Zod rejects invalid model plans even when a chat model bypasses its output
   }
 });
 
-test('planning keeps duplicate and conflicting body binding checks after Zod parsing', async () => {
+test('partial typed body does not invent OAS-required values', async () => {
+  const model = {
+    withStructuredOutput(_schema, options) {
+      return {
+        async invoke() {
+          return options.name === 'select_operation'
+            ? { operationRef: '#/paths/~1items/post' }
+            : { inputs: { body: {} } };
+        },
+      };
+    },
+  };
+  const result = await generateWorkflow({
+    spec,
+    scenario: 'Create an item; name not supplied yet',
+    model,
+    baseUrl: 'https://example.test',
+    profile: 'test',
+  });
+  assert.equal(result.status, 'needs_input');
+  assert.deepEqual(result.missingInputs, ['body.name']);
+  assert.deepEqual(result.plan.inputs, { body: {} });
+});
+
+test('planning rejects undeclared nested fields and mistyped bodies', async () => {
   const cases = [
     {
       operationRef: '#/paths/~1items~1{id}/get',
-      plan: {
-        inputs: [
-          { key: 'path.id', valueJson: '"a"' },
-          { key: 'path.id', valueJson: '"b"' },
-        ],
-        expectedBody: [],
-      },
-      error: /duplicate input binding/,
+      plan: { inputs: { path: { other: 'a' } } },
+      error: /model operation plan is invalid/,
     },
     {
       operationRef: '#/paths/~1items~1{id}/get',
-      plan: {
-        inputs: [{ key: 'path.id', valueJson: '"a"' }],
-        expectedBody: [
-          { key: 'ok', valueJson: 'true' },
-          { key: 'ok', valueJson: 'false' },
-        ],
-      },
-      error: /duplicate body assertion/,
+      plan: { inputs: { path: { id: 1 } } },
+      error: /model operation plan is invalid/,
     },
     {
       operationRef: '#/paths/~1items/post',
-      plan: {
-        inputs: [
-          { key: 'body', valueJson: '{"name":"a"}' },
-          { key: 'body.name', valueJson: '"b"' },
-        ],
-        expectedBody: [],
-      },
-      error: /cannot combine body and body fields/,
+      plan: { inputs: { body: { name: 1 } } },
+      error: /model operation plan is invalid/,
     },
   ];
   for (const entry of cases) {
@@ -1540,11 +1539,8 @@ test('natural-language generation uses two model calls for multi-response OAS wi
           }
           assert.equal(options.name, 'plan_operation');
           const request = JSON.parse(messages[1].content);
-          assert.deepEqual(request.operation.responseFields, ['id', 'ok']);
-          return {
-            inputs: [{ key: 'path.id', valueJson: '"x"' }],
-            expectedBody: [],
-          };
+          assert.equal(request.operation.responseFields, undefined);
+          return { inputs: { path: { id: 'x' } } };
         },
       };
     },
@@ -1577,10 +1573,7 @@ test('natural-language generation does not ask the model to invent a response st
         async invoke() {
           return options.name === 'select_operation'
             ? { operationRef: '#/paths/~1items~1{id}/get' }
-            : {
-                inputs: [{ key: 'path.id', valueJson: '"x"' }],
-                expectedBody: [],
-              };
+            : { inputs: { path: { id: 'x' } } };
         },
       };
     },
@@ -1610,10 +1603,7 @@ test('scenario status wording does not create an HTTP status assertion', async (
               return { operationRef: '#/paths/~1items~1{id}/get' };
             }
             assert.equal(options.name, 'plan_operation');
-            return {
-              inputs: [{ key: 'path.id', valueJson: '"x"' }],
-              expectedBody: [],
-            };
+            return { inputs: { path: { id: 'x' } } };
           },
         };
       },
@@ -1663,15 +1653,11 @@ test('structured planning accepts JSON arrays and nested objects without primiti
             return { operationRef: '#/paths/~1items/post' };
           }
           const wireSchema = toJsonSchema(schema);
-          assert.ok(
-            wireSchema.properties.inputs.items.properties.key.enum.includes(
-              'body',
-            ),
+          assert.equal(
+            wireSchema.properties.inputs.properties.body.type,
+            'array',
           );
-          return {
-            inputs: [{ key: 'body', valueJson: '[{"name":"demo"}]' }],
-            expectedBody: [{ key: 'values', valueJson: '[1,2]' }],
-          };
+          return { inputs: { body: [{ name: 'demo' }] } };
         },
       };
     },
@@ -1682,6 +1668,7 @@ test('structured planning accepts JSON arrays and nested objects without primiti
     model,
     baseUrl: 'https://example.test',
     profile: 'test',
+    expectedBody: { values: [1, 2] },
   });
   assert.equal(result.status, 'complete');
   assert.deepEqual(result.plan.inputs.body, [{ name: 'demo' }]);

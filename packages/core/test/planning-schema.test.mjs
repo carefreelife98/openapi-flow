@@ -31,101 +31,134 @@ test('Zod selection schema describes and validates an OAS operation reference', 
   assert.throws(() => createOperationSelectionSchema([]), /no operations/);
 });
 
-test('Zod plan schema preserves OAS-derived keys and validates JSON literal strings', async () => {
+test('Zod plan schema uses OAS value types and nested request inputs', async () => {
   const schema = createOperationPlanSchema(
-    ['path.id', 'body.name'],
-    ['id', 'ok'],
+    {
+      operationRef: '#/paths/~1items~1{id}/post',
+      parameters: [
+        { name: 'id', in: 'path', schema: { type: 'string', minLength: 2 } },
+      ],
+      body: {
+        mediaTypes: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['name', 'quantity'],
+              properties: {
+                name: { type: 'string' },
+                quantity: { type: 'integer', minimum: 1 },
+              },
+            },
+          },
+        },
+      },
+    },
+    '3.0.4',
   );
   const wireSchema = toJsonSchema(schema);
 
   assert.equal(wireSchema.type, 'object');
   assert.ok(wireSchema.description);
-  assert.deepEqual(wireSchema.required, ['inputs', 'expectedBody']);
+  assert.deepEqual(wireSchema.required, ['inputs']);
   assert.equal(wireSchema.additionalProperties, false);
-
-  for (const field of ['inputs', 'expectedBody']) {
-    const arraySchema = wireSchema.properties[field];
-    assert.equal(arraySchema.type, 'array');
-    assert.ok(arraySchema.description);
-    assert.ok(arraySchema.items.description);
-    assert.deepEqual(arraySchema.items.required, ['key', 'valueJson']);
-    assert.equal(arraySchema.items.additionalProperties, false);
-    assert.ok(arraySchema.items.properties.key.description);
-    assert.ok(arraySchema.items.properties.valueJson.description);
-    assert.match(arraySchema.items.properties.valueJson.description, /JSON/);
-  }
-
-  assert.deepEqual(wireSchema.properties.inputs.items.properties.key.enum, [
-    'path.id',
-    'body.name',
-  ]);
-  assert.deepEqual(
-    wireSchema.properties.expectedBody.items.properties.key.enum,
-    ['id', 'ok'],
+  assert.equal(
+    wireSchema.properties.inputs.properties.path.properties.id.type,
+    'string',
   );
+  assert.equal(
+    wireSchema.properties.inputs.properties.body.properties.quantity.type,
+    'integer',
+  );
+  assert.equal(
+    wireSchema.properties.inputs.properties.body.properties.quantity.minimum,
+    1,
+  );
+  assert.equal(wireSchema.properties.expectedBody, undefined);
   const valid = {
-    inputs: [{ key: 'path.id', valueJson: '"x"' }],
-    expectedBody: [{ key: 'ok', valueJson: 'true' }],
+    inputs: { path: { id: 'item-42' }, body: { name: 'pencil', quantity: 3 } },
   };
   assert.deepEqual(schema.parse(valid), valid);
+  assert.deepEqual(schema.parse({ inputs: { body: { name: 'pencil' } } }), {
+    inputs: { body: { name: 'pencil' } },
+  });
   assert.equal(
-    schema.safeParse({ ...valid, inputs: [{ key: 'other', valueJson: '1' }] })
-      .success,
+    schema.safeParse({ inputs: { path: { other: 'x' } } }).success,
     false,
   );
   assert.equal(
-    schema.safeParse({ ...valid, inputs: [{ key: 'path.id', valueJson: 'x' }] })
-      .success,
+    schema.safeParse({ inputs: { body: { quantity: '3' } } }).success,
     false,
   );
   assert.equal(
-    schema.safeParse({
-      ...valid,
-      expectedBody: [{ key: 'other', valueJson: '1' }],
-    }).success,
+    schema.safeParse({ inputs: { body: { quantity: 0 } } }).success,
     false,
   );
   assert.equal(schema.safeParse({ ...valid, extra: true }).success, false);
   await assert.rejects(
     createContentParser(schema).invoke(
-      '{"inputs":[{"key":"path.id","valueJson":"not JSON"}],"expectedBody":[]}',
+      '{"inputs":{"body":{"quantity":"not a number"}}}',
     ),
     /Failed to parse/,
   );
 });
 
-test('Zod plan schema rejects bindings for operations with no available keys', () => {
-  const schema = createOperationPlanSchema([], []);
+test('Zod plan schema permits no values when the scenario supplies none', () => {
+  const schema = createOperationPlanSchema({ parameters: [] }, '3.1.1');
   const wireSchema = toJsonSchema(schema);
 
+  assert.deepEqual(wireSchema.properties.inputs.properties, {});
+  assert.deepEqual(schema.parse({ inputs: {} }), { inputs: {} });
   assert.equal(
-    wireSchema.properties.inputs.items.properties.key.enum,
-    undefined,
+    schema.safeParse({ inputs: { path: { id: 'invented' } } }).success,
+    false,
   );
+});
+
+test('planning preserves OAS nullable, enum, and nested types while allowing omitted scenario values', () => {
+  const schema = createOperationPlanSchema(
+    {
+      operationRef: '#/paths/~1items/post',
+      parameters: [
+        {
+          in: 'query',
+          name: 'mode',
+          schema: { type: 'string', enum: ['fast', 'safe'] },
+        },
+      ],
+      body: {
+        mediaTypes: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['details'],
+              properties: {
+                details: {
+                  type: 'object',
+                  required: ['label', 'count'],
+                  properties: {
+                    label: { type: 'string', nullable: true },
+                    count: { type: 'integer', minimum: 1 },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '3.0.4',
+  );
+  const expected = {
+    inputs: { query: { mode: 'fast' }, body: { details: { label: null } } },
+  };
+  assert.deepEqual(schema.parse(expected), expected);
+  assert.deepEqual(schema.parse({ inputs: {} }), { inputs: {} });
   assert.equal(
-    wireSchema.properties.expectedBody.items.properties.key.enum,
-    undefined,
-  );
-  assert.ok(wireSchema.properties.inputs.items.properties.key.description);
-  assert.ok(
-    wireSchema.properties.expectedBody.items.properties.key.description,
-  );
-  assert.deepEqual(schema.parse({ inputs: [], expectedBody: [] }), {
-    inputs: [],
-    expectedBody: [],
-  });
-  assert.equal(
-    schema.safeParse({
-      inputs: [{ key: 'invented', valueJson: '1' }],
-      expectedBody: [],
-    }).success,
+    schema.safeParse({ inputs: { query: { mode: 'other' } } }).success,
     false,
   );
   assert.equal(
-    schema.safeParse({
-      inputs: [],
-      expectedBody: [{ key: 'invented', valueJson: '1' }],
-    }).success,
+    schema.safeParse({ inputs: { body: { details: { count: '2' } } } }).success,
     false,
   );
 });
