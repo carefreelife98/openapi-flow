@@ -1,6 +1,6 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
-  createApiArgumentsSchema,
+  createApiArgumentGenerationContract,
   validateApiArguments,
 } from '@openapi-flow/core';
 import type { ApiArgumentProposal, ApiCallArguments } from '@openapi-flow/core';
@@ -8,7 +8,6 @@ import type { GenerateApiArgumentsInput } from '../types/argument-generation.js'
 import { apiArgumentsPrompt } from '../prompts/api-arguments-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
-import { hasLiteralArgumentFields } from './has-literal-argument-fields.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -16,8 +15,9 @@ export async function generateApiArguments(
   assertSelectionInput(input.scenario, input.model);
   if (typeof input.callId !== 'string' || !input.callId.trim())
     throw new Error('callId must be non-empty');
-  const schema = createApiArgumentsSchema(input);
-  const proposed: ApiArgumentProposal = hasLiteralArgumentFields(schema)
+  const contract = createApiArgumentGenerationContract(input);
+  const schema = contract.schema;
+  const proposed: ApiArgumentProposal = contract.hasLiteralInputs
     ? await input.model
         .withStructuredOutput<ApiArgumentProposal>(schema, {
           name: 'generate_api_arguments',
@@ -34,10 +34,8 @@ export async function generateApiArguments(
                 path: input.operation.path,
                 summary: input.operation.operation.summary,
                 description: input.operation.operation.description,
-                parameters: input.operation.effective.parameters,
-                requestBody: input.operation.operation.requestBody,
               },
-              bindings: input.bindings,
+              literalInputSchema: contract.literalInputSchema,
               requestMediaType: input.requestMediaType,
             }),
           ),

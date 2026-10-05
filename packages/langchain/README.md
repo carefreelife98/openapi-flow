@@ -5,8 +5,10 @@ Independent model calls for OpenAPI workflows. Unreleased `0.2.0` source; this p
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
 - `planApiBindings`: selected OAS contracts → API response-to-request pointer bindings and request-data gaps, independently of native control-flow planning.
 - `generateApiArguments`: propose one call's OAS-typed request values and report missing inputs.
-- Requests with no remaining literal schema fields return empty values without invoking the model; response bindings supply their inputs at execution time.
+- Requests with no remaining literal inputs return empty values without invoking the model, including fully bound nested closed bodies and whole-body bindings. OAS-permitted additional properties remain potential literal inputs.
 - `planWorkflowGraph`: selected API contracts/values and registered native capabilities → typed native settings, conditions/assertions, explicit DAG edges/starts and gaps.
+
+Argument generation uses core's `createApiArgumentGenerationContract` for both the structured-output schema and `literalInputSchema` in the HumanMessage. It does not send the original parameter/body definitions or the binding plan to that model stage. Forbidden bound paths may appear as negative schema constraints, never as available inputs. Invalid proposals fail schema parsing rather than being repaired or silently trimmed. This literal-ownership contract is separate from the unchanged OAS contract used after runtime values are assembled.
 
 The host supplies a LangChain chat model. No model endpoint, Chomsky adapter, agent loop, LangGraph checkpoint storage or n8n connection is created internally. These functions use named message classes and Zod output schemas with field descriptions. The host can place each invocation in its own LangGraph node and control retries/HITL. Plan bindings before literal arguments so response-supplied fields are not invented as constants. Final graph planning uses these dependencies together with scenario-required order and conditions.
 

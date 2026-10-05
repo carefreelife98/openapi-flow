@@ -47,7 +47,7 @@
 
 1. [plan-api-bindings.ts](../packages/langchain/src/bindings/plan-api-bindings.ts)는 선택된 전체 OAS 계약과 시나리오를 받아 API 사이의 `{sourceNodeId, sourcePointer, targetPointer}`만 계획한다. 조건·응답 단언은 이 단계가 생성하지 않는다.
 2. [validate-api-binding-plan.ts](../packages/core/src/bindings/validate-api-binding-plan.ts)는 호출 ID·OAS 필드·알려진 비호환 타입·중복 대상·순환을 검사한다. JSON Pointer는 응답 본문 기준이며 n8n의 `body` envelope를 모델이 넣지 않는다.
-3. `createApiArgumentsSchema`는 바인딩으로 공급할 중첩 필드를 리터럴 생성 대상에서 제외한다. `generateApiArguments`는 해당 호출에 명시된 나머지 값만 생성한다. 리터럴 schema가 비어 있으면 코드가 빈 `values`를 반환하고 불필요한 LLM 호출을 생략한다. 같은 DTO를 쓰는 다른 API의 값을 복사하지 않는다.
+3. [create-api-argument-generation-contract.ts](../packages/core/src/schemas/create-api-argument-generation-contract.ts)는 리터럴 생성용 Zod schema·동일한 JSON Schema·LLM 호출 필요 여부를 함께 만든다. `generateApiArguments`는 원본 요청 정의와 바인딩 계획 대신 이 생성용 schema와 호출 메타데이터를 전달한다. 바인딩 대상의 원래 타입 설명은 제거하고 생성 금지 제약만 남긴다. 추가 속성이 열린 객체에서도 해당 경로를 다시 생성할 수 없다. 생성할 리터럴이 없으면 빈 `values`를 반환하고 LLM 호출을 생략한다. 중첩된 닫힌 body와 전체 body 바인딩도 이 기준을 따른다. OAS가 추가 속성을 허용하면 그 영역은 남겨 두며, 같은 DTO를 쓰는 다른 API의 값을 복사하지 않도록 호출별 시나리오를 해석한다.
 4. 그래프 계획·검사는 데이터 생산자가 모든 실행 경로에서 소비자보다 먼저 완료되는지 확인한다. 독립 호출은 별도 가지로 두고, 여러 결과를 사용하는 호출은 합류 뒤에 둔다. 시나리오에 별도 실행 순서나 조건이 있으면 함께 지킨다.
 5. [create-bound-request-fragment.ts](../packages/n8n/src/nodes/request/bindings/create-bound-request-fragment.ts)는 `Materialize callId` Code와 `Request callId` HTTP Request를 만든다. 내부 연결은 fragment의 `internalEdges`, 외부 연결은 논리 호출 ID의 entry·exit로 구분한다.
 6. [materialize-api-arguments.ts](../packages/core/src/bindings/materialize-api-arguments.ts)는 실제 응답값을 타입 변경 없이 복사한다. 필요한 객체·배열 구분은 OAS가 정하며, 숫자 필드명만 보고 배열로 추측하지 않는다. 모호한 schema에는 명시적 리터럴 컨테이너가 필요하다.
@@ -59,7 +59,15 @@
 
 ## 두 번째 모델 호출을 확인하는 법
 
-`generateApiArguments`는 선택된 전체 계약을 받아 `createApiArgumentsSchema`를 호출한다. 예를 들어 `POST /items`의 body가 `{name: string, quantity: integer}`이면 모델 출력도 `values.body.name`, `values.body.quantity`를 그 타입으로 받는다. 모델이 OAS나 JSON Schema 문자열을 생성하는 것이 아니다.
+`generateApiArguments`는 선택된 전체 계약을 받아 `createApiArgumentGenerationContract`를 호출한다. 예를 들어 `POST /items`의 body가 `{name: string, quantity: integer}`이면 모델 출력도 `values.body.name`, `values.body.quantity`를 그 타입으로 받는다. 모델이 OAS나 JSON Schema 문자열을 생성하는 것이 아니다. `createApiArgumentsSchema`는 같은 계약의 Zod schema만 받으려는 호출자를 위한 공개 함수다.
+
+실행 시 가져올 `enableCache`가 바인딩되었다면 모델에 원래 boolean 정의와 응답 참조 계획을 다시 보내지 않는다. 생성용 schema에는 이 필드를 받을 수 없다는 `false` 또는 `{not: {}}` 제약이 남을 수 있다. 이는 OAS에서 필드를 삭제하거나 금지하는 것이 아니라, 이미 다른 노드가 공급하기로 정한 값을 리터럴 생성 단계가 덮어쓰지 못하게 하는 계약이다. 모델이 이를 어기면 값 삭제·치환 없이 schema 경계에서 실패한다.
+
+생성용 schema는 아직 조립되지 않은 부분 입력을 검사한다. 따라서 바인딩이 공급할 속성·배열 길이를 부분 입력의 최소 조건에 다시 요구하지 않는다. `oneOf`의 구분 필드가 바인딩되면 생성 단계는 가능한 분기의 나머지 값을 받으며, 정확히 한 분기를 만족하는지는 실제 응답값과 조립한 뒤 원본 OAS로 검사한다. 원본의 필수 조건·개수 제한·분기 조건은 바꾸지 않는다.
+
+OAS 적합성과 테스트 시나리오 준수는 구분한다. OAS에서 허용한 선택 필드를 시나리오가 특정 호출에서 생략하라고 했다면, 그 필드를 넣은 요청은 OAS에는 맞아도 시나리오 검사에서 실패한다. 라이브러리는 해당 필드를 모든 API에서 금지하지 않는다. 또한 OAS가 `additionalProperties`를 허용하면 선언된 필드가 전부 바인딩되어도 추가 리터럴의 가능성이 남는다. 이 경우를 닫힌 객체의 완전 바인딩과 혼동하지 않는다.
+
+검증 노드의 `$('Node').first()`는 n8n의 공식 런타임 API다. SDK의 [`nodeJson()`](https://github.com/n8n-io/n8n/blob/master/packages/%40n8n/workflow-sdk/src/expression/index.ts)은 `.item` 참조 표현식을 만들고, [`runOnceForAllItems()`](https://github.com/n8n-io/n8n/blob/master/packages/%40n8n/workflow-sdk/src/utils/code-helpers.ts)은 Code 함수 본문을 추출한다. 둘 다 OAS 본문의 JSON Pointer 해석·누락 검사·시나리오 비교를 대신 수행하는 함수는 아니다. 현재 라이브러리는 이 비교 의미를 직접 구현하며 SDK의 아이템 연결 방식으로 임의 교체하지 않는다.
 
 시나리오가 이름만 주면 모델은 `{values: {body: {name: "demo"}}}`처럼 일부 값만 제안할 수 있다. 코드가 원본 OAS에서 필수인 `quantity`를 확인해 반환값의 `unresolvedInputs`에 `/body/quantity`를 기록한다. 이 누락 목록은 LLM 출력에 넣지 않으며, 생략한 선택 필드와 별도로 관리하는 credential을 요청값 누락으로 판단하지 않는다. 값이 없는 상태로 노드 컴파일을 요청하면 즉시 오류가 난다. 임의 수량이나 다른 필드에서 가져온 값으로 채우지 않는다.
 

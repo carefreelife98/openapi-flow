@@ -8,6 +8,8 @@ export { resolveApiOperations } from './openapi/resolve-api-operations.js';
 export type * from './types/api-catalog.js';
 export type * from './types/api-operation.js';
 export { createApiArgumentsSchema } from './schemas/create-api-arguments-schema.js';
+export { createApiArgumentGenerationContract } from './schemas/create-api-argument-generation-contract.js';
+export type * from './types/api-argument-generation.js';
 export type * from './types/api-arguments.js';
 export { validateApiArguments } from './arguments/validate-api-arguments.js';
 export type * from './types/openapi.js';

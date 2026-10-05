@@ -2,6 +2,8 @@
 
 Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived Zod request schemas and argument validation. This is unreleased `0.2.0` source; published `0.1.0` has a different API.
 
+`createApiArgumentGenerationContract({ operation, bindings, requestMediaType })` is the shared literal-generation boundary. It returns the Zod `schema`, its matching `literalInputSchema` JSON Schema, and `hasLiteralInputs`. Bound paths have no original value definition and are forbidden (including through open additional properties); unbound OAS-approved fields stay available. Fully bound closed nested objects have no remaining literal decision. Open objects can still accept additional scenario values, so binding every named property does not close that OAS contract. The original operation and complete runtime request schema remain unchanged.
+
 ```ts
 import {
   createApiCatalog,

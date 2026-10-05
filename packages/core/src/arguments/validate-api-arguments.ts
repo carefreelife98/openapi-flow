@@ -11,6 +11,7 @@ import {
 import { checkSchemaValue } from '../openapi/common/check-schema-value.js';
 import { object } from '../openapi/common/parse-spec-utils.js';
 import { optionalRequestProperties } from '../schemas/operation-plan-schema.js';
+import { projectLiteralInputSchema } from '../schemas/project-literal-input-schema.js';
 import { bodyMediaSchema, parameterSchema } from './request-contract.js';
 
 function requiredPointers(
@@ -186,7 +187,13 @@ export function validateApiArguments({
       value,
       targets.some((item) => item.startsWith(pointer + '/')) ||
         missing.some((item) => item.startsWith(pointer + '/'))
-        ? (optionalRequestProperties(schema) as JsonObject | boolean)
+        ? projectLiteralInputSchema(
+            optionalRequestProperties(schema) as JsonObject | boolean,
+            bindings
+              .filter((entry) => entry.targetPointer.startsWith(pointer + '/'))
+              .map((entry) => pointerTokens(entry.targetPointer).slice(2)),
+            pointer,
+          ).schema
         : schema,
       pointer,
     );
@@ -218,7 +225,13 @@ export function validateApiArguments({
       checkSchemaValue(
         values.body,
         incomplete
-          ? (optionalRequestProperties(bodySchema) as JsonObject | boolean)
+          ? projectLiteralInputSchema(
+              optionalRequestProperties(bodySchema) as JsonObject | boolean,
+              bindings
+                .filter((entry) => entry.targetPointer.startsWith('/body/'))
+                .map((entry) => pointerTokens(entry.targetPointer).slice(1)),
+              '/body',
+            ).schema
           : bodySchema,
         '/body',
       );
