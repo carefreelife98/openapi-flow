@@ -1,13 +1,17 @@
 # @openapi-flow/core
 
-An importable Node.js library for turning a natural-language scenario and an OpenAPI document into a reviewable n8n workflow. It does not provide a server, connect to an n8n instance, or execute workflows.
+Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived Zod request schemas and argument validation. This is unreleased `0.2.0` source; published `0.1.0` has a different API.
 
-```sh
-npm install @openapi-flow/core @langchain/core @langchain/openai
+```ts
+import {
+  createApiCatalog,
+  listApiOperations,
+  resolveApiOperations,
+} from '@openapi-flow/core';
 ```
 
-The host supplies an OpenAPI JSON object, a LangChain chat model, and a trusted API origin. See the [usage and current limitations](https://github.com/carefreelife98/openapi-flow#current-api) before generating workflows. `generateWorkflow` sends operation metadata to the host-supplied model. Review the resulting plan and workflow before importing it into n8n.
+The host supplies `{ id, spec }` documents. Catalog creation requires neither deployment credentials nor a per-path effect policy. The selected full OAS contract remains available before any engine-specific conversion. Operation keys carry document ID, snapshot hash and OAS JSON Pointer; changed documents fail lookup.
 
-The package uses Zod to validate structured model output while keeping the supplied OpenAPI document as the request and response contract. LangChain converts the Zod output schemas to JSON Schema for compatible chat models.
+`createApiArgumentsSchema` preserves OAS request types for model proposals. `validateApiArguments` checks original constraints and returns missing-input pointers; output bindings require runtime validation. Core does not call an LLM, import LangChain/n8n, execute APIs or provide a server. The `/internal` export is an unstable adapter boundary, not the application API. See the [workspace guide](https://github.com/carefreelife98/openapi-flow#independent-stages).
 
-This package's own code is MIT-licensed. Its `@n8n/workflow-sdk` dependency is separately licensed under [n8n's Sustainable Use License](https://docs.n8n.io/n8n-community-license/), which places conditions on use and redistribution. The MIT license for this package does not change those conditions. See [third-party notices](./THIRD_PARTY_NOTICES.md).
+Our code is MIT-licensed. Core has no n8n SDK dependency. Dependency licenses remain separate; see [third-party notices](./THIRD_PARTY_NOTICES.md).

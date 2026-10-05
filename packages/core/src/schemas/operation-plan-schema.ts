@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { JsonObject } from '../types/openapi.js';
-import type { SchemaDialect } from '../types/planning.js';
+import type { SchemaDialect } from '../types/schema-dialect.js';
 import type { Operation, OperationParameter } from '../types/request.js';
 import { isObject } from '../utils/is-object.js';
 
@@ -46,7 +46,7 @@ function parameterGroup(
 
 // The model may omit values absent from the scenario. The compiler still checks
 // the unchanged OAS schema and reports missing required request values.
-function optionalRequestProperties(schema: unknown): unknown {
+export function optionalRequestProperties(schema: unknown): unknown {
   if (!isObject(schema)) return schema;
   const result: JsonObject = { ...schema };
   delete result.required;

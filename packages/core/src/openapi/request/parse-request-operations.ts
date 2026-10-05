@@ -52,7 +52,7 @@ export async function operationFromSpec(
   );
 }
 
-function selectedOperationSource(
+export function selectedOperationSource(
   parsed: ParsedDocument,
   operationRef: string,
 ): OperationSource {

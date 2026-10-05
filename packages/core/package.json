@@ -1,8 +1,8 @@
 {
   "name": "@openapi-flow/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
-  "description": "Build reviewable n8n workflows from OpenAPI documents and natural-language scenarios",
+  "description": "Engine-independent OpenAPI catalogs, operation contracts and typed request schemas",
   "keywords": [
     "openapi",
     "n8n",
@@ -25,6 +25,10 @@
     ".": {
       "types": "./dist/public-api.d.ts",
       "default": "./dist/public-api.js"
+    },
+    "./internal": {
+      "types": "./dist/internal-api.d.ts",
+      "default": "./dist/internal-api.js"
     }
   },
   "files": [
@@ -38,38 +42,14 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
-    "prepack": "npm run build",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src test integration",
-    "format:check": "prettier --check src test integration package.json tsconfig.json eslint.config.mjs",
-    "format": "prettier --write src test integration package.json tsconfig.json eslint.config.mjs",
-    "test": "npm run build && node --test",
-    "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
-    "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
-    "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
-    "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@n8n/workflow-sdk": "0.33.1",
     "@scalar/json-schema-validator": "^0.1.6",
     "@scalar/openapi-parser": "0.29.7",
     "@scalar/openapi-types": "0.9.7",
     "@scalar/openapi-validator": "0.1.6",
     "zod": "4.6.5"
-  },
-  "peerDependencies": {
-    "@langchain/core": "^1.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "10.0.1",
-    "@langchain/core": "1.2.12",
-    "@langchain/openai": "^1.5.13",
-    "@types/node": "^24.0.0",
-    "eslint": "10.11.0",
-    "prettier": "3.9.9",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.70.1"
   }
 }

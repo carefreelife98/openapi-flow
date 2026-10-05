@@ -3,14 +3,10 @@ import type {
   OperationCandidate,
   ParsedDocument,
 } from './openapi.js';
-import type { CredentialBindings, EffectPolicy } from './request-workflow.js';
 
 export interface CatalogSource {
   id: string;
   spec: OpenApiDocument;
-  baseUrl: string;
-  effectPolicy: EffectPolicy;
-  credentialBindings: CredentialBindings;
 }
 
 export interface CatalogEntry {

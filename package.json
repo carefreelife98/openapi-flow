@@ -4,20 +4,32 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/core",
+    "packages/langchain",
+    "packages/n8n"
+  ],
   "scripts": {
-    "build": "npm run build --workspace @openapi-flow/core",
-    "typecheck": "npm run typecheck --workspace @openapi-flow/core",
-    "lint": "npm run lint --workspace @openapi-flow/core",
-    "format:check": "npm run format:check --workspace @openapi-flow/core",
-    "format": "npm run format --workspace @openapi-flow/core",
-    "test": "npm run test --workspace @openapi-flow/core",
-    "test:real-oas": "npm run test:real-oas --workspace @openapi-flow/core",
-    "test:local-n8n": "npm run test:local-n8n --workspace @openapi-flow/core",
-    "test:live-model-local-n8n": "npm run test:live-model-local-n8n --workspace @openapi-flow/core",
-    "eval:selection": "npm run eval:selection --workspace @openapi-flow/core"
+    "build": "node scripts/clean-build.mjs && npm run build --workspace @openapi-flow/core && npm run build --workspace @openapi-flow/langchain && npm run build --workspace @openapi-flow/n8n && tsc -p examples/legacy-generation/tsconfig.json",
+    "typecheck": "npm run build && npm run typecheck --workspaces",
+    "lint": "eslint packages/*/src test integration examples/*/src",
+    "format:check": "prettier --check packages/*/src test integration examples/*/src package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
+    "format": "prettier --write packages/*/src test integration examples/*/src package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
+    "test": "npm run build && node --test test/legacy/*.test.mjs test/*.test.mjs",
+    "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
+    "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
+    "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
+    "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
   },
   "devDependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@eslint/js": "10.0.1",
+    "@langchain/core": "1.2.12",
+    "@langchain/openai": "^1.5.13",
+    "@types/node": "^24.0.0",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
   }
 }

@@ -2,7 +2,25 @@
 
 검토일: 2026-10-05. 조사 기준: `main`의 `e5bb44b`.
 
-이 문서는 다음 구현의 설계안이다. 아래의 새 패키지와 함수는 아직 구현하거나 배포하지 않았다. 현재 동작은 [코드 따라가기](code-walkthrough.ko.md)와 구분해서 읽는다.
+이 문서는 재설계의 목표와 검토 당시 근거를 보존한다. 이후 구현한 범위는 바로 아래 진행표에서 구분한다. 새 패키지는 아직 npm에 배포하지 않았다. 현재 동작은 [코드 따라가기](code-walkthrough.ko.md)에서 확인한다.
+
+## 구현 진행 — 2026-10-05
+
+첫 구현은 패키지 경계와 독립 함수 호출에 집중했다. `core`에는 OAS 카탈로그·전체 계약 조회·요청값 스키마·검증, `langchain`에는 작업 선택·호출별 입력 생성, `n8n`에는 리터럴 요청 노드·명시적 DAG 조립을 두었다. 새 경로는 카탈로그나 JSON 생성에 `effectPolicy`를 요구하지 않는다. 기존 승인표는 별도 `legacy` 컴파일러에만 남아 있다. 실제 import·실행 승인은 호스트가 맡는다.
+
+| 상태        | 함수·범위                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| 구현        | `createApiCatalog`, `listApiOperations`, `resolveApiOperations`, `createApiArgumentsSchema`, `validateApiArguments` |
+| 구현        | `selectApiOperations`, `generateApiArguments` — 서로 독립된 모델 호출                                               |
+| 구현        | `createHttpRequestNode` — 리터럴 요청값, 기존 직렬화·credential 연결 재사용                                         |
+| 구현        | `assembleN8nWorkflow` — 명시적 node·port·edge·start, DAG·fan-out, SDK JSON 출력                                     |
+| 다음 구현   | `planWorkflowGraph`, n8n 제어 노드 registry와 타입 있는 설정 컴파일                                                 |
+| 다음 구현   | 새 출력 바인딩의 런타임 값·데이터 의존성 검증, 복수 노드 fragment 내부 연결, 결손 미리보기                          |
+| 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
+
+계약 조회는 전체 OAS Operation·path item과 상속된 parameter/security/server를 보존한다. 아래의 검토 당시 기존 파일 경로는 패키지 이전 전 기준이다. 카탈로그는 JSON 직렬화 가능하며 선택 key에 문서 ID·snapshot hash·operationRef를 남긴다. 저장된 문서가 바뀌면 조회가 실패한다. 새 입력 생성은 예상 응답을 받지 않는다.
+
+이 단계에서 core의 바인딩 표현은 실행 가능 판정이 아니다. 실제 값이 필요한 검사는 `requiresRuntimeValidation`으로 구분하고, 새 독립 요청 노드 컴파일러는 바인딩을 실행값으로 만들기 전까지 명시적으로 거절한다. 기존 문서 간 scalar 참조는 `legacy` 경로에서 계속 검증한다. 전체 설계가 완료됐다고 해석하면 안 된다.
 
 ## 현재 구현에서 확인한 문제
 

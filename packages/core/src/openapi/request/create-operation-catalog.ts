@@ -1,6 +1,5 @@
 import { validateAndResolveOpenApiDocument } from '../common/validate-spec.js';
 import { operationsFromDocument } from './parse-request-operations.js';
-import { originFrom } from '../../workflow/request/base-url.js';
 import type { CatalogSource, OperationCatalog } from '../../types/catalog.js';
 import { isObject } from '../../utils/is-object.js';
 
@@ -15,14 +14,7 @@ export async function createOperationCatalog(
       throw new Error('sources[].id must be a non-empty string');
     if (catalog.sources.has(source.id))
       throw new Error(`sources has duplicate id ${source.id}`);
-    if (!isObject(source.effectPolicy))
-      throw new Error(`sources[${source.id}].effectPolicy must be an object`);
-    if (!isObject(source.credentialBindings))
-      throw new Error(
-        `sources[${source.id}].credentialBindings must be an object`,
-      );
     try {
-      originFrom(source.baseUrl);
       const document = await validateAndResolveOpenApiDocument(source.spec);
       const operations = operationsFromDocument(document);
       catalog.sources.set(source.id, { ...source, document, operations });
