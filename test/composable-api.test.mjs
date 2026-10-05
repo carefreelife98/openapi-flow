@@ -195,7 +195,7 @@ test('selection, OAS-typed argument generation, node compilation and assembly ca
     bindings: [],
     scenario: 'Create demo with quantity 2',
     model: modelReturning(
-      { values: { body: { name: 'demo', quantity: 2 } }, unresolvedInputs: [] },
+      { values: { body: { name: 'demo', quantity: 2 } } },
       (schema, options) => {
         const json = toJsonSchema(schema);
         assert.equal(
@@ -203,6 +203,7 @@ test('selection, OAS-typed argument generation, node compilation and assembly ca
           'integer',
         );
         assert.equal(json.properties.expectedBody, undefined);
+        assert.equal(json.properties.unresolvedInputs, undefined);
         assert.equal(options.method, 'functionCalling');
       },
     ),
@@ -241,7 +242,6 @@ test('missing inputs remain visible; type errors and OAS constraints fail at the
     scenario: 'Create demo',
     model: modelReturning({
       values: { body: { name: 'demo' } },
-      unresolvedInputs: [],
     }),
   });
   assert.deepEqual(args.unresolvedInputs, ['/body/quantity']);
@@ -260,7 +260,6 @@ test('missing inputs remain visible; type errors and OAS constraints fail at the
   assert.equal(
     schema.safeParse({
       values: { body: { name: 'demo', quantity: '2' } },
-      unresolvedInputs: [],
     }).success,
     false,
   );

@@ -77,7 +77,7 @@ const result = assembleN8nWorkflow({
 // Review/import result.workflow yourself. These functions never execute it.
 ```
 
-`generateApiArguments` receives an OAS-derived Zod schema such as `{ values: { path: { id: string }, body: { name: string, quantity: number } }, unresolvedInputs: string[] }`. The model supplies values, not schema text, node JSON, method/path definitions, credential material, response assertions or status expectations. Scenario-omitted required inputs are reported rather than invented. Original OAS constraints are checked after parsing the model proposal.
+`generateApiArguments` uses an OAS-derived Zod schema such as `{ values: { path: { id: string }, body: { name: string, quantity: number } } }`. The model supplies values, not schema text, missing-input reports, node JSON, method/path definitions, credential material, response assertions or status expectations. Code derives the returned `unresolvedInputs` from the original OAS requirements and supplied values; optional omissions do not need clarification. Original OAS constraints are checked after parsing the model proposal.
 
 Catalog entries need only `{ id, spec }`: no service manifest, `operationId`, `baseUrl`, credential setup or per-path `effectPolicy`. Operation keys include document ID, snapshot hash and canonical OAS pointer; contract lookup rejects stale or changed documents. Full response definitions, inherited/overridden parameters, security alternatives and declared servers remain available independently of n8n conversion.
 
@@ -94,6 +94,10 @@ Not implemented in the new path yet: `planWorkflowGraph`, a typed registry/compi
 Webhook/callback extraction stays in core; inbound compilation lives in n8n. Receiving-request authentication/schema checks and callback registration/correlation remain pending. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
 See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [design/implementation status](docs/composable-api-design.ko.md). The [earlier API reference](docs/legacy-api.md) and [earlier walkthrough](docs/legacy-code-walkthrough.ko.md) describe the pre-split implementation, not current main exports. Legacy model functions are under `@openapi-flow/langchain/legacy`; compilers under `@openapi-flow/n8n/legacy`; full host compositions under `examples/legacy-generation/`. `@openapi-flow/core/internal` is an unstable adapter integration boundary.
+
+## Official usage example
+
+See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. It composes one selected API call; it does not invent a multi-call DAG or import/execute workflows automatically. The public fixture contains no internal service metadata.
 
 ## Development
 

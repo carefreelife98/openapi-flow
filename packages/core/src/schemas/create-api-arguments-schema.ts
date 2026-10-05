@@ -94,11 +94,6 @@ export function createApiArgumentsSchema({
   return z
     .object({
       values: z.object(fields).strict() as z.ZodType<ApiArgumentValues>,
-      unresolvedInputs: z
-        .array(z.string())
-        .describe(
-          'JSON Pointers for request inputs missing from the scenario and not supplied by a binding. Do not invent values.',
-        ),
     })
     .strict();
 }

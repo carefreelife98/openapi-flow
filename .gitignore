@@ -2,3 +2,5 @@ node_modules/
 dist/
 .idea/
 *.tsbuildinfo
+examples/langgraph-workflow/.env
+examples/langgraph-workflow/artifacts/

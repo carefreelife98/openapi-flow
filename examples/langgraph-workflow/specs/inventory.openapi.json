@@ -1,0 +1,72 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Public inventory example", "version": "1.0.0" },
+  "security": [{ "bearer": [] }],
+  "components": {
+    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } }
+  },
+  "paths": {
+    "/products/{id}": {
+      "get": {
+        "summary": "Read complete product details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "enableCache",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": { "200": { "description": "Product details" } }
+      }
+    },
+    "/products/batch": {
+      "post": {
+        "summary": "Read multiple products using a JSON body",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids", "enableCache"],
+                "additionalProperties": false,
+                "properties": {
+                  "ids": { "type": "array", "items": { "type": "string" } },
+                  "enableCache": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Product details keyed by identifier" }
+        }
+      }
+    },
+    "/products/{id}/price": {
+      "get": {
+        "summary": "Read only the product price",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "enableCache",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": { "200": { "description": "Product price" } }
+      }
+    }
+  }
+}

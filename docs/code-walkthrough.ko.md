@@ -35,7 +35,7 @@
 
 `generateApiArguments`는 선택된 전체 계약을 받아 `createApiArgumentsSchema`를 호출한다. 예를 들어 `POST /items`의 body가 `{name: string, quantity: integer}`이면 모델 출력도 `values.body.name`, `values.body.quantity`를 그 타입으로 받는다. 모델이 OAS나 JSON Schema 문자열을 생성하는 것이 아니다.
 
-시나리오가 이름만 주면 `{values: {body: {name: "demo"}}, unresolvedInputs: []}`처럼 일부 값만 제안할 수 있다. 코드가 원본 OAS에서 필수인 `quantity`를 확인해 반환값의 `unresolvedInputs`에 `/body/quantity`를 추가한다. 값이 없는 상태로 노드 컴파일을 요청하면 즉시 오류가 난다. 임의 수량이나 다른 필드에서 가져온 값으로 채우지 않는다.
+시나리오가 이름만 주면 모델은 `{values: {body: {name: "demo"}}}`처럼 일부 값만 제안할 수 있다. 코드가 원본 OAS에서 필수인 `quantity`를 확인해 반환값의 `unresolvedInputs`에 `/body/quantity`를 기록한다. 이 누락 목록은 LLM 출력에 넣지 않으며, 생략한 선택 필드와 별도로 관리하는 credential을 요청값 누락으로 판단하지 않는다. 값이 없는 상태로 노드 컴파일을 요청하면 즉시 오류가 난다. 임의 수량이나 다른 필드에서 가져온 값으로 채우지 않는다.
 
 모델용 스키마는 미해결 값을 허용하는 제안 형식이다. 원본 OAS의 `required`를 수정해 저장하거나, 실행 시 필수값 검사를 없애는 것이 아니다. 요청값 생성에는 예상 응답 코드나 `expectedBody`가 없다. 응답 계약 전체는 조회 결과에 보존한다.
 

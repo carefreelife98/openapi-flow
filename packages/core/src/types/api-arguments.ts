@@ -21,7 +21,6 @@ export interface OutputBinding {
 }
 export interface ApiArgumentProposal {
   values: ApiArgumentValues;
-  unresolvedInputs: string[];
 }
 export interface ApiArgumentsSchemaInput {
   operation: ApiOperationContract;
@@ -31,6 +30,7 @@ export interface ApiArgumentsSchemaInput {
 export interface ApiCallArguments extends ApiArgumentProposal {
   callId: string;
   bindings: OutputBinding[];
+  unresolvedInputs: string[];
   requestMediaType?: string;
 }
 export interface ValidateApiArgumentsInput extends ApiArgumentsSchemaInput {

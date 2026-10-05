@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import type { ApiCatalog, ApiSource } from '../../types/api-catalog.js';
-import type { OpenApiDocument } from '../../types/openapi.js';
 import {
   validateOpenApi,
   validateAndResolveOpenApiDocument,
@@ -19,7 +18,7 @@ export async function createApiCatalog(
     if (catalog.documents.some((item) => item.id === source.id))
       throw new Error(`sources[${index}].id duplicates ${source.id}`);
     try {
-      const spec = validateOpenApi(source.spec) as unknown as OpenApiDocument;
+      const spec = validateOpenApi(source.spec);
       const snapshotId = createHash('sha256')
         .update(JSON.stringify(spec))
         .digest('hex');

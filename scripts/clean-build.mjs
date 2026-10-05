@@ -6,6 +6,7 @@ for (const target of [
   new URL('../packages/langchain/dist/', import.meta.url),
   new URL('../packages/n8n/dist/', import.meta.url),
   new URL('../examples/legacy-generation/dist/', import.meta.url),
+  new URL('../examples/langgraph-workflow/dist/', import.meta.url),
 ]) {
   rmSync(target, { recursive: true, force: true });
 }

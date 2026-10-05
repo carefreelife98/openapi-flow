@@ -1,0 +1,30 @@
+{
+  "name": "@openapi-flow/example-langgraph-workflow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/public-api.d.ts",
+      "default": "./dist/public-api.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "generate": "node --env-file=.env dist/cli/generate-workflow.js"
+  },
+  "dependencies": {
+    "@openapi-flow/core": "0.2.0",
+    "@openapi-flow/langchain": "0.2.0",
+    "@openapi-flow/n8n": "0.2.0",
+    "@langchain/core": "1.2.12",
+    "@langchain/langgraph": "1.4.19",
+    "@langchain/openai": "1.5.13",
+    "zod": "4.6.5"
+  }
+}

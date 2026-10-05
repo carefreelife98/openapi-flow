@@ -42,9 +42,7 @@ export async function generateApiArguments(
     callId: input.callId,
     values: parsed.values,
     bindings: structuredClone(input.bindings),
-    unresolvedInputs: [
-      ...new Set([...parsed.unresolvedInputs, ...validation.missingInputs]),
-    ],
+    unresolvedInputs: validation.missingInputs,
     ...(input.requestMediaType === undefined
       ? {}
       : { requestMediaType: input.requestMediaType }),

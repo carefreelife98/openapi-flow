@@ -1,13 +1,9 @@
 import { validate as resolveAndValidate } from '@scalar/openapi-parser';
 import { validate } from '@scalar/openapi-validator';
-import type {
-  JsonObject,
-  OpenApiDocument,
-  ParsedDocument,
-} from '../../types/openapi.js';
+import type { OpenApiDocument, ParsedDocument } from '../../types/openapi.js';
 import { object } from './parse-spec-utils.js';
 
-export function validateOpenApi(input: unknown): JsonObject {
+export function validateOpenApi(input: unknown): OpenApiDocument {
   let serialized: string | undefined;
   try {
     serialized = JSON.stringify(input);
@@ -23,7 +19,8 @@ export function validateOpenApi(input: unknown): JsonObject {
         result.errors.map((error) => error.message).join('; '),
     );
   }
-  return spec;
+  // The external validator proved the OpenAPI contract before narrowing.
+  return spec as unknown as OpenApiDocument;
 }
 
 export async function validateAndResolveOpenApiDocument(

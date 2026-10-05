@@ -94,10 +94,7 @@ test('real OAS files use independent catalog and full contract lookup without ru
         bindings: [],
         requestMediaType,
       });
-      assert.equal(
-        schema.safeParse({ values: {}, unresolvedInputs: [] }).success,
-        true,
-      );
+      assert.equal(schema.safeParse({ values: {} }).success, true);
     }
   }
 });
