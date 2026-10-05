@@ -7,6 +7,7 @@ import { serializeQueryParameter } from './serialize-parameter.js';
 import { UnsupportedOperationError } from '../common/unsupported-operation-error.js';
 import { dereferencedObject } from '../common/parse-spec-utils.js';
 import { isObject } from '../../utils/is-object.js';
+import { encodeFormField } from './encode-form-field.js';
 
 function defaultFieldMediaType(schema: JsonObject): string | undefined {
   const type =
@@ -33,7 +34,7 @@ function encodedField(
     );
   const values = Array.isArray(field) ? field : [field];
   if (values.length === 0) return [];
-  const form = new URLSearchParams();
+  const form: string[] = [];
   for (const value of values) {
     if (contentType === 'text/plain' && typeof value === 'object')
       throw new UnsupportedOperationError(
@@ -41,9 +42,11 @@ function encodedField(
         `operationRef ${operationRef}.requestBody field ${name} cannot use text/plain for a complex value`,
       );
     if (contentType === 'application/json') {
-      form.append(name, JSON.stringify(value));
+      form.push(
+        encodeFormField(name) + '=' + encodeFormField(JSON.stringify(value)),
+      );
     } else {
-      form.append(name, String(value));
+      form.push(encodeFormField(name) + '=' + encodeFormField(String(value)));
     }
   }
   if (schema.contentEncoding !== undefined)
@@ -51,7 +54,7 @@ function encodedField(
       operationRef,
       `operationRef ${operationRef}.requestBody field ${name} contentEncoding requires explicit binary serialization`,
     );
-  return form.toString().split('&');
+  return form;
 }
 
 function formFieldSchema(

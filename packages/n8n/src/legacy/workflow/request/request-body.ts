@@ -5,7 +5,7 @@ import type { Operation } from '@openapi-flow/core/internal';
 import type { PreparedRequestBody } from '../../../types/legacy/request-node.js';
 import type { InputValues } from '../../../types/legacy/request-workflow.js';
 import { isObject } from '@openapi-flow/core/internal';
-import { looksLikeCredential } from './credential-binding.js';
+import { looksLikeCredential } from '../../../nodes/request/authentication/credential-field-name.js';
 
 export function makeBody(
   operation: Operation,

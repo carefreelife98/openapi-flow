@@ -1,19 +1,16 @@
-import {
-  validateApiArguments,
-  UnsupportedOperationError,
-} from '@openapi-flow/core';
+import { validateApiArguments } from '@openapi-flow/core';
 import { mapOperationForWorkflow } from '@openapi-flow/core/internal';
-import type { JsonObject, InputValues } from '@openapi-flow/core/internal';
+import type { JsonObject } from '@openapi-flow/core/internal';
 import type {
   CreateHttpRequestNodeInput,
   N8nNodeFragment,
 } from '../../types/node-fragment.js';
 import { originFrom } from '../../legacy/workflow/request/base-url.js';
-import { makeUrl } from '../../legacy/workflow/request/request-url.js';
-import { makeBody } from '../../legacy/workflow/request/request-body.js';
-import { makeHeaders } from '../../legacy/workflow/request/request-headers.js';
 import { resolveCredentialBinding } from '../../legacy/workflow/request/credential-binding.js';
 import { httpRequestNode } from '../../legacy/workflow/request/http-request-node.js';
+import { absoluteOperationPath } from '../../legacy/workflow/request/request-url.js';
+import { createBoundRequestFragment } from './bindings/create-bound-request-fragment.js';
+import { serializeHttpRequest } from './serialization/serialize-http-request.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -39,11 +36,6 @@ export function createHttpRequestNode(
     throw new Error(
       `arguments[${args.callId}] is missing ${validation.missingInputs.join(', ')}`,
     );
-  if (args.bindings.length)
-    throw new UnsupportedOperationError(
-      contract.key.operationRef,
-      `arguments[${args.callId}] output bindings require runtime materialization; this standalone literal-node compiler does not execute or substitute them`,
-    );
   const operation = mapOperationForWorkflow(
     {
       security: contract.effective.security,
@@ -55,23 +47,22 @@ export function createHttpRequestNode(
     contract.pathItem as unknown as JsonObject,
     contract.operation,
   );
-  const values: InputValues = {};
-  for (const group of ['path', 'query', 'header', 'cookie'] as const) {
-    for (const [name, value] of Object.entries(args.values[group] ?? {}))
-      Object.defineProperty(values, `${group}.${name}`, {
-        value,
-        enumerable: true,
-      });
-  }
-  if (Object.hasOwn(args.values, 'body')) values.body = args.values.body;
-  const missing: string[] = [];
-  const url = makeUrl(operation, originFrom(input.baseUrl), values, missing);
-  const body = makeBody(operation, values, missing, args.requestMediaType);
-  const headers = makeHeaders(operation, values, missing);
-  if (missing.length)
-    throw new Error(
-      `arguments[${args.callId}] is missing ${missing.join(', ')}`,
-    );
+  if (args.bindings.length)
+    return createBoundRequestFragment(input, {
+      contract,
+      operation,
+      arguments: args,
+      templateUrl: new URL(
+        absoluteOperationPath(originFrom(input.baseUrl), operation.path),
+      ).href,
+    });
+  const { url, body, headers } = serializeHttpRequest(
+    operation,
+    new URL(absoluteOperationPath(originFrom(input.baseUrl), operation.path))
+      .href,
+    args.values,
+    args.requestMediaType,
+  );
   const request = httpRequestNode({
     operation,
     id: args.callId,

@@ -4,3 +4,4 @@ dist/
 *.tsbuildinfo
 examples/langgraph-workflow/.env
 examples/langgraph-workflow/artifacts/
+.local-artifacts/

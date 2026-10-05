@@ -331,6 +331,14 @@ test('official graph adds the model graph-plan stage without any compose callbac
               gaps: [],
             };
           if (options.name === 'generate_api_arguments') return { values: {} };
+          if (options.name === 'plan_api_bindings')
+            return {
+              calls: payload.materials.map((item) => ({
+                callId: item.callId,
+                bindings: [],
+              })),
+              gaps: [],
+            };
           const ids = Object.fromEntries(
             payload.materials.map((item) => [
               item.operation.path.slice(1),
@@ -373,11 +381,12 @@ test('official graph adds the model graph-plan stage without any compose callbac
     sources: [{ id: 'fixture', spec }],
     trace: [],
   });
-  assert.equal(calls, 5);
+  assert.equal(calls, 3); // Selection, bindings, graph; these APIs have no literal inputs.
   assert.deepEqual(result.trace, [
     'catalog',
     'select',
     'resolve',
+    'bindings',
     'arguments',
     'graph-plan',
     'compile',

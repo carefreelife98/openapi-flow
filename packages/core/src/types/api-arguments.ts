@@ -27,6 +27,7 @@ export interface ApiArgumentsSchemaInput {
   bindings: OutputBinding[];
   requestMediaType?: string;
 }
+export type ApiRequestSchemaInput = Omit<ApiArgumentsSchemaInput, 'bindings'>;
 export interface ApiCallArguments extends ApiArgumentProposal {
   callId: string;
   bindings: OutputBinding[];

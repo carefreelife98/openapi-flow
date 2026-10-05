@@ -3,6 +3,7 @@ import type {
   WorkflowPlanNodeContract,
   WorkflowRouteState,
 } from '../types/workflow-plan.js';
+import { validateApiBindingPlan } from '../bindings/validate-api-binding-plan.js';
 
 function combineRoutes(
   left: WorkflowRouteState,
@@ -23,6 +24,20 @@ export function validateWorkflowGraphPlan({
   materials,
   capabilities,
 }: ValidateWorkflowGraphPlanInput): void {
+  validateApiBindingPlan({
+    materials: materials.map((item) => ({
+      callId: item.arguments.callId,
+      operation: item.operation,
+      requestMediaType: item.arguments.requestMediaType,
+    })),
+    plan: {
+      calls: materials.map((item) => ({
+        callId: item.arguments.callId,
+        bindings: item.arguments.bindings,
+      })),
+      gaps: [],
+    },
+  });
   const registry = new Map(capabilities.map((item) => [item.name, item]));
   if (registry.size !== capabilities.length)
     throw new Error('capabilities contains duplicate names');

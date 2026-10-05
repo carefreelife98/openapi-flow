@@ -9,7 +9,7 @@ This branch contains **unreleased 0.2.0 work**. The published `@openapi-flow/cor
 | Package                   | Responsibility                                                                | Main functions                                                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `@openapi-flow/core`      | OAS intake, operation provenance, full selected contracts and request schemas | `createApiCatalog`, `listApiOperations`, `resolveApiOperations`, `createApiArgumentsSchema`, `validateApiArguments` |
-| `@openapi-flow/langchain` | Independent model calls, typed proposals and graph design                     | `selectApiOperations`, `generateApiArguments`, `planWorkflowGraph`                                                  |
+| `@openapi-flow/langchain` | Independent model calls, typed proposals and graph design                     | `selectApiOperations`, `planApiBindings`, `generateApiArguments`, `planWorkflowGraph`                               |
 | `@openapi-flow/n8n`       | Deterministic request/native node construction and DAG compilation            | `createHttpRequestNode`, `createN8nNativeCapabilities`, `compilePlannedN8nWorkflow`, `assembleN8nWorkflow`          |
 
 Core has no LangChain or n8n dependency. The adapters each depend on core, not on each other. A host can put each function in a LangGraph node, replace a model call, provide values manually, retry one call, or require human approval before compilation/import/execution. Workflow topology is not stored in the OAS and operation selection order does not define execution order.
@@ -87,11 +87,15 @@ Request compilation requires a trusted base URL and credential references. It ne
 
 ## Implemented checkpoint and remaining work
 
-Implemented: package isolation, independent multi-document selection, full REST contract lookup, OAS-typed per-call values, literal HTTP Request nodes, explicit DAG assembly, and regression preservation. Unit tests cover independent calls; private service OAS fixtures and an isolated n8n instance exercise real parser and import/execution paths.
+Implemented: package isolation, independent multi-document selection, full REST contract lookup, OAS-typed per-call values, literal/runtime-bound HTTP Request nodes, explicit DAG assembly and multi-node fragment wiring. Unit tests cover independent calls; private service OAS fixtures and an isolated n8n instance exercise real parser and import/execution paths.
 
 `planWorkflowGraph` now designs native nodes, typed conditions/assertions, ports, DAG edges and starts from the scenario and selected OAS API materials. `createN8nNativeCapabilities` supplies IF, Merge Append, response-assertion Code and StopAndError definitions; hosts can register additional typed schemas and deterministic compilers. `validateWorkflowGraphPlan` rejects missing IDs/ports, cycles, unavailable response references and structurally incompatible join branches. `compilePlannedN8nWorkflow` revalidates the plan and emits SDK-validated JSON. Model output contains neither arbitrary JavaScript nor deployment URLs/credentials.
 
-Not implemented in the new path yet: request output-binding materialization, exhaustive OAS response-pointer/type proof, multi-node fragment internal wiring, all native n8n node variants, and gap-preview JSON. Runtime comparison fails on missing response pointers rather than substituting a value. Structural validation does not prove natural-language coverage; review and execution tests remain necessary. Output bindings can be represented in core proposals, but the standalone request compiler explicitly refuses them until runtime support exists. Existing cross-document scalar response bindings remain exercised through `/legacy`.
+`planApiBindings` independently chooses response-body JSON Pointers and target request Pointers from the selected OAS contracts. `validateApiBindingPlan` checks call identities, declared/allowed fields, known incompatible types, overlap and cycles. Bound fields are excluded from literal model proposals. `createHttpRequestNode` generates a library-owned materialization Code node followed by HTTP Request when bindings are present; provide `apiNodeNames` mapping call IDs to actual API exit-node names. It reads actual response values, checks the complete resulting request with an OAS-derived standalone Ajv validator, and reuses the literal request serializers. Missing fields, wrong types and ambiguous multiple source envelopes fail before sending HTTP, without value substitution. Object containers come from OAS schemas, not numeric-key guesses.
+
+The graph validator requires producers to be complete on every route to consumers. Independent calls may fan out; consumers needing several branch results require a compatible explicit join. Scenario-required order/conditions remain constraints. Independent DAG branches do not guarantee simultaneous execution: [n8n's execution-order documentation](https://docs.n8n.io/build/flow-logic/understand-execution-order/) describes sequential branch processing for v1 execution order.
+
+Remaining: exhaustive OAS response-pointer/type proof, native-node output to API bindings, value transformations/item-wise loops, all native n8n variants and gap-preview JSON. Static checks do not prove natural-language coverage or every complex schema implication; review and execution tests remain necessary. Existing legacy scalar bindings remain covered under `/legacy`.
 
 Webhook/callback extraction stays in core; inbound compilation lives in n8n. Receiving-request authentication/schema checks and callback registration/correlation remain pending. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
@@ -111,6 +115,7 @@ npm run format:check
 npm test
 OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
+npm run test:request-bindings-local-n8n
 ```
 
 Do not copy private OAS documents or secrets into this repository. Types/interfaces live in the owning package's `src/types/`; structured-output schemas in `src/schemas/`; prompts in `src/prompts/`. Every package has a descriptive `public-api.ts` entrypoint. `.ts` imports use `.js` extensions for the emitted NodeNext ESM paths.

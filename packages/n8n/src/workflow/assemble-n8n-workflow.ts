@@ -3,6 +3,7 @@ import type {
   AssembleN8nWorkflowInput,
   N8nCompileResult,
 } from '../types/workflow-compilation.js';
+import { validateNodeFragments } from './validate-node-fragments.js';
 
 export function assembleN8nWorkflow({
   id,
@@ -47,15 +48,7 @@ export function assembleN8nWorkflow({
     throw new Error(
       'workflow SDK node IDs and names must be unique and not use the Start trigger identity',
     );
-  for (const fragment of nodes)
-    if (
-      !fragment.nodes.includes(fragment.entry) ||
-      !fragment.nodes.includes(fragment.exit) ||
-      fragment.nodes.length !== 1
-    )
-      throw new Error(
-        `node fragment ${fragment.nodeId} must describe one connected node; multi-node fragments need explicit internal connection support`,
-      );
+  validateNodeFragments(nodes);
   const successors = new Map(
     nodes.map((fragment) => [fragment.nodeId, [] as string[]]),
   );
@@ -111,6 +104,14 @@ export function assembleN8nWorkflow({
   let built = workflow(id, name).add(start);
   for (const fragment of nodes)
     for (const node of fragment.nodes) built = built.add(node);
+  for (const fragment of nodes)
+    for (const edge of fragment.internalEdges ?? [])
+      built = built.connect(
+        fragment.nodes.find((item) => item.id === edge.from)!,
+        edge.output,
+        fragment.nodes.find((item) => item.id === edge.to)!,
+        edge.input,
+      );
   for (const nodeId of starts)
     built = built.connect(start, 0, byId.get(nodeId)!.entry, 0);
   for (const edge of edges) {

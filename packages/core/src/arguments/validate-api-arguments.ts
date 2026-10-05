@@ -39,24 +39,30 @@ function requiredPointers(
           !Object.hasOwn(value, String(name))) &&
         !bound.includes(child)
       )
-        missing.push(child);
+        if (!bound.some((target) => target.startsWith(child + '/')))
+          missing.push(child);
     }
   if (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
+    (value === undefined ||
+      (value !== null && typeof value === 'object' && !Array.isArray(value))) &&
     schema.properties !== undefined
   ) {
     for (const [name, child] of Object.entries(
       object(schema.properties, `${pointer}.properties`),
     )) {
-      if (!Object.hasOwn(value, name)) continue;
+      const childPointer = `${pointer}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`;
+      const suppliedChild = value !== undefined && Object.hasOwn(value, name);
+      if (
+        !suppliedChild &&
+        !bound.some((target) => target.startsWith(childPointer + '/'))
+      )
+        continue;
       requiredPointers(
         typeof child === 'boolean'
           ? child
           : object(child, `${pointer}.${name}`),
-        Reflect.get(value, name),
-        `${pointer}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`,
+        suppliedChild ? Reflect.get(value as object, name) : undefined,
+        childPointer,
         missing,
         bound,
       );
@@ -167,16 +173,19 @@ export function validateApiArguments({
     }
     const pointer = `/${location}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`;
     const value = pointerValue(values, pointer);
+    const schema = parameterSchema(parameter, pointer);
     if (value === undefined) {
-      if (parameter.required === true && !targets.includes(pointer))
+      if (targets.some((target) => target.startsWith(pointer + '/')))
+        requiredPointers(schema, undefined, pointer, missing, targets);
+      else if (parameter.required === true && !targets.includes(pointer))
         missing.push(pointer);
       continue;
     }
-    const schema = parameterSchema(parameter, pointer);
     requiredPointers(schema, value, pointer, missing, targets);
     checkSchemaValue(
       value,
-      missing.some((item) => item.startsWith(pointer + '/'))
+      targets.some((item) => item.startsWith(pointer + '/')) ||
+        missing.some((item) => item.startsWith(pointer + '/'))
         ? (optionalRequestProperties(schema) as JsonObject | boolean)
         : schema,
       pointer,

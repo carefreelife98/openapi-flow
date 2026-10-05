@@ -19,19 +19,21 @@
     "test": "npm run build && node --test test/legacy/*.test.mjs test/*.test.mjs",
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
+    "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",
     "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
     "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
   },
   "devDependencies": {
-    "@n8n/workflow-sdk": "0.33.1",
-    "zod": "4.6.5",
     "@eslint/js": "10.0.1",
     "@langchain/core": "1.2.12",
     "@langchain/openai": "^1.5.13",
+    "@n8n/workflow-sdk": "0.33.1",
     "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
     "eslint": "10.11.0",
     "prettier": "3.9.9",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.70.1",
+    "zod": "4.6.5"
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '../arguments/request-contract.js';
 import { optionalRequestProperties } from './operation-plan-schema.js';
 import { pointerTokens } from '../bindings/json-pointer.js';
+import { omitBoundSchemaField } from './omit-bound-schema-field.js';
 
 export function createApiArgumentsSchema({
   operation,
@@ -36,9 +37,17 @@ export function createApiArgumentsSchema({
     const pointer =
       '/' + location + '/' + name.replaceAll('~', '~0').replaceAll('/', '~1');
     if (bindings.some((binding) => binding.targetPointer === pointer)) continue;
-    const schema = optionalRequestProperties(
-      parameterSchema(parameter, pointer),
+    const schema = structuredClone(
+      optionalRequestProperties(parameterSchema(parameter, pointer)),
     ) as JsonObject | boolean;
+    for (const binding of bindings.filter((entry) =>
+      entry.targetPointer.startsWith(pointer + '/'),
+    ))
+      omitBoundSchemaField(
+        schema,
+        pointerTokens(binding.targetPointer).slice(2),
+        binding.targetPointer,
+      );
     const value = z
       .fromJSONSchema(schema, { defaultTarget: dialect })
       .describe(
@@ -68,21 +77,11 @@ export function createApiArgumentsSchema({
     for (const binding of bindings.filter((entry) =>
       entry.targetPointer.startsWith('/body/'),
     )) {
-      const tokens = pointerTokens(binding.targetPointer).slice(1);
-      let current: unknown = proposal;
-      for (const [index, token] of tokens.entries()) {
-        if (!current || typeof current !== 'object')
-          throw new Error(
-            `${binding.targetPointer} cannot be represented by this request schema`,
-          );
-        const schema = current as JsonObject;
-        const properties = object(
-          schema.properties,
-          `${binding.targetPointer}.properties`,
-        );
-        if (index === tokens.length - 1) delete properties[token];
-        else current = properties[token];
-      }
+      omitBoundSchemaField(
+        proposal,
+        pointerTokens(binding.targetPointer).slice(1),
+        binding.targetPointer,
+      );
     }
     fields.body = z
       .fromJSONSchema(proposal, { defaultTarget: dialect })

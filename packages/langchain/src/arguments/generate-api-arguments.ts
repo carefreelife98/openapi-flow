@@ -8,6 +8,7 @@ import type { GenerateApiArgumentsInput } from '../types/argument-generation.js'
 import { apiArgumentsPrompt } from '../prompts/api-arguments-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
+import { hasLiteralArgumentFields } from './has-literal-argument-fields.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -16,22 +17,32 @@ export async function generateApiArguments(
   if (typeof input.callId !== 'string' || !input.callId.trim())
     throw new Error('callId must be non-empty');
   const schema = createApiArgumentsSchema(input);
-  const proposed: ApiArgumentProposal = await input.model
-    .withStructuredOutput<ApiArgumentProposal>(schema, {
-      name: 'generate_api_arguments',
-      method: 'functionCalling',
-    })
-    .invoke([
-      new SystemMessage(apiArgumentsPrompt),
-      new HumanMessage(
-        JSON.stringify({
-          scenario: input.scenario,
-          operation: input.operation,
-          bindings: input.bindings,
-          requestMediaType: input.requestMediaType,
-        }),
-      ),
-    ]);
+  const proposed: ApiArgumentProposal = hasLiteralArgumentFields(schema)
+    ? await input.model
+        .withStructuredOutput<ApiArgumentProposal>(schema, {
+          name: 'generate_api_arguments',
+          method: 'functionCalling',
+        })
+        .invoke([
+          new SystemMessage(apiArgumentsPrompt),
+          new HumanMessage(
+            JSON.stringify({
+              scenario: input.scenario,
+              operation: {
+                key: input.operation.key,
+                method: input.operation.method,
+                path: input.operation.path,
+                summary: input.operation.operation.summary,
+                description: input.operation.operation.description,
+                parameters: input.operation.effective.parameters,
+                requestBody: input.operation.operation.requestBody,
+              },
+              bindings: input.bindings,
+              requestMediaType: input.requestMediaType,
+            }),
+          ),
+        ])
+    : { values: {} };
   const parsed = parseStructuredOutput(
     schema,
     proposed,

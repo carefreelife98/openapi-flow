@@ -11,6 +11,7 @@ import {
   createApiPreparationStages,
   createRequestMaterials,
 } from './prepare-api-workflow.js';
+import { createApiBindingsStage } from './plan-api-bindings-stage.js';
 
 /** Automatic graph design; consumers may instead compose the package functions themselves. */
 export function createPlannedWorkflowGenerationGraph(
@@ -61,13 +62,15 @@ export function createPlannedWorkflowGenerationGraph(
     .addNode('buildCatalog', stages.buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
     .addNode('resolveContracts', stages.resolveContracts)
+    .addNode('planBindings', createApiBindingsStage(dependencies))
     .addNode('generateArguments', stages.generateArguments)
     .addNode('planGraph', planGraph)
     .addNode('compileWorkflow', compileWorkflow)
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
     .addEdge('selectOperations', 'resolveContracts')
-    .addEdge('resolveContracts', 'generateArguments')
+    .addEdge('resolveContracts', 'planBindings')
+    .addEdge('planBindings', 'generateArguments')
     .addEdge('generateArguments', 'planGraph')
     .addEdge('planGraph', 'compileWorkflow')
     .addEdge('compileWorkflow', END)

@@ -6,6 +6,12 @@ import type {
 import type { CredentialBindings } from './legacy/request-workflow.js';
 
 export type N8nSdkNode = NodeInstance<string, string, unknown>;
+export interface N8nFragmentEdge {
+  from: string;
+  output: number;
+  to: string;
+  input: number;
+}
 export interface N8nNodeFragment {
   nodeId: string;
   nodes: N8nSdkNode[];
@@ -13,6 +19,7 @@ export interface N8nNodeFragment {
   exit: N8nSdkNode;
   inputPorts: Record<string, number>;
   outputPorts: Record<string, number>;
+  internalEdges?: N8nFragmentEdge[];
 }
 export interface CreateHttpRequestNodeInput {
   operation: ApiOperationContract;
@@ -20,4 +27,5 @@ export interface CreateHttpRequestNodeInput {
   baseUrl: string;
   credentialBindings: CredentialBindings;
   position: [number, number];
+  apiNodeNames?: Record<string, string>;
 }

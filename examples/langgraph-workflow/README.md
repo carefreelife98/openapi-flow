@@ -111,14 +111,14 @@ Start → 코어 조회 → IF ─ false → Stop And Error
 
 ## 다음 확장
 
-새 요청 compiler의 선행 응답 파라미터 바인딩 실행, 다른 n8n 자체 기능의 매퍼, 결손 미리보기 JSON은 남은 작업이다. Code·IF가 앞선 응답을 읽는 기능과 API 요청값에 응답을 바인딩하는 기능은 서로 다르다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+다른 n8n 자체 기능의 매퍼, 응답값 변환·아이템별 반복, 결손 미리보기 JSON은 남은 작업이다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
 
 ## 자연어에서 조건·연결까지 계획하기
 
-`createPlannedWorkflowGenerationGraph`는 `composeDag` 없이 최종 그래프를 만든다. API 선택 1회, 선택한 API별 요청값 생성, 그래프 계획 1회를 각각 호출한다. 모델은 API 재료와 자체 노드의 설명·Zod schema를 받아 자체 노드 설정, 조건·검증 항목, `edges`, `starts`, `gaps`를 반환한다. HTTP method·URL·credential·n8n 노드 버전과 실행 JavaScript는 모델이 만들지 않는다.
+`createPlannedWorkflowGenerationGraph`는 `composeDag` 없이 최종 그래프를 만든다. API 선택 1회, 응답 바인딩 계획 1회, 선택한 API별 리터럴 요청값 생성, 그래프 계획 1회를 각각 호출한다. 리터럴 schema가 비어 있는 호출은 코드가 `{values: {}}`를 확정하므로 LLM을 부르지 않는다. 모델은 API 재료와 자체 노드의 설명·Zod schema를 받아 자체 노드 설정, 조건·검증 항목, `edges`, `starts`, `gaps`를 반환한다. HTTP method·URL·credential·n8n 노드 버전과 실행 JavaScript는 모델이 만들지 않는다.
 
 ```text
-catalog → select(LLM) → resolve → arguments(LLM, 호출별)
+catalog → select(LLM) → resolve → bindings(LLM) → arguments(LLM, 호출별)
         → graph-plan(LLM) → validate/compile → import용 JSON
 ```
 
@@ -143,7 +143,9 @@ const result = await graph.invoke({
 
 기본 registry는 IF, Merge Append, 응답 검증용 Code, StopAndError를 등록한다. 각 매퍼는 `packages/n8n/src/nodes/native/`의 별도 파일이며 공통 fragment·응답 참조 처리는 `common/`에 둔다. Code는 모델의 JavaScript가 아니라 타입 있는 비교 항목을 라이브러리가 변환한 코드다. 응답 참조는 `{source: 'response', nodeId, pointer: '/result/...'}`로 표현하며 `pointer`는 OAS 응답 본문 기준이다. n8n의 `body` envelope와 SDK 노드 이름은 컴파일러가 연결한다.
 
-독립적으로는 `planWorkflowGraph`와 `compilePlannedN8nWorkflow`를 호출한다. 호스트가 제공한 capability의 설명·설정 schema·포트·분기 의미·응답 참조 추출기·컴파일러를 등록해 확장한다. n8n의 모든 노드를 자동 지원한다는 뜻은 아니다. 현재 비교는 첫 응답 아이템의 본문을 대상으로 하며, 아이템별 반복 처리나 요청 바인딩은 별도 계약이 필요하다.
+독립적으로는 `planApiBindings`, `generateApiArguments`, `planWorkflowGraph`, `compilePlannedN8nWorkflow`를 나누어 호출한다. 응답 바인딩은 `{kind: 'node-output', sourceNodeId, sourcePointer: '/result/id', targetPointer: '/path/id'}`처럼 OAS 본문·요청 기준 Pointer로 표현한다. `reviewBindings` hook에서 검토할 수 있다. 모델의 리터럴 출력 스키마에서는 바인딩 필드를 제외하고, 실행 시 Code가 실제 값을 읽어 완성된 요청을 OAS schema로 검사한다. 단일 API 호출 응답이 여러 아이템으로 나뉘면 임의로 첫 아이템을 고르지 않고 중단한다. 아이템별 반복과 자체 노드 출력 바인딩은 아직 별도 구현이 필요하다.
+
+호스트는 capability의 설명·설정 schema·포트·분기 의미·응답 참조 추출기·컴파일러를 등록해 확장한다. n8n의 모든 노드를 자동 지원한다는 뜻은 아니다. 자체 비교 노드는 현재 첫 응답 아이템의 본문을 대상으로 한다.
 
 검사는 존재하지 않는 노드·포트, 중복 ID·연결, 잘못된 시작점, 순환, 앞서 실행되지 않은 API 응답 참조, 서로 배타적인 IF 분기의 Merge를 거절한다. 응답 필드의 모든 OAS dialect·타입을 정적으로 증명하지는 않는다. 실행 중 없는 필드를 읽으면 오류를 내며 다른 값으로 채우지 않는다. 시나리오 요구를 빠짐없이 계획했는지는 사람 검토와 정상·실패 fixture 검증으로 확인해야 한다.
 

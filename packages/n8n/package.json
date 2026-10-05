@@ -24,12 +24,15 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ../../scripts/build-request-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@openapi-flow/core": "0.2.0",
     "@n8n/workflow-sdk": "0.33.1",
+    "@openapi-flow/core": "0.2.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "esbuild": "0.28.2",
     "zod": "4.6.5"
   },
   "publishConfig": {

@@ -38,7 +38,11 @@ export async function planWorkflowGraph(
                 responses: operation.operation.responses,
               },
             },
-            arguments: { callId: args.callId, values: args.values },
+            arguments: {
+              callId: args.callId,
+              values: args.values,
+              bindings: args.bindings,
+            },
             inputPorts: ['main'],
             outputPorts: ['main'],
           })),

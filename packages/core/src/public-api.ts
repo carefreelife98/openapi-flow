@@ -14,3 +14,7 @@ export type * from './types/openapi.js';
 export type * from './types/inbound.js';
 export type * from './types/workflow-plan.js';
 export { validateWorkflowGraphPlan } from './workflow/validate-workflow-graph-plan.js';
+export type * from './types/api-bindings.js';
+export { validateApiBindingPlan } from './bindings/validate-api-binding-plan.js';
+export { materializeApiArguments } from './bindings/materialize-api-arguments.js';
+export { createApiRequestSchema } from './schemas/create-api-request-schema.js';

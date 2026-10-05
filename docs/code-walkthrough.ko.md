@@ -39,7 +39,23 @@
 
 [validate-workflow-graph-plan.ts](../packages/core/src/workflow/validate-workflow-graph-plan.ts)는 모든 경로에서 선행 API 응답이 존재하는지, Merge 입력 분기가 함께 실행 가능한지까지 검사한다. [create-native-capabilities.ts](../packages/n8n/src/nodes/native/create-native-capabilities.ts)는 IF·Merge·검증·중단의 별도 매퍼를 등록하고, [compile-planned-n8n-workflow.ts](../packages/n8n/src/workflow/compile-planned-n8n-workflow.ts)는 이를 SDK JSON으로 조립한다. 본문 pointer와 n8n full-response envelope를 연결하는 코드는 `nodes/native/response-check-code.ts`에 있다.
 
-현재 응답 pointer의 모든 OAS 타입을 정적으로 증명하는 것은 아니며, 없는 필드는 런타임 오류로 드러낸다. API 파라미터에 선행 응답을 공급하는 기능은 아직 새 요청 compiler에서 실행하지 않는다. 조건·검증용 응답 읽기와 구분해야 한다.
+현재 응답 pointer의 모든 OAS 타입을 정적으로 증명하는 것은 아니며, 없는 필드는 런타임 오류로 드러낸다. API 요청의 응답 바인딩과 조건·검증용 응답 읽기는 별도 단계다.
+
+## 선행 응답을 후속 요청에 넣는 경로
+
+자동 예제의 실제 단계는 `catalog → select → resolve → bindings → arguments → graph-plan → compile`이다. 단일 API 예제는 기존 선택·값 생성 경로를 유지한다.
+
+1. [plan-api-bindings.ts](../packages/langchain/src/bindings/plan-api-bindings.ts)는 선택된 전체 OAS 계약과 시나리오를 받아 API 사이의 `{sourceNodeId, sourcePointer, targetPointer}`만 계획한다. 조건·응답 단언은 이 단계가 생성하지 않는다.
+2. [validate-api-binding-plan.ts](../packages/core/src/bindings/validate-api-binding-plan.ts)는 호출 ID·OAS 필드·알려진 비호환 타입·중복 대상·순환을 검사한다. JSON Pointer는 응답 본문 기준이며 n8n의 `body` envelope를 모델이 넣지 않는다.
+3. `createApiArgumentsSchema`는 바인딩으로 공급할 중첩 필드를 리터럴 생성 대상에서 제외한다. `generateApiArguments`는 해당 호출에 명시된 나머지 값만 생성한다. 리터럴 schema가 비어 있으면 코드가 빈 `values`를 반환하고 불필요한 LLM 호출을 생략한다. 같은 DTO를 쓰는 다른 API의 값을 복사하지 않는다.
+4. 그래프 계획·검사는 데이터 생산자가 모든 실행 경로에서 소비자보다 먼저 완료되는지 확인한다. 독립 호출은 별도 가지로 두고, 여러 결과를 사용하는 호출은 합류 뒤에 둔다. 시나리오에 별도 실행 순서나 조건이 있으면 함께 지킨다.
+5. [create-bound-request-fragment.ts](../packages/n8n/src/nodes/request/bindings/create-bound-request-fragment.ts)는 `Materialize callId` Code와 `Request callId` HTTP Request를 만든다. 내부 연결은 fragment의 `internalEdges`, 외부 연결은 논리 호출 ID의 entry·exit로 구분한다.
+6. [materialize-api-arguments.ts](../packages/core/src/bindings/materialize-api-arguments.ts)는 실제 응답값을 타입 변경 없이 복사한다. 필요한 객체·배열 구분은 OAS가 정하며, 숫자 필드명만 보고 배열로 추측하지 않는다. 모호한 schema에는 명시적 리터럴 컨테이너가 필요하다.
+7. [compile-request-validator.ts](../packages/n8n/src/nodes/request/bindings/compile-request-validator.ts)는 전체 OAS 요청 schema를 호스트에서 Ajv standalone 코드로 컴파일한다. [materialize-http-request.ts](../packages/n8n/src/nodes/request/runtime/materialize-http-request.ts)가 완성된 값의 원본 제약을 검사한 뒤, `serialization/serialize-http-request.ts`의 공통 직렬화로 path·query·header·cookie·body를 만든다. 값 누락·타입 오류·리터럴 충돌은 HTTP 전 오류로 드러낸다.
+
+`core/bindings/`는 데이터 계약, `langchain/bindings/`는 모델 호출, `n8n/nodes/request/bindings/`는 SDK fragment 생성, `runtime/`은 실행 시 값 검사, `serialization/`은 공통 요청 변환을 맡는다. 타입·schema·prompt는 각 패키지의 기존 전용 폴더에 둔다. 독립 함수들은 호출자의 LangGraph에서 재조합할 수 있다.
+
+독립 가지가 곧 네트워크 동시 실행을 보장하지는 않는다. [n8n 실행 순서 문서](https://docs.n8n.io/build/flow-logic/understand-execution-order/)에 따르면 `v1`은 가지를 순서대로 처리한다. 여기서 검증하는 DAG는 불필요한 직렬 의존선을 만들지 않는 구조다.
 
 ## 두 번째 모델 호출을 확인하는 법
 
@@ -58,11 +74,14 @@ npm run build
 node --test test/composable-api.test.mjs
 OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
+npm run test:request-bindings-local-n8n
 ```
 
 [composable-api.test.mjs](../test/composable-api.test.mjs)는 독립 선택·값 생성·노드 조립, 같은 Operation의 문서별 식별, 원본 응답·인증 대안 보존, 누락 입력과 값 오류, 배열 순서와 무관한 fan-out DAG를 확인한다. [real-oas.mjs](../integration/real-oas.mjs)는 비공개 OAS 문서의 모든 REST 계약과 선언된 각 body media type의 요청값 스키마를 확인한다. 원본 fixture는 공개 레포로 복사하지 않는다.
 
 [local-n8n-smoke.mjs](../integration/local-n8n-smoke.mjs)는 격리된 n8n 컨테이너와 로컬 HTTP 응답기를 만든다. 새 독립 API로 만든 세 요청의 fan-out 그래프를 import·실행해 직렬화된 요청을 검사한다. 기존 문서 간 응답 참조와 webhook/callback 회귀도 함께 실행한다. 테스트가 만든 임시 컨테이너와 볼륨만 종료·제거한다.
+
+[request-bindings-local-n8n.mjs](../integration/request-bindings-local-n8n.mjs)는 공개 fixture 두 OAS의 API 5개로 응답 ID·배열·객체 전달, 독립 세 가지와 Merge 뒤 다중 응답 전달을 검사한다. 같은 JSON에서 서버의 응답 ID만 바꿔 요청값 변경을 확인하고, 필드 누락·잘못된 타입에서 후속 HTTP가 차단되는지도 실행한다. 실제 모델을 호출하는 테스트와는 구분한다.
 
 ## 공식 LangGraph 다중 API 예제
 

@@ -17,12 +17,13 @@
 | 예제 구현   | `createDagWorkflowGenerationGraph` — 다중 API 선택·입력 생성, 호스트가 명시한 DAG와 SDK 자체 노드 조합              |
 | 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                      |
 | 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력    |
-| 다음 구현   | 새 출력 바인딩의 런타임 값·데이터 의존성 검증, 복수 노드 fragment 내부 연결, 결손 미리보기                          |
+| 구현        | `planApiBindings`, OAS 기반 바인딩 검사·실제 값 조립·요청 검증, 복수 노드 fragment 내부 연결                        |
+| 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩, 결손 미리보기                                                        |
 | 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
 
 계약 조회는 전체 OAS Operation·path item과 상속된 parameter/security/server를 보존한다. 아래의 검토 당시 기존 파일 경로는 패키지 이전 전 기준이다. 카탈로그는 JSON 직렬화 가능하며 선택 key에 문서 ID·snapshot hash·operationRef를 남긴다. 저장된 문서가 바뀌면 조회가 실패한다. 새 입력 생성은 예상 응답을 받지 않는다.
 
-이 단계에서 core의 바인딩 표현은 실행 가능 판정이 아니다. 실제 값이 필요한 검사는 `requiresRuntimeValidation`으로 구분하고, 새 독립 요청 노드 컴파일러는 바인딩을 실행값으로 만들기 전까지 명시적으로 거절한다. 기존 문서 간 scalar 참조는 `legacy` 경로에서 계속 검증한다. 전체 설계가 완료됐다고 해석하면 안 된다.
+바인딩은 계획 시 OAS 필드·알려진 타입·순환을 검사하고, 실행 시 실제 값을 조립해 전체 요청 계약을 다시 검사한다. 자동 예제에서는 데이터 바인딩을 먼저 정하고 리터럴 값을 생성한 뒤 최종 조건·연결 구조를 계획한다. 아래 원래 설계의 목표와 현재 구현은 구분한다. 기존 문서 간 scalar 참조는 `legacy` 경로에서도 계속 검증한다. 전체 설계가 완료됐다고 해석하면 안 된다.
 
 ## 현재 구현에서 확인한 문제
 

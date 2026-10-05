@@ -3,9 +3,7 @@ import type { Operation } from '@openapi-flow/core/internal';
 import type { CredentialBindings } from '../../../types/legacy/request-workflow.js';
 import { isObject } from '@openapi-flow/core/internal';
 
-export function looksLikeCredential(name: string): boolean {
-  return /(token|secret|password|authorization|api.?key)/i.test(name);
-}
+export { looksLikeCredential } from '../../../nodes/request/authentication/credential-field-name.js';
 
 export function resolveCredentialBinding(
   operation: Operation,

@@ -22,6 +22,10 @@
     "node": ">=24"
   },
   "exports": {
+    "./runtime": {
+      "types": "./dist/runtime-api.d.ts",
+      "default": "./dist/runtime-api.js"
+    },
     ".": {
       "types": "./dist/public-api.d.ts",
       "default": "./dist/public-api.js"

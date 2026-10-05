@@ -9,7 +9,7 @@ export function createResponseAssertionCapability(): N8nNativeCapability {
   return {
     name: 'assert-responses',
     description:
-      'n8n Code: library-generated JSON comparisons. main input/output. Returns pass/assertionCount or throws a check message. Join branches before comparing their responses.',
+      'n8n Code: library-generated JSON comparisons. main input/output. Returns pass/assertionCount on success and can be the final node; no separate success/end node is needed. Failed checks throw their message and fail the workflow, without a failure output port. Join branches before comparing their responses.',
     parametersSchema: assertionParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],

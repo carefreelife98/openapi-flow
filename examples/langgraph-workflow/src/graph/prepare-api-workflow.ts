@@ -14,6 +14,7 @@ import type {
   WorkflowUpdate,
   ResolvedRequestNode,
 } from '../types/workflow-graph.js';
+import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 
 export function createApiPreparationStages(
   dependencies: ApiPreparationDependencies,
@@ -57,13 +58,18 @@ export function createApiPreparationStages(
       if (!state.contracts?.length)
         throw new Error('generateArguments requires a resolved contract');
       const calls: NonNullable<WorkflowState['arguments']> = [];
-      for (const [index, operation] of state.contracts.entries()) {
+      for (const { callId, operation } of createApiBindingMaterials(state)) {
+        const boundCall = state.bindingPlan?.calls.find(
+          (call) => call.callId === callId,
+        );
+        if (state.bindingPlan && !boundCall)
+          throw new Error(`bindingPlan is missing ${callId}`);
         const args = await generateApiArguments({
-          callId: `${state.workflowId}-request-${index + 1}`,
+          callId,
           operation,
           scenario: state.scenario,
           model: dependencies.model,
-          bindings: [],
+          bindings: boundCall ? boundCall.bindings : [],
         });
         if (args.unresolvedInputs.length)
           throw new Error(
@@ -103,6 +109,12 @@ export function createRequestMaterials(
         arguments: args,
         baseUrl: deployment.baseUrl,
         credentialBindings: deployment.credentialBindings,
+        apiNodeNames: Object.fromEntries(
+          state.arguments!.map((call) => [
+            call.callId,
+            'Request ' + call.callId,
+          ]),
+        ),
         position: [300, index * 200],
       }),
     };

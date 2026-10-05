@@ -51,7 +51,7 @@ export function createWorkflowGraphPlanSchema(
     gaps: z
       .array(z.strictObject({ description: z.string().min(1) }))
       .describe(
-        'Unmet scenario requirements. Never invent a capability, API, or executable code.',
+        'Only explicitly requested requirements that cannot be met. Do not invent a success/end/display requirement; a terminal node completes normally. Never invent a capability, API, or executable code.',
       ),
   });
 }
