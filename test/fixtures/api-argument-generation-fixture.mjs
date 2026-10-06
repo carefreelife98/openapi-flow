@@ -7,9 +7,13 @@ export const outputBinding = (targetPointer) => ({
   targetPointer,
 });
 
-export async function requestOperation(schema, parameters = []) {
+export async function requestOperation(
+  schema,
+  parameters = [],
+  openapiVersion = '3.1.0',
+) {
   const spec = {
-    openapi: '3.1.0',
+    openapi: openapiVersion,
     info: { title: 'Literal ownership fixture', version: '1' },
     paths: {
       '/consumer': {

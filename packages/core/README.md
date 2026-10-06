@@ -4,6 +4,10 @@ Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived 
 
 `createApiArgumentGenerationContract({ operation, bindings, requestMediaType })` is the shared literal-generation boundary. It returns the Zod `schema`, its matching `literalInputSchema` JSON Schema, and `hasLiteralInputs`. Bound paths have no original value definition and are forbidden (including through open additional properties); unbound OAS-approved fields stay available. Fully bound closed nested objects have no remaining literal decision. Open objects can still accept additional scenario values, so binding every named property does not close that OAS contract. The original operation and complete runtime request schema remain unchanged.
 
+Dynamic OAS assertions are no longer round-tripped through experimental `z.fromJSONSchema`. `createOasValueSchema` uses Zod's public refinement and metadata APIs: Scalar's JSON Schema validator checks the preserved assertions, and Zod exports those same assertions to LangChain. Type-less constraints, enum siblings and simultaneous compositions are not replaced by inferred types or weaker schemas. OAS 3.0 `nullable` and boolean exclusive bounds are explicitly translated to Draft 2020-12 syntax; formats, annotations and enum/example data are retained. Each embedded schema has a resource ID so fragment references keep their original scope. These IDs are schema identifiers, not inferred API input values. `validateApiArguments` and the complete `createApiRequestSchema` use the same dialect conversion; the latter retains required fields for the n8n standalone validator. Uncompileable selected schemas fail with their source before a model call. Provider-specific schema support is still an external boundary, not a reason to trim the OAS contract.
+
+See [Zod's JSON Schema and metadata APIs](https://zod.dev/json-schema#metadata) and the [OAS 3.0 Schema Object](https://spec.openapis.org/oas/v3.0.4.html#schema-object) for the conversion boundary and nullable semantics. This does not claim exhaustive support for every schema dialect or provider.
+
 ```ts
 import {
   createApiCatalog,

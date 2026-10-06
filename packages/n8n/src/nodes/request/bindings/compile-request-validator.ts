@@ -1,4 +1,3 @@
-import { Ajv } from 'ajv';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import standaloneCode from 'ajv/dist/standalone/index.js';
@@ -17,10 +16,7 @@ export function compileRequestValidator(
     operation: config.contract,
     requestMediaType: config.arguments.requestMediaType,
   });
-  const AjvClass = config.contract.openapiVersion.startsWith('3.0.')
-    ? Ajv
-    : Ajv2020;
-  const ajv = new AjvClass({
+  const ajv = new Ajv2020({
     strict: false,
     allErrors: true,
     discriminator: true,

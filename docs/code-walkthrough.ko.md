@@ -23,7 +23,7 @@
 | 카탈로그    | [create-api-catalog.ts](../packages/core/src/openapi/catalog/create-api-catalog.ts)           | Scalar 검증·참조 해석, 문서 ID와 snapshot hash, 후보 메타데이터                                        |
 | 선택        | [select-api-operations.ts](../packages/langchain/src/selection/select-api-operations.ts)      | 후보 enum으로 structured output 생성, `SystemMessage`·`HumanMessage`, 모델 선택을 원래 작업 key로 연결 |
 | 계약 조회   | [resolve-api-operations.ts](../packages/core/src/openapi/resolve-api-operations.ts)           | 문서·스냅샷 확인, 전체 Operation 보존, parameter override와 security/server 상속                       |
-| 값 스키마   | [create-api-arguments-schema.ts](../packages/core/src/schemas/create-api-arguments-schema.ts) | 선택한 OAS의 parameter/body 타입과 설명을 Zod로 변환                                                   |
+| 값 스키마   | [create-api-arguments-schema.ts](../packages/core/src/schemas/create-api-arguments-schema.ts) | 선택한 OAS의 parameter/body 제약을 보존한 Zod 검증·출력 계약 생성                                      |
 | 값 생성     | [generate-api-arguments.ts](../packages/langchain/src/arguments/generate-api-arguments.ts)    | 한 호출의 시나리오 값 생성, Zod 파싱, 미해결 입력 반환                                                 |
 | OAS 검사    | [validate-api-arguments.ts](../packages/core/src/arguments/validate-api-arguments.ts)         | 선언되지 않은 값·타입·원본 제약 검사, 빠진 필수값 Pointer                                              |
 | 노드 생성   | [create-http-request-node.ts](../packages/n8n/src/nodes/request/create-http-request-node.ts)  | 어댑터 경계의 직렬화·credential 연결, SDK HTTP Request 노드                                            |
@@ -60,6 +60,10 @@
 ## 두 번째 모델 호출을 확인하는 법
 
 `generateApiArguments`는 선택된 전체 계약을 받아 `createApiArgumentGenerationContract`를 호출한다. 예를 들어 `POST /items`의 body가 `{name: string, quantity: integer}`이면 모델 출력도 `values.body.name`, `values.body.quantity`를 그 타입으로 받는다. 모델이 OAS나 JSON Schema 문자열을 생성하는 것이 아니다. `createApiArgumentsSchema`는 같은 계약의 Zod schema만 받으려는 호출자를 위한 공개 함수다.
+
+[create-oas-value-schema.ts](../packages/core/src/schemas/create-oas-value-schema.ts)는 실험적 `z.fromJSONSchema`를 사용하지 않는다. 동적 OAS 제약을 Zod의 개별 타입으로 재구성하면 `type` 없는 제한이나 `enum` 옆의 제한이 빠질 수 있기 때문이다. 공개 API인 `superRefine`으로 Scalar 검증기를 연결하고, `meta`에 같은 스키마를 등록해 모델에게도 해당 제약을 전달한다. 내부의 범용 입력은 JSON 값 검사를 거쳐 `ZodType<JsonValue>`로 반환하며, 바깥 응답은 기존 `ApiArgumentProposal` 타입을 유지한다. 원본 OAS는 바꾸지 않는다.
+
+[normalize-oas-value-schema.ts](../packages/core/src/openapi/common/normalize-oas-value-schema.ts)는 OAS 3.0의 `nullable`과 boolean 배타적 경계만 JSON Schema 2020-12 표현으로 옮긴다. 타입을 추측하거나 enum에 null을 추가하지 않으며, format·설명·example 데이터도 유지한다. 스키마별 `$id`는 내부 `$ref`의 범위를 보존하는 식별자이지 API 요청값이 아니다. [create-oas-value-validator.ts](../packages/core/src/openapi/common/create-oas-value-validator.ts)는 이 계약을 컴파일하고 실패하면 출처를 포함한 오류를 낸다. `validateApiArguments`와 최종 요청의 `createApiRequestSchema`도 같은 변환을 사용하므로 모델의 부분 입력과 바인딩 후 필수값 검사가 서로 다른 버전 해석을 쓰지 않는다. 모델 공급자가 특정 JSON Schema 표현을 지원하는지는 별도 경계이며, 그 이유로 제약을 조용히 제거하지 않는다.
 
 실행 시 가져올 `enableCache`가 바인딩되었다면 모델에 원래 boolean 정의와 응답 참조 계획을 다시 보내지 않는다. 생성용 schema에는 이 필드를 받을 수 없다는 `false` 또는 `{not: {}}` 제약이 남을 수 있다. 이는 OAS에서 필드를 삭제하거나 금지하는 것이 아니라, 이미 다른 노드가 공급하기로 정한 값을 리터럴 생성 단계가 덮어쓰지 못하게 하는 계약이다. 모델이 이를 어기면 값 삭제·치환 없이 schema 경계에서 실패한다.
 

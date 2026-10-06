@@ -4,6 +4,7 @@ import {
   bodyMediaSchema,
   parameterSchema,
 } from '../arguments/request-contract.js';
+import { createOasValueValidator } from '../openapi/common/create-oas-value-validator.js';
 
 /** Full unchanged OAS constraints, unlike the model's partial-value schema. */
 export function createApiRequestSchema({
@@ -11,6 +12,9 @@ export function createApiRequestSchema({
   requestMediaType,
 }: ApiRequestSchemaInput): JsonObject {
   const properties: JsonObject = {};
+  const dialect = operation.openapiVersion.startsWith('3.0.')
+    ? 'openapi-3.0'
+    : 'draft-2020-12';
   const required: string[] = [];
   for (const location of ['path', 'query', 'header', 'cookie', 'querystring']) {
     const parameters = operation.effective.parameters.filter(
@@ -34,7 +38,11 @@ export function createApiRequestSchema({
         properties: Object.fromEntries(
           parameters.map((item) => [
             item.name,
-            parameterSchema(item, `${location}.${item.name}`),
+            createOasValueValidator(
+              parameterSchema(item, `${location}.${item.name}`),
+              dialect,
+              `${operation.key.operationRef}/${location}/${item.name}`,
+            ).schema,
           ]),
         ),
         required: requiredNames,
@@ -45,7 +53,11 @@ export function createApiRequestSchema({
   }
   const body = bodyMediaSchema(operation, requestMediaType);
   if (body !== undefined) {
-    properties.body = body;
+    properties.body = createOasValueValidator(
+      body,
+      dialect,
+      `${operation.key.operationRef}/body`,
+    ).schema;
     const requestBody = operation.operation.requestBody;
     if (
       requestBody &&
@@ -55,9 +67,7 @@ export function createApiRequestSchema({
       required.push('body');
   }
   return {
-    $schema: operation.openapiVersion.startsWith('3.0.')
-      ? 'http://json-schema.org/draft-07/schema#'
-      : 'https://json-schema.org/draft/2020-12/schema',
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     properties,
     required,

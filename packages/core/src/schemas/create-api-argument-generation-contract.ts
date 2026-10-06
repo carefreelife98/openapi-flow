@@ -15,6 +15,7 @@ import { optionalRequestProperties } from './operation-plan-schema.js';
 import { pointerTokens } from '../bindings/json-pointer.js';
 import { requestBindingSchemas } from '../bindings/request-binding-schema.js';
 import { projectLiteralInputSchema } from './project-literal-input-schema.js';
+import { createOasValueSchema } from './create-oas-value-schema.js';
 
 /** The OAS-derived schema decides whether the model has any values to propose. */
 export function createApiArgumentGenerationContract({
@@ -60,13 +61,15 @@ export function createApiArgumentGenerationContract({
       pointer,
     );
     if (!projection.hasLiteralValues) continue;
-    const value = z
-      .fromJSONSchema(projection.schema, { defaultTarget: dialect })
-      .describe(
-        typeof parameter.description === 'string'
-          ? parameter.description
-          : `Scenario value for ${location} parameter ${name}`,
-      );
+    const value = createOasValueSchema(
+      projection.schema,
+      dialect,
+      `${operation.key.operationRef}${pointer}`,
+    ).describe(
+      typeof parameter.description === 'string'
+        ? parameter.description
+        : `Scenario value for ${location} parameter ${name}`,
+    );
     if (!Object.hasOwn(groups, location)) groups[location] = {};
     Object.defineProperty(groups[location], name, {
       value: value.optional(),
@@ -92,8 +95,11 @@ export function createApiArgumentGenerationContract({
       '/body',
     );
     if (projection.hasLiteralValues)
-      fields.body = z
-        .fromJSONSchema(projection.schema, { defaultTarget: dialect })
+      fields.body = createOasValueSchema(
+        projection.schema,
+        dialect,
+        `${operation.key.operationRef}/body`,
+      )
         .describe(
           'Request body literal values explicitly supplied by the scenario; forbidden properties are owned by preceding nodes.',
         )

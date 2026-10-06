@@ -3,20 +3,7 @@ import type { JsonObject } from '../types/openapi.js';
 import type { SchemaDialect } from '../types/schema-dialect.js';
 import type { Operation, OperationParameter } from '../types/request.js';
 import { isObject } from '../utils/is-object.js';
-
-function valueSchema(
-  schema: JsonObject | boolean,
-  dialect: SchemaDialect,
-  source: string,
-): z.ZodType {
-  try {
-    return z.fromJSONSchema(schema, { defaultTarget: dialect });
-  } catch (error) {
-    throw new Error(`${source} cannot be converted to a Zod output schema`, {
-      cause: error,
-    });
-  }
-}
+import { createOasValueSchema } from './create-oas-value-schema.js';
 
 function parameterGroup(
   parameters: OperationParameter[],
@@ -29,7 +16,7 @@ function parameterGroup(
       (parameter) =>
         [
           parameter.name,
-          valueSchema(
+          createOasValueSchema(
             optionalRequestProperties(parameter.schema) as JsonObject | boolean,
             dialect,
             `${location}.${parameter.name}`,
@@ -108,7 +95,7 @@ function requestBodySchema(
   const schemas = mediaTypes.map(([mediaType, media]) =>
     media.schema === undefined
       ? z.json()
-      : valueSchema(
+      : createOasValueSchema(
           optionalRequestProperties(media.schema) as JsonObject | boolean,
           dialect,
           `operationRef ${operation.operationRef}.requestBody.${mediaType}.schema`,

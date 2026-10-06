@@ -8,7 +8,7 @@ import {
   pointerTokens,
   pointerValue,
 } from '../bindings/json-pointer.js';
-import { checkSchemaValue } from '../openapi/common/check-schema-value.js';
+import { checkOasValue } from '../openapi/common/check-oas-value.js';
 import { object } from '../openapi/common/parse-spec-utils.js';
 import { optionalRequestProperties } from '../schemas/operation-plan-schema.js';
 import { projectLiteralInputSchema } from '../schemas/project-literal-input-schema.js';
@@ -96,6 +96,9 @@ export function validateApiArguments({
   if (!Array.isArray(bindings))
     throw new Error('arguments.bindings must be an array');
   const supplied = object(values, 'arguments.values');
+  const dialect = operation.openapiVersion.startsWith('3.0.')
+    ? 'openapi-3.0'
+    : 'draft-2020-12';
   const allowed = new Set<string>(
     operation.effective.parameters.map((parameter) => parameter.in),
   );
@@ -183,7 +186,7 @@ export function validateApiArguments({
       continue;
     }
     requiredPointers(schema, value, pointer, missing, targets);
-    checkSchemaValue(
+    checkOasValue(
       value,
       targets.some((item) => item.startsWith(pointer + '/')) ||
         missing.some((item) => item.startsWith(pointer + '/'))
@@ -195,6 +198,7 @@ export function validateApiArguments({
             pointer,
           ).schema
         : schema,
+      dialect,
       pointer,
     );
   }
@@ -222,7 +226,7 @@ export function validateApiArguments({
       const incomplete =
         targets.some((pointer) => pointer.startsWith('/body/')) ||
         missing.some((pointer) => pointer.startsWith('/body/'));
-      checkSchemaValue(
+      checkOasValue(
         values.body,
         incomplete
           ? projectLiteralInputSchema(
@@ -233,6 +237,7 @@ export function validateApiArguments({
               '/body',
             ).schema
           : bodySchema,
+        dialect,
         '/body',
       );
     }
