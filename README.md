@@ -112,7 +112,9 @@ On a returned proposal's schema or graph validation failure, `planWorkflowGraph`
 
 The graph validator requires producers to be complete on every route to consumers. Independent calls may fan out; consumers needing several branch results require a compatible explicit join. Scenario-required order/conditions remain constraints. Independent DAG branches do not guarantee simultaneous execution: [n8n's execution-order documentation](https://docs.n8n.io/build/flow-logic/understand-execution-order/) describes sequential branch processing for v1 execution order.
 
-Remaining: exhaustive OAS response-pointer/type proof, native-node output to API bindings, value transformations/item-wise loops, all native n8n variants and gap-preview JSON. Static checks do not prove natural-language coverage or every complex schema implication; review and execution tests remain necessary. Existing legacy scalar bindings remain covered under `/legacy`.
+`createN8nWorkflowPreview` independently turns reported API-selection, binding or graph gaps into an inactive, notes-only n8n review canvas. Its result is `{ status: 'needs-review', executable: false, diagnostics, previewWorkflow }`, not an executable `workflow`. Confirmed OAS API cards and review reports use different Sticky Note colors and labels. No trigger, HTTP Request, Code or execution connection is included. Graph proposals are text summaries, not validated execution topology. Catalog integrity and referenced contracts are checked; invalid input is not converted into a gap. Scenario/purpose/report text is included, so redact private content before sharing. See the [official example](examples/langgraph-workflow/README.md#결손-검토용-json) for review handling.
+
+Remaining: exhaustive OAS response-pointer/type proof, native-node output to API bindings, value transformations/item-wise loops and all native n8n variants. Static checks do not prove natural-language coverage or every complex schema implication; review and execution tests remain necessary. Existing legacy scalar bindings remain covered under `/legacy`.
 
 Webhook/callback extraction stays in core; inbound compilation lives in n8n. Receiving-request authentication/schema checks and callback registration/correlation remain pending. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
@@ -120,7 +122,7 @@ See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [desi
 
 ## Official usage example
 
-See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. The CLI composes one selected API call. `createPlannedWorkflowGenerationGraph` adds model-designed native nodes, conditions and topology with no host composition callback. `createDagWorkflowGenerationGraph` remains available for explicit host-owned topology. Neither factory imports or executes workflows automatically. The public fixtures contain no internal service metadata.
+See [`examples/langgraph-workflow`](examples/langgraph-workflow/README.md) for a non-published npm workspace demonstrating independent LangGraph stages with an injected model, multiple source documents, OAS-typed request values, trusted deployment/credential references, and reviewable n8n JSON output. The CLI composes one selected API call. `createPlannedWorkflowGenerationGraph` adds model-designed native nodes, conditions and topology with no host composition callback. `createReviewableWorkflowGenerationGraph` opts into preview output on explicitly reported gaps; complete plans use the same compiler. `createDagWorkflowGenerationGraph` remains available for explicit host-owned topology. These factories never import or execute workflows automatically. The public fixtures contain no internal service metadata.
 
 ## Development
 
@@ -134,6 +136,7 @@ OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
 npm run test:request-bindings-local-n8n
 npm run test:deployment-template-local-n8n
+npm run test:workflow-preview-local-n8n
 ```
 
 Do not copy private OAS documents or secrets into this repository. Types/interfaces live in the owning package's `src/types/`; structured-output schemas in `src/schemas/`; prompts in `src/prompts/`. Every package has a descriptive `public-api.ts` entrypoint. `.ts` imports use `.js` extensions for the emitted NodeNext ESM paths.

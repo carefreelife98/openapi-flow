@@ -6,6 +6,7 @@ import test from 'node:test';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { compileWorkflow } from '@openapi-flow/n8n/legacy';
+import { createN8nWorkflowPreview } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
   validateOpenApi,
@@ -66,6 +67,55 @@ const operationMethods = new Set([
   'trace',
   'query',
 ]);
+
+test('real OAS contracts produce review-only notes without copying deployment or request definitions', async () => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+    })),
+  );
+  const catalog = await createApiCatalog(sources);
+  const selection = {
+    operations: sources.map((source) => {
+      const candidate = catalog.operations.find(
+        (item) => item.key.documentId === source.id,
+      );
+      assert.ok(candidate);
+      return {
+        key: candidate.key,
+        purpose: 'Review the confirmed service contract',
+      };
+    }),
+    gaps: [
+      {
+        kind: 'missing_operation',
+        description: 'Host-reported requirement needs API review',
+      },
+    ],
+  };
+  const result = await createN8nWorkflowPreview({
+    id: 'private-oas-review',
+    name: 'Private OAS review',
+    scenario: 'Review selected contracts',
+    catalog,
+    selection,
+  });
+  assert.equal(result.executable, false);
+  assert.equal(result.previewWorkflow.active, false);
+  assert.equal(result.previewWorkflow.nodes.length, files.length + 2);
+  assert.deepEqual(result.previewWorkflow.connections, {});
+  assert.ok(
+    result.previewWorkflow.nodes.every(
+      (item) => item.type === 'n8n-nodes-base.stickyNote',
+    ),
+  );
+  assert.ok(
+    result.previewWorkflow.nodes.every(
+      (item) => item.credentials === undefined,
+    ),
+  );
+});
 
 test('real OAS files use independent catalog and full contract lookup without runtime policy', async () => {
   const sources = await Promise.all(

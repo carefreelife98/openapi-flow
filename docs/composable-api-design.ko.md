@@ -18,7 +18,8 @@
 | 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                      |
 | 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력    |
 | 구현        | `planApiBindings`, OAS 기반 바인딩 검사·실제 값 조립·요청 검증, 복수 노드 fragment 내부 연결                        |
-| 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩, 결손 미리보기                                                        |
+| 구현        | `createN8nWorkflowPreview`, 공식 예제의 `createReviewableWorkflowGenerationGraph` — 실행 노드 없는 결손 검토 JSON   |
+| 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩                                                                       |
 | 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
 
 계약 조회는 전체 OAS Operation·path item과 상속된 parameter/security/server를 보존한다. 아래의 검토 당시 기존 파일 경로는 패키지 이전 전 기준이다. 카탈로그는 JSON 직렬화 가능하며 선택 key에 문서 ID·snapshot hash·operationRef를 남긴다. 저장된 문서가 바뀌면 조회가 실패한다. 새 입력 생성은 예상 응답을 받지 않는다.

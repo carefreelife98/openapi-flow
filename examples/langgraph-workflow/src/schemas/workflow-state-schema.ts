@@ -10,6 +10,7 @@ import type {
   ApiBindingPlan,
 } from '@openapi-flow/core';
 import type { N8nCompileResult } from '@openapi-flow/n8n';
+import type { N8nWorkflowPreviewResult } from '@openapi-flow/n8n';
 
 // These channels carry host/library objects, not model structured-output schemas.
 // createApiCatalog validates the source OAS; adapter calls validate proposals.
@@ -25,5 +26,6 @@ export const workflowStateSchema = new StateSchema({
   bindingPlan: z.custom<ApiBindingPlan>().optional(),
   graphPlan: z.custom<WorkflowGraphPlan>().optional(),
   workflow: z.custom<N8nCompileResult['workflow']>().optional(),
+  preview: z.custom<N8nWorkflowPreviewResult>().optional(),
   trace: z.array(z.string()),
 });

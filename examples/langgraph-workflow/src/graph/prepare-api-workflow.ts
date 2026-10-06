@@ -16,9 +16,11 @@ import type {
 } from '../types/workflow-graph.js';
 import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 import { deploymentsSchema } from '../schemas/configuration-schema.js';
+import type { SelectionGapHandler } from '../types/workflow-review.js';
 
 export function createApiPreparationStages(
   dependencies: ApiPreparationDependencies,
+  onSelectionGaps?: SelectionGapHandler,
 ) {
   const deployments =
     dependencies.deployments === undefined
@@ -46,6 +48,8 @@ export function createApiPreparationStages(
         scenario: state.scenario,
         model: dependencies.model,
       });
+      if (selection.gaps.length && onSelectionGaps)
+        return onSelectionGaps(state, selection);
       if (selection.gaps.length)
         throw new Error(
           `API selection needs review: ${JSON.stringify(selection.gaps)}`,

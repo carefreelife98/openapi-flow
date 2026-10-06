@@ -41,7 +41,7 @@
 
 ## 조건·연결을 자동 계획하는 경로
 
-자동 조합은 [create-planned-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-planned-workflow-generation-graph.ts)를 연다. 공통 API 준비 단계 뒤 `planGraph`를 호출하고, `compileWorkflow`에서 계획을 n8n JSON으로 변환한다. 기존 호스트 명시 DAG와 이 경로의 공통 단계는 [prepare-api-workflow.ts](../examples/langgraph-workflow/src/graph/prepare-api-workflow.ts)에 있다.
+자동 조합은 [create-planned-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-planned-workflow-generation-graph.ts)를 연다. 이 진입점이 호출하는 [build-planned-workflow-graph.ts](../examples/langgraph-workflow/src/graph/build-planned-workflow-graph.ts)에 실제 단계 등록·연결이 있다. 공통 API 준비 단계 뒤 `planGraph`를 호출하고, `compileWorkflow`에서 계획을 n8n JSON으로 변환한다. 기존 호스트 명시 DAG와 이 경로의 공통 단계는 [prepare-api-workflow.ts](../examples/langgraph-workflow/src/graph/prepare-api-workflow.ts)에 있다.
 
 [plan-workflow-graph.ts](../packages/langchain/src/workflow/plan-workflow-graph.ts)는 선택한 OAS 계약·요청값과 자체 기능 설명을 모델에 전달한다. [workflow-graph-proposal-schema.ts](../packages/langchain/src/schemas/workflow-graph-proposal-schema.ts)는 등록된 설정 schema로 자체 노드, 조건·검증, `edges`, `gaps`를 받는다. 모델은 API 노드 JSON이나 JavaScript를 생성하지 않는다.
 
@@ -118,6 +118,16 @@ npm run test:deployment-template-local-n8n
 
 ## 아직 따라갈 구현이 없는 범위
 
-기본 registry 외의 자체 노드 매퍼, 자체 노드 출력의 API 입력 바인딩, 값 변환·아이템별 반복과 결손 미리보기는 남은 구현이다. API 응답의 실행값 검증·직렬화와 복수 SDK 노드 fragment의 내부 연결은 위에서 설명한 바인딩 경로에 구현했다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이며, 완성된 실제 요청은 실행 시 다시 검사한다.
+기본 registry 외의 자체 노드 매퍼, 자체 노드 출력의 API 입력 바인딩, 값 변환·아이템별 반복은 남은 구현이다. API 응답의 실행값 검증·직렬화와 복수 SDK 노드 fragment의 내부 연결은 위에서 설명한 바인딩 경로에 구현했다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이며, 완성된 실제 요청은 실행 시 다시 검사한다.
 
 Webhook/callback의 수신 인증·요청 스키마 검사와 callback 등록·상관관계 처리는 앞서 기록한 미완료 범위다. SDK의 구조 검증 통과만으로 이 기능이나 실서비스 실행까지 검증했다고 볼 수는 없다.
+
+## 결손 미리보기 코드 따라가기
+
+[create-reviewable-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-reviewable-workflow-generation-graph.ts)는 같은 공통 파이프라인에 [create-workflow-gap-handlers.ts](../examples/langgraph-workflow/src/graph/preview/create-workflow-gap-handlers.ts)의 단계별 변환 함수를 넣는다. 선택·바인딩·그래프 단계가 명시적으로 결손을 반환하면 미리보기를 만들고 `END`로 간다. 기존 strict factory는 계속 오류로 중단한다. 잘못된 모델 출력·OAS·요청값·연결 오류를 잡아서 결손으로 바꾸는 코드는 없다.
+
+n8n 쪽에서는 [workflow-preview.ts](../packages/n8n/src/types/workflow-preview.ts)의 타입과 [workflow-preview-schema.ts](../packages/n8n/src/schemas/workflow-preview-schema.ts)의 입력 검사를 먼저 본다. [create-n8n-workflow-preview.ts](../packages/n8n/src/workflow/preview/create-n8n-workflow-preview.ts)는 카탈로그 무결성 검사와 `resolveApiOperations`로 원본 계약을 확인한 뒤, [create-preview-notes.ts](../packages/n8n/src/workflow/preview/create-preview-notes.ts)의 안내문을 SDK `sticky()`·`workflow()`로 조립한다. 문서 검사와 Markdown escaping은 같은 폴더의 별도 파일이다.
+
+결과는 `executable: false`와 `previewWorkflow`로 구분한다. API 카드와 결손 안내만 있고, 실행 노드나 연결은 없다. 보고된 그래프의 node ID·capability·edge는 텍스트이며 실행 검사를 통과한 topology가 아니다. 잘못되거나 오래된 OAS 참조는 오류로 남는다. 시나리오·목적·보고 문구를 포함하므로 공유 전에는 민감한 내용도 검토해야 한다.
+
+[workflow-preview.test.mjs](../test/workflow-preview.test.mjs)는 단계별 중단·정상 컴파일·오류 전파·계약 출처·출력 분리를 확인한다. [workflow-preview-local-n8n.mjs](../integration/workflow-preview-local-n8n.mjs)는 세 결손 단계의 결과를 네트워크 차단 n8n에 import·export해 비활성 Sticky Note와 빈 연결이 유지되는지 검사한다. 미리보기를 실행하거나 실제 LLM·API 호출의 정확도를 검증하는 테스트는 아니다.
