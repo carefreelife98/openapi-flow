@@ -35,7 +35,11 @@
 
 자동 조합은 [create-planned-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-planned-workflow-generation-graph.ts)를 연다. 공통 API 준비 단계 뒤 `planGraph`를 호출하고, `compileWorkflow`에서 계획을 n8n JSON으로 변환한다. 기존 호스트 명시 DAG와 이 경로의 공통 단계는 [prepare-api-workflow.ts](../examples/langgraph-workflow/src/graph/prepare-api-workflow.ts)에 있다.
 
-[plan-workflow-graph.ts](../packages/langchain/src/workflow/plan-workflow-graph.ts)는 선택한 OAS 계약·요청값과 자체 기능 설명을 모델에 전달한다. [workflow-graph-plan-schema.ts](../packages/langchain/src/schemas/workflow-graph-plan-schema.ts)는 등록된 설정 schema로 자체 노드, 조건·검증, edge·start·gap을 받는다. 모델은 API 노드 JSON이나 JavaScript를 생성하지 않는다.
+[plan-workflow-graph.ts](../packages/langchain/src/workflow/plan-workflow-graph.ts)는 선택한 OAS 계약·요청값과 자체 기능 설명을 모델에 전달한다. [workflow-graph-proposal-schema.ts](../packages/langchain/src/schemas/workflow-graph-proposal-schema.ts)는 등록된 설정 schema로 자체 노드, 조건·검증, `edges`, `gaps`를 받는다. 모델은 API 노드 JSON이나 JavaScript를 생성하지 않는다.
+
+[create-workflow-graph-plan.ts](../packages/core/src/workflow/create-workflow-graph-plan.ts)는 들어오는 연결선이 없는 노드 목록을 `starts`로 계산한다. 이 값은 연결 구조에서 정해지는 메타데이터이므로 모델이 별도로 고르지 않는다. 연결선을 추가하거나 바꾸지는 않는다. 선행 응답이 필요한 노드가 연결되지 않았다면 시작점으로 계산돼도 응답 가용성 검사에서 실패한다. 결손 보고는 `starts: []`로 반환하며 컴파일할 수 없다. 호스트가 직접 완성된 `WorkflowGraphPlan`을 제공하는 경로에서는 명시한 시작점과 실제 root가 일치해야 한다.
+
+[workflow-graph-planning-error.ts](../packages/langchain/src/workflow/workflow-graph-planning-error.ts)의 `WorkflowGraphPlanningError`는 반환된 모델 출력의 검사 실패를 구분한다. `failure.stage`가 `proposal-schema`이면 `failure.output`은 아직 검증되지 않은 `unknown`이고, `graph-validation`이면 schema를 통과한 `WorkflowGraphProposal`이다. 후자도 실행 가능한 계획으로 승인된 것은 아니다. 호출자는 이 오류를 잡아 비공개 진단 기록이나 사람 검토 단계로 넘길 수 있다. 자동 재시도·출력 보정은 없으며, 모델 호출 내부의 통신·파싱 오류는 반환된 계획이 없어 이 오류 타입으로 감싸지 않는다.
 
 [validate-workflow-graph-plan.ts](../packages/core/src/workflow/validate-workflow-graph-plan.ts)는 모든 경로에서 선행 API 응답이 존재하는지, Merge 입력 분기가 함께 실행 가능한지까지 검사한다. [create-native-capabilities.ts](../packages/n8n/src/nodes/native/create-native-capabilities.ts)는 IF·Merge·검증·중단의 별도 매퍼를 등록하고, [compile-planned-n8n-workflow.ts](../packages/n8n/src/workflow/compile-planned-n8n-workflow.ts)는 이를 SDK JSON으로 조립한다. 본문 pointer와 n8n full-response envelope를 연결하는 코드는 `nodes/native/response-check-code.ts`에 있다.
 
@@ -103,6 +107,6 @@ npm run test:request-bindings-local-n8n
 
 ## 아직 따라갈 구현이 없는 범위
 
-새 출력 바인딩의 실행값 검증·직렬화, 기본 registry 외의 자체 노드 매퍼, 복수 SDK 노드 fragment의 내부 연결, 결손 미리보기는 다음 구현이다. 새 `createHttpRequestNode`는 현재 리터럴 입력을 받으며 출력 바인딩은 명시적으로 거절한다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이다.
+기본 registry 외의 자체 노드 매퍼, 자체 노드 출력의 API 입력 바인딩, 값 변환·아이템별 반복과 결손 미리보기는 남은 구현이다. API 응답의 실행값 검증·직렬화와 복수 SDK 노드 fragment의 내부 연결은 위에서 설명한 바인딩 경로에 구현했다. 기존 scalar 응답 참조 경로는 n8n의 `legacy/workflow/request/`에 남겨 회귀를 확인한다. 바인딩 값을 아직 알 수 없을 때 core 검사 결과의 `requiresRuntimeValidation`은 참이며, 완성된 실제 요청은 실행 시 다시 검사한다.
 
 Webhook/callback의 수신 인증·요청 스키마 검사와 callback 등록·상관관계 처리는 앞서 기록한 미완료 범위다. SDK의 구조 검증 통과만으로 이 기능이나 실서비스 실행까지 검증했다고 볼 수는 없다.

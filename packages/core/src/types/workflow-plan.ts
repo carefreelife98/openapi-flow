@@ -44,11 +44,20 @@ export interface WorkflowPlanGap {
   description: string;
 }
 
-export interface WorkflowGraphPlan {
+export interface WorkflowGraphProposal {
   nativeNodes: PlannedNativeNode[];
   edges: WorkflowPlanEdge[];
-  starts: string[];
   gaps: WorkflowPlanGap[];
+}
+
+export interface WorkflowGraphPlan extends WorkflowGraphProposal {
+  starts: string[];
+}
+
+export interface CreateWorkflowGraphPlanInput {
+  proposal: WorkflowGraphProposal;
+  materials: WorkflowApiMaterial[];
+  capabilities: WorkflowCapability[];
 }
 
 export interface ValidateWorkflowGraphPlanInput {

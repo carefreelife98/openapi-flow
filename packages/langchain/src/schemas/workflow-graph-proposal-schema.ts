@@ -1,9 +1,12 @@
 import { z } from 'zod';
-import type { WorkflowCapability, WorkflowGraphPlan } from '@openapi-flow/core';
+import type {
+  WorkflowCapability,
+  WorkflowGraphProposal,
+} from '@openapi-flow/core';
 
-export function createWorkflowGraphPlanSchema(
+export function createWorkflowGraphProposalSchema(
   capabilities: WorkflowCapability[],
-): z.ZodType<WorkflowGraphPlan> {
+): z.ZodType<WorkflowGraphProposal> {
   if (!capabilities.length)
     throw new Error('capabilities must contain a native node definition');
   const nativeSchemas = capabilities.map((capability) =>
@@ -42,11 +45,6 @@ export function createWorkflowGraphPlanSchema(
       )
       .describe(
         'Explicit DAG connections; array order never defines execution order.',
-      ),
-    starts: z
-      .array(z.string().min(1))
-      .describe(
-        'Every root node exactly once. No node with incoming edges. May be empty for a non-executable gap report.',
       ),
     gaps: z
       .array(z.strictObject({ description: z.string().min(1) }))

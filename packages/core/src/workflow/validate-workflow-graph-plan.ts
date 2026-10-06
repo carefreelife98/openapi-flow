@@ -100,13 +100,15 @@ export function validateWorkflowGraphPlan({
   const roots = contracts
     .filter((item) => !incoming.get(item.id)!.length)
     .map((item) => item.id);
+  if (!roots.length) throw new Error('plan DAG has no root: contains a cycle');
   if (
-    !roots.length ||
     new Set(plan.starts).size !== plan.starts.length ||
     roots.some((id) => !plan.starts.includes(id)) ||
     plan.starts.some((id) => !roots.includes(id))
   )
-    throw new Error('plan.starts must name every root exactly once');
+    throw new Error(
+      `plan.starts must name every root exactly once: expected ${JSON.stringify(roots)}, received ${JSON.stringify(plan.starts)}`,
+    );
   const routes = new Map<string, WorkflowRouteState[]>();
   const pending = [...contracts];
   while (pending.length) {

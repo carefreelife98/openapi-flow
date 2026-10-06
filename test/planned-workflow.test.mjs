@@ -273,7 +273,7 @@ test('registered custom native capability extends the schema and deterministic c
     'n8n-nodes-base.noOp',
   );
 });
-test('planner sends OAS response contracts and described native schemas, returning the unchanged typed plan', async () => {
+test('planner sends OAS response contracts and described native schemas, deriving only root metadata', async () => {
   const expected = plan();
   let calls = 0;
   const model = {
@@ -297,8 +297,12 @@ test('planner sends OAS response contracts and described native schemas, returni
             JSON.stringify(z.toJSONSchema(schema)).includes('"oneOf"'),
             false,
           );
-          assert.ok(schema.safeParse(expected).success);
-          return expected;
+          const { starts, ...proposal } = expected;
+          assert.equal(z.toJSONSchema(schema).properties.starts, undefined);
+          assert.ok(schema.safeParse(proposal).success);
+          assert.equal(schema.safeParse(expected).success, false);
+          assert.deepEqual(starts, ['core']);
+          return proposal;
         },
       };
     },
@@ -346,7 +350,7 @@ test('official graph adds the model graph-plan stage without any compose callbac
             ]),
           );
           const proposed = plan();
-          proposed.starts = proposed.starts.map((id) => ids[id]);
+          delete proposed.starts;
           for (const e of proposed.edges) {
             if (ids[e.from]) e.from = ids[e.from];
             if (ids[e.to]) e.to = ids[e.to];
@@ -404,7 +408,9 @@ test('unmet requirements return a gap proposal and cannot be compiled', async ()
     withStructuredOutput() {
       return {
         async invoke() {
-          return expected;
+          const { starts, ...proposal } = expected;
+          assert.deepEqual(starts, []);
+          return proposal;
         },
       };
     },
@@ -422,6 +428,7 @@ test('unmet requirements return a gap proposal and cannot be compiled', async ()
 });
 test('invalid typed model output fails without substitution', async () => {
   const expected = plan();
+  delete expected.starts;
   expected.nativeNodes[0].parameters.conditions[0].operator = 'eval';
   const model = {
     withStructuredOutput() {

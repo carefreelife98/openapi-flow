@@ -1,9 +1,13 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { validateWorkflowGraphPlan } from '@openapi-flow/core';
-import type { WorkflowGraphPlan } from '@openapi-flow/core';
+import { createWorkflowGraphPlan } from '@openapi-flow/core';
+import type {
+  WorkflowGraphPlan,
+  WorkflowGraphProposal,
+} from '@openapi-flow/core';
 import { z } from 'zod';
 import type { PlanWorkflowGraphInput } from '../types/workflow-planning.js';
-import { createWorkflowGraphPlanSchema } from '../schemas/workflow-graph-plan-schema.js';
+import { createWorkflowGraphProposalSchema } from '../schemas/workflow-graph-proposal-schema.js';
+import { WorkflowGraphPlanningError } from './workflow-graph-planning-error.js';
 import { workflowGraphPrompt } from '../prompts/workflow-graph-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
@@ -12,9 +16,9 @@ export async function planWorkflowGraph(
   input: PlanWorkflowGraphInput,
 ): Promise<WorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
-  const schema = createWorkflowGraphPlanSchema(input.capabilities);
-  const output: WorkflowGraphPlan = await input.model
-    .withStructuredOutput<WorkflowGraphPlan>(schema, {
+  const schema = createWorkflowGraphProposalSchema(input.capabilities);
+  const output: WorkflowGraphProposal = await input.model
+    .withStructuredOutput<WorkflowGraphProposal>(schema, {
       name: 'plan_workflow_graph',
       method: 'functionCalling',
       strict: true,
@@ -56,7 +60,23 @@ export async function planWorkflowGraph(
         }),
       ),
     ]);
-  const plan = parseStructuredOutput(schema, output, 'model workflow graph');
-  if (!plan.gaps.length) validateWorkflowGraphPlan({ ...input, plan });
-  return plan;
+  let proposal: WorkflowGraphProposal;
+  try {
+    proposal = parseStructuredOutput(schema, output, 'model workflow graph');
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    throw new WorkflowGraphPlanningError(
+      { stage: 'proposal-schema', output },
+      error,
+    );
+  }
+  try {
+    return createWorkflowGraphPlan({ ...input, proposal });
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    throw new WorkflowGraphPlanningError(
+      { stage: 'graph-validation', output: proposal },
+      error,
+    );
+  }
 }
