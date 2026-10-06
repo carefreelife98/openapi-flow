@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { node } from '@n8n/workflow-sdk';
 import type {
-  CreateHttpRequestNodeInput,
+  CreateBoundHttpRequestNodeInput,
   N8nNodeFragment,
 } from '../../../types/node-fragment.js';
 import type { RequestMaterializationConfig } from '../../../types/request-materialization.js';
@@ -11,7 +11,7 @@ import { resolveCredentialBinding } from '../../../legacy/workflow/request/crede
 import { compileRequestValidator } from './compile-request-validator.js';
 
 export function createBoundRequestFragment(
-  input: CreateHttpRequestNodeInput,
+  input: CreateBoundHttpRequestNodeInput,
   config: RequestMaterializationConfig,
 ): N8nNodeFragment {
   if (!input.apiNodeNames)

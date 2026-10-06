@@ -81,7 +81,22 @@ const result = assembleN8nWorkflow({
 
 Catalog entries need only `{ id, spec }`: no service manifest, `operationId`, `baseUrl`, credential setup or per-path `effectPolicy`. Operation keys include document ID, snapshot hash and canonical OAS pointer; contract lookup rejects stale or changed documents. Full response definitions, inherited/overridden parameters, security alternatives and declared servers remain available independently of n8n conversion.
 
-Request compilation requires a trusted base URL and credential references. It never takes a deployment origin or token from model output. HTTP Bearer credentials reuse existing n8n credential IDs/names; additional authentication mappings remain separate adapter work. `effectPolicy` is retained only in explicit legacy compilers. Hosts own approval for publishing and executing generated workflows.
+Request compilation optionally accepts a host-supplied `baseUrl` and `credentialBindings`. Omitted addresses produce `https://replace_me.invalid`; missing required Bearer references produce `REPLACE_ME:<documentId>:<schemeName>` IDs and descriptive names. Template nodes visibly list pending configuration. No OAS server or model-proposed address is chosen automatically. Supplied invalid values still fail, anonymous operations receive no fake authentication, and missing OAS request values still need clarification. Credential references contain IDs/names, never tokens. Additional authentication mappings remain separate adapter work. `effectPolicy` is retained only in explicit legacy compilers. Hosts own approval for publishing and executing generated workflows.
+
+The official LangGraph factories accept an optional `deployments` array keyed by OAS `documentId`; each entry's `baseUrl` and `credentialBindings` is optional. The CLI's `DEPLOYMENTS_JSON` may also be omitted. For example:
+
+```ts
+const graph = createPlannedWorkflowGenerationGraph({
+  model,
+  capabilities: createN8nNativeCapabilities(),
+  deployments: [
+    { documentId: 'service-a', baseUrl: 'https://service-a.example.test' },
+    { documentId: 'service-b' }, // URL and required credential placeholders.
+  ],
+});
+```
+
+Templates are importable, not ready to execute. Supply the missing deployment settings and regenerate, or replace the placeholders and choose existing credentials after import. Bound request URLs live in the Materialize node's configuration, so editing only its HTTP Request URL does not update the materializer. A JSON-wide URL replacement must cover that configuration as well. Nodes with complete host settings keep the executable output shape without template notes. The `/legacy` compiler contracts remain strict and unchanged.
 
 `assembleN8nWorkflow` accepts explicit nodes, edges, named ports and starting nodes. It validates references, duplicate identities, ports, roots and acyclicity, then uses SDK `.connect` and `.toJSON`. Fan-out is supported; array order is not used as a sequence. SDK structural validation does not prove runtime behavior or data compatibility.
 
@@ -118,6 +133,7 @@ npm test
 OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
 npm run test:request-bindings-local-n8n
+npm run test:deployment-template-local-n8n
 ```
 
 Do not copy private OAS documents or secrets into this repository. Types/interfaces live in the owning package's `src/types/`; structured-output schemas in `src/schemas/`; prompts in `src/prompts/`. Every package has a descriptive `public-api.ts` entrypoint. `.ts` imports use `.js` extensions for the emitted NodeNext ESM paths.

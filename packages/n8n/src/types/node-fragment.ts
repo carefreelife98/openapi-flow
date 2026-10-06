@@ -3,7 +3,10 @@ import type {
   ApiOperationContract,
   ApiCallArguments,
 } from '@openapi-flow/core';
-import type { CredentialBindings } from './legacy/request-workflow.js';
+import type {
+  HttpRequestDeploymentOptions,
+  ResolvedHttpRequestDeployment,
+} from './request-deployment.js';
 
 export type N8nSdkNode = NodeInstance<string, string, unknown>;
 export interface N8nFragmentEdge {
@@ -21,11 +24,12 @@ export interface N8nNodeFragment {
   outputPorts: Record<string, number>;
   internalEdges?: N8nFragmentEdge[];
 }
-export interface CreateHttpRequestNodeInput {
+export interface CreateHttpRequestNodeInput extends HttpRequestDeploymentOptions {
   operation: ApiOperationContract;
   arguments: ApiCallArguments;
-  baseUrl: string;
-  credentialBindings: CredentialBindings;
   position: [number, number];
   apiNodeNames?: Record<string, string>;
 }
+
+export type CreateBoundHttpRequestNodeInput = CreateHttpRequestNodeInput &
+  ResolvedHttpRequestDeployment;

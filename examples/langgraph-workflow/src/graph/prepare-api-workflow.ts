@@ -15,15 +15,25 @@ import type {
   ResolvedRequestNode,
 } from '../types/workflow-graph.js';
 import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
+import { deploymentsSchema } from '../schemas/configuration-schema.js';
 
 export function createApiPreparationStages(
   dependencies: ApiPreparationDependencies,
 ) {
-  const ids = dependencies.deployments.map((item) => item.documentId);
+  const deployments =
+    dependencies.deployments === undefined
+      ? []
+      : deploymentsSchema.parse(dependencies.deployments);
+  const ids = deployments.map((item) => item.documentId);
   if (new Set(ids).size !== ids.length)
     throw new Error('deployments contains duplicate documentId values');
   return {
     async buildCatalog(state: WorkflowState): Promise<WorkflowUpdate> {
+      for (const id of ids)
+        if (!state.sources.some((source) => source.id === id))
+          throw new Error(
+            `deployments.documentId ${id} does not match an OAS source`,
+          );
       return {
         catalog: await createApiCatalog(state.sources),
         trace: [...state.trace, 'catalog'],
@@ -94,21 +104,17 @@ export function createRequestMaterials(
     throw new Error('compileWorkflow requires contract and arguments');
   return state.contracts.map((operation, index) => {
     const args = state.arguments![index];
-    const deployment = dependencies.deployments.find(
+    const deployment = dependencies.deployments?.find(
       (item) => item.documentId === operation.key.documentId,
     );
-    if (!deployment)
-      throw new Error(
-        `deployments is missing documentId ${operation.key.documentId}`,
-      );
     return {
       operation,
       arguments: args,
       fragment: createHttpRequestNode({
         operation,
         arguments: args,
-        baseUrl: deployment.baseUrl,
-        credentialBindings: deployment.credentialBindings,
+        baseUrl: deployment?.baseUrl,
+        credentialBindings: deployment?.credentialBindings,
         apiNodeNames: Object.fromEntries(
           state.arguments!.map((call) => [
             call.callId,

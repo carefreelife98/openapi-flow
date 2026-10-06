@@ -31,6 +31,14 @@
 
 각 패키지의 `public-api.ts`가 실제 공개 함수 목록이다. core에는 모델이나 n8n SDK import가 없고, langchain과 n8n은 서로 의존하지 않는다. 외부 입력과 반환 타입은 각 패키지의 `types/`, structured-output 정의는 `schemas/`, 모델 지침은 `prompts/`에서 찾는다.
 
+## OAS별 선택 실행 설정과 placeholder
+
+`createHttpRequestNode`의 `baseUrl`·`credentialBindings`는 선택 사항이다. 공식 LangGraph 예제의 `deployments`도 생략할 수 있고, 문서 ID별로 일부 설정만 제공해도 된다. [resolve-http-request-deployment.ts](../packages/n8n/src/nodes/request/deployment/resolve-http-request-deployment.ts)는 제공한 값을 검사하고 미제공 주소에는 `https://replace_me.invalid`, 필요한 credential 참조에는 `REPLACE_ME:<documentId>:<schemeName>`을 넣는다. 원본 OAS의 `servers`나 모델 출력으로 실제 실행 환경을 추측하지 않는다.
+
+설정 타입은 [request-deployment.ts](../packages/n8n/src/types/request-deployment.ts), 검사 schema는 [request-deployment-schema.ts](../packages/n8n/src/schemas/request-deployment-schema.ts), 미설정 안내는 [create-request-deployment-notes.ts](../packages/n8n/src/nodes/request/deployment/create-request-deployment-notes.ts)에 있다. 주소·credential 참조는 LLM에 전달하지 않는다. 인증 없는 API에는 credential을 추가하지 않으며, 잘못 제공한 값·필수 요청값 누락·미지원 인증은 기존처럼 실패한다. placeholder 허용 범위는 미제공 실행 설정뿐이다.
+
+템플릿 JSON의 노드에는 `notes`와 `notesInFlow`로 교체할 항목을 표시한다. 실행하려면 실제 설정을 넣어 재생성하거나 placeholder를 교체해야 한다. 바인딩 요청의 주소는 `Materialize` 노드 설정에도 포함돼 있으므로 HTTP Request 노드만 바꾸면 안 된다. 기존 `/legacy` compiler의 필수 실행 설정은 변경하지 않았다.
+
 ## 조건·연결을 자동 계획하는 경로
 
 자동 조합은 [create-planned-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-planned-workflow-generation-graph.ts)를 연다. 공통 API 준비 단계 뒤 `planGraph`를 호출하고, `compileWorkflow`에서 계획을 n8n JSON으로 변환한다. 기존 호스트 명시 DAG와 이 경로의 공통 단계는 [prepare-api-workflow.ts](../examples/langgraph-workflow/src/graph/prepare-api-workflow.ts)에 있다.
@@ -91,6 +99,7 @@ node --test test/composable-api.test.mjs
 OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
 npm run test:request-bindings-local-n8n
+npm run test:deployment-template-local-n8n
 ```
 
 [composable-api.test.mjs](../test/composable-api.test.mjs)는 독립 선택·값 생성·노드 조립, 같은 Operation의 문서별 식별, 원본 응답·인증 대안 보존, 누락 입력과 값 오류, 배열 순서와 무관한 fan-out DAG를 확인한다. [real-oas.mjs](../integration/real-oas.mjs)는 비공개 OAS 문서의 모든 REST 계약과 선언된 각 body media type의 요청값 스키마를 확인한다. 원본 fixture는 공개 레포로 복사하지 않는다.
@@ -98,6 +107,8 @@ npm run test:request-bindings-local-n8n
 [local-n8n-smoke.mjs](../integration/local-n8n-smoke.mjs)는 격리된 n8n 컨테이너와 로컬 HTTP 응답기를 만든다. 새 독립 API로 만든 세 요청의 fan-out 그래프를 import·실행해 직렬화된 요청을 검사한다. 기존 문서 간 응답 참조와 webhook/callback 회귀도 함께 실행한다. 테스트가 만든 임시 컨테이너와 볼륨만 종료·제거한다.
 
 [request-bindings-local-n8n.mjs](../integration/request-bindings-local-n8n.mjs)는 공개 fixture 두 OAS의 API 5개로 응답 ID·배열·객체 전달, 독립 세 가지와 Merge 뒤 다중 응답 전달을 검사한다. 같은 JSON에서 서버의 응답 ID만 바꿔 요청값 변경을 확인하고, 필드 누락·잘못된 타입에서 후속 HTTP가 차단되는지도 실행한다. 실제 모델을 호출하는 테스트와는 구분한다.
+
+[deployment-template-local-n8n.mjs](../integration/deployment-template-local-n8n.mjs)는 설정 없는 템플릿을 격리 n8n에 import한 뒤 export해 주소·credential placeholder와 안내가 유지되는지 확인한다. 네트워크를 차단한 컨테이너에서 실행하며 업무 API를 호출하지 않는다. 템플릿의 실 API 실행 성공을 검증하는 테스트는 아니다.
 
 ## 공식 LangGraph 다중 API 예제
 

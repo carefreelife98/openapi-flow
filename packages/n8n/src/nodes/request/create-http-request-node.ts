@@ -11,6 +11,8 @@ import { httpRequestNode } from '../../legacy/workflow/request/http-request-node
 import { absoluteOperationPath } from '../../legacy/workflow/request/request-url.js';
 import { createBoundRequestFragment } from './bindings/create-bound-request-fragment.js';
 import { serializeHttpRequest } from './serialization/serialize-http-request.js';
+import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
+import { createRequestDeploymentNotes } from './deployment/create-request-deployment-notes.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -47,42 +49,64 @@ export function createHttpRequestNode(
     contract.pathItem as unknown as JsonObject,
     contract.operation,
   );
-  if (args.bindings.length)
-    return createBoundRequestFragment(input, {
+  const deployment = resolveHttpRequestDeployment({
+    documentId: contract.key.documentId,
+    operation,
+    baseUrl: input.baseUrl,
+    credentialBindings: input.credentialBindings,
+  });
+  const resolvedInput = { ...input, ...deployment };
+  let fragment: N8nNodeFragment;
+  if (args.bindings.length) {
+    fragment = createBoundRequestFragment(resolvedInput, {
       contract,
       operation,
       arguments: args,
       templateUrl: new URL(
-        absoluteOperationPath(originFrom(input.baseUrl), operation.path),
+        absoluteOperationPath(originFrom(deployment.baseUrl), operation.path),
       ).href,
     });
-  const { url, body, headers } = serializeHttpRequest(
-    operation,
-    new URL(absoluteOperationPath(originFrom(input.baseUrl), operation.path))
-      .href,
-    args.values,
-    args.requestMediaType,
-  );
-  const request = httpRequestNode({
-    operation,
-    id: args.callId,
-    name: 'Request ' + args.callId,
-    position: input.position,
-    url,
-    body,
-    headers,
-    authentication: resolveCredentialBinding(
+  } else {
+    const { url, body, headers } = serializeHttpRequest(
       operation,
-      input.credentialBindings,
-    ),
-    shouldAssert: false,
-  });
-  return {
-    nodeId: args.callId,
-    nodes: [request],
-    entry: request,
-    exit: request,
-    inputPorts: { main: 0 },
-    outputPorts: { main: 0 },
-  };
+      new URL(
+        absoluteOperationPath(originFrom(deployment.baseUrl), operation.path),
+      ).href,
+      args.values,
+      args.requestMediaType,
+    );
+    const request = httpRequestNode({
+      operation,
+      id: args.callId,
+      name: 'Request ' + args.callId,
+      position: input.position,
+      url,
+      body,
+      headers,
+      authentication: resolveCredentialBinding(
+        operation,
+        deployment.credentialBindings,
+      ),
+      shouldAssert: false,
+    });
+    fragment = {
+      nodeId: args.callId,
+      nodes: [request],
+      entry: request,
+      exit: request,
+      inputPorts: { main: 0 },
+      outputPorts: { main: 0 },
+    };
+  }
+  if (deployment.pendingFields.length) {
+    const notes = createRequestDeploymentNotes(
+      contract.key.documentId,
+      deployment,
+    );
+    for (const requestNode of fragment.nodes) {
+      requestNode.config.notes = notes;
+      requestNode.config.notesInFlow = true;
+    }
+  }
+  return fragment;
 }

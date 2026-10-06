@@ -194,21 +194,35 @@ test('official graph never infers multi-call DAG order from a selection array', 
   await assert.rejects(graph.invoke(inputs), /exactly one selected API/);
 });
 
-test('official graph requires explicit matching deployment and credential references', async () => {
+test('official graph templates missing deployment fields and rejects duplicate document IDs', async () => {
   const model = () => scriptedModel(choosePrice, { path: { id: 'item-1' } });
-  await assert.rejects(
-    createWorkflowGenerationGraph({ model: model(), deployments: [] }).invoke(
-      inputs,
-    ),
-    /missing documentId inventory/,
+  const withoutDeployment = await createWorkflowGenerationGraph({
+    model: model(),
+    deployments: [],
+  }).invoke(inputs);
+  const templateRequest = withoutDeployment.workflow.nodes.find(
+    (node) => node.type === 'n8n-nodes-base.httpRequest',
   );
-  await assert.rejects(
-    createWorkflowGenerationGraph({
-      model: model(),
-      deployments: [{ ...deployments[0], credentialBindings: {} }],
-    }).invoke(inputs),
-    /credential/i,
+  assert.equal(
+    templateRequest.parameters.url,
+    'https://replace_me.invalid/products/item-1/price',
   );
+  assert.equal(
+    templateRequest.credentials.httpBearerAuth.id,
+    'REPLACE_ME:inventory:bearer',
+  );
+  const withoutCredential = await createWorkflowGenerationGraph({
+    model: model(),
+    deployments: [{ ...deployments[0], credentialBindings: {} }],
+  }).invoke(inputs);
+  const credentialTemplate = withoutCredential.workflow.nodes.find(
+    (node) => node.type === 'n8n-nodes-base.httpRequest',
+  );
+  assert.equal(
+    credentialTemplate.parameters.url,
+    'https://inventory.example.test/products/item-1/price',
+  );
+  assert.match(credentialTemplate.notes, /credentialBindings.bearer/);
   assert.throws(
     () =>
       createWorkflowGenerationGraph({

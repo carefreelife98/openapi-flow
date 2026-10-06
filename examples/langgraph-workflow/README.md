@@ -12,13 +12,29 @@ npm run build
 cd examples/langgraph-workflow
 cp .env.example .env
 mkdir -p artifacts
-# .env의 LLM 연결 정보와 실제 n8n credential ID·이름을 수정한다.
+# .env의 LLM 연결 정보와 OAS·시나리오를 수정한다. 실행 주소·credential 참조는 선택 사항이다.
 npm run generate
 ```
 
 `.env`와 `artifacts/`는 Git에서 제외한다. `LLM_API_KEY`는 로컬 환경에만 저장한다. 모델은 JSON Schema 기반 선택과 OAS에서 만든 Zod schema의 function calling을 지원해야 한다. OpenAI 호환 endpoint는 CLI에서 연결하고, 다른 LangChain 모델이나 Chomsky 토큰 발급은 호출자가 구성한 모델을 graph factory에 주입한다. 내부 endpoint·토큰 발급 방식은 이 패키지에 넣지 않는다.
 
-`OAS_SOURCES_JSON`은 문서 ID와 파일 경로 목록이다. CLI는 JSON을 읽어 표준 OAS인지 검사한다. `DEPLOYMENTS_JSON`은 문서 ID별 신뢰할 서버 주소와 기존 n8n credential 참조다. OAS의 `servers`나 모델 출력에서 실행 주소를 추측하지 않는다. 필수 설정이 없으면 실패하며, 기존 출력 파일을 덮어쓰지 않는다.
+`OAS_SOURCES_JSON`은 문서 ID와 파일 경로 목록이다. CLI는 JSON을 읽어 표준 OAS인지 검사한다. `DEPLOYMENTS_JSON`은 선택 사항이며, 문서 ID별 실행 주소와 기존 n8n credential 참조를 받는다. 배열 전체·문서별 항목·개별 `baseUrl`·`credentialBindings`를 생략할 수 있다. 생략한 주소는 `https://replace_me.invalid`, 필요한 Bearer 참조는 `REPLACE_ME:<documentId>:<schemeName>`으로 표시한다. 모델 연결·OAS·시나리오 등 다른 필수 설정은 유지하고, 기존 출력 파일도 덮어쓰지 않는다.
+
+```ts
+const graph = createPlannedWorkflowGenerationGraph({
+  model,
+  capabilities: createN8nNativeCapabilities(),
+  deployments: [
+    { documentId: 'inventory', baseUrl: 'https://inventory.example.test' },
+    { documentId: 'billing' },
+  ],
+});
+// deployments 자체를 생략해도 import용 템플릿을 생성한다.
+```
+
+미설정 항목은 노드의 `notes`와 `notesInFlow`로 표시한다. OAS의 `servers`에서 실행 주소를 자동 선택하거나 credential 비밀값을 JSON에 넣지 않는다. OAS가 인증을 요구하지 않으면 credential placeholder도 만들지 않는다. 잘못 입력한 URL·credential, 중복·없는 문서 ID, 필수 요청값 누락은 오류다. 현재 지원하지 않는 인증 조합을 임의의 Bearer로 바꾸지도 않는다.
+
+템플릿은 import할 수 있지만 실제 설정을 연결하기 전에는 실행용 결과가 아니다. 주소·credential을 넣어 다시 생성하거나 JSON의 placeholder를 교체한 뒤 기존 n8n credential을 선택한다. 응답 바인딩이 있는 요청의 주소는 `Materialize` 노드 설정에도 들어 있으므로 HTTP Request 노드만 수정해서는 충분하지 않다. `baseUrl`을 제공해 재생성하면 이 설정을 함께 반영한다.
 
 ## 실제 코드 흐름
 

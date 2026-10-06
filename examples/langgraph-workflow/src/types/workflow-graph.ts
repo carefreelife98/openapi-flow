@@ -1,5 +1,5 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { CreateHttpRequestNodeInput } from '@openapi-flow/n8n';
+import type { HttpRequestDeploymentOptions } from '@openapi-flow/n8n';
 import type {
   ApiSelection,
   ApiOperationContract,
@@ -14,15 +14,13 @@ import type { N8nNativeCapability } from '@openapi-flow/n8n';
 export type WorkflowState = typeof workflowStateSchema.State;
 export type WorkflowUpdate = typeof workflowStateSchema.Update;
 
-export interface ServiceDeployment {
+export interface ServiceDeployment extends HttpRequestDeploymentOptions {
   documentId: string;
-  baseUrl: string;
-  credentialBindings: CreateHttpRequestNodeInput['credentialBindings'];
 }
 
 export interface GraphDependencies {
   model: BaseChatModel;
-  deployments: ServiceDeployment[];
+  deployments?: ServiceDeployment[];
 }
 
 export interface ApiPreparationDependencies extends GraphDependencies {
