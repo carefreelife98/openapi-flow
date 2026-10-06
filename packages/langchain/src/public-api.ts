@@ -7,3 +7,6 @@ export { WorkflowGraphPlanningError } from './workflow/workflow-graph-planning-e
 export type * from './types/workflow-planning.js';
 export { planApiBindings } from './bindings/plan-api-bindings.js';
 export type * from './types/binding-planning.js';
+export { planReviewableWorkflowGraph } from './workflow/plan-reviewable-workflow-graph.js';
+export { ReviewableWorkflowGraphPlanningError } from './workflow/reviewable-workflow-graph-planning-error.js';
+export type * from './types/reviewable-workflow-planning.js';

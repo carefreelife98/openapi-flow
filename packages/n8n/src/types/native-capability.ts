@@ -40,3 +40,8 @@ export interface CompilePlannedN8nWorkflowInput {
   apiNodes: N8nNodeFragment[];
   capabilities: N8nNativeCapability[];
 }
+
+export type CompileNativeWorkflowNodesInput = Pick<
+  CompilePlannedN8nWorkflowInput,
+  'plan' | 'apiNodes' | 'capabilities'
+>;

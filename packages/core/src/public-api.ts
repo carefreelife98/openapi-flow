@@ -21,3 +21,8 @@ export type * from './types/api-bindings.js';
 export { validateApiBindingPlan } from './bindings/validate-api-binding-plan.js';
 export { materializeApiArguments } from './bindings/materialize-api-arguments.js';
 export { createApiRequestSchema } from './schemas/create-api-request-schema.js';
+export { validateApiBindingAssignments } from './bindings/validate-api-binding-assignments.js';
+export { validateApiBindingGaps } from './bindings/validate-api-binding-gaps.js';
+export type * from './types/reviewable-workflow.js';
+export { createReviewableWorkflowGraphPlan } from './workflow/create-reviewable-workflow-graph-plan.js';
+export { validateReviewableWorkflowGraphPlan } from './workflow/validate-reviewable-workflow-graph-plan.js';

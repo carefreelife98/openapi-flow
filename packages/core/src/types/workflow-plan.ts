@@ -76,6 +76,20 @@ export interface WorkflowPlanNodeContract {
   inputs: string[];
   outputs: string[];
   references: WorkflowResponseReference[];
+  dependencyNodeIds: string[];
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;
+}
+
+export interface WorkflowNodeContractsInput {
+  materials: WorkflowApiMaterial[];
+  nativeNodes: PlannedNativeNode[];
+  capabilities: WorkflowCapability[];
+}
+
+export interface ValidateWorkflowTopologyInput {
+  contracts: WorkflowPlanNodeContract[];
+  apiIds: Set<string>;
+  edges: WorkflowPlanEdge[];
+  starts: string[];
 }

@@ -18,7 +18,7 @@
 | 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                      |
 | 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력    |
 | 구현        | `planApiBindings`, OAS 기반 바인딩 검사·실제 값 조립·요청 검증, 복수 노드 fragment 내부 연결                        |
-| 구현        | `createN8nWorkflowPreview`, 공식 예제의 `createReviewableWorkflowGenerationGraph` — 실행 노드 없는 결손 검토 JSON   |
+| 구현        | `planReviewableWorkflowGraph`, `compileReviewableN8nWorkflow`, 공식 검토 예제 — 내부 DAG를 유지하고 Start를 분리한 결손 workflow |
 | 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩                                                                       |
 | 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
 

@@ -1,4 +1,3 @@
-import type { WorkflowGapHandlers } from '../types/workflow-review.js';
 import { StateGraph, START, END } from '@langchain/langgraph';
 import { planWorkflowGraph } from '@openapi-flow/langchain';
 import { compilePlannedN8nWorkflow } from '@openapi-flow/n8n';
@@ -17,22 +16,8 @@ import { createApiBindingsStage } from './plan-api-bindings-stage.js';
 /** Automatic graph design; consumers may instead compose the package functions themselves. */
 export function buildPlannedWorkflowGraph(
   dependencies: PlannedGraphDependencies,
-  reviewHandlers?: WorkflowGapHandlers,
 ) {
-  const stages = createApiPreparationStages(
-    dependencies,
-    reviewHandlers?.selection,
-  );
-  async function buildCatalog(state: WorkflowState): Promise<WorkflowUpdate> {
-    if (
-      reviewHandlers &&
-      (state.preview !== undefined || state.workflow !== undefined)
-    )
-      throw new Error(
-        'reviewable generation input must not contain workflow or preview; compose standalone functions for a review/resume loop',
-      );
-    return stages.buildCatalog(state);
-  }
+  const stages = createApiPreparationStages(dependencies);
   async function planGraph(state: WorkflowState): Promise<WorkflowUpdate> {
     if (
       !state.contracts?.length ||
@@ -49,8 +34,6 @@ export function buildPlannedWorkflowGraph(
         arguments: state.arguments![index],
       })),
     });
-    if (graphPlan.gaps.length && reviewHandlers)
-      return reviewHandlers.graph(state, graphPlan);
     // This host example stops on gaps. Standalone planWorkflowGraph returns them for HITL.
     if (graphPlan.gaps.length)
       throw new Error(
@@ -73,38 +56,23 @@ export function buildPlannedWorkflowGraph(
       })),
       apiNodes: requests.map((item) => item.fragment),
     });
-    return { workflow: result.workflow, trace: [...state.trace, 'compile'] };
+    return { ...result, trace: [...state.trace, 'compile'] };
   }
   return new StateGraph(workflowStateSchema)
-    .addNode('buildCatalog', buildCatalog)
+    .addNode('buildCatalog', stages.buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
     .addNode('resolveContracts', stages.resolveContracts)
-    .addNode(
-      'planBindings',
-      createApiBindingsStage(dependencies, reviewHandlers?.bindings),
-    )
+    .addNode('planBindings', createApiBindingsStage(dependencies))
     .addNode('generateArguments', stages.generateArguments)
     .addNode('planGraph', planGraph)
     .addNode('compileWorkflow', compileWorkflow)
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
-    .addConditionalEdges(
-      'selectOperations',
-      (state) => (reviewHandlers && state.preview ? END : 'resolveContracts'),
-      [END, 'resolveContracts'],
-    )
+    .addEdge('selectOperations', 'resolveContracts')
     .addEdge('resolveContracts', 'planBindings')
-    .addConditionalEdges(
-      'planBindings',
-      (state) => (reviewHandlers && state.preview ? END : 'generateArguments'),
-      [END, 'generateArguments'],
-    )
+    .addEdge('planBindings', 'generateArguments')
     .addEdge('generateArguments', 'planGraph')
-    .addConditionalEdges(
-      'planGraph',
-      (state) => (reviewHandlers && state.preview ? END : 'compileWorkflow'),
-      [END, 'compileWorkflow'],
-    )
+    .addEdge('planGraph', 'compileWorkflow')
     .addEdge('compileWorkflow', END)
     .compile();
 }

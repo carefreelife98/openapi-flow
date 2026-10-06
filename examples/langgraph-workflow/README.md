@@ -175,7 +175,7 @@ const result = await graph.invoke({
 
 ## 결손 검토용 JSON
 
-`createReviewableWorkflowGenerationGraph`는 API 선택, 응답 바인딩 계획, 그래프 계획에서 명시적으로 보고한 결손을 검토용 JSON으로 반환한다. 해당 단계에서 끝나므로 이후 요청값 생성이나 실행용 컴파일을 진행하지 않는다. 결손이 없는 계획은 기존 compiler로 `result.workflow`를 반환한다. 두 factory는 `src/graph/build-planned-workflow-graph.ts`의 공통 단계를 사용하며, 검토용 변환은 `src/graph/preview/create-workflow-gap-handlers.ts`에 분리했다.
+`createReviewableWorkflowGenerationGraph`는 결손 유무와 관계없이 `result.workflow`에 n8n import용 JSON을 반환한다. 결손이 있어도 확인된 API의 바인딩·입력 생성과 내부 DAG 계획을 이어간다. 정상 노드는 그대로 두고, 구현하지 못한 단계와 그 단계의 결과가 필요한 API 호출만 실패하는 대역 노드로 표시한다. 검토 경로는 `src/graph/review/`에, 기존 strict 경로는 `src/graph/build-planned-workflow-graph.ts`에 분리했다. 카탈로그·선택·계약 조회는 공통 단계를 사용한다.
 
 ```ts
 import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
@@ -184,7 +184,7 @@ import { createReviewableWorkflowGenerationGraph } from '@openapi-flow/example-l
 const graph = createReviewableWorkflowGenerationGraph({
   model,
   capabilities: createN8nNativeCapabilities(),
-  // deployments is optional; execution configuration is not needed for notes.
+  // deployments is optional; omitted settings produce visible placeholders.
 });
 const result = await graph.invoke({
   workflowId: 'review-requirements',
@@ -193,22 +193,22 @@ const result = await graph.invoke({
   sources,
   trace: [],
 });
-if (result.preview) {
-  // Save/import result.preview.previewWorkflow for human review only.
-  // Display result.preview.diagnostics; do not send it to an execution path.
-} else if (result.workflow) {
-  // Review result.graphPlan and deployment placeholders before approval.
-} else {
-  throw new Error('Generation returned neither a preview nor a workflow');
+if (!result.workflow) throw new Error('Generation returned no workflow');
+// Save/import result.workflow. Both statuses use the same JSON output key.
+if (result.status === 'needs-review') {
+  // Display result.diagnostics and result.reviewPlan; do not auto-connect Start.
 }
+// Review deployment placeholders and approve execution separately.
 ```
 
-미리보기의 반환 타입은 `N8nWorkflowPreviewResult`이며 `status: 'needs-review'`, `executable: false`, `diagnostics`, `previewWorkflow`를 가진다. `workflow`라는 키로 실행 결과와 섞지 않는다. JSON에는 `[REVIEW ONLY]` 이름과 `active: false`를 표시하고 Sticky Note만 넣는다. OAS에서 확인한 API 카드와 결손 안내는 색상·제목으로 구분한다. 없는 API의 method·path를 만들지 않으며, 그래프 제안은 검증되지 않은 텍스트로만 표시한다. 트리거·HTTP Request·Code·실행 연결은 없다.
+결손이 있는 compiler 결과는 `{ status: 'needs-review', workflow, diagnostics }`다. HTTP Request와 n8n 자체 노드, 응답값 조립용 내부 연결을 유지한다. 결손은 입출력 `main` 포트가 있는 Code 노드와 설명용 Sticky Note로 표현한다. Code는 실행되면 `OPENAPI_FLOW_UNRESOLVED_STEP` 오류를 내며, 없는 API의 method·path·요청값·응답은 만들지 않는다. 내부 DAG의 실제 root는 계획에 남기되, 최종 JSON에는 모든 `Start → root` 연결을 넣지 않고 `active: false`를 표시한다. 결손이 없는 결과는 같은 strict compiler를 사용해 Start를 연결한다.
 
-독립 조합에서는 `@openapi-flow/n8n`의 `createN8nWorkflowPreview({id, name, scenario, catalog, selection, issues?, proposedNativeNodes?, proposedEdges?})`를 사용한다. `issues`는 바인딩 또는 그래프 단계의 결손이다. 이 함수는 LLM을 호출하지 않으며, 카탈로그의 OAS·스냅샷과 참조한 계약을 검사하고 SDK로 JSON을 생성한다. 결손 보고가 없다면 실행용 compiler를 사용하라는 오류를 낸다.
+독립 조합에서도 같은 경로를 쓸 수 있다. `core`의 `ReviewableWorkflowApiMaterial`은 실제 입력이 있는 `ready`와, 원본 OAS·바인딩·원인 결손 ID만 있는 `blocked`를 구분한다. `langchain`의 `planReviewableWorkflowGraph`가 `nativeNodes`, `edges`, `additionalGaps`, `blockedCalls`를 제안하고, core가 root·참조·포트·순환·합류·응답 가용성을 검사한다. `n8n`의 `compileReviewableN8nWorkflow({id, name, materials, plan, apiNodes, capabilities})`는 unblocked ready 호출의 실제 fragment만 받아 SDK로 조립한다. 각 함수를 사용자의 LangGraph에 따로 배치할 수 있다. 예전 미배포 notes-only preview API는 제거했으며 alias를 두지 않았다.
 
-잘못된 OAS·모델 출력·연결 구조, 빠진 필수 요청값과 미지원 변환을 임의의 결손으로 바꾸지 않는다. 기존 오류는 그대로 전파하며 자동 보정·재시도하지 않는다. 새 factory는 새 생성 입력을 받으므로 이전 `workflow`나 `preview`를 입력에 넣으면 오류다. 검토·재개 루프는 독립 함수를 호출자의 LangGraph에 조합한다. CLI의 단일 호출 경로는 변경하지 않았다.
+선택 결손은 명시적인 ID로, 바인딩 결손은 `{ callId, targetPointer, description }`로 추적한다. 바인딩 결손의 대상은 요청 OAS에 존재해야 한다. 확정된 응답 바인딩을 통해 결손 호출에 의존하는 호출도 원인 ID를 이어받아 `blocked`가 되고, 이 호출에는 리터럴 입력 생성 LLM을 호출하지 않는다. 이름이 같은 필드를 자동 연결하는 로직은 없다. 그래프 단계에서 추가로 드러난 선행 작업 결손은 모델이 해당 호출을 `blockedCalls`로 명시해야 하며, blocked 응답을 사용하는 정상 노드는 검사에서 거부한다.
 
-미리보기는 요청값·배포 설정·credential을 받지 않지만, 시나리오·선택 목적·결손 설명은 텍스트로 포함한다. 공유 전에 민감한 내용을 제거해야 한다. 결손 보고는 사람이 확인할 제안이며 API 부재가 증명됐다는 뜻은 아니다.
+잘못된 OAS·모델 출력·연결 구조, 빠진 필수 리터럴 값, 정상 호출의 미지원 인증·compiler 오류는 임의의 결손으로 바꾸지 않는다. 자동 보정·재시도도 하지 않는다. 새 factory는 이전 `workflow`, `status`, `diagnostics`, `reviewMaterials`, `reviewPlan`이 들어 있는 입력을 거부한다. 검토·재개 루프는 독립 함수를 호출자의 LangGraph에 조합한다. CLI의 단일 호출 경로와 기존 strict factory의 fail-fast 동작은 유지한다.
 
-`npm run test:workflow-preview-local-n8n`은 공개 다중 OAS fixture와 scripted model을 사용한다. 세 결손 단계의 JSON을 네트워크가 차단된 n8n 2.37.10에 import·export하고 Sticky Note·색상·배치·비활성 상태·빈 연결을 검사한다. 실제 LLM이나 서비스 API를 호출하는 테스트는 아니다. JSON과 보고서는 Git에서 제외한 `.local-artifacts/workflow-preview/`에 저장한다.
+Start 분리는 생성 정책이지 보안 경계가 아니다. 사용자가 Start를 다시 연결하면 결손 이전의 실제 API는 호출될 수 있다. `active: false`도 수동 실행을 막지는 않는다. 부분 실행·편집·실행 승인과 credential 통제는 호스트가 맡는다. 결과에는 요청값·배포 주소·credential 참조·결손 설명이 포함될 수 있으므로 공유 전에 확인한다. 결손 보고가 API 부재나 전체 시나리오 충족을 증명하는 것은 아니다.
+
+`npm run test:workflow-review-local-n8n`은 공개 다중 OAS와 scripted model을 사용한다. 세 결손 단계와 독립 root 사례의 JSON을 로컬 n8n 2.37.10에 import·export해 실제 노드·설정·내부 연결을 확인한다. 분리된 상태에서는 Start만 실행되고 API 호출이 0건인지 검사한다. 한 사례는 의도적으로 Start를 다시 연결해 로컬 계약 서버가 선행 API 호출 1건만 받고 결손 노드에서 멈추는지 확인한다. 실제 LLM·실서비스·브라우저 부분 실행은 검증하지 않는다. JSON과 개인정보를 제외한 실행 요약은 `.local-artifacts/workflow-review/`에 저장한다.

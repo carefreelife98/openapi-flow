@@ -1,4 +1,4 @@
-export function escapePreviewMarkdown(value: string): string {
+export function escapeReviewMarkdown(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

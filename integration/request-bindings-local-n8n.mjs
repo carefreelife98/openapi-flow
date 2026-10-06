@@ -7,6 +7,7 @@ import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { URL } from 'node:url';
 import console from 'node:console';
+import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 import {
   createHttpRequestNode,
   compilePlannedN8nWorkflow,
@@ -147,16 +148,24 @@ try {
       '--id=request-binding-dag',
       '--rawOutput',
     ]);
+    const execution = readN8nExecution(output.stdout);
     await writeFile(
-      new URL(`${mode}.log`, directory),
-      output.stdout + output.stderr,
+      new URL(`${mode}.execution.json`, directory),
+      JSON.stringify(
+        {
+          status: execution.status,
+          executedNodes: Object.keys(execution.data.resultData.runData),
+        },
+        null,
+        2,
+      ),
     );
     const calls = requests.slice(offset);
     if (mode.endsWith('runtime-id')) {
       assert.equal(
         output.exitCode,
         0,
-        output.stderr + output.stdout.slice(-3000),
+        'isolated n8n request binding execution failed',
       );
       assert.equal(calls.length, 5);
       assert.equal(calls[0].path, '/source');

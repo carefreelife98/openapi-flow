@@ -1,5 +1,8 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { validateApiBindingPlan } from '@openapi-flow/core';
+import {
+  validateApiBindingAssignments,
+  validateApiBindingGaps,
+} from '@openapi-flow/core';
 import type { ApiBindingPlan } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from '../types/binding-planning.js';
 import { createApiBindingPlanSchema } from '../schemas/api-binding-plan-schema.js';
@@ -37,7 +40,10 @@ export async function planApiBindings(
       ),
     ]);
   const plan = parseStructuredOutput(schema, proposed, 'model API bindings');
-  if (!plan.gaps.length)
-    validateApiBindingPlan({ plan, materials: input.materials });
+  validateApiBindingAssignments({
+    calls: plan.calls,
+    materials: input.materials,
+  });
+  validateApiBindingGaps({ plan, materials: input.materials });
   return plan;
 }

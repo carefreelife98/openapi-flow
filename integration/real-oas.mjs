@@ -6,7 +6,10 @@ import test from 'node:test';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { compileWorkflow } from '@openapi-flow/n8n/legacy';
-import { createN8nWorkflowPreview } from '@openapi-flow/n8n';
+import {
+  compileReviewableN8nWorkflow,
+  createN8nNativeCapabilities,
+} from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
   validateOpenApi,
@@ -14,6 +17,7 @@ import {
   listApiOperations,
   resolveApiOperations,
   createApiArgumentsSchema,
+  createReviewableWorkflowGraphPlan,
 } from '@openapi-flow/core';
 import { createOperationCatalog } from '@openapi-flow/core/internal';
 import { generateWorkflow } from '../examples/legacy-generation/dist/generate-workflow.js';
@@ -68,7 +72,7 @@ const operationMethods = new Set([
   'query',
 ]);
 
-test('real OAS contracts produce review-only notes without copying deployment or request definitions', async () => {
+test('real OAS contracts preserve blocked API identities without fabricating request values', async () => {
   const sources = await Promise.all(
     files.map(async (file) => ({
       id: file,
@@ -94,26 +98,59 @@ test('real OAS contracts produce review-only notes without copying deployment or
       },
     ],
   };
-  const result = await createN8nWorkflowPreview({
+  const contracts = await resolveApiOperations(
+    catalog,
+    selection.operations.map((item) => item.key),
+  );
+  const gaps = [
+    {
+      id: 'reported-review',
+      stage: 'api-selection',
+      description: selection.gaps[0].description,
+    },
+  ];
+  const materials = contracts.map((operation, index) => ({
+    status: 'blocked',
+    callId: 'review-call-' + index,
+    operation,
+    bindings: [],
+    gapIds: ['reported-review'],
+  }));
+  const capabilities = createN8nNativeCapabilities();
+  const plan = createReviewableWorkflowGraphPlan({
+    materials,
+    capabilities,
+    gaps,
+    proposal: {
+      nativeNodes: [],
+      edges: [],
+      blockedCalls: [],
+      additionalGaps: [],
+    },
+  });
+  const result = compileReviewableN8nWorkflow({
     id: 'private-oas-review',
     name: 'Private OAS review',
-    scenario: 'Review selected contracts',
-    catalog,
-    selection,
+    materials,
+    capabilities,
+    plan,
+    apiNodes: [],
   });
-  assert.equal(result.executable, false);
-  assert.equal(result.previewWorkflow.active, false);
-  assert.equal(result.previewWorkflow.nodes.length, files.length + 2);
-  assert.deepEqual(result.previewWorkflow.connections, {});
+  assert.equal(result.status, 'needs-review');
+  assert.equal(result.workflow.active, false);
+  assert.equal(result.workflow.nodes.length, (files.length + 1) * 2 + 1);
+  assert.deepEqual(result.workflow.connections, {});
   assert.ok(
-    result.previewWorkflow.nodes.every(
-      (item) => item.type === 'n8n-nodes-base.stickyNote',
+    result.workflow.nodes.every((item) =>
+      [
+        'n8n-nodes-base.stickyNote',
+        'n8n-nodes-base.code',
+        'n8n-nodes-base.manualTrigger',
+      ].includes(item.type),
     ),
   );
   assert.ok(
-    result.previewWorkflow.nodes.every(
-      (item) => item.credentials === undefined,
-    ),
+    result.workflow.nodes.every((item) => item.credentials === undefined),
   );
 });
 

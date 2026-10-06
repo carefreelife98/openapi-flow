@@ -44,7 +44,20 @@ export function createApiBindingPlanSchema(
       }),
     ),
     gaps: z
-      .array(z.strictObject({ description: z.string().min(1) }))
+      .array(
+        z.strictObject({
+          callId: z
+            .enum(ids)
+            .describe('Exact API whose request cannot be prepared.'),
+          targetPointer: z
+            .string()
+            .min(1)
+            .describe(
+              'RFC 6901 pointer to the affected request input declared by this API OAS.',
+            ),
+          description: z.string().min(1),
+        }),
+      )
       .describe(
         'Only API request-input requirements that need unavailable data or transformations. Control flow and response assertions belong to the later graph planner, not these gaps. Do not invent values or APIs.',
       ),
