@@ -11,6 +11,7 @@
   → core: createApiCatalog → listApiOperations
   → langchain: selectApiOperations       모델 호출: 후보와 사용 목적 선택
   → core: resolveApiOperations           모델 없음: 선택된 전체 OAS 계약 조회
+  → langchain: selectApiRequestMediaType 모델 호출: 여러 형식 중 선택, 모호하면 코드 정책 적용
   → langchain: generateApiArguments      모델 호출: 호출별 요청값만 생성
   → n8n: createHttpRequestNode           모델 없음: 요청 노드 생성
   → n8n: assembleN8nWorkflow             모델 없음: 호스트가 지정한 DAG 조립
@@ -18,16 +19,19 @@
 
 하나의 문서도 같은 배열 입력을 쓴다. 선택 결과의 순서가 API 실행 순서는 아니다. 실제 연결은 `edges`, 시작점은 `starts`로 지정한다. 같은 Operation을 여러 번 호출하려면 서로 다른 `callId`를 준다.
 
-| 단계        | 직접 열어 볼 파일                                                                             | 확인할 내용                                                                                            |
-| ----------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 카탈로그    | [create-api-catalog.ts](../packages/core/src/openapi/catalog/create-api-catalog.ts)           | Scalar 검증·참조 해석, 문서 ID와 snapshot hash, 후보 메타데이터                                        |
-| 선택        | [select-api-operations.ts](../packages/langchain/src/selection/select-api-operations.ts)      | 후보 enum으로 structured output 생성, `SystemMessage`·`HumanMessage`, 모델 선택을 원래 작업 key로 연결 |
-| 계약 조회   | [resolve-api-operations.ts](../packages/core/src/openapi/resolve-api-operations.ts)           | 문서·스냅샷 확인, 전체 Operation 보존, parameter override와 security/server 상속                       |
-| 값 스키마   | [create-api-arguments-schema.ts](../packages/core/src/schemas/create-api-arguments-schema.ts) | 선택한 OAS의 parameter/body 제약을 보존한 Zod 검증·출력 계약 생성                                      |
-| 값 생성     | [generate-api-arguments.ts](../packages/langchain/src/arguments/generate-api-arguments.ts)    | 한 호출의 시나리오 값 생성, Zod 파싱, 미해결 입력 반환                                                 |
-| OAS 검사    | [validate-api-arguments.ts](../packages/core/src/arguments/validate-api-arguments.ts)         | 선언되지 않은 값·타입·원본 제약 검사, 빠진 필수값 Pointer                                              |
-| 노드 생성   | [create-http-request-node.ts](../packages/n8n/src/nodes/request/create-http-request-node.ts)  | 어댑터 경계의 직렬화·credential 연결, SDK HTTP Request 노드                                            |
-| 그래프 조립 | [assemble-n8n-workflow.ts](../packages/n8n/src/workflow/assemble-n8n-workflow.ts)             | 노드·port·edge·root·순환 검사, SDK 연결과 JSON 출력                                                    |
+본문이 없거나 형식이 하나면 본문 형식 단계는 모델을 호출하지 않는다. 여러 형식이면 OAS `requestBody.content`의 키를 enum으로 전달한다. 모델이 형식을 지정하지 못해 명시적인 `null`을 반환하면 [select-default-api-request-media-type.ts](../packages/core/src/arguments/select-default-api-request-media-type.ts)가 OAS 안에서 JSON → URL-encoded → 나머지 구체적인 키 → wildcard 키 순서로 선택한다. 같은 순위는 문자 코드 순서다. 잘못된 값이나 필드 누락은 기본값으로 보정하지 않는다. 공식 그래프의 등록 지점은 [select-api-request-media-types-stage.ts](../examples/langgraph-workflow/src/graph/select-api-request-media-types-stage.ts)다.
+
+| 단계        | 직접 열어 볼 파일                                                                                        | 확인할 내용                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 카탈로그    | [create-api-catalog.ts](../packages/core/src/openapi/catalog/create-api-catalog.ts)                      | Scalar 검증·참조 해석, 문서 ID와 snapshot hash, 후보 메타데이터                                        |
+| 선택        | [select-api-operations.ts](../packages/langchain/src/selection/select-api-operations.ts)                 | 후보 enum으로 structured output 생성, `SystemMessage`·`HumanMessage`, 모델 선택을 원래 작업 key로 연결 |
+| 계약 조회   | [resolve-api-operations.ts](../packages/core/src/openapi/resolve-api-operations.ts)                      | 문서·스냅샷 확인, 전체 Operation 보존, parameter override와 security/server 상속                       |
+| 본문 형식   | [select-api-request-media-type.ts](../packages/langchain/src/arguments/select-api-request-media-type.ts) | OAS content 키 선택과 명시적인 `null`의 기본값 정책                                                    |
+| 값 스키마   | [create-api-arguments-schema.ts](../packages/core/src/schemas/create-api-arguments-schema.ts)            | 선택한 OAS의 parameter/body 제약을 보존한 Zod 검증·출력 계약 생성                                      |
+| 값 생성     | [generate-api-arguments.ts](../packages/langchain/src/arguments/generate-api-arguments.ts)               | 한 호출의 시나리오 값 생성, Zod 파싱, 미해결 입력 반환                                                 |
+| OAS 검사    | [validate-api-arguments.ts](../packages/core/src/arguments/validate-api-arguments.ts)                    | 선언되지 않은 값·타입·원본 제약 검사, 빠진 필수값 Pointer                                              |
+| 노드 생성   | [create-http-request-node.ts](../packages/n8n/src/nodes/request/create-http-request-node.ts)             | 어댑터 경계의 직렬화·credential 연결, SDK HTTP Request 노드                                            |
+| 그래프 조립 | [assemble-n8n-workflow.ts](../packages/n8n/src/workflow/assemble-n8n-workflow.ts)                        | 노드·port·edge·root·순환 검사, SDK 연결과 JSON 출력                                                    |
 
 각 패키지의 `public-api.ts`가 실제 공개 함수 목록이다. core에는 모델이나 n8n SDK import가 없고, langchain과 n8n은 서로 의존하지 않는다. 외부 입력과 반환 타입은 각 패키지의 `types/`, structured-output 정의는 `schemas/`, 모델 지침은 `prompts/`에서 찾는다.
 
@@ -126,8 +130,8 @@ Webhook/callback의 수신 인증·요청 스키마 검사와 callback 등록·�
 
 [create-reviewable-workflow-generation-graph.ts](../examples/langgraph-workflow/src/graph/create-reviewable-workflow-generation-graph.ts)는 공통 카탈로그·선택·계약 조회 이후 검토 경로를 이어간다. [collect-selection-review-gaps.ts](../examples/langgraph-workflow/src/graph/review/collect-selection-review-gaps.ts)가 선택 결손에 ID를 부여하고 원본 계약 참조를 확인한다. [prepare-reviewable-api-calls.ts](../examples/langgraph-workflow/src/graph/review/prepare-reviewable-api-calls.ts)는 바인딩을 검사한 뒤 `ready`와 `blocked` 호출을 구분한다. 확인된 바인딩의 선행 응답이 결손이면 후속 호출도 같은 원인 ID로 blocked 처리한다. blocked 호출은 가짜 입력을 만들거나 입력 생성 모델을 호출하지 않는다.
 
-[plan-reviewable-workflow-graph.ts](../packages/langchain/src/workflow/plan-reviewable-workflow-graph.ts)는 별도 Zod 스키마와 메시지 클래스로 내부 DAG를 제안받는다. 출력은 `nativeNodes`, `edges`, `additionalGaps`, `blockedCalls`다. [create-reviewable-workflow-graph-plan.ts](../packages/core/src/workflow/create-reviewable-workflow-graph-plan.ts)는 실제 root를 계산하고, [validate-reviewable-workflow-graph-plan.ts](../packages/core/src/workflow/validate-reviewable-workflow-graph-plan.ts)는 결손이 있어도 ID·포트·순환·합류·바인딩·응답 가용성을 검사한다. 선택 배열 순서로 연결을 추정하지 않는다.
+[plan-reviewable-workflow-graph.ts](../packages/langchain/src/workflow/plan-reviewable-workflow-graph.ts)는 별도 Zod 스키마와 메시지 클래스로 내부 DAG를 제안받는다. `edges`, `additionalGaps`는 모델 출력에 항상 포함한다. `nativeNodes`는 native 기능이 있을 때, `blockedCalls`는 실행 가능한 API 호출이 있을 때만 schema에 포함한다. 선택지가 없는 필드의 고정값 `[]`는 [complete-reviewable-workflow-graph-proposal.ts](../packages/langchain/src/workflow/complete-reviewable-workflow-graph-proposal.ts)가 완성한다. 선택지가 있는 필드의 누락은 오류다. [create-reviewable-workflow-graph-plan.ts](../packages/core/src/workflow/create-reviewable-workflow-graph-plan.ts)는 실제 root를 계산하고, [validate-reviewable-workflow-graph-plan.ts](../packages/core/src/workflow/validate-reviewable-workflow-graph-plan.ts)는 결손이 있어도 ID·포트·순환·합류·바인딩·응답 가용성을 검사한다. 선택 배열 순서로 연결을 추정하지 않는다.
 
-[compile-reviewable-n8n-workflow.ts](../packages/n8n/src/workflow/compile-reviewable-n8n-workflow.ts)는 정상 API fragment와 자체 노드를 그대로 컴파일한다. 결손·blocked 호출은 [create-gap-node.ts](../packages/n8n/src/nodes/gap/create-gap-node.ts)의 고정 오류 Code와 [create-gap-note.ts](../packages/n8n/src/workflow/review/create-gap-note.ts)의 Sticky Note가 된다. [build-n8n-workflow.ts](../packages/n8n/src/workflow/build-n8n-workflow.ts)는 내부 연결은 모두 유지하고, `triggerConnections: 'detached'`일 때만 Start 연결을 만들지 않는다. 최종 반환은 `{ status: 'needs-review', workflow, diagnostics }`다. 결손이 없으면 strict compiler를 통해 같은 `workflow` 키로 반환한다.
+[compile-reviewable-n8n-workflow.ts](../packages/n8n/src/workflow/compile-reviewable-n8n-workflow.ts)는 정상 API fragment와 자체 노드를 그대로 컴파일한다. 결손·blocked 호출은 [create-gap-node.ts](../packages/n8n/src/nodes/gap/create-gap-node.ts)의 고정 오류 Code가 된다. [create-gap-review-region.ts](../packages/n8n/src/workflow/review/create-gap-review-region.ts)가 SDK `sticky`로 이 대역을 빨간 경고 영역 안에 배치한다. 한글 안내와 해당 요청값·OAS 작업 표시는 [create-gap-review-content.ts](../packages/n8n/src/workflow/review/create-gap-review-content.ts)가 만든다. [build-n8n-workflow.ts](../packages/n8n/src/workflow/build-n8n-workflow.ts)는 내부 연결은 모두 유지하고, `triggerConnections: 'detached'`일 때만 Start 연결을 만들지 않는다. 최종 반환은 `{ status: 'needs-review', workflow, diagnostics }`다. 결손이 없으면 strict compiler를 통해 같은 `workflow` 키로 반환한다.
 
 [workflow-review.test.mjs](../test/workflow-review.test.mjs)는 단계별 결손·정상 결과 일치·오류 전파·복수 root·바인딩 내부 연결·blocked 응답 거부를 확인한다. [workflow-review-local-n8n.mjs](../integration/workflow-review-local-n8n.mjs)는 실제 import·export와 CLI 실행에서 Start만 실행되는지, 의도적으로 다시 연결하면 선행 API 다음의 대역 노드에서 멈추는지 확인한다. Start 분리와 `active: false`는 보안 경계가 아니며, 실제 LLM 정확도·실서비스·브라우저 부분 실행을 검증한 것으로 해석하면 안 된다. 공유 전에는 요청값과 결손 설명에 민감한 내용이 없는지도 확인한다.

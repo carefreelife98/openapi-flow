@@ -8,25 +8,35 @@
 
 첫 구현은 패키지 경계와 독립 함수 호출에 집중했다. `core`에는 OAS 카탈로그·전체 계약 조회·요청값 스키마·검증, `langchain`에는 작업 선택·호출별 입력 생성, `n8n`에는 리터럴 요청 노드·명시적 DAG 조립을 두었다. 새 경로는 카탈로그나 JSON 생성에 `effectPolicy`를 요구하지 않는다. 기존 승인표는 별도 `legacy` 컴파일러에만 남아 있다. 실제 import·실행 승인은 호스트가 맡는다.
 
-| 상태        | 함수·범위                                                                                                           |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| 구현        | `createApiCatalog`, `listApiOperations`, `resolveApiOperations`, `createApiArgumentsSchema`, `validateApiArguments` |
-| 구현        | `selectApiOperations`, `generateApiArguments` — 서로 독립된 모델 호출                                               |
-| 구현        | `createHttpRequestNode` — 리터럴 요청값, 기존 직렬화·credential 연결 재사용                                         |
-| 구현        | `assembleN8nWorkflow` — 명시적 node·port·edge·start, DAG·fan-out, SDK JSON 출력                                     |
-| 예제 구현   | `createDagWorkflowGenerationGraph` — 다중 API 선택·입력 생성, 호스트가 명시한 DAG와 SDK 자체 노드 조합              |
-| 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                      |
-| 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력    |
-| 구현        | `planApiBindings`, OAS 기반 바인딩 검사·실제 값 조립·요청 검증, 복수 노드 fragment 내부 연결                        |
+| 상태        | 함수·범위                                                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 구현        | `createApiCatalog`, `listApiOperations`, `resolveApiOperations`, `createApiArgumentsSchema`, `validateApiArguments`              |
+| 구현        | `selectApiOperations`, `generateApiArguments` — 서로 독립된 모델 호출                                                            |
+| 구현        | `createHttpRequestNode` — 리터럴 요청값, 기존 직렬화·credential 연결 재사용                                                      |
+| 구현        | `assembleN8nWorkflow` — 명시적 node·port·edge·start, DAG·fan-out, SDK JSON 출력                                                  |
+| 예제 구현   | `createDagWorkflowGenerationGraph` — 다중 API 선택·입력 생성, 호스트가 명시한 DAG와 SDK 자체 노드 조합                           |
+| 구현        | `planWorkflowGraph`, 기본 n8n 제어 노드 registry, 타입 있는 설정과 `compilePlannedN8nWorkflow`                                   |
+| 예제 구현   | `createPlannedWorkflowGenerationGraph` — 모델이 조건·검증 항목·연결선을 계획, 응답 가용성·합류 검사 후 JSON 출력                 |
+| 구현        | `planApiBindings`, OAS 기반 바인딩 검사·실제 값 조립·요청 검증, 복수 노드 fragment 내부 연결                                     |
 | 구현        | `planReviewableWorkflowGraph`, `compileReviewableN8nWorkflow`, 공식 검토 예제 — 내부 DAG를 유지하고 Start를 분리한 결손 workflow |
-| 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩                                                                       |
-| 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                     |
+| 다음 구현   | 응답 변환·아이템별 반복·자체 노드 출력 바인딩                                                                                    |
+| 별도 미완료 | 수신 인증·요청 스키마 검사, callback 등록·상관관계, 실제 모델의 다중 OAS 정확도                                                  |
 
 계약 조회는 전체 OAS Operation·path item과 상속된 parameter/security/server를 보존한다. 아래의 검토 당시 기존 파일 경로는 패키지 이전 전 기준이다. 카탈로그는 JSON 직렬화 가능하며 선택 key에 문서 ID·snapshot hash·operationRef를 남긴다. 저장된 문서가 바뀌면 조회가 실패한다. 새 입력 생성은 예상 응답을 받지 않는다.
 
 바인딩은 계획 시 OAS 필드·알려진 타입·순환을 검사하고, 실행 시 실제 값을 조립해 전체 요청 계약을 다시 검사한다. 자동 예제에서는 데이터 바인딩을 먼저 정하고 리터럴 값을 생성한 뒤 최종 조건·연결 구조를 계획한다. 아래 원래 설계의 목표와 현재 구현은 구분한다. 기존 문서 간 scalar 참조는 `legacy` 경로에서도 계속 검증한다. 전체 설계가 완료됐다고 해석하면 안 된다.
 
-## 현재 구현에서 확인한 문제
+## 2026-10-07 현재 동작
+
+위 진행표의 구현은 저장소 소스 기준이며 npm의 `core@0.1.0` API와 다르다. 현재 공개 경로는 OAS 계약 조회 다음에 본문 형식을 선택하고, 응답 바인딩 계획 → 리터럴 요청값 생성 → 최종 DAG 계획 → SDK 컴파일을 독립 단계로 실행한다. 호스트는 각 함수를 직접 조합하거나 공식 LangGraph 예제를 사용할 수 있다.
+
+여러 본문 형식에서 모델이 명시적인 형식을 선택하면 유지한다. 형식이 모호해 `null`을 반환하면 코드가 OAS에 선언된 키 안에서 JSON, URL-encoded, 나머지 구체적인 키, wildcard 키 순서로 기본값을 고른다. 요청값·인증값이나 잘못된 모델 출력을 대신 채우는 정책은 아니다. 자세한 구현은 [본문 형식 선택](../packages/langchain/src/arguments/select-api-request-media-type.ts)과 [코드 따라가기](code-walkthrough.ko.md)에 있다.
+
+결손 처리는 두 공개 경로를 구분한다. strict 경로는 결손을 보고하고 컴파일하지 않는다. 검토 경로는 정상 노드와 내부 연결을 유지한 `workflow`를 반환하되, 미해결 위치에 실패하는 Code 대역과 한글 안내의 빨간 Sticky Note 영역을 만들고 Start 연결을 끊는다. 반환값은 `{ status: 'needs-review', workflow, diagnostics }`다. Start 분리는 자동 실행 방지 정책이지 보안 경계가 아니다.
+
+모델 출력에는 실제로 결정할 필드만 둔다. 요청 누락 진단은 원본 OAS와 생성값으로 코드가 계산한다. 사용할 native 기능이나 실행 가능한 호출이 없어 고정되는 빈 배열도 모델 출력 schema에서 제외하고 코드가 완성한다. 선택할 대상이 있는 필드의 누락은 오류이며, 출력 보정이나 자동 재시도는 없다.
+
+## 검토 당시 구현에서 확인한 문제 — 2026-10-05
 
 `effectPolicy`는 OAS 표준 필드가 아니다. 현재 라이브러리가 추가한 `operationRef → read | write` 승인표다. 문서의 모든 Path를 미리 분류할 필요는 없지만, 컴파일하려는 각 METHOD·Path 작업에는 항목이 있어야 한다. 같은 Path의 GET과 POST도 별개다. 항목이 없으면 `unknown`으로 처리해 JSON 생성을 막는다.
 
@@ -146,7 +156,7 @@ Checkpoint에 저장할 선택·계약 출처·그래프·요청값·진단은 J
 
 `values`의 객체는 리터럴 요청값이고 `bindings`만 출력 참조다. 객체라는 이유만으로 참조로 해석하지 않는다. 대상은 path/query뿐 아니라 OAS가 선언한 body/header 등에도 둘 수 있다. JSON Pointer는 중첩 필드와 배열 인덱스를 나타낸다. 배열 전체를 전달하는 것과 n8n 아이템별 반복은 다른 동작이며, wildcard를 표준 Pointer인 것처럼 추가하지 않는다. 출력 envelope의 `body`는 HTTP 응답 body다. 배열을 n8n 아이템으로 펼치는 기능은 별도 제어·변환 노드의 계약으로 표현한다.
 
-LLM 호출별 스키마에는 실제로 결정해야 할 항목만 넣는다. API 선택은 후보 작업 키·용도·결손 제안을, 그래프 계획은 노드·edge·명시된 기능 설정·바인딩을, 입력 생성은 해당 호출의 OAS 타입을 가진 요청값과 미해결 입력을 받는다. 메서드·Path·인증 정의·노드 버전·이미 결정된 바인딩은 모델이 다시 생성하지 않는다. Zod 스키마와 필드 설명은 `schemas/`, prompt는 `prompts/`, 입출력 타입은 `types/`에 둔다. 메시지 클래스는 기존 `SystemMessage`와 `HumanMessage`를 유지한다.
+LLM 호출별 스키마에는 실제로 결정해야 할 항목만 넣는다. API 선택은 후보 작업 키·용도·결손 제안을, 그래프 계획은 노드·edge·명시된 기능 설정을, 바인딩 계획은 응답과 요청의 연결을 받는다. 입력 생성은 해당 호출의 OAS 타입을 가진 요청값만 받으며, 미해결 입력은 코드가 원본 계약과 제안을 대조해 계산한다. 메서드·Path·인증 정의·노드 버전·이미 결정된 바인딩은 모델이 다시 생성하지 않는다. Zod 스키마와 필드 설명은 `schemas/`, prompt는 `prompts/`, 입출력 타입은 `types/`에 둔다. 메시지 클래스는 기존 `SystemMessage`와 `HumanMessage`를 유지한다.
 
 입력 생성용 스키마는 바인딩이 공급하는 필드를 상수 생성 대상에서 제외한다. 시나리오에 없는 필수값은 임의로 채우지 않고 미해결 입력으로 반환한다. 값 생성 후에는 리터럴과 바인딩을 합친 요청 계약을 검사한다. 사용자 명시 기대값을 검사하는 테스트 노드는 별도 계획 항목이다. `generateApiArguments`에 `expectedBody`나 예상 상태코드를 다시 넣지 않는다.
 
@@ -160,9 +170,11 @@ LLM은 최종 n8n JSON이나 임의 JavaScript를 작성하지 않는다. `planW
 
 그래프 검사는 노드 ID·포트·edge뿐 아니라 데이터 의존성도 확인한다. 참조한 출력이 해당 분기에 실제로 존재하는지, 합류 방식이 대안 분기인지 병렬 결과 결합인지, 데이터가 응답 배열인지 n8n 아이템 목록인지 구분한다. DAG의 순환 참조는 진단한다. 반복을 지원할 때는 Loop의 반복 범위·종료·출력 계약을 별도로 구현하며, 정상적인 반복을 임의 edge 순환으로 표현하지 않는다.
 
-결손이 남은 실행 그래프는 정상 HTTP Request 노드로 위장하지 않는다. 결과는 `workflow` 없이 진단을 반환하고, 호스트가 각 진단을 수정·HITL·재계획에 사용한다. 원본 입력 오류는 문서 ID와 필드를 지정해 즉시 실패한다. 모델의 부족한 API·계약 제안과 코드가 판별한 입력·바인딩·변환 오류는 출처를 구분한다. 시각적 미리보기는 별도 함수·출력 모드에서 Sticky Note 등으로 표시하며 실행 가능한 결과와 분리한다.
+결손이 남은 그래프는 정상 HTTP Request 노드로 위장하지 않는다. strict compiler는 컴파일을 거절한다. `compileReviewableN8nWorkflow`는 내부 DAG를 유지한 공통 `workflow`와 진단을 반환하며, 결손 위치의 Code 대역을 한글 경고색 영역으로 감싸고 Start 연결을 끊는다. 대역은 응답을 만들지 않고 실행되면 오류로 중단된다. 호스트는 진단을 수정·HITL·재계획에 사용한다. 원본 입력 오류는 문서 ID와 필드를 지정해 즉시 실패한다. 모델의 부족한 API·계약 제안과 코드가 판별한 입력·바인딩·변환 오류는 출처를 구분한다.
 
-## 폴더와 파일 배치
+## 제안 당시 폴더와 파일 배치
+
+아래는 재설계 당시 제안이다. 현재 파일 경로와 실제 호출 흐름은 [코드 따라가기](code-walkthrough.ko.md)의 링크를 사용한다.
 
 ```text
 packages/
@@ -226,4 +238,4 @@ examples/
 4. REST 노드 생성을 독립 공개하고 직선 이외의 edge를 SDK로 조립한다. If/Switch/Wait/Merge는 설정·포트·실행 결과를 각각 검증한 뒤 기능 목록에 등록한다. Webhook/Callback은 현재 구현을 inbound 소유 경계에 맞춰 옮기며, 수신 인증·스키마 검사는 기록된 미완료 작업으로 유지한다.
 5. 호출별 재시도와 HITL을 보여주는 LangGraph 예제를 추가한다. API가 없는 요구, 같은 API의 여러 호출, 같은 Path가 있는 여러 OAS, 분기 후 참조, body 내부 참조, 배열을 평가한다.
 
-이번에 완료한 것은 현행 구현 조사와 공개 계약 재설계다. 위의 코드 이전·DAG 변환·모델 평가는 아직 수행하지 않았다. 구현할 때는 기존 Honeypot/ICL 등 비공개 실서비스 OAS 회귀를 이어가며 공개 fixture에 비공개 계약이나 인증값을 복사하지 않는다. 타입·lint·format·단위 테스트와 함께 실제 Chomsky 호출과 로컬 n8n의 import·HTTP 호출·분기 출력까지 확인한다. SDK 검사는 실행 검증을 대신하지 않는다.
+2026-10-05 최초 검토에서는 구현 조사와 공개 계약 재설계를 완료했다. 이후 독립 API·DAG 컴파일·응답 바인딩·결손 workflow와 실제 모델·격리 n8n 검증을 진행했다. 위 완료 조건 전체가 충족됐다는 뜻은 아니다. 추가 native 매퍼, 자체 노드 출력 바인딩, 값 변환·아이템별 반복, 수신 인증·스키마 검사는 남은 범위다. 모델 정확도는 제한된 사례의 결과이며 일반 신뢰도로 환산하지 않는다. 비공개 Honeypot/ICL OAS와 인증값은 공개 fixture에 복사하지 않는다. SDK 검사는 실제 실행 검증을 대신하지 않는다.
