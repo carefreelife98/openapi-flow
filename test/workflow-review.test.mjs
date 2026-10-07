@@ -69,10 +69,10 @@ test('common workflow preserves HTTP nodes, both gap connections and a detached 
   );
   assert.equal(
     result.workflow.connections['Request call-1'].main[0][0].node,
-    'Unresolved refund',
+    '확인 필요 · refund',
   );
   assert.equal(
-    result.workflow.connections['Unresolved refund'].main[0][0].node,
+    result.workflow.connections['확인 필요 · refund'].main[0][0].node,
     'Request call-2',
   );
   assert.deepEqual(input.plan.starts, ['call-1']);
@@ -106,6 +106,84 @@ test('gap-only workflow invents no method, request or response', async () => {
   assert.equal(
     result.workflow.nodes.some(
       (node) => node.type === 'n8n-nodes-base.httpRequest',
+    ),
+    false,
+  );
+});
+
+test('Korean warning region contains its failing node and keeps its explanation above the node', async () => {
+  const input = await compilationInput();
+  const result = compileReviewableN8nWorkflow(input);
+  const code = result.workflow.nodes.find((node) => node.id === 'refund');
+  const note = result.workflow.nodes.find(
+    (node) => node.id === 'openapi-flow-gap-note-refund',
+  );
+  assert.equal(code.name, '확인 필요 · refund');
+  assert.equal(code.notesInFlow, true);
+  assert.match(code.notes, /실행하면 오류로 중단/);
+  assert.equal(note.parameters.color, 3);
+  assert.match(note.parameters.content, /^# 확인 필요/);
+  assert.match(note.parameters.content, /API 선택/);
+  assert.match(note.parameters.content, /Start의 연결을 끊어/);
+  assert.match(note.parameters.content, /실제 API를 호출하거나 응답을 만들지/);
+  assert.ok(code.position[0] > note.position[0]);
+  assert.ok(code.position[1] > note.position[1] + 96);
+  assert.ok(code.position[0] + 96 < note.position[0] + note.parameters.width);
+  assert.ok(code.position[1] + 192 < note.position[1] + note.parameters.height);
+  assert.equal(result.workflow.connections.Start, undefined);
+  assert.throws(() => vm.runInNewContext(code.parameters.jsCode));
+});
+
+test('long and multiline gap descriptions enlarge the region without truncation or translation', async () => {
+  const input = await compilationInput();
+  const initial = compileReviewableN8nWorkflow(input);
+  const description =
+    '누락된 환불 API와 요청 계약을 확인하세요. '.repeat(30) +
+    '\nOriginal supplied diagnostic remains unchanged.';
+  input.plan.gaps[0].description = description;
+  const result = compileReviewableN8nWorkflow(input);
+  const note = result.workflow.nodes.find(
+    (node) => node.id === 'openapi-flow-gap-note-refund',
+  );
+  const code = result.workflow.nodes.find((node) => node.id === 'refund');
+  const previousNote = initial.workflow.nodes.find(
+    (node) => node.id === note.id,
+  );
+  assert.ok(note.parameters.height > previousNote.parameters.height);
+  assert.ok(note.parameters.content.includes('누락된 환불 API와 요청 계약'));
+  assert.ok(note.parameters.content.includes('Original supplied diagnostic'));
+  assert.equal(result.diagnostics[0].description, description);
+  assert.throws(
+    () => vm.runInNewContext(code.parameters.jsCode),
+    (error) => error.message.endsWith(description),
+  );
+  assert.ok(
+    code.position[1] >
+      initial.workflow.nodes.find((node) => node.id === code.id).position[1],
+  );
+});
+
+test('gap and blocked-call warning regions do not overlap and retain declared DAG edges', async () => {
+  const input = await compilationInput();
+  input.plan.blockedCalls = [{ callId: 'call-2', gapIds: ['refund'] }];
+  input.apiNodes.pop();
+  const result = compileReviewableN8nWorkflow(input);
+  const notes = result.workflow.nodes.filter(
+    (node) => node.type === 'n8n-nodes-base.stickyNote',
+  );
+  assert.equal(notes.length, 2);
+  assert.ok(
+    notes[0].position[0] + notes[0].parameters.width < notes[1].position[0],
+  );
+  assert.equal(
+    result.workflow.connections['확인 필요 · refund'].main[0][0].node,
+    '확인 필요 · call-2',
+  );
+  assert.match(notes[1].parameters.content, /대상 OAS 작업/);
+  assert.equal(
+    result.workflow.nodes.some(
+      (node) =>
+        node.id === 'call-2' && node.type === 'n8n-nodes-base.httpRequest',
     ),
     false,
   );

@@ -148,6 +148,9 @@ try {
         (item) => item.id === expectedNode.id,
       );
       assert.equal(actualNode.type, expectedNode.type);
+      assert.equal(actualNode.name, expectedNode.name);
+      assert.equal(actualNode.notes, expectedNode.notes);
+      assert.equal(actualNode.notesInFlow, expectedNode.notesInFlow);
       assert.deepEqual(actualNode.parameters, expectedNode.parameters);
       assert.deepEqual(actualNode.position, expectedNode.position);
     }

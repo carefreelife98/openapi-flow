@@ -16,8 +16,10 @@ export function createGapNode(input: CreateGapNodeInput): N8nNodeFragment {
     version: 2,
     config: {
       id: input.nodeId,
-      name: 'Unresolved ' + input.nodeId,
+      name: '확인 필요 · ' + input.nodeId,
       position: input.position,
+      notes: '미해결 단계입니다. 실행하면 오류로 중단됩니다.',
+      notesInFlow: true,
       onError: 'stopWorkflow',
       parameters: {
         mode: 'runOnceForAllItems',

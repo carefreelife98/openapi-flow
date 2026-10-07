@@ -5,7 +5,7 @@ import type {
   ApiOperationContract,
 } from '@openapi-flow/core';
 import type { N8nNativeCapability } from './native-capability.js';
-import type { N8nNodeFragment } from './node-fragment.js';
+import type { N8nNodeFragment, N8nSdkNode } from './node-fragment.js';
 
 export interface CompileReviewableN8nWorkflowInput {
   id: string;
@@ -21,4 +21,16 @@ export interface CreateGapNodeInput {
   gaps: WorkflowReviewGap[];
   position: [number, number];
   operation?: ApiOperationContract;
+}
+
+export interface GapReviewRegionLayout {
+  nodePosition: [number, number];
+  notePosition: [number, number];
+  width: number;
+  height: number;
+}
+
+export interface GapReviewRegion {
+  fragment: N8nNodeFragment;
+  annotation: N8nSdkNode;
 }
