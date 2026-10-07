@@ -124,9 +124,7 @@ export function scriptedReviewModel(mode = 'selection-gap') {
                 mode === 'selection-gap'
                   ? [
                       {
-                        kind: 'missing_operation',
                         description: 'Refund API needs review',
-                        candidateId: null,
                       },
                     ]
                   : [],

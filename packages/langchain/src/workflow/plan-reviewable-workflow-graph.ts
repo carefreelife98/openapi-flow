@@ -5,7 +5,11 @@ import type {
   ReviewableWorkflowGraphPlan,
   ReviewableWorkflowGraphProposal,
 } from '@openapi-flow/core';
-import type { PlanReviewableWorkflowGraphInput } from '../types/reviewable-workflow-planning.js';
+import type {
+  PlanReviewableWorkflowGraphInput,
+  ReviewableWorkflowGraphOutput,
+} from '../types/reviewable-workflow-planning.js';
+import { completeReviewableWorkflowGraphProposal } from './complete-reviewable-workflow-graph-proposal.js';
 import { createReviewableWorkflowGraphSchema } from '../schemas/reviewable-workflow-graph-schema.js';
 import { reviewableWorkflowGraphPrompt } from '../prompts/reviewable-workflow-graph-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
@@ -23,8 +27,8 @@ export async function planReviewableWorkflowGraph(
     input.capabilities,
     readyIds,
   );
-  const output: ReviewableWorkflowGraphProposal = await input.model
-    .withStructuredOutput<ReviewableWorkflowGraphProposal>(schema, {
+  const output: ReviewableWorkflowGraphOutput = await input.model
+    .withStructuredOutput<ReviewableWorkflowGraphOutput>(schema, {
       name: 'plan_reviewable_workflow_graph',
       method: 'functionCalling',
       strict: true,
@@ -66,10 +70,10 @@ export async function planReviewableWorkflowGraph(
     ]);
   let proposal: ReviewableWorkflowGraphProposal;
   try {
-    proposal = parseStructuredOutput(
-      schema,
-      output,
-      'model reviewable workflow graph',
+    proposal = completeReviewableWorkflowGraphProposal(
+      parseStructuredOutput(schema, output, 'model reviewable workflow graph'),
+      input.capabilities.length,
+      readyIds.length,
     );
   } catch (error) {
     if (!(error instanceof Error)) throw error;

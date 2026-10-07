@@ -86,12 +86,10 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
       const tool = request.tools[0].function;
       assert.equal(tool.strict, true);
       assert.equal(tool.parameters.additionalProperties, false);
-      assert.deepEqual(tool.parameters.required, [
-        'nativeNodes',
-        'edges',
-        'additionalGaps',
-        'blockedCalls',
-      ]);
+      assert.deepEqual(
+        [...tool.parameters.required].sort(),
+        ['nativeNodes', 'edges', 'additionalGaps', 'blockedCalls'].sort(),
+      );
       assert.equal(tool.parameters.properties.starts, undefined);
       assert.ok(
         tool.parameters.properties.edges.items.properties.from.description,
@@ -103,15 +101,17 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
     }
     // An explicitly empty native registry is valid, but cannot propose a native node.
     output = {
-      nativeNodes: [],
       edges: [],
       additionalGaps: [],
       blockedCalls: [],
     };
     await planReviewableWorkflowGraph({ ...input, capabilities: [] });
     assert.equal(
-      requests[3].tools[0].function.parameters.properties.nativeNodes.maxItems,
-      0,
+      Object.hasOwn(
+        requests[3].tools[0].function.parameters.properties,
+        'nativeNodes',
+      ),
+      false,
     );
     const blocked = fixture.materials.map((item) => ({
       status: 'blocked',
@@ -120,10 +120,14 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
       bindings: [],
       gapIds: ['refund'],
     }));
+    output = { nativeNodes: [], edges: [], additionalGaps: [] };
     await planReviewableWorkflowGraph({ ...input, materials: blocked });
     assert.equal(
-      requests[4].tools[0].function.parameters.properties.blockedCalls.maxItems,
-      0,
+      Object.hasOwn(
+        requests[4].tools[0].function.parameters.properties,
+        'blockedCalls',
+      ),
+      false,
     );
     assert.equal(
       JSON.stringify(requests[4].tools[0].function.parameters).includes(

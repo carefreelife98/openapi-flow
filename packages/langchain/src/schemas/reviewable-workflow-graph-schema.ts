@@ -1,13 +1,11 @@
 import { z } from 'zod';
-import type {
-  ReviewableWorkflowGraphProposal,
-  WorkflowCapability,
-} from '@openapi-flow/core';
+import type { WorkflowCapability } from '@openapi-flow/core';
+import type { ReviewableWorkflowGraphOutput } from '../types/reviewable-workflow-planning.js';
 
 export function createReviewableWorkflowGraphSchema(
   capabilities: WorkflowCapability[],
   readyCallIds: string[],
-): z.ZodType<ReviewableWorkflowGraphProposal> {
+): z.ZodType<ReviewableWorkflowGraphOutput> {
   const natives = capabilities.map((capability) =>
     z.strictObject({
       id: z
@@ -20,15 +18,33 @@ export function createReviewableWorkflowGraphSchema(
       parameters: capability.parametersSchema,
     }),
   );
-  return z.strictObject({
-    nativeNodes:
-      natives.length === 0
-        ? z.tuple([])
-        : z
-            .array(z.union([natives[0], ...natives.slice(1)]))
-            .describe(
-              'Only implementable native functions, with typed parameters. Never refer to an unavailable response.',
-            ),
+  const nativeNodes =
+    natives.length === 0
+      ? undefined
+      : z
+          .array(z.union([natives[0], ...natives.slice(1)]))
+          .describe(
+            'Only implementable native functions, with typed parameters. Never refer to an unavailable response.',
+          );
+  const blockedCalls =
+    readyCallIds.length === 0
+      ? undefined
+      : z.array(
+          z.strictObject({
+            callId: z
+              .enum(readyCallIds)
+              .describe(
+                'A supplied ready call that must instead be a failing placeholder because a scenario dependency remains unresolved. Do not repeat already blocked calls.',
+              ),
+            gapIds: z
+              .array(z.string().min(1))
+              .min(1)
+              .describe(
+                'IDs of supplied or additional gaps that prevent this API call. Never fabricate a response binding.',
+              ),
+          }),
+        );
+  const base = z.strictObject({
     edges: z
       .array(
         z.strictObject({
@@ -72,23 +88,10 @@ export function createReviewableWorkflowGraphSchema(
           ),
       }),
     ),
-    blockedCalls:
-      readyCallIds.length === 0
-        ? z.tuple([])
-        : z.array(
-            z.strictObject({
-              callId: z
-                .enum(readyCallIds)
-                .describe(
-                  'A supplied ready call that must instead be a failing placeholder because a scenario dependency remains unresolved. Do not repeat already blocked calls.',
-                ),
-              gapIds: z
-                .array(z.string().min(1))
-                .min(1)
-                .describe(
-                  'IDs of supplied or additional gaps that prevent this API call. Never fabricate a response binding.',
-                ),
-            }),
-          ),
   });
+  if (nativeNodes && blockedCalls)
+    return base.extend({ nativeNodes, blockedCalls });
+  if (nativeNodes) return base.extend({ nativeNodes });
+  if (blockedCalls) return base.extend({ blockedCalls });
+  return base;
 }

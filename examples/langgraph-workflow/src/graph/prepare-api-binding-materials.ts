@@ -6,8 +6,20 @@ export function createApiBindingMaterials(
 ): ApiBindingMaterial[] {
   if (!state.contracts?.length)
     throw new Error('binding materials require resolved contracts');
-  return state.contracts.map((operation, index) => ({
-    callId: `${state.workflowId}-request-${index + 1}`,
-    operation,
-  }));
+  if (!state.requestMediaTypes)
+    throw new Error('binding materials require request media selection');
+  const requestMediaTypes = state.requestMediaTypes;
+  return state.contracts.map((operation, index) => {
+    const callId = `${state.workflowId}-request-${index + 1}`;
+    const selected = requestMediaTypes.find((item) => item.callId === callId);
+    if (!selected)
+      throw new Error(`request media selection is missing ${callId}`);
+    return {
+      callId,
+      operation,
+      ...(selected.requestMediaType === undefined
+        ? {}
+        : { requestMediaType: selected.requestMediaType }),
+    };
+  });
 }

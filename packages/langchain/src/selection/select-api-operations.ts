@@ -64,25 +64,9 @@ export async function selectApiOperations({
         );
       return { key: { ...candidate.key }, purpose: item.purpose };
     }),
-    gaps: selection.gaps.map((gap) => {
-      if (gap.kind === 'missing_operation') {
-        if (gap.candidateId !== null)
-          throw new Error(
-            'missing_operation must not identify an existing candidate',
-          );
-        return { kind: gap.kind, description: gap.description };
-      }
-      const candidate =
-        gap.candidateId === null ? undefined : byId.get(gap.candidateId);
-      if (!candidate)
-        throw new Error(
-          'insufficient_contract must identify an existing candidate',
-        );
-      return {
-        kind: gap.kind,
-        description: gap.description,
-        operation: { ...candidate.key },
-      };
-    }),
+    gaps: selection.gaps.map((gap) => ({
+      kind: 'missing_operation',
+      description: gap.description,
+    })),
   };
 }

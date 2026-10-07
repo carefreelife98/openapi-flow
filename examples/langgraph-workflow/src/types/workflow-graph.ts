@@ -14,6 +14,11 @@ import type { N8nNativeCapability } from '@openapi-flow/n8n';
 export type WorkflowState = typeof workflowStateSchema.State;
 export type WorkflowUpdate = typeof workflowStateSchema.Update;
 
+export interface ResolvedApiRequestMediaType {
+  callId: string;
+  requestMediaType?: string;
+}
+
 export interface ServiceDeployment extends HttpRequestDeploymentOptions {
   documentId: string;
 }

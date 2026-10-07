@@ -390,6 +390,7 @@ test('official graph adds the model graph-plan stage without any compose callbac
     'catalog',
     'select',
     'resolve',
+    'request-media',
     'bindings',
     'arguments',
     'graph-plan',

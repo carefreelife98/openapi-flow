@@ -72,7 +72,11 @@ export function createApiPreparationStages(
       if (!state.contracts?.length)
         throw new Error('generateArguments requires a resolved contract');
       const calls: NonNullable<WorkflowState['arguments']> = [];
-      for (const { callId, operation } of createApiBindingMaterials(state)) {
+      for (const {
+        callId,
+        operation,
+        requestMediaType,
+      } of createApiBindingMaterials(state)) {
         const boundCall = state.bindingPlan?.calls.find(
           (call) => call.callId === callId,
         );
@@ -81,6 +85,7 @@ export function createApiPreparationStages(
         const args = await generateApiArguments({
           callId,
           operation,
+          requestMediaType,
           scenario: state.scenario,
           model: dependencies.model,
           bindings: boundCall ? boundCall.bindings : [],

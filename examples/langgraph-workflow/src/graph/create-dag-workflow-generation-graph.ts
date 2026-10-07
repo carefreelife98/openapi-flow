@@ -6,6 +6,7 @@ import type {
   WorkflowUpdate,
 } from '../types/workflow-graph.js';
 import { workflowStateSchema } from '../schemas/workflow-state-schema.js';
+import { createApiRequestMediaTypesStage } from './select-api-request-media-types-stage.js';
 import {
   createApiPreparationStages,
   createRequestMaterials,
@@ -34,12 +35,17 @@ export function createDagWorkflowGenerationGraph(
     .addNode('buildCatalog', stages.buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
     .addNode('resolveContracts', stages.resolveContracts)
+    .addNode(
+      'selectRequestMediaTypes',
+      createApiRequestMediaTypesStage(dependencies),
+    )
     .addNode('generateArguments', stages.generateArguments)
     .addNode('compileWorkflow', compileWorkflow)
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
     .addEdge('selectOperations', 'resolveContracts')
-    .addEdge('resolveContracts', 'generateArguments')
+    .addEdge('resolveContracts', 'selectRequestMediaTypes')
+    .addEdge('selectRequestMediaTypes', 'generateArguments')
     .addEdge('generateArguments', 'compileWorkflow')
     .addEdge('compileWorkflow', END)
     .compile();

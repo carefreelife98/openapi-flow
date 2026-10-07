@@ -596,7 +596,7 @@ test('all blocked API materials have no fabricated literal arguments or HTTP fra
   );
 });
 
-test('all-blocked graph schema has an explicitly empty blockedCalls, not an invalid empty enum', async () => {
+test('all-blocked graph schema excludes the code-owned empty blockedCalls field', async () => {
   const input = await compilationInput();
   let wire;
   const model = {
@@ -608,7 +608,6 @@ test('all-blocked graph schema has an explicitly empty blockedCalls, not an inva
             nativeNodes: [],
             edges: [],
             additionalGaps: [],
-            blockedCalls: [],
           };
         },
       };
@@ -629,7 +628,8 @@ test('all-blocked graph schema has an explicitly empty blockedCalls, not an inva
     model,
   });
   assert.equal(plan.blockedCalls.length, 2);
-  assert.equal(wire.properties.blockedCalls.maxItems, 0);
+  assert.equal(Object.hasOwn(wire.properties, 'blockedCalls'), false);
+  assert.equal(JSON.stringify(wire).includes('"prefixItems":[]'), false);
   assert.equal(JSON.stringify(wire).includes('"enum":[]'), false);
 });
 
@@ -643,21 +643,12 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
           const payload = JSON.parse(messages[1].content);
           let output;
           if (options.name === 'select_api_operations') {
-            const source = payload.candidates.find(
-              (candidate) => candidate.path === '/source',
-            );
             output = {
               operations: payload.candidates.map((candidate) => ({
                 candidateId: candidate.candidateId,
                 purpose: 'Use the OAS contract',
               })),
-              gaps: [
-                {
-                  kind: 'insufficient_contract',
-                  candidateId: source.candidateId,
-                  description: 'Required source behavior needs review',
-                },
-              ],
+              gaps: [],
             };
           } else if (options.name === 'plan_api_bindings') {
             const ids = Object.fromEntries(
@@ -676,7 +667,14 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
                   sourceNodeId: ids[binding.sourceNodeId],
                 })),
               })),
-              gaps: [],
+              gaps: [
+                {
+                  callId: ids.source,
+                  targetPointer: '/query/seed',
+                  description:
+                    'Required source input is not supplied by the scenario',
+                },
+              ],
             };
           } else if (options.name === 'plan_reviewable_workflow_graph') {
             assert.ok(
@@ -703,7 +701,6 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
               nativeNodes: graphPlan.nativeNodes,
               edges: [edge(payload.gaps[0].id, ids.source), ...mapped],
               additionalGaps: [],
-              blockedCalls: [],
             };
           } else
             throw new Error(
@@ -718,7 +715,30 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
     dependencies(model),
   ).invoke({
     ...generationInput,
-    sources: [{ id: 'binding-fixture', spec: bindingSpec }],
+    sources: [
+      {
+        id: 'binding-fixture',
+        spec: {
+          ...bindingSpec,
+          paths: {
+            ...bindingSpec.paths,
+            '/source': {
+              get: {
+                ...bindingSpec.paths['/source'].get,
+                parameters: [
+                  {
+                    name: 'seed',
+                    in: 'query',
+                    required: true,
+                    schema: { type: 'string' },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ],
   });
   assertDetached(result);
   assert.deepEqual(calls, [

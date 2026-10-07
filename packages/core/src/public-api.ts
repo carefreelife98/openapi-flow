@@ -12,6 +12,7 @@ export { createApiArgumentGenerationContract } from './schemas/create-api-argume
 export type * from './types/api-argument-generation.js';
 export type * from './types/api-arguments.js';
 export { validateApiArguments } from './arguments/validate-api-arguments.js';
+export { listApiRequestMediaTypes } from './arguments/list-api-request-media-types.js';
 export type * from './types/openapi.js';
 export type * from './types/inbound.js';
 export type * from './types/workflow-plan.js';

@@ -25,22 +25,11 @@ export function createApiSelectionSchema(candidateIds: string[]) {
       gaps: z.array(
         z
           .object({
-            kind: z
-              .enum(['missing_operation', 'insufficient_contract'])
-              .describe(
-                'Proposed gap in the supplied contracts, not proof the service has no API.',
-              ),
             description: z
               .string()
               .min(1)
               .describe(
-                'Unmet scenario requirement and supporting contract detail.',
-              ),
-            candidateId: z
-              .enum(candidateIds)
-              .nullable()
-              .describe(
-                'Existing candidate for an insufficient contract; null for a missing operation.',
+                'Required API capability that no supplied discovery candidate matches. Do not judge missing parameters, response fields or security without a full contract.',
               ),
           })
           .strict(),

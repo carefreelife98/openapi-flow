@@ -7,6 +7,7 @@ import { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 import { createApiPreparationStages } from './prepare-api-workflow.js';
 import { prepareReviewableApiCalls } from './review/prepare-reviewable-api-calls.js';
 import { compileReviewableWorkflowStage } from './review/compile-reviewable-workflow-stage.js';
+import { createApiRequestMediaTypesStage } from './select-api-request-media-types-stage.js';
 
 export function createReviewableWorkflowGenerationGraph(
   dependencies: PlannedGraphDependencies,
@@ -24,6 +25,7 @@ export function createReviewableWorkflowGenerationGraph(
       state.status !== undefined ||
       state.diagnostics !== undefined ||
       state.reviewMaterials !== undefined ||
+      state.requestMediaTypes !== undefined ||
       state.reviewPlan !== undefined
     )
       throw new Error(
@@ -62,6 +64,10 @@ export function createReviewableWorkflowGenerationGraph(
     .addNode('buildCatalog', buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
     .addNode('resolveContracts', stages.resolveContracts)
+    .addNode(
+      'selectRequestMediaTypes',
+      createApiRequestMediaTypesStage(dependencies),
+    )
     .addNode('prepareCalls', (state) =>
       prepareReviewableApiCalls(state, dependencies),
     )
@@ -72,7 +78,8 @@ export function createReviewableWorkflowGenerationGraph(
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
     .addEdge('selectOperations', 'resolveContracts')
-    .addEdge('resolveContracts', 'prepareCalls')
+    .addEdge('resolveContracts', 'selectRequestMediaTypes')
+    .addEdge('selectRequestMediaTypes', 'prepareCalls')
     .addEdge('prepareCalls', 'planGraph')
     .addEdge('planGraph', 'compileWorkflow')
     .addEdge('compileWorkflow', END)

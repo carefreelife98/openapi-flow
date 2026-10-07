@@ -46,7 +46,7 @@ function scriptedModel(selection, values) {
           if (calls === 1) {
             assert.match(
               messages[0].content,
-              /absence of a schema field.*is not evidence/,
+              /Do not decide whether parameters or response fields are missing/,
             );
             assert.equal(options.method, 'jsonSchema');
             const data = JSON.parse(messages[1].content);
@@ -133,6 +133,7 @@ test('official graph uses public stages and exports credential references, not t
     'catalog',
     'select',
     'resolve',
+    'request-media',
     'arguments',
     'compile',
   ]);
@@ -164,9 +165,7 @@ test('official graph reports capability gaps before compiling', async () => {
         operations: [],
         gaps: [
           {
-            kind: 'missing_operation',
             description: 'No price API',
-            candidateId: null,
           },
         ],
       }),

@@ -12,6 +12,7 @@ import {
   createRequestMaterials,
 } from './prepare-api-workflow.js';
 import { createApiBindingsStage } from './plan-api-bindings-stage.js';
+import { createApiRequestMediaTypesStage } from './select-api-request-media-types-stage.js';
 
 /** Automatic graph design; consumers may instead compose the package functions themselves. */
 export function buildPlannedWorkflowGraph(
@@ -62,6 +63,10 @@ export function buildPlannedWorkflowGraph(
     .addNode('buildCatalog', stages.buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
     .addNode('resolveContracts', stages.resolveContracts)
+    .addNode(
+      'selectRequestMediaTypes',
+      createApiRequestMediaTypesStage(dependencies),
+    )
     .addNode('planBindings', createApiBindingsStage(dependencies))
     .addNode('generateArguments', stages.generateArguments)
     .addNode('planGraph', planGraph)
@@ -69,7 +74,8 @@ export function buildPlannedWorkflowGraph(
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
     .addEdge('selectOperations', 'resolveContracts')
-    .addEdge('resolveContracts', 'planBindings')
+    .addEdge('resolveContracts', 'selectRequestMediaTypes')
+    .addEdge('selectRequestMediaTypes', 'planBindings')
     .addEdge('planBindings', 'generateArguments')
     .addEdge('generateArguments', 'planGraph')
     .addEdge('planGraph', 'compileWorkflow')

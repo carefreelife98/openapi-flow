@@ -1,5 +1,7 @@
 export { selectApiOperations } from './selection/select-api-operations.js';
 export { generateApiArguments } from './arguments/generate-api-arguments.js';
+export { selectApiRequestMediaType } from './arguments/select-api-request-media-type.js';
+export type * from './types/request-media-selection.js';
 export type * from './types/operation-selection.js';
 export type * from './types/argument-generation.js';
 export { planWorkflowGraph } from './workflow/plan-workflow-graph.js';

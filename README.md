@@ -26,6 +26,7 @@ import {
 } from '@openapi-flow/core';
 import {
   selectApiOperations,
+  selectApiRequestMediaType,
   generateApiArguments,
 } from '@openapi-flow/langchain';
 import { createHttpRequestNode, assembleN8nWorkflow } from '@openapi-flow/n8n';
@@ -50,9 +51,11 @@ const contracts = await resolveApiOperations(
 // The host chooses a specific call and its explicit DAG context.
 const operation = contracts[0];
 if (!operation) throw new Error('Selection returned no operation');
+const requestMediaType = await selectApiRequestMediaType({ operation, scenario, model });
 const args = await generateApiArguments({
   callId: 'request-1',
   operation,
+  requestMediaType,
   scenario,
   model,
   bindings: [],
@@ -80,6 +83,10 @@ const result = assembleN8nWorkflow({
 `generateApiArguments` uses an OAS-derived Zod schema such as `{ values: { path: { id: string }, body: { name: string, quantity: number } } }`. The model supplies values, not schema text, missing-input reports, node JSON, method/path definitions, credential material, response assertions or status expectations. Code derives the returned `unresolvedInputs` from the original OAS requirements and supplied values; optional omissions do not need clarification. Original OAS constraints are checked after parsing the model proposal.
 
 Catalog entries need only `{ id, spec }`: no service manifest, `operationId`, `baseUrl`, credential setup or per-path `effectPolicy`. Operation keys include document ID, snapshot hash and canonical OAS pointer; contract lookup rejects stale or changed documents. Full response definitions, inherited/overridden parameters, security alternatives and declared servers remain available independently of n8n conversion.
+
+`listApiRequestMediaTypes` exposes the selected OAS body's declared formats. `selectApiRequestMediaType` returns no format for an operation without a body and chooses the sole declared format without a model call. For several formats it uses a described enum of the OAS content keys, returning a clarification error for an ambiguous choice rather than selecting the first/default JSON format. All official graph factories include a separate `request-media` stage after contract resolution and carry its choice into binding validation, argument generation and node compilation. Hosts composing their own graph can call the same selector or supply a validated explicit `requestMediaType`.
+
+Discovery selection proposes only missing API capabilities. It does not decide detailed contract insufficiency from summaries: full selected request/response contracts are inspected by the binding and graph planners. Its model gap output is only `{ description }`; code sets `kind: 'missing_operation'`. The public gap contract still accepts host-established `insufficient_contract` diagnostics.
 
 Request compilation optionally accepts a host-supplied `baseUrl` and `credentialBindings`. Omitted addresses produce `https://replace_me.invalid`; missing required Bearer references produce `REPLACE_ME:<documentId>:<schemeName>` IDs and descriptive names. Template nodes visibly list pending configuration. No OAS server or model-proposed address is chosen automatically. Supplied invalid values still fail, anonymous operations receive no fake authentication, and missing OAS request values still need clarification. Credential references contain IDs/names, never tokens. Additional authentication mappings remain separate adapter work. `effectPolicy` is retained only in explicit legacy compilers. Hosts own approval for publishing and executing generated workflows.
 

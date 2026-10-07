@@ -1,4 +1,5 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
+import { _ } from 'ajv/dist/compile/codegen/index.js';
 import addFormats from 'ajv-formats';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 import { buildSync } from 'esbuild';
@@ -20,7 +21,11 @@ export function compileRequestValidator(
     strict: false,
     allErrors: true,
     discriminator: true,
-    code: { source: true },
+    code: {
+      source: true,
+      // Own the standalone format expression with this compiler's Code class.
+      formats: _`require("ajv-formats/dist/formats").fullFormats`,
+    },
   });
   addFormats.default(ajv);
   const validate = ajv.compile(schema);
