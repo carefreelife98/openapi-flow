@@ -13,7 +13,7 @@ export function createApiRequestMediaTypeSchema(
       .enum(mediaTypes)
       .nullable()
       .describe(
-        'Exact OAS requestBody.content key matching the scenario, or null when the intended request format cannot be determined. This is the request Content-Type, not the response format.',
+        'Exact OAS requestBody.content key matching an explicitly requested format, or null when the scenario leaves the format unspecified or ambiguous so code can apply the documented default. This is the request Content-Type, not the response format.',
       ),
   });
 }

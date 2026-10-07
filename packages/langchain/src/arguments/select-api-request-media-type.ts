@@ -1,5 +1,8 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { listApiRequestMediaTypes } from '@openapi-flow/core';
+import {
+  listApiRequestMediaTypes,
+  selectDefaultApiRequestMediaType,
+} from '@openapi-flow/core';
 import type {
   ApiRequestMediaTypeOutput,
   SelectApiRequestMediaTypeInput,
@@ -47,8 +50,6 @@ export async function selectApiRequestMediaType(
     'model API request media type',
   );
   if (selected.requestMediaType === null)
-    throw new Error(
-      `${input.operation.key.operationRef}.requestMediaType needs user clarification: ${mediaTypes.join(', ')}`,
-    );
+    return selectDefaultApiRequestMediaType(input.operation);
   return selected.requestMediaType;
 }
