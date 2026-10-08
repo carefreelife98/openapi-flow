@@ -4,6 +4,42 @@
 
 ## native 출력 바인딩
 
+### 분리된 계획과 optional 재료
+
+자연어에서 native 생산자도 선택하려면 `createOrchestratedWorkflowGenerationGraph`를 사용한다. 기존 factory를 없애거나 특정 LangGraph를 OSS 패키지 내부에 강제하지 않는다.
+
+```ts
+const graph = createOrchestratedWorkflowGenerationGraph({
+  model,
+  capabilities: suppliedCapabilities, // 생략하면 native 기능을 주입하지 않는다.
+  deployments: suppliedDeployments, // 기존 주소·credential 참조 정책 유지.
+});
+const result = await graph.invoke({
+  workflowId: 'scenario-1',
+  workflowName: 'Scenario 1',
+  scenario,
+  sources,
+  trace: [],
+});
+// 검토 후 result.workflow를 import한다. factory가 실행하지는 않는다.
+```
+
+흐름은 OAS 카탈로그 → API 선택 → OAS 계약 조회 → 본문 형식 → native 선택·설정 → 코드의 출력 계약 도출 → API 바인딩·남은 요청값 → 연결 계획 → 코드 검사·공식 SDK JSON이다. native 인스턴스가 바인딩 전에 존재하므로 새 생산자의 실제 출력을 API 입력으로 지정할 수 있다. 전체 입력이 바인딩되면 literal 값 생성 모델 호출은 없다.
+
+각 OSS 함수도 따로 사용할 수 있다. `planNativeNodes`는 선택된 API 계약과 등록된 native 스키마에서 인스턴스·설정만 제안한다. 포트·출력 계약·결손 ID는 코드가 도출한다. `planWorkflowConnections`는 확정된 재료의 연결·결손만 제안하고 API 값이나 native 설정을 다시 생성하지 않는다. `orchestrateWorkflow`는 준비된 API 입력을 대상으로 이 두 함수를 조합하며 `materials`, `capabilities`, `preparedNativeNodes`, `gaps`, `edges`를 각각 생략할 수 있다. 주지 않은 기능·API를 선택하지 않고 기본 registry도 넣지 않는다. 준비된 native 노드가 있으면 그 구현 registry는 필요하다.
+
+재료 묶음을 모두 생략해도 요구 결손을 보고할 수 있다. 없는 API나 native 기능을 대신 생성하지 않는다. native 호출에는 Zod에서 도출한 JSON Schema를 전달하고 원본 반환값을 직접 검사하므로, Zod의 default·coercion·transform이 값을 조용히 바꾸면 오류다. 이것은 OAS default 정책과 별개이며 native 구현 설정의 값 보존 경계를 다룬다.
+
+새 native→API 데이터 참조가 필요할 때는 앞서 설명한 바인딩 전 계획을 사용한다. API 입력이 이미 확정된 뒤 `orchestrateWorkflow`에 native 기능을 추가한다고 기존 바인딩이 바뀌지는 않는다. 기존 edge도 그대로 보존하며 모델이 다시 반환하면 중복 오류다. 모자란 기능은 결손으로 남기고 기존 한글 경고 영역과 분리된 Start로 출력한다. 임의 보정·재시도는 없다.
+
+실제 ICL OAS·격리 n8n 검증 명령은 다음과 같다. 기본 모델은 명시적으로 scripted 응답을 사용하며, 실제 Chomsky 모델은 검증 runner에 별도로 주입한다.
+
+```sh
+OPENAPI_FLOW_ICL_OAS_PATH=/absolute/path/to/icl.openapi.json npm run test:orchestration-local-n8n
+```
+
+### 이미 준비된 생산자의 경로
+
 `createPlannedWorkflowGenerationGraph`와 `createReviewableWorkflowGenerationGraph`는 선택 사항인 `preparedNativeNodes`를 받는다. 호스트가 먼저 준비한 native 노드의 출력 계약을 OSS의 바인딩 함수에 전달하고, 최종 모델 호출은 그 노드의 값을 다시 생성하지 않고 연결을 계획한다. 타입이나 단위가 맞지 않으면 자동 보정하지 않는다. API의 OAS 계약은 그대로 유지한다.
 
 모델 출력의 `additionalNativeNodes`에는 새로 추가할 노드만 담는다. 기존 노드는 파라미터와 실제 입력·출력 포트를 함께 전달하므로 다시 생성할 필요가 없다. 코드가 두 목록을 합쳐 반환 계획의 `nativeNodes`를 만들며, 기존 ID를 다시 제안하면 원본 출력과 원인을 담은 오류를 반환한다. 중복 노드를 삭제하거나 이전 출력 필드명을 alias로 받아들이지 않는다.

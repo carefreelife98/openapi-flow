@@ -14,6 +14,7 @@ import type {
 } from '@openapi-flow/core';
 import type { N8nWorkflowResult } from '@openapi-flow/n8n';
 import type { ResolvedApiRequestMediaType } from '../types/workflow-graph.js';
+import type { NativeNodePlan } from '@openapi-flow/langchain';
 
 // These channels carry host/library objects, not model structured-output schemas.
 // createApiCatalog validates the source OAS; adapter calls validate proposals.
@@ -34,5 +35,6 @@ export const workflowStateSchema = new StateSchema({
   diagnostics: z.custom<WorkflowReviewGap[]>().optional(),
   reviewMaterials: z.custom<ReviewableWorkflowApiMaterial[]>().optional(),
   reviewPlan: z.custom<ReviewableWorkflowGraphPlan>().optional(),
+  nativePlan: z.custom<NativeNodePlan>().optional(),
   trace: z.array(z.string()),
 });

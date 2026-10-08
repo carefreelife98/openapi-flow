@@ -40,6 +40,13 @@ export interface PlannedGraphDependencies extends ApiPreparationDependencies {
   preparedNativeNodes?: PlannedNativeNode[];
 }
 
+export interface OrchestratedGraphDependencies extends Omit<
+  PlannedGraphDependencies,
+  'capabilities'
+> {
+  capabilities?: N8nNativeCapability[];
+}
+
 export interface ResolvedRequestNode {
   operation: ApiOperationContract;
   arguments: ApiCallArguments;

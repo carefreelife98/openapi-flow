@@ -14,6 +14,27 @@ This branch contains **unreleased 0.2.0 work**. The published `@openapi-flow/cor
 
 Core has no LangChain or n8n dependency. The adapters each depend on core, not on each other. A host can put each function in a LangGraph node, replace a model call, provide values manually, retry one call, or require human approval before compilation/import/execution. Workflow topology is not stored in the OAS and operation selection order does not define execution order.
 
+## Optional-material orchestration
+
+`orchestrateWorkflow({ workflowId, scenario, model, materials?, capabilities?, preparedNativeNodes?, gaps?, edges? })` plans native instances and then connections from only the supplied material groups. Omission means an empty group, not a default registry or inferred API. `materials` contains selected OAS contracts and immutable ready/blocked request arguments. API-only and native-only plans are supported. Prepared nodes and fixed edges are preserved; unknown IDs/ports, repeated edges, invalid required values, cycles and unavailable producers are errors, not repaired proposals. A prepared native node still needs its registered implementation in `capabilities`; optional groups do not weaken required contracts.
+
+For independent stages, use `planNativeNodes` and `planWorkflowConnections`. The native model returns only new instance identities, supplied capability choices, schema-typed parameters and unmet requirement descriptions. Code derives ports, native outputs and gap IDs. The connection model returns only new edges and unmet requirements/blocked calls; it cannot regenerate API values, native parameters, ports, schemas, starts or SDK JSON. Supplied edges are not echoed. Core derives roots and checks dependency availability on every incoming route. No native capabilities means no native-selection model call. Fully bound APIs still skip literal argument generation.
+
+When **new native output feeds an API input**, plan that producer **before** `planApiBindings` and `generateApiArguments`: call `planNativeNodes` with selected `apiMaterials` (contracts plus call IDs, no request arguments), derive `createNativeOutputContracts`, plan bindings, generate remaining literals, then call `planWorkflowConnections` with the resulting immutable API/native materials. Final orchestration does not retroactively change API arguments. The official [`createOrchestratedWorkflowGenerationGraph`](examples/langgraph-workflow/README.md#분리된-계획과-optional-재료) composes these stages. Existing graph factories remain available for their prepared-material paths. The host still owns LangGraph state, HITL, retries, compilation, import and execution.
+
+```ts
+const plan = await orchestrateWorkflow({
+  workflowId: 'api-only',
+  scenario,
+  model,
+  materials: [{ status: 'ready', operation, arguments: args }],
+  // No capabilities: do not choose or invent native nodes.
+});
+// Compile with compileReviewableN8nWorkflow using the same immutable materials.
+```
+
+Returned gaps are proposals for review, not proof of a missing service feature. Compile them through the existing review compiler to preserve internal connections, show warning regions and detach Start. All material groups may be omitted: the connection model can report explicitly requested unmet requirements without inventing an API or native capability. A proposed executable graph with neither nodes nor gaps still fails the existing root check. No data coercion, automatic value replacement, implicit capabilities or built-in retry is added.
+
 ## Independent stages
 
 The host supplies parsed OAS documents, a LangChain chat model, trusted deployment URLs and existing credential references. It must approve sharing the supplied OAS metadata and scenarios with its model provider.

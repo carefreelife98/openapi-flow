@@ -106,3 +106,8 @@ export interface ValidateWorkflowTopologyInput {
   edges: WorkflowPlanEdge[];
   starts: string[];
 }
+
+export interface ValidateWorkflowEdgesInput {
+  contracts: WorkflowPlanNodeContract[];
+  edges: WorkflowPlanEdge[];
+}

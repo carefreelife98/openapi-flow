@@ -10,26 +10,28 @@ export function validateWorkflowGraphPlan({
   materials,
   capabilities,
 }: ValidateWorkflowGraphPlanInput): void {
-  validateApiBindingPlan({
-    nativeOutputs: createNativeOutputContracts({
-      nativeNodes: plan.nativeNodes,
-      capabilities,
-    }),
-    materials: materials.map((item) => ({
-      callId: item.arguments.callId,
-      operation: item.operation,
-      requestMediaType: item.arguments.requestMediaType,
-    })),
-    plan: {
-      calls: materials.map((item) => ({
-        callId: item.arguments.callId,
-        bindings: item.arguments.bindings,
-      })),
-      gaps: [],
-    },
+  const nativeOutputs = createNativeOutputContracts({
+    nativeNodes: plan.nativeNodes,
+    capabilities,
   });
+  if (materials.length)
+    validateApiBindingPlan({
+      nativeOutputs,
+      materials: materials.map((item) => ({
+        callId: item.arguments.callId,
+        operation: item.operation,
+        requestMediaType: item.arguments.requestMediaType,
+      })),
+      plan: {
+        calls: materials.map((item) => ({
+          callId: item.arguments.callId,
+          bindings: item.arguments.bindings,
+        })),
+        gaps: [],
+      },
+    });
   const apiIds = new Set(materials.map((item) => item.arguments.callId));
-  if (!materials.length || apiIds.size !== materials.length)
+  if (apiIds.size !== materials.length)
     throw new Error('materials requires unique API callIds');
   const contracts = createWorkflowNodeContracts({
     materials,

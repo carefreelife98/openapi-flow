@@ -22,6 +22,8 @@ export { createWorkflowGraphPlan } from './workflow/create-workflow-graph-plan.j
 export type * from './types/api-bindings.js';
 export type * from './types/node-output.js';
 export { createNativeOutputContracts } from './workflow/create-native-output-contracts.js';
+export { createReviewableNodeContracts } from './workflow/create-reviewable-node-contracts.js';
+export { validateWorkflowEdges } from './workflow/validate-workflow-edges.js';
 export { validateNativeOutputContracts } from './bindings/validate-native-output-contracts.js';
 export { parseNativeNodeParameters } from './workflow/parse-native-node-parameters.js';
 export { validateApiBindingPlan } from './bindings/validate-api-binding-plan.js';

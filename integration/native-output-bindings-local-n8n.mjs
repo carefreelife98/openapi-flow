@@ -18,7 +18,10 @@ import {
   createJsonOutputCapability,
   createN8nNativeCapabilities,
 } from '@openapi-flow/n8n';
-import { createReviewableWorkflowGenerationGraph } from '@openapi-flow/example-langgraph-workflow';
+import {
+  createReviewableWorkflowGenerationGraph,
+  createOrchestratedWorkflowGenerationGraph,
+} from '@openapi-flow/example-langgraph-workflow';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 import { createPlanningFailureArtifact } from './utils/create-planning-failure-artifact.mjs';
 
@@ -79,6 +82,38 @@ export function createScriptedNativeBindingModel() {
               ],
               gaps: [],
             });
+          if (options.name === 'plan_native_nodes') {
+            const parameters = input.scenario.match(
+              /exactly these literal parameters: (.*)\. Read its actual output/,
+            );
+            assert.ok(
+              parameters,
+              'scripted fixture requires explicit literal parameters',
+            );
+            return {
+              nativeNodes: [
+                {
+                  id: 'scenario-context',
+                  capability: 'scenario-context',
+                  parameters: JSON.parse(parameters[1]),
+                },
+              ],
+              gaps: [],
+            };
+          }
+          if (options.name === 'plan_workflow_connections')
+            return schema.parse({
+              edges: [
+                {
+                  from: 'scenario-context',
+                  output: 'main',
+                  to: input.readyCallIds[0],
+                  input: 'main',
+                },
+              ],
+              blockedCalls: [],
+              additionalGaps: [],
+            });
           if (options.name === 'plan_reviewable_workflow_graph')
             return schema.parse({
               additionalNativeNodes: [],
@@ -105,6 +140,7 @@ export async function runNativeOutputValidation({
   oasPath,
   model,
   plannerLabel,
+  planNativeFromScenario = false,
 }) {
   assert.ok(
     oasPath && model && plannerLabel,
@@ -158,6 +194,7 @@ export async function runNativeOutputValidation({
       parameters: expected,
     },
   ];
+  const suppliedNativeNodes = planNativeFromScenario ? [] : preparedNativeNodes;
   const image = 'n8nio/n8n:2.37.10';
   const volume = `openapi-flow-native-output-${process.pid}-${Date.now()}`;
   const requests = [],
@@ -191,8 +228,9 @@ export async function runNativeOutputValidation({
   );
   const runId = randomUUID();
   const runDirectory = new URL(`runs/${runId}/`, directory);
-  const scenario =
-    'Create a workflow that uses the existing scenario-context native node unchanged. Read its gdNo field and pass it directly as query.gdNo to GET /mongotest/core/getKey. Call that API exactly once. Do not calculate, convert types, add other APIs, assertions or native nodes, or treat the literal gdNo text as an expression. The prepared context is authoritative. Connect the native producer before the API.';
+  const scenario = planNativeFromScenario
+    ? `Create one scenario-context native node with ID scenario-context and exactly these literal parameters: ${JSON.stringify(expected)}. Read its actual output gdNo field and pass it directly as query.gdNo to GET /mongotest/core/getKey exactly once. Do not add other APIs or native nodes, calculate, convert types or evaluate the literal gdNo text as an expression. Connect the native producer before the API.`
+    : 'Create a workflow that uses the existing scenario-context native node unchanged. Read its gdNo field and pass it directly as query.gdNo to GET /mongotest/core/getKey. Call that API exactly once. Do not calculate, convert types, add other APIs, assertions or native nodes, or treat the literal gdNo text as an expression. The prepared context is authoritative. Connect the native producer before the API.';
   let phase = 'initialize';
   const runtimeArgs = [
     'run',
@@ -213,9 +251,9 @@ export async function runNativeOutputValidation({
           planner: plannerLabel,
           runId,
           scenario,
-          preparedNativeNodes,
+          preparedNativeNodes: suppliedNativeNodes,
           nativeOutputs: createNativeOutputContracts({
-            nativeNodes: preparedNativeNodes,
+            nativeNodes: suppliedNativeNodes,
             capabilities,
           }),
         },
@@ -225,10 +263,13 @@ export async function runNativeOutputValidation({
     );
     await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
     phase = 'workflow-generation';
-    const state = await createReviewableWorkflowGenerationGraph({
+    const createGraph = planNativeFromScenario
+      ? createOrchestratedWorkflowGenerationGraph
+      : createReviewableWorkflowGenerationGraph;
+    const state = await createGraph({
       model,
       capabilities,
-      preparedNativeNodes,
+      preparedNativeNodes: suppliedNativeNodes,
       deployments: [
         {
           documentId: 'icl',
@@ -251,6 +292,7 @@ export async function runNativeOutputValidation({
     phase = 'generated-workflow-validation';
     assert.equal(state.status, 'complete');
     assert.equal(state.reviewPlan.nativeNodes.length, 1);
+    assert.deepEqual(state.reviewPlan.nativeNodes[0], preparedNativeNodes[0]);
     assert.equal(state.reviewMaterials.length, 1);
     assert.equal(
       state.reviewMaterials[0].operation.key.operationRef,
@@ -369,6 +411,9 @@ export async function runNativeOutputValidation({
       remoteN8nWrites: 0,
       responseBusinessSemanticsValidated: false,
       repaired: false,
+      nativePlanning: planNativeFromScenario
+        ? 'model-selected'
+        : 'host-prepared',
       trace: state.trace,
     };
     await writeFile(
@@ -411,6 +456,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await runNativeOutputValidation({
     oasPath: process.env.OPENAPI_FLOW_ICL_OAS_PATH,
     model: createScriptedNativeBindingModel(),
-    plannerLabel: 'scripted-baseline-no-LLM',
+    plannerLabel: process.argv.includes('--orchestrated')
+      ? 'scripted-orchestrated-no-LLM'
+      : 'scripted-baseline-no-LLM',
+    planNativeFromScenario: process.argv.includes('--orchestrated'),
   });
 }

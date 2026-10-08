@@ -21,6 +21,7 @@
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
     "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",
     "test:native-output-bindings-local-n8n": "npm run build && node integration/native-output-bindings-local-n8n.mjs",
+    "test:orchestration-local-n8n": "npm run build && node integration/native-output-bindings-local-n8n.mjs --orchestrated",
     "test:deployment-template-local-n8n": "npm run build && node integration/deployment-template-local-n8n.mjs",
     "test:workflow-review-local-n8n": "npm run build && node integration/workflow-review-local-n8n.mjs",
     "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
