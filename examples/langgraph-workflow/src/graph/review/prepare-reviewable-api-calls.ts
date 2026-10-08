@@ -1,4 +1,5 @@
 import { planApiBindings, generateApiArguments } from '@openapi-flow/langchain';
+import { createNativeOutputContracts } from '@openapi-flow/core';
 import type {
   ApiBindingPlan,
   ReviewableWorkflowApiMaterial,
@@ -34,6 +35,10 @@ export async function prepareReviewableApiCalls(
     scenario: state.scenario,
     model: dependencies.model,
     materials,
+    nativeOutputs: createNativeOutputContracts({
+      nativeNodes: dependencies.preparedNativeNodes ?? [],
+      capabilities: dependencies.capabilities,
+    }),
   });
   await dependencies.reviewBindings?.(bindingPlan);
   const bindingGaps = collectApiBindingReviewGaps({

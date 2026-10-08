@@ -1,13 +1,6 @@
-import { Ajv2020 } from 'ajv/dist/2020.js';
-import { _ } from 'ajv/dist/compile/codegen/index.js';
-import addFormats from 'ajv-formats';
-import standaloneCode from 'ajv/dist/standalone/index.js';
-import { buildSync } from 'esbuild';
-import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
 import { createApiRequestSchema } from '@openapi-flow/core';
 import type { RequestMaterializationConfig } from '../../../types/request-materialization.js';
-import { bundledLicenseBanner } from '../../../utils/bundled-license-banner.js';
+import { compileStandaloneValidator } from '../../common/validation/compile-standalone-validator.js';
 
 /** Compile OAS schemas on the host; n8n receives no schema compiler/eval. */
 export function compileRequestValidator(
@@ -17,35 +10,8 @@ export function compileRequestValidator(
     operation: config.contract,
     requestMediaType: config.arguments.requestMediaType,
   });
-  const ajv = new Ajv2020({
-    strict: false,
-    allErrors: true,
-    discriminator: true,
-    code: {
-      source: true,
-      // Own the standalone format expression with this compiler's Code class.
-      formats: _`require("ajv-formats/dist/formats").fullFormats`,
-    },
-  });
-  addFormats.default(ajv);
-  const validate = ajv.compile(schema);
-  const compiled = standaloneCode.default(ajv, validate);
-  const built = buildSync({
-    stdin: { contents: compiled, resolveDir: import.meta.dirname },
-    bundle: true,
-    platform: 'browser',
-    format: 'iife',
+  return compileStandaloneValidator({
+    schema,
     globalName: 'OpenApiFlowRequestValidator',
-    target: 'es2022',
-    minify: true,
-    write: false,
-    legalComments: 'inline',
-    metafile: true,
   });
-  const require = createRequire(import.meta.url);
-  return (
-    bundledLicenseBanner(built.metafile, [
-      dirname(require.resolve('ajv/package.json')),
-    ]) + built.outputFiles[0].text
-  );
 }

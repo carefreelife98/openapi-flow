@@ -1,11 +1,22 @@
 import { z } from 'zod';
-import type { ApiBindingMaterial, ApiBindingPlan } from '@openapi-flow/core';
+import type {
+  ApiBindingMaterial,
+  ApiBindingPlan,
+  NativeOutputContract,
+} from '@openapi-flow/core';
 
 export function createApiBindingPlanSchema(
   materials: ApiBindingMaterial[],
+  nativeOutputs: NativeOutputContract[] = [],
 ): z.ZodType<ApiBindingPlan> {
   if (!materials.length) throw new Error('binding materials must not be empty');
   const ids = materials.map((item) => item.callId);
+  const sourceIds = [...ids, ...nativeOutputs.map((item) => item.nodeId)];
+  if (
+    new Set(sourceIds).size !== sourceIds.length ||
+    sourceIds.some((id) => !id.trim())
+  )
+    throw new Error('binding sources require unique non-empty node IDs');
   if (new Set(ids).size !== ids.length || ids.some((id) => !id.trim()))
     throw new Error('binding materials require unique non-empty callIds');
   return z.strictObject({
@@ -27,14 +38,14 @@ export function createApiBindingPlanSchema(
                   'RFC 6901 request pointer: /path/id, /query/name, /body or a nested body field. Never a JavaScript expression.',
                 ),
               sourceNodeId: z
-                .enum(ids)
+                .enum(sourceIds)
                 .describe(
-                  'API producing the actual response value, not merely the previous array element.',
+                  'Declared API or native node producing the actual value, not merely the previous array element.',
                 ),
               sourcePointer: z
                 .string()
                 .describe(
-                  'RFC 6901 pointer into the response BODY, derived from its OAS schema. Empty string means the entire body.',
+                  'RFC 6901 pointer into an API response BODY or a declared native JSON output. Empty string means the entire value. Use the supplied source contract.',
                 ),
             }),
           )

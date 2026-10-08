@@ -8,6 +8,7 @@ import {
   generateApiArguments,
 } from '@openapi-flow/langchain';
 import { createHttpRequestNode } from '@openapi-flow/n8n';
+import type { N8nNativeOutputSource } from '@openapi-flow/n8n';
 import type {
   ApiPreparationDependencies,
   WorkflowState,
@@ -104,6 +105,7 @@ export function createApiPreparationStages(
 export function createRequestMaterials(
   state: WorkflowState,
   dependencies: ApiPreparationDependencies,
+  nativeOutputSources: N8nNativeOutputSource[] = [],
 ): ResolvedRequestNode[] {
   if (
     !state.contracts?.length ||
@@ -122,6 +124,7 @@ export function createRequestMaterials(
       fragment: createHttpRequestNode({
         operation,
         arguments: args,
+        nativeOutputSources,
         baseUrl: deployment?.baseUrl,
         credentialBindings: deployment?.credentialBindings,
         apiNodeNames: Object.fromEntries(

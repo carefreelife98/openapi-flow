@@ -5,6 +5,7 @@ import type {
   ApiOperationContract,
   ApiCallArguments,
   ApiBindingPlan,
+  PlannedNativeNode,
 } from '@openapi-flow/core';
 import type { N8nNodeFragment, N8nGraphEdge } from '@openapi-flow/n8n';
 import type { workflowStateSchema } from '../schemas/workflow-state-schema.js';
@@ -36,6 +37,7 @@ export interface ApiPreparationDependencies extends GraphDependencies {
 export interface PlannedGraphDependencies extends ApiPreparationDependencies {
   capabilities: N8nNativeCapability[];
   reviewPlan?: (plan: WorkflowGraphPlan) => void | Promise<void>;
+  preparedNativeNodes?: PlannedNativeNode[];
 }
 
 export interface ResolvedRequestNode {

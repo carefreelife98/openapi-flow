@@ -3,12 +3,14 @@ import type {
   ReviewableWorkflowGraphProposal,
   ReviewableWorkflowPlanningContext,
   WorkflowReviewGap,
+  PlannedNativeNode,
 } from '@openapi-flow/core';
 
 export interface PlanReviewableWorkflowGraphInput extends ReviewableWorkflowPlanningContext {
   scenario: string;
   model: BaseChatModel;
   gaps: WorkflowReviewGap[];
+  preparedNativeNodes?: PlannedNativeNode[];
 }
 
 export type ReviewableWorkflowGraphPlanningFailure =

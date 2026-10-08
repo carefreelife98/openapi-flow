@@ -32,6 +32,12 @@ export interface N8nNativeCapability extends WorkflowCapability {
   compile: (input: CompileNativeNodeInput) => N8nNodeFragment;
 }
 
+export interface CreateJsonOutputCapabilityInput {
+  name: string;
+  description: string;
+  parametersSchema: WorkflowCapability['parametersSchema'];
+}
+
 export interface CompilePlannedN8nWorkflowInput {
   id: string;
   name: string;

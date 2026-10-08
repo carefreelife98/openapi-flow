@@ -1,4 +1,7 @@
-import { validateReviewableWorkflowGraphPlan } from '@openapi-flow/core';
+import {
+  validateReviewableWorkflowGraphPlan,
+  createNativeOutputContracts,
+} from '@openapi-flow/core';
 import type { ReadyWorkflowApiMaterial } from '@openapi-flow/core';
 import type { CompileReviewableN8nWorkflowInput } from '../types/reviewable-workflow.js';
 import type { CreateGapNodeInput } from '../types/reviewable-workflow.js';
@@ -11,6 +14,7 @@ import {
 import { compilePlannedN8nWorkflow } from './compile-planned-n8n-workflow.js';
 import { compileNativeWorkflowNodes } from './compile-native-workflow-nodes.js';
 import { buildN8nWorkflow } from './build-n8n-workflow.js';
+import { validateCompiledBindingSources } from './validate-compiled-binding-sources.js';
 
 export function compileReviewableN8nWorkflow(
   input: CompileReviewableN8nWorkflowInput,
@@ -28,6 +32,15 @@ export function compileReviewableN8nWorkflow(
   if (!input.plan.gaps.length)
     return compilePlannedN8nWorkflow({ ...input, materials: ready });
   const nativeNodes = compileNativeWorkflowNodes(input);
+  validateCompiledBindingSources(
+    input.apiNodes,
+    nativeNodes,
+    createNativeOutputContracts({
+      nativeNodes: input.plan.nativeNodes,
+      capabilities: input.capabilities,
+    }),
+    ready,
+  );
   const occupiedPositions = [...input.apiNodes, ...nativeNodes].flatMap(
     (fragment) =>
       fragment.nodes.flatMap((node) =>

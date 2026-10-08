@@ -1,14 +1,13 @@
 import { planApiBindings } from '@openapi-flow/langchain';
+import { createNativeOutputContracts } from '@openapi-flow/core';
 import type {
-  ApiPreparationDependencies,
+  PlannedGraphDependencies,
   WorkflowState,
   WorkflowUpdate,
 } from '../types/workflow-graph.js';
 import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 
-export function createApiBindingsStage(
-  dependencies: ApiPreparationDependencies,
-) {
+export function createApiBindingsStage(dependencies: PlannedGraphDependencies) {
   return async function planBindings(
     state: WorkflowState,
   ): Promise<WorkflowUpdate> {
@@ -16,6 +15,10 @@ export function createApiBindingsStage(
       scenario: state.scenario,
       model: dependencies.model,
       materials: createApiBindingMaterials(state),
+      nativeOutputs: createNativeOutputContracts({
+        nativeNodes: dependencies.preparedNativeNodes ?? [],
+        capabilities: dependencies.capabilities,
+      }),
     });
     if (bindingPlan.gaps.length)
       throw new Error(

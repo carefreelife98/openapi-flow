@@ -1,6 +1,7 @@
 import type { ApiOperationContract } from './api-operation.js';
 import type { OutputBinding } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
+import type { NativeOutputContract } from './node-output.js';
 
 export interface ApiBindingMaterial {
   callId: string;
@@ -23,10 +24,12 @@ export interface ApiBindingGap {
 export interface ValidateApiBindingAssignmentsInput {
   calls: PlannedApiBindings[];
   materials: ApiBindingMaterial[];
+  nativeOutputs?: NativeOutputContract[];
 }
 export interface ValidateApiBindingPlanInput {
   plan: ApiBindingPlan;
   materials: ApiBindingMaterial[];
+  nativeOutputs?: NativeOutputContract[];
 }
 export type BindingSchema = JsonObject | boolean;
 export type RequestContainerKind = 'array' | 'object';

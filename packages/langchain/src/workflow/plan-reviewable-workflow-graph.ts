@@ -1,6 +1,9 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
-import { createReviewableWorkflowGraphPlan } from '@openapi-flow/core';
+import {
+  createReviewableWorkflowGraphPlan,
+  createNativeOutputContracts,
+} from '@openapi-flow/core';
 import type {
   ReviewableWorkflowGraphPlan,
   ReviewableWorkflowGraphProposal,
@@ -20,6 +23,11 @@ export async function planReviewableWorkflowGraph(
   input: PlanReviewableWorkflowGraphInput,
 ): Promise<ReviewableWorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
+  const preparedNativeNodes = input.preparedNativeNodes ?? [];
+  const nativeOutputs = createNativeOutputContracts({
+    nativeNodes: preparedNativeNodes,
+    capabilities: input.capabilities,
+  });
   const readyIds = input.materials
     .filter((item) => item.status === 'ready')
     .map((item) => item.arguments.callId);
@@ -38,6 +46,8 @@ export async function planReviewableWorkflowGraph(
       new HumanMessage(
         JSON.stringify({
           scenario: input.scenario,
+          preparedNativeNodes,
+          nativeOutputs,
           materials: input.materials.map(({ operation, ...material }) => ({
             ...material,
             operation: {
@@ -83,7 +93,13 @@ export async function planReviewableWorkflowGraph(
     );
   }
   try {
-    return createReviewableWorkflowGraphPlan({ ...input, proposal });
+    return createReviewableWorkflowGraphPlan({
+      ...input,
+      proposal: {
+        ...proposal,
+        nativeNodes: [...preparedNativeNodes, ...proposal.nativeNodes],
+      },
+    });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new ReviewableWorkflowGraphPlanningError(

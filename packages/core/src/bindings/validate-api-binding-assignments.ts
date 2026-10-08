@@ -5,6 +5,8 @@ import type {
 import { pointerTokens } from './json-pointer.js';
 import { requestBindingSchemas } from './request-binding-schema.js';
 import { responseBindingSchemas } from './response-binding-schema.js';
+import { schemasAtPointer } from './schema-at-pointer.js';
+import { validateNativeOutputContracts } from './validate-native-output-contracts.js';
 
 function declaredTypes(schemas: BindingSchema[]): Set<string> {
   const types = new Set<string>();
@@ -21,6 +23,7 @@ function declaredTypes(schemas: BindingSchema[]): Set<string> {
 export function validateApiBindingAssignments({
   calls,
   materials,
+  nativeOutputs = [],
 }: ValidateApiBindingAssignmentsInput): void {
   const byId = new Map(
     materials.map((material) => [material.callId, material]),
@@ -31,6 +34,13 @@ export function validateApiBindingAssignments({
     materials.some((item) => !item.callId.trim())
   )
     throw new Error('binding materials require unique non-empty callIds');
+  validateNativeOutputContracts(nativeOutputs);
+  const nativeById = new Map(nativeOutputs.map((item) => [item.nodeId, item]));
+  for (const output of nativeOutputs)
+    if (byId.has(output.nodeId))
+      throw new Error(
+        `native output ${output.nodeId} duplicates an API callId`,
+      );
   if (
     calls.length !== materials.length ||
     new Set(calls.map((call) => call.callId)).size !== materials.length
@@ -51,11 +61,12 @@ export function validateApiBindingAssignments({
       pointerTokens(binding.targetPointer);
       pointerTokens(binding.sourcePointer);
       const source = byId.get(binding.sourceNodeId);
-      if (!source)
+      const native = nativeById.get(binding.sourceNodeId);
+      if (!source && !native)
         throw new Error(
           `bindings: unknown sourceNodeId ${binding.sourceNodeId}`,
         );
-      if (source.callId === call.callId)
+      if (binding.sourceNodeId === call.callId)
         throw new Error(`bindings: self-reference ${call.callId}`);
       if (
         pointers.some(
@@ -70,17 +81,16 @@ export function validateApiBindingAssignments({
         );
       pointers.push(binding.targetPointer);
       const targets = requestBindingSchemas(target, binding.targetPointer);
-      const sources = responseBindingSchemas(
-        source.operation,
-        binding.sourcePointer,
-      );
+      const sources = native
+        ? schemasAtPointer(native.schema, binding.sourcePointer)
+        : responseBindingSchemas(source!.operation, binding.sourcePointer);
       if (!targets.length)
         throw new Error(
           `bindings: ${call.callId}${binding.targetPointer} is not declared by the request OAS`,
         );
       if (!sources.length)
         throw new Error(
-          `bindings: ${source.callId}${binding.sourcePointer} is not declared by the response OAS`,
+          `bindings: ${binding.sourceNodeId}${binding.sourcePointer} is not declared by the ${native ? 'native output contract' : 'response OAS'}`,
         );
       const from = declaredTypes(sources);
       const to = declaredTypes(targets);
@@ -92,9 +102,9 @@ export function validateApiBindingAssignments({
         )
       )
         throw new Error(
-          `bindings: incompatible OAS types ${source.callId}${binding.sourcePointer} -> ${call.callId}${binding.targetPointer}`,
+          `bindings: incompatible OAS types ${binding.sourceNodeId}${binding.sourcePointer} -> ${call.callId}${binding.targetPointer}`,
         );
-      dependencies.get(call.callId)!.push(source.callId);
+      dependencies.get(call.callId)!.push(binding.sourceNodeId);
     }
   }
   const pending = new Set(byId.keys());

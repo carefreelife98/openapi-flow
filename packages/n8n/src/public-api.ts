@@ -9,5 +9,8 @@ export type * from './types/workflow-compilation.js';
 export { compileReviewableN8nWorkflow } from './workflow/compile-reviewable-n8n-workflow.js';
 export type * from './types/reviewable-workflow.js';
 export { createN8nNativeCapabilities } from './nodes/native/create-native-capabilities.js';
+export { createJsonOutputCapability } from './nodes/native/create-json-output-capability.js';
+export { createN8nNativeOutputSources } from './workflow/create-n8n-native-output-sources.js';
+export type * from './types/output-binding-source.js';
 export { compilePlannedN8nWorkflow } from './workflow/compile-planned-n8n-workflow.js';
 export type * from './types/native-capability.js';

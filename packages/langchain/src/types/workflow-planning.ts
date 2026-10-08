@@ -3,6 +3,7 @@ import type {
   WorkflowApiMaterial,
   WorkflowCapability,
   WorkflowGraphProposal,
+  PlannedNativeNode,
 } from '@openapi-flow/core';
 
 export interface PlanWorkflowGraphInput {
@@ -10,6 +11,7 @@ export interface PlanWorkflowGraphInput {
   model: BaseChatModel;
   materials: WorkflowApiMaterial[];
   capabilities: WorkflowCapability[];
+  preparedNativeNodes?: PlannedNativeNode[];
 }
 
 export type WorkflowGraphPlanningFailure =

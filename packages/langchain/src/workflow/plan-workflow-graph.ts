@@ -1,5 +1,8 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { createWorkflowGraphPlan } from '@openapi-flow/core';
+import {
+  createWorkflowGraphPlan,
+  createNativeOutputContracts,
+} from '@openapi-flow/core';
 import type {
   WorkflowGraphPlan,
   WorkflowGraphProposal,
@@ -17,6 +20,11 @@ export async function planWorkflowGraph(
 ): Promise<WorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
   const schema = createWorkflowGraphProposalSchema(input.capabilities);
+  const preparedNativeNodes = input.preparedNativeNodes ?? [];
+  const nativeOutputs = createNativeOutputContracts({
+    nativeNodes: preparedNativeNodes,
+    capabilities: input.capabilities,
+  });
   const output: WorkflowGraphProposal = await input.model
     .withStructuredOutput<WorkflowGraphProposal>(schema, {
       name: 'plan_workflow_graph',
@@ -28,6 +36,8 @@ export async function planWorkflowGraph(
       new HumanMessage(
         JSON.stringify({
           scenario: input.scenario,
+          preparedNativeNodes,
+          nativeOutputs,
           // Request values are already generated. Avoid duplicating the resolved
           // response schemas through both operation and pathItem in this stage.
           materials: input.materials.map(({ operation, arguments: args }) => ({
@@ -71,7 +81,13 @@ export async function planWorkflowGraph(
     );
   }
   try {
-    return createWorkflowGraphPlan({ ...input, proposal });
+    return createWorkflowGraphPlan({
+      ...input,
+      proposal: {
+        ...proposal,
+        nativeNodes: [...preparedNativeNodes, ...proposal.nativeNodes],
+      },
+    });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new WorkflowGraphPlanningError(

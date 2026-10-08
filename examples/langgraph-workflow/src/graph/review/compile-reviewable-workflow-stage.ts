@@ -1,6 +1,7 @@
 import {
   compileReviewableN8nWorkflow,
   createHttpRequestNode,
+  createN8nNativeOutputSources,
 } from '@openapi-flow/n8n';
 import type { ReadyWorkflowApiMaterial } from '@openapi-flow/core';
 import type {
@@ -28,6 +29,11 @@ export function compileReviewableWorkflowStage(
       'Request ' + item.arguments.callId,
     ]),
   );
+  const nativeOutputSources = createN8nNativeOutputSources({
+    nativeNodes: state.reviewPlan.nativeNodes,
+    capabilities: dependencies.capabilities,
+    apiNodeNames: names,
+  });
   const apiNodes = ready.map((item, index) => {
     const deployment = dependencies.deployments?.find(
       (deployment) => deployment.documentId === item.operation.key.documentId,
@@ -38,6 +44,7 @@ export function compileReviewableWorkflowStage(
       baseUrl: deployment?.baseUrl,
       credentialBindings: deployment?.credentialBindings,
       apiNodeNames: names,
+      nativeOutputSources,
       position: [300, index * 200],
     });
   });

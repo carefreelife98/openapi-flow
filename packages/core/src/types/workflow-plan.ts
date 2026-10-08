@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiCallArguments, JsonValueObject } from './api-arguments.js';
+import type { BindingSchema } from './api-bindings.js';
 
 export interface WorkflowApiMaterial {
   operation: ApiOperationContract;
@@ -14,6 +15,16 @@ export interface WorkflowResponseReference {
   pointer: string;
 }
 
+export interface WorkflowNodeOutputReference {
+  source: 'node-output';
+  nodeId: string;
+  /** RFC 6901 pointer into the declared native JSON item. */
+  pointer: string;
+}
+
+export type WorkflowValueReference =
+  WorkflowResponseReference | WorkflowNodeOutputReference;
+
 export interface WorkflowCapability {
   name: string;
   description: string;
@@ -25,6 +36,8 @@ export interface WorkflowCapability {
   ) => WorkflowResponseReference[];
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;
+  /** Explicit native JSON output contract; absent means no bindable output. */
+  outputSchema?: (parameters: JsonValueObject) => BindingSchema;
 }
 
 export interface PlannedNativeNode {
@@ -75,7 +88,7 @@ export interface WorkflowPlanNodeContract {
   id: string;
   inputs: string[];
   outputs: string[];
-  references: WorkflowResponseReference[];
+  references: WorkflowValueReference[];
   dependencyNodeIds: string[];
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;

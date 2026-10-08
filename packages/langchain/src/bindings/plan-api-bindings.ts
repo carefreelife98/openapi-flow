@@ -2,6 +2,7 @@ import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   validateApiBindingAssignments,
   validateApiBindingGaps,
+  validateNativeOutputContracts,
 } from '@openapi-flow/core';
 import type { ApiBindingPlan } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from '../types/binding-planning.js';
@@ -14,7 +15,11 @@ export async function planApiBindings(
   input: PlanApiBindingsInput,
 ): Promise<ApiBindingPlan> {
   assertSelectionInput(input.scenario, input.model);
-  const schema = createApiBindingPlanSchema(input.materials);
+  validateNativeOutputContracts(input.nativeOutputs ?? []);
+  const schema = createApiBindingPlanSchema(
+    input.materials,
+    input.nativeOutputs,
+  );
   const proposed: ApiBindingPlan = await input.model
     .withStructuredOutput<ApiBindingPlan>(schema, {
       name: 'plan_api_bindings',
@@ -26,6 +31,7 @@ export async function planApiBindings(
       new HumanMessage(
         JSON.stringify({
           scenario: input.scenario,
+          nativeOutputs: input.nativeOutputs,
           materials: input.materials.map(({ operation, ...material }) => ({
             ...material,
             operation: {
@@ -43,6 +49,7 @@ export async function planApiBindings(
   validateApiBindingAssignments({
     calls: plan.calls,
     materials: input.materials,
+    nativeOutputs: input.nativeOutputs,
   });
   validateApiBindingGaps({ plan, materials: input.materials });
   return plan;

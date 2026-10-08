@@ -4,6 +4,7 @@ import { validateApiBindingAssignments } from '../bindings/validate-api-binding-
 import { validateApiBindingGaps } from '../bindings/validate-api-binding-gaps.js';
 import { createReviewableNodeContracts } from './create-reviewable-node-contracts.js';
 import { validateWorkflowTopology } from './validate-workflow-topology.js';
+import { createNativeOutputContracts } from './create-native-output-contracts.js';
 
 export function validateReviewableWorkflowGraphPlan(
   input: ValidateReviewableWorkflowGraphPlanInput,
@@ -68,6 +69,10 @@ export function validateReviewableWorkflowGraphPlan(
   }
   if (materials.length)
     validateApiBindingAssignments({
+      nativeOutputs: createNativeOutputContracts({
+        nativeNodes: plan.nativeNodes,
+        capabilities: input.capabilities,
+      }),
       materials: materials.map((item) => ({
         callId: item.status === 'ready' ? item.arguments.callId : item.callId,
         operation: item.operation,

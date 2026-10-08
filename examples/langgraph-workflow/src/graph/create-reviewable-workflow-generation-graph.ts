@@ -46,7 +46,7 @@ export function createReviewableWorkflowGenerationGraph(
         ? createReviewableWorkflowGraphPlan({
             ...context,
             proposal: {
-              nativeNodes: [],
+              nativeNodes: dependencies.preparedNativeNodes ?? [],
               edges: [],
               additionalGaps: [],
               blockedCalls: [],
@@ -56,6 +56,7 @@ export function createReviewableWorkflowGenerationGraph(
             ...context,
             scenario: state.scenario,
             model: dependencies.model,
+            preparedNativeNodes: dependencies.preparedNativeNodes,
           });
     await dependencies.reviewPlan?.(reviewPlan);
     return { reviewPlan, trace: [...state.trace, 'graph-plan'] };

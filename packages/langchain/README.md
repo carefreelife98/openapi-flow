@@ -3,7 +3,7 @@
 Independent model calls for OpenAPI workflows. Unreleased `0.2.0` source; this package is not yet published.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
-- `planApiBindings`: selected OAS contracts → API response-to-request pointer bindings and request-data gaps, independently of native control-flow planning.
+- `planApiBindings`: selected OAS contracts and optional declared `nativeOutputs` → output-to-request pointer bindings and request-data gaps, independently of native control-flow planning. API pointers read response bodies; native pointers read the declared JSON output. Neither changes value types or semantics.
 - `generateApiArguments`: propose one call's OAS-typed request values and report missing inputs.
 - `selectApiRequestMediaType`: choose among the full OAS body's declared formats using scenario-grounded structured output. Zero or one format needs no model call. Unspecified or ambiguous multiple-format requests use core's deterministic `selectDefaultApiRequestMediaType`: JSON, then form-urlencoded, then other concrete keys, then wildcard keys; ties use code-point order. Only declared formats can be chosen, explicit choices remain intact and invalid model output still fails.
 - Requests with no remaining literal inputs return empty values without invoking the model, including fully bound nested closed bodies and whole-body bindings. OAS-permitted additional properties remain potential literal inputs.
@@ -21,3 +21,5 @@ Binding gap output now requires `{ callId, targetPointer, description }`, not a 
 Discovery selection cannot produce `insufficient_contract` from metadata-only candidates. Model gap output has only `description`; the library assigns `missing_operation`. Detailed input and response limitations belong to stages that read full contracts. Review output omits known empty `blockedCalls`/`nativeNodes` fields; code adds those constants only when the supplied context proves they are empty. Dynamic fields remain required. Real LangChain wire schemas are checked against the JSON Schema meta-schema, including all-blocked and empty-registry contexts.
 
 See the [workspace guide](https://github.com/carefreelife98/openapi-flow#independent-stages). Our code is MIT-licensed; dependency terms remain separate.
+
+Both graph planners accept optional `preparedNativeNodes`. These are fixed materials, not model output: their IDs/parameters are preserved and the model plans their connections. Prepare such producers before binding/argument generation, deriving their schemas with core's `createNativeOutputContracts`. Additional model-planned native nodes may still be returned. Repeating a prepared ID, guessing a producer, changing parameters through a coercing/defaulting schema or bypassing a required producer fails validation. Native output contracts must come from registered capability implementations, never model-generated declarations.

@@ -5,8 +5,13 @@ import { validateApiBindingAssignments } from './validate-api-binding-assignment
 export function validateApiBindingPlan({
   plan,
   materials,
+  nativeOutputs,
 }: ValidateApiBindingPlanInput): void {
   if (plan.gaps.length)
     throw new Error(`API bindings need review: ${JSON.stringify(plan.gaps)}`);
-  validateApiBindingAssignments({ calls: plan.calls, materials });
+  validateApiBindingAssignments({
+    calls: plan.calls,
+    materials,
+    nativeOutputs,
+  });
 }

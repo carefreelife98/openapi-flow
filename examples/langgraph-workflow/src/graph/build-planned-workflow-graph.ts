@@ -1,6 +1,9 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
 import { planWorkflowGraph } from '@openapi-flow/langchain';
-import { compilePlannedN8nWorkflow } from '@openapi-flow/n8n';
+import {
+  compilePlannedN8nWorkflow,
+  createN8nNativeOutputSources,
+} from '@openapi-flow/n8n';
 import type {
   PlannedGraphDependencies,
   WorkflowState,
@@ -30,6 +33,7 @@ export function buildPlannedWorkflowGraph(
       scenario: state.scenario,
       model: dependencies.model,
       capabilities: dependencies.capabilities,
+      preparedNativeNodes: dependencies.preparedNativeNodes,
       materials: state.contracts.map((operation, index) => ({
         operation,
         arguments: state.arguments![index],
@@ -45,7 +49,19 @@ export function buildPlannedWorkflowGraph(
   }
   function compileWorkflow(state: WorkflowState): WorkflowUpdate {
     if (!state.graphPlan) throw new Error('compileWorkflow requires graphPlan');
-    const requests = createRequestMaterials(state, dependencies);
+    const names = Object.fromEntries(
+      state.arguments!.map((call) => [call.callId, 'Request ' + call.callId]),
+    );
+    const nativeOutputSources = createN8nNativeOutputSources({
+      nativeNodes: state.graphPlan.nativeNodes,
+      capabilities: dependencies.capabilities,
+      apiNodeNames: names,
+    });
+    const requests = createRequestMaterials(
+      state,
+      dependencies,
+      nativeOutputSources,
+    );
     const result = compilePlannedN8nWorkflow({
       id: state.workflowId,
       name: state.workflowName,

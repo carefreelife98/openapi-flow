@@ -7,6 +7,10 @@ import type {
   HttpRequestDeploymentOptions,
   ResolvedHttpRequestDeployment,
 } from './request-deployment.js';
+import type {
+  N8nNativeOutputSource,
+  N8nOutputBindingSource,
+} from './output-binding-source.js';
 
 export type N8nSdkNode = NodeInstance<string, string, unknown>;
 export interface N8nFragmentEdge {
@@ -23,12 +27,14 @@ export interface N8nNodeFragment {
   inputPorts: Record<string, number>;
   outputPorts: Record<string, number>;
   internalEdges?: N8nFragmentEdge[];
+  bindingSources?: N8nOutputBindingSource[];
 }
 export interface CreateHttpRequestNodeInput extends HttpRequestDeploymentOptions {
   operation: ApiOperationContract;
   arguments: ApiCallArguments;
   position: [number, number];
   apiNodeNames?: Record<string, string>;
+  nativeOutputSources?: N8nNativeOutputSource[];
 }
 
 export type CreateBoundHttpRequestNodeInput = CreateHttpRequestNodeInput &

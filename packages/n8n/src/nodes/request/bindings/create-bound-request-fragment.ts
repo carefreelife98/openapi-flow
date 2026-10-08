@@ -9,30 +9,20 @@ import { javascriptJsonLiteral } from '../../../utils/javascript-json-literal.js
 import { httpRequestNode } from '../../../legacy/workflow/request/http-request-node.js';
 import { resolveCredentialBinding } from '../../../legacy/workflow/request/credential-binding.js';
 import { compileRequestValidator } from './compile-request-validator.js';
+import { resolveOutputBindingSources } from './resolve-output-binding-sources.js';
+import { createOutputReaderCode } from './create-output-reader-code.js';
 
 export function createBoundRequestFragment(
   input: CreateBoundHttpRequestNodeInput,
   config: RequestMaterializationConfig,
 ): N8nNodeFragment {
-  if (!input.apiNodeNames)
-    throw new Error(
-      `arguments[${config.arguments.callId}] requires apiNodeNames for response bindings`,
-    );
-  const names = input.apiNodeNames;
-  const sources = [
-    ...new Set(
-      config.arguments.bindings.map((binding) => binding.sourceNodeId),
-    ),
-  ];
-  for (const id of sources)
-    if (!Object.hasOwn(names, id) || !names[id].trim())
-      throw new Error(`apiNodeNames is missing ${id}`);
+  const sources = resolveOutputBindingSources(input);
   const runtime = readFileSync(
     new URL('../runtime/request-runtime.bundle.js', import.meta.url),
     'utf8',
   );
   const validator = compileRequestValidator(config);
-  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\nconst names=${javascriptJsonLiteral(Object.fromEntries(sources.map((id) => [id, names[id]])))};\nconst responses=Object.create(null);\nfor(const [id,name] of Object.entries(names)){const items=$(name).all();if(items.length!==1)throw new Error('Response '+id+' requires an unambiguous single API envelope; got '+items.length+' items');if(!Object.hasOwn(items[0].json,'body'))throw new Error('Missing response body '+id);responses[id]=items[0].json.body;}\nreturn [{json:OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator)}];`;
+  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\n${createOutputReaderCode(sources)}\nreturn [{json:OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator)}];`;
   const materializer = node({
     type: 'n8n-nodes-base.code',
     version: 2,
@@ -95,6 +85,7 @@ export function createBoundRequestFragment(
   };
   return {
     nodeId: config.arguments.callId,
+    bindingSources: sources,
     nodes: [materializer, request],
     entry: materializer,
     exit: request,

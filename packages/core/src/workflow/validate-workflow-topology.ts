@@ -125,9 +125,13 @@ export function validateWorkflowTopology({
           `node ${current.id}: planned dependency ${dependency} is not available on every incoming route`,
         );
     for (const ref of current.references) {
-      if (!apiIds.has(ref.nodeId))
+      if (
+        ref.source === 'response'
+          ? !apiIds.has(ref.nodeId)
+          : !nodes.has(ref.nodeId)
+      )
         throw new Error(
-          `node ${current.id}: response reference requires an API node ${ref.nodeId}`,
+          `node ${current.id}: ${ref.source} reference requires ${ref.source === 'response' ? 'an API' : 'a declared native'} node ${ref.nodeId}`,
         );
       if (
         ref.pointer !== '' &&

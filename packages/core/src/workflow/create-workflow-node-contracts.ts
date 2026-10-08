@@ -2,6 +2,7 @@ import type {
   WorkflowNodeContractsInput,
   WorkflowPlanNodeContract,
 } from '../types/workflow-plan.js';
+import { parseNativeNodeParameters } from './parse-native-node-parameters.js';
 
 export function createWorkflowNodeContracts({
   materials,
@@ -16,7 +17,11 @@ export function createWorkflowNodeContracts({
     inputs: ['main'],
     outputs: ['main'],
     references: item.arguments.bindings.map((binding) => ({
-      source: 'response',
+      source: materials.some(
+        (source) => source.arguments.callId === binding.sourceNodeId,
+      )
+        ? 'response'
+        : 'node-output',
       nodeId: binding.sourceNodeId,
       pointer: binding.sourcePointer,
     })),
@@ -30,7 +35,7 @@ export function createWorkflowNodeContracts({
       throw new Error(
         `node ${native.id}: unknown capability ${native.capability}`,
       );
-    const parameters = capability.parametersSchema.parse(native.parameters);
+    const parameters = parseNativeNodeParameters(native, capability);
     contracts.push({
       id: native.id,
       inputs: capability.inputPorts(parameters),

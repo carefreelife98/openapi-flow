@@ -2,7 +2,46 @@
 
 `openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API에는 모델이 조건·연결까지 계획하는 factory와 호스트가 연결을 명시하는 factory를 제공한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 아직 배포하지 않은 `0.2.0` 소스를 대상으로 한다.
 
-## 실행
+## native 출력 바인딩
+
+`createPlannedWorkflowGenerationGraph`와 `createReviewableWorkflowGenerationGraph`는 선택 사항인 `preparedNativeNodes`를 받는다. 호스트가 먼저 준비한 native 노드의 출력 계약을 OSS의 바인딩 함수에 전달하고, 최종 모델 호출은 그 노드의 값을 다시 생성하지 않고 연결을 계획한다. 타입이나 단위가 맞지 않으면 자동 보정하지 않는다. API의 OAS 계약은 그대로 유지한다.
+
+```ts
+import { z } from 'zod';
+import {
+  createJsonOutputCapability,
+  createN8nNativeCapabilities,
+} from '@openapi-flow/n8n';
+
+const context = createJsonOutputCapability({
+  name: 'request-context',
+  description: 'User-supplied product ID, copied unchanged into a JSON item.',
+  parametersSchema: z.strictObject({ productId: z.string() }),
+});
+const graph = createReviewableWorkflowGenerationGraph({
+  model,
+  capabilities: [...createN8nNativeCapabilities(), context],
+  preparedNativeNodes: [
+    {
+      id: 'request-context',
+      capability: 'request-context',
+      parameters: { productId: '42' },
+    },
+  ],
+});
+```
+
+이 예시는 기존 시나리오의 명시적인 값을 n8n Edit Fields(JSON)로 출력한다. 새로운 값을 추측하거나 API 응답을 수정하지 않는다. 사용자 시나리오가 이 값을 다음 API에 쓰도록 요구하면 모델은 `/productId`에서 대상 OAS 요청 필드로 바인딩하고 선행 연결을 설계한다. ID·생산자·입력 위치를 실제 계약과 대조하며, 단순히 필드명이 같다는 이유로 연결하지 않는다.
+
+커스텀 native 기능은 `outputSchema(parameters)`로 JSON 출력 계약을 선언한다. 계약은 구현에서 도출하며 모델에게 생성시키지 않는다. 현재는 하나의 명확한 JSON item을 바인딩한다. 여러 item 중 하나를 임의로 고르는 동작과 항목별 반복은 제공하지 않는다. 이 예시의 `preparedNativeNodes`는 호스트가 지정하지만 바인딩·검사·컴파일은 OSS의 공개 함수가 수행한다. 자연어에서 임의의 모든 native 생산자를 먼저 고르는 계획 단계까지 자동 제공하는 것은 아니다.
+
+실제 ICL OAS를 사용한 재현 명령은 다음과 같다. 모델 응답을 스크립트로 지정하는 기본 검사이며 실제 ICL 서비스는 호출하지 않는다. 실제 LangChain 모델은 검증 함수에 별도로 주입할 수 있다.
+
+```sh
+OPENAPI_FLOW_ICL_OAS_PATH=/absolute/path/to/icl.openapi.json npm run test:native-output-bindings-local-n8n
+```
+
+## CLI 실행
 
 Node.js 24 이상에서 저장소 루트를 기준으로 실행한다.
 
