@@ -14,6 +14,15 @@ export interface PlanWorkflowGraphInput {
   preparedNativeNodes?: PlannedNativeNode[];
 }
 
+export interface PreparedNativeNodeMaterial extends PlannedNativeNode {
+  inputPorts: string[];
+  outputPorts: string[];
+}
+
+export type WorkflowGraphOutput = Omit<WorkflowGraphProposal, 'nativeNodes'> & {
+  additionalNativeNodes: PlannedNativeNode[];
+};
+
 export type WorkflowGraphPlanningFailure =
   | { stage: 'proposal-schema'; output: unknown }
-  | { stage: 'graph-validation'; output: WorkflowGraphProposal };
+  | { stage: 'graph-validation'; output: WorkflowGraphOutput };

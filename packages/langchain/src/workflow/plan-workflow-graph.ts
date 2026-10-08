@@ -3,17 +3,19 @@ import {
   createWorkflowGraphPlan,
   createNativeOutputContracts,
 } from '@openapi-flow/core';
-import type {
-  WorkflowGraphPlan,
-  WorkflowGraphProposal,
-} from '@openapi-flow/core';
+import type { WorkflowGraphPlan } from '@openapi-flow/core';
 import { z } from 'zod';
-import type { PlanWorkflowGraphInput } from '../types/workflow-planning.js';
+import type {
+  PlanWorkflowGraphInput,
+  WorkflowGraphOutput,
+} from '../types/workflow-planning.js';
 import { createWorkflowGraphProposalSchema } from '../schemas/workflow-graph-proposal-schema.js';
 import { WorkflowGraphPlanningError } from './workflow-graph-planning-error.js';
 import { workflowGraphPrompt } from '../prompts/workflow-graph-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
+import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
+import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
 
 export async function planWorkflowGraph(
   input: PlanWorkflowGraphInput,
@@ -25,8 +27,8 @@ export async function planWorkflowGraph(
     nativeNodes: preparedNativeNodes,
     capabilities: input.capabilities,
   });
-  const output: WorkflowGraphProposal = await input.model
-    .withStructuredOutput<WorkflowGraphProposal>(schema, {
+  const output: WorkflowGraphOutput = await input.model
+    .withStructuredOutput<WorkflowGraphOutput>(schema, {
       name: 'plan_workflow_graph',
       method: 'functionCalling',
       strict: true,
@@ -36,7 +38,10 @@ export async function planWorkflowGraph(
       new HumanMessage(
         JSON.stringify({
           scenario: input.scenario,
-          preparedNativeNodes,
+          preparedNativeNodes: createPreparedNativeNodeMaterials(
+            preparedNativeNodes,
+            input.capabilities,
+          ),
           nativeOutputs,
           // Request values are already generated. Avoid duplicating the resolved
           // response schemas through both operation and pathItem in this stage.
@@ -70,7 +75,7 @@ export async function planWorkflowGraph(
         }),
       ),
     ]);
-  let proposal: WorkflowGraphProposal;
+  let proposal: WorkflowGraphOutput;
   try {
     proposal = parseStructuredOutput(schema, output, 'model workflow graph');
   } catch (error) {
@@ -84,8 +89,12 @@ export async function planWorkflowGraph(
     return createWorkflowGraphPlan({
       ...input,
       proposal: {
-        ...proposal,
-        nativeNodes: [...preparedNativeNodes, ...proposal.nativeNodes],
+        edges: proposal.edges,
+        gaps: proposal.gaps,
+        nativeNodes: assembleNativeNodeMaterials(
+          preparedNativeNodes,
+          proposal.additionalNativeNodes,
+        ),
       },
     });
   } catch (error) {

@@ -15,12 +15,12 @@ export interface PlanReviewableWorkflowGraphInput extends ReviewableWorkflowPlan
 
 export type ReviewableWorkflowGraphPlanningFailure =
   | { stage: 'proposal-schema'; output: unknown }
-  | { stage: 'graph-validation'; output: ReviewableWorkflowGraphProposal };
+  | { stage: 'graph-validation'; output: ReviewableWorkflowGraphOutput };
 
 export type ReviewableWorkflowGraphOutput = Omit<
   ReviewableWorkflowGraphProposal,
   'nativeNodes' | 'blockedCalls'
 > & {
-  nativeNodes?: ReviewableWorkflowGraphProposal['nativeNodes'];
+  additionalNativeNodes?: ReviewableWorkflowGraphProposal['nativeNodes'];
   blockedCalls?: ReviewableWorkflowGraphProposal['blockedCalls'];
 };

@@ -11,7 +11,7 @@ import { compilationInput, edge } from './fixtures/workflow-review-fixture.mjs';
 test('ChatOpenAI sends described review fields and retains rejected proposals without retry', async () => {
   const requests = [];
   let output = {
-    nativeNodes: [],
+    additionalNativeNodes: [],
     edges: [edge('call-1', 'refund'), edge('refund', 'call-2')],
     additionalGaps: [],
     blockedCalls: [],
@@ -88,7 +88,12 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
       assert.equal(tool.parameters.additionalProperties, false);
       assert.deepEqual(
         [...tool.parameters.required].sort(),
-        ['nativeNodes', 'edges', 'additionalGaps', 'blockedCalls'].sort(),
+        [
+          'additionalNativeNodes',
+          'edges',
+          'additionalGaps',
+          'blockedCalls',
+        ].sort(),
       );
       assert.equal(tool.parameters.properties.starts, undefined);
       assert.ok(
@@ -109,7 +114,7 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
     assert.equal(
       Object.hasOwn(
         requests[3].tools[0].function.parameters.properties,
-        'nativeNodes',
+        'additionalNativeNodes',
       ),
       false,
     );
@@ -120,7 +125,7 @@ test('ChatOpenAI sends described review fields and retains rejected proposals wi
       bindings: [],
       gapIds: ['refund'],
     }));
-    output = { nativeNodes: [], edges: [], additionalGaps: [] };
+    output = { additionalNativeNodes: [], edges: [], additionalGaps: [] };
     await planReviewableWorkflowGraph({ ...input, materials: blocked });
     assert.equal(
       Object.hasOwn(

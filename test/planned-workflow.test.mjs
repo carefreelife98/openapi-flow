@@ -297,7 +297,8 @@ test('planner sends OAS response contracts and described native schemas, derivin
             JSON.stringify(z.toJSONSchema(schema)).includes('"oneOf"'),
             false,
           );
-          const { starts, ...proposal } = expected;
+          const { starts, nativeNodes, ...rest } = expected;
+          const proposal = { ...rest, additionalNativeNodes: nativeNodes };
           assert.equal(z.toJSONSchema(schema).properties.starts, undefined);
           assert.ok(schema.safeParse(proposal).success);
           assert.equal(schema.safeParse(expected).success, false);
@@ -363,7 +364,8 @@ test('official graph adds the model graph-plan stage without any compose callbac
               for (const operand of [c.left, c.right])
                 if (operand.source === 'response')
                   operand.nodeId = ids[operand.nodeId];
-          return proposed;
+          const { nativeNodes, ...output } = proposed;
+          return { ...output, additionalNativeNodes: nativeNodes };
         },
       };
     },
@@ -409,9 +411,9 @@ test('unmet requirements return a gap proposal and cannot be compiled', async ()
     withStructuredOutput() {
       return {
         async invoke() {
-          const { starts, ...proposal } = expected;
+          const { starts, nativeNodes, ...proposal } = expected;
           assert.deepEqual(starts, []);
-          return proposal;
+          return { ...proposal, additionalNativeNodes: nativeNodes };
         },
       };
     },
@@ -435,7 +437,8 @@ test('invalid typed model output fails without substitution', async () => {
     withStructuredOutput() {
       return {
         async invoke() {
-          return expected;
+          const { nativeNodes, ...output } = expected;
+          return { ...output, additionalNativeNodes: nativeNodes };
         },
       };
     },

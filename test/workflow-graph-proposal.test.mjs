@@ -152,7 +152,11 @@ test('deriving roots does not make a disconnected response consumer valid', () =
 });
 
 test('failed graph proposal is exposed unchanged through a typed error without retry', async () => {
-  const output = { ...proposal(), edges: [edge('missing', 'c')] };
+  const output = {
+    additionalNativeNodes: [],
+    edges: [edge('missing', 'c')],
+    gaps: [],
+  };
   const original = globalThis.structuredClone(output);
   let calls = 0;
   const model = {
@@ -185,7 +189,12 @@ test('failed graph proposal is exposed unchanged through a typed error without r
 });
 
 test('unexpected model starts are rejected by schema, not discarded or repaired', async () => {
-  const output = { ...proposal(), starts: ['c'] };
+  const output = {
+    additionalNativeNodes: [],
+    edges: proposal().edges,
+    gaps: [],
+    starts: ['c'],
+  };
   const model = {
     withStructuredOutput() {
       return {
@@ -214,7 +223,7 @@ test('unexpected model starts are rejected by schema, not discarded or repaired'
 
 test('actual ChatOpenAI tool schema excludes starts and exposes a rejected graph without retry', async () => {
   const requests = [];
-  let output = proposal();
+  let output = { additionalNativeNodes: [], edges: proposal().edges, gaps: [] };
   const server = createServer(async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
@@ -267,7 +276,11 @@ test('actual ChatOpenAI tool schema excludes starts and exposes a rejected graph
     };
     const plan = await planWorkflowGraph(input);
     assert.deepEqual(plan.starts, ['a', 'b']);
-    output = { ...proposal(), edges: [edge('missing', 'c')] };
+    output = {
+      additionalNativeNodes: [],
+      edges: [edge('missing', 'c')],
+      gaps: [],
+    };
     await assert.rejects(planWorkflowGraph(input), (error) => {
       assert.ok(error instanceof WorkflowGraphPlanningError);
       assert.equal(error.failure.stage, 'graph-validation');
@@ -280,7 +293,7 @@ test('actual ChatOpenAI tool schema excludes starts and exposes a rejected graph
       assert.equal(tool.strict, true);
       assert.equal(tool.parameters.additionalProperties, false);
       assert.deepEqual(tool.parameters.required, [
-        'nativeNodes',
+        'additionalNativeNodes',
         'edges',
         'gaps',
       ]);

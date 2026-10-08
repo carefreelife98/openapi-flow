@@ -605,7 +605,7 @@ test('all-blocked graph schema excludes the code-owned empty blockedCalls field'
       return {
         async invoke() {
           return {
-            nativeNodes: [],
+            additionalNativeNodes: [],
             edges: [],
             additionalGaps: [],
           };
@@ -698,7 +698,7 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
               to: connection.to === 'join' ? 'join' : ids[connection.to],
             }));
             output = {
-              nativeNodes: graphPlan.nativeNodes,
+              additionalNativeNodes: graphPlan.nativeNodes,
               edges: [edge(payload.gaps[0].id, ids.source), ...mapped],
               additionalGaps: [],
             };

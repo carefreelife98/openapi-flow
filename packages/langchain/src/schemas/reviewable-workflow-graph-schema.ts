@@ -18,13 +18,13 @@ export function createReviewableWorkflowGraphSchema(
       parameters: capability.parametersSchema,
     }),
   );
-  const nativeNodes =
+  const additionalNativeNodes =
     natives.length === 0
       ? undefined
       : z
           .array(z.union([natives[0], ...natives.slice(1)]))
           .describe(
-            'Only implementable native functions, with typed parameters. Never refer to an unavailable response.',
+            'NEW native nodes only, with typed parameters. Existing preparedNativeNodes and API materials are already present. Never repeat their IDs or parameters. Return [] when no new native node is needed. Never refer to an unavailable response.',
           );
   const blockedCalls =
     readyCallIds.length === 0
@@ -89,9 +89,9 @@ export function createReviewableWorkflowGraphSchema(
       }),
     ),
   });
-  if (nativeNodes && blockedCalls)
-    return base.extend({ nativeNodes, blockedCalls });
-  if (nativeNodes) return base.extend({ nativeNodes });
+  if (additionalNativeNodes && blockedCalls)
+    return base.extend({ additionalNativeNodes, blockedCalls });
+  if (additionalNativeNodes) return base.extend({ additionalNativeNodes });
   if (blockedCalls) return base.extend({ blockedCalls });
   return base;
 }

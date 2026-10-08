@@ -18,6 +18,8 @@ import { reviewableWorkflowGraphPrompt } from '../prompts/reviewable-workflow-gr
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { ReviewableWorkflowGraphPlanningError } from './reviewable-workflow-graph-planning-error.js';
+import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
+import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
 
 export async function planReviewableWorkflowGraph(
   input: PlanReviewableWorkflowGraphInput,
@@ -46,7 +48,10 @@ export async function planReviewableWorkflowGraph(
       new HumanMessage(
         JSON.stringify({
           scenario: input.scenario,
-          preparedNativeNodes,
+          preparedNativeNodes: createPreparedNativeNodeMaterials(
+            preparedNativeNodes,
+            input.capabilities,
+          ),
           nativeOutputs,
           materials: input.materials.map(({ operation, ...material }) => ({
             ...material,
@@ -97,13 +102,16 @@ export async function planReviewableWorkflowGraph(
       ...input,
       proposal: {
         ...proposal,
-        nativeNodes: [...preparedNativeNodes, ...proposal.nativeNodes],
+        nativeNodes: assembleNativeNodeMaterials(
+          preparedNativeNodes,
+          proposal.nativeNodes,
+        ),
       },
     });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new ReviewableWorkflowGraphPlanningError(
-      { stage: 'graph-validation', output: proposal },
+      { stage: 'graph-validation', output },
       error,
     );
   }

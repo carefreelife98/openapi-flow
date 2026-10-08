@@ -6,6 +6,8 @@
 
 `createPlannedWorkflowGenerationGraph`와 `createReviewableWorkflowGenerationGraph`는 선택 사항인 `preparedNativeNodes`를 받는다. 호스트가 먼저 준비한 native 노드의 출력 계약을 OSS의 바인딩 함수에 전달하고, 최종 모델 호출은 그 노드의 값을 다시 생성하지 않고 연결을 계획한다. 타입이나 단위가 맞지 않으면 자동 보정하지 않는다. API의 OAS 계약은 그대로 유지한다.
 
+모델 출력의 `additionalNativeNodes`에는 새로 추가할 노드만 담는다. 기존 노드는 파라미터와 실제 입력·출력 포트를 함께 전달하므로 다시 생성할 필요가 없다. 코드가 두 목록을 합쳐 반환 계획의 `nativeNodes`를 만들며, 기존 ID를 다시 제안하면 원본 출력과 원인을 담은 오류를 반환한다. 중복 노드를 삭제하거나 이전 출력 필드명을 alias로 받아들이지 않는다.
+
 ```ts
 import { z } from 'zod';
 import {
@@ -242,7 +244,7 @@ if (result.status === 'needs-review') {
 
 결손이 있는 compiler 결과는 `{ status: 'needs-review', workflow, diagnostics }`다. HTTP Request와 n8n 자체 노드, 응답값 조립용 내부 연결을 유지한다. 결손은 입출력 `main` 포트가 있는 Code 노드와 설명용 Sticky Note로 표현한다. Code는 실행되면 `OPENAPI_FLOW_UNRESOLVED_STEP` 오류를 내며, 없는 API의 method·path·요청값·응답은 만들지 않는다. 내부 DAG의 실제 root는 계획에 남기되, 최종 JSON에는 모든 `Start → root` 연결을 넣지 않고 `active: false`를 표시한다. 결손이 없는 결과는 같은 strict compiler를 사용해 Start를 연결한다.
 
-독립 조합에서도 같은 경로를 쓸 수 있다. `core`의 `ReviewableWorkflowApiMaterial`은 실제 입력이 있는 `ready`와, 원본 OAS·바인딩·원인 결손 ID만 있는 `blocked`를 구분한다. `langchain`의 `planReviewableWorkflowGraph`가 `nativeNodes`, `edges`, `additionalGaps`, `blockedCalls`를 제안하고, core가 root·참조·포트·순환·합류·응답 가용성을 검사한다. `n8n`의 `compileReviewableN8nWorkflow({id, name, materials, plan, apiNodes, capabilities})`는 unblocked ready 호출의 실제 fragment만 받아 SDK로 조립한다. 각 함수를 사용자의 LangGraph에 따로 배치할 수 있다. 예전 미배포 notes-only preview API는 제거했으며 alias를 두지 않았다.
+독립 조합에서도 같은 경로를 쓸 수 있다. `core`의 `ReviewableWorkflowApiMaterial`은 실제 입력이 있는 `ready`와, 원본 OAS·바인딩·원인 결손 ID만 있는 `blocked`를 구분한다. `langchain`의 `planReviewableWorkflowGraph`가 `additionalNativeNodes`, `edges`, `additionalGaps`, `blockedCalls`를 제안하고, 코드는 기존 노드와 추가 노드를 반환 계획의 `nativeNodes`로 조립한다. Core가 root·참조·포트·순환·합류·응답 가용성을 검사한다. `n8n`의 `compileReviewableN8nWorkflow({id, name, materials, plan, apiNodes, capabilities})`는 unblocked ready 호출의 실제 fragment만 받아 SDK로 조립한다. 각 함수를 사용자의 LangGraph에 따로 배치할 수 있다. 예전 미배포 notes-only preview API는 제거했으며 alias를 두지 않았다.
 
 선택 결손은 명시적인 ID로, 바인딩 결손은 `{ callId, targetPointer, description }`로 추적한다. 바인딩 결손의 대상은 요청 OAS에 존재해야 한다. 확정된 응답 바인딩을 통해 결손 호출에 의존하는 호출도 원인 ID를 이어받아 `blocked`가 되고, 이 호출에는 리터럴 입력 생성 LLM을 호출하지 않는다. 이름이 같은 필드를 자동 연결하는 로직은 없다. 그래프 단계에서 추가로 드러난 선행 작업 결손은 모델이 해당 호출을 `blockedCalls`로 명시해야 하며, blocked 응답을 사용하는 정상 노드는 검사에서 거부한다.
 

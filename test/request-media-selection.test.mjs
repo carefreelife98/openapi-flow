@@ -186,7 +186,7 @@ for (const selection of ['application/json', null])
                 break;
               case 'plan_reviewable_workflow_graph':
                 output = {
-                  nativeNodes: [],
+                  additionalNativeNodes: [],
                   edges: [],
                   additionalGaps: [],
                   blockedCalls: [],

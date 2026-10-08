@@ -28,7 +28,7 @@ for (const nativeEnabled of [false, true])
         JSON.stringify(validator.errors),
       );
       assert.equal(
-        Object.hasOwn(wire.properties, 'nativeNodes'),
+        Object.hasOwn(wire.properties, 'additionalNativeNodes'),
         nativeEnabled,
       );
       assert.equal(
@@ -38,7 +38,7 @@ for (const nativeEnabled of [false, true])
       const output = {
         edges: [],
         additionalGaps: [],
-        ...(nativeEnabled ? { nativeNodes: [] } : {}),
+        ...(nativeEnabled ? { additionalNativeNodes: [] } : {}),
         ...(readyEnabled ? { blockedCalls: [] } : {}),
       };
       assert.ok(schema.safeParse(output).success);
@@ -52,7 +52,7 @@ for (const nativeEnabled of [false, true])
       );
       if (!nativeEnabled)
         assert.equal(
-          schema.safeParse({ ...output, nativeNodes: [] }).success,
+          schema.safeParse({ ...output, additionalNativeNodes: [] }).success,
           false,
         );
       if (!readyEnabled)
@@ -71,12 +71,12 @@ test('the compiler-owned fields never replace missing dynamic model fields', () 
         1,
         0,
       ),
-    /nativeNodes is required/,
+    /additionalNativeNodes is required/,
   );
   assert.throws(
     () =>
       completeReviewableWorkflowGraphProposal(
-        { edges: [], additionalGaps: [], nativeNodes: [] },
+        { edges: [], additionalGaps: [], additionalNativeNodes: [] },
         1,
         1,
       ),

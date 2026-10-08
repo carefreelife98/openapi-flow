@@ -154,7 +154,7 @@ export function scriptedReviewModel(mode = 'selection-gap') {
           } else if (options.name === 'plan_workflow_graph') {
             const ids = payload.materials.map((item) => item.arguments.callId);
             output = {
-              nativeNodes: [],
+              additionalNativeNodes: [],
               edges: [edge(ids[0], ids[1])],
               gaps:
                 mode === 'graph-gap'
@@ -168,7 +168,7 @@ export function scriptedReviewModel(mode = 'selection-gap') {
             );
             const gapIds = payload.gaps.map((gap) => gap.id);
             output = {
-              nativeNodes: [],
+              additionalNativeNodes: [],
               edges: [],
               additionalGaps: [],
               blockedCalls: [],
@@ -184,7 +184,7 @@ export function scriptedReviewModel(mode = 'selection-gap') {
                   description: 'No registered refund capability',
                 },
               ];
-              output.nativeNodes = [
+              output.additionalNativeNodes = [
                 {
                   id: 'review-stop',
                   capability: 'stop-and-error',

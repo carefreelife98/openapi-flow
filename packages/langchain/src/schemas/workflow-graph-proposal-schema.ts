@@ -1,12 +1,10 @@
 import { z } from 'zod';
-import type {
-  WorkflowCapability,
-  WorkflowGraphProposal,
-} from '@openapi-flow/core';
+import type { WorkflowCapability } from '@openapi-flow/core';
+import type { WorkflowGraphOutput } from '../types/workflow-planning.js';
 
 export function createWorkflowGraphProposalSchema(
   capabilities: WorkflowCapability[],
-): z.ZodType<WorkflowGraphProposal> {
+): z.ZodType<WorkflowGraphOutput> {
   if (!capabilities.length)
     throw new Error('capabilities must contain a native node definition');
   const nativeSchemas = capabilities.map((capability) =>
@@ -20,10 +18,10 @@ export function createWorkflowGraphProposalSchema(
     }),
   );
   return z.strictObject({
-    nativeNodes: z
+    additionalNativeNodes: z
       .array(z.union([nativeSchemas[0], ...nativeSchemas.slice(1)]))
       .describe(
-        'Only native nodes needed by the scenario. API nodes already exist as materials.',
+        'NEW native nodes only. Existing preparedNativeNodes and API materials are already present. Never repeat their IDs or parameters. Return [] when no new native node is needed.',
       ),
     edges: z
       .array(

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { Buffer } from 'node:buffer';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, URL } from 'node:url';
@@ -11,6 +12,7 @@ import {
   createApiCatalog,
   resolveApiOperations,
   validateApiArguments,
+  createNativeOutputContracts,
 } from '@openapi-flow/core';
 import {
   createJsonOutputCapability,
@@ -18,6 +20,7 @@ import {
 } from '@openapi-flow/n8n';
 import { createReviewableWorkflowGenerationGraph } from '@openapi-flow/example-langgraph-workflow';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
+import { createPlanningFailureArtifact } from './utils/create-planning-failure-artifact.mjs';
 
 function docker(args, input) {
   return new Promise((resolve, reject) => {
@@ -78,7 +81,7 @@ export function createScriptedNativeBindingModel() {
             });
           if (options.name === 'plan_reviewable_workflow_graph')
             return schema.parse({
-              nativeNodes: [],
+              additionalNativeNodes: [],
               edges: [
                 {
                   from: 'scenario-context',
@@ -186,6 +189,11 @@ export async function runNativeOutputValidation({
     `../.local-artifacts/native-output-bindings/${plannerLabel}/`,
     import.meta.url,
   );
+  const runId = randomUUID();
+  const runDirectory = new URL(`runs/${runId}/`, directory);
+  const scenario =
+    'Create a workflow that uses the existing scenario-context native node unchanged. Read its gdNo field and pass it directly as query.gdNo to GET /mongotest/core/getKey. Call that API exactly once. Do not calculate, convert types, add other APIs, assertions or native nodes, or treat the literal gdNo text as an expression. The prepared context is authoritative. Connect the native producer before the API.';
+  let phase = 'initialize';
   const runtimeArgs = [
     'run',
     '--rm',
@@ -197,7 +205,26 @@ export async function runNativeOutputValidation({
     image,
   ];
   try {
+    await mkdir(runDirectory, { recursive: true });
+    await writeFile(
+      new URL('planning-context.json', runDirectory),
+      JSON.stringify(
+        {
+          planner: plannerLabel,
+          runId,
+          scenario,
+          preparedNativeNodes,
+          nativeOutputs: createNativeOutputContracts({
+            nativeNodes: preparedNativeNodes,
+            capabilities,
+          }),
+        },
+        null,
+        2,
+      ),
+    );
     await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
+    phase = 'workflow-generation';
     const state = await createReviewableWorkflowGenerationGraph({
       model,
       capabilities,
@@ -219,9 +246,9 @@ export async function runNativeOutputValidation({
       workflowName: 'ICL native output binding',
       sources: [source],
       trace: [],
-      scenario:
-        'Create a workflow that uses the existing scenario-context native node unchanged. Read its gdNo field and pass it directly as query.gdNo to GET /mongotest/core/getKey. Call that API exactly once. Do not calculate, convert types, add other APIs, assertions or native nodes, or treat the literal gdNo text as an expression. The prepared context is authoritative. Connect the native producer before the API.',
+      scenario,
     });
+    phase = 'generated-workflow-validation';
     assert.equal(state.status, 'complete');
     assert.equal(state.reviewPlan.nativeNodes.length, 1);
     assert.equal(state.reviewMaterials.length, 1);
@@ -242,6 +269,11 @@ export async function runNativeOutputValidation({
       new URL('workflow.json', directory),
       JSON.stringify(state.workflow, null, 2),
     );
+    await writeFile(
+      new URL('workflow.json', runDirectory),
+      JSON.stringify(state.workflow, null, 2),
+    );
+    phase = 'isolated-n8n-setup';
     assert.equal((await docker(['volume', 'create', volume])).exitCode, 0);
     volumeCreated = true;
     assert.equal(
@@ -267,6 +299,7 @@ export async function runNativeOutputValidation({
       'wrong-type',
       'ambiguous-items',
     ]) {
+      phase = mode;
       const workflow = globalThis.structuredClone(state.workflow);
       const context = workflow.nodes.find(
         (item) => item.id === 'scenario-context',
@@ -329,6 +362,7 @@ export async function runNativeOutputValidation({
     }
     const report = {
       planner: plannerLabel,
+      runId,
       image,
       results,
       actualBusinessCalls: 0,
@@ -341,8 +375,27 @@ export async function runNativeOutputValidation({
       new URL('report.json', directory),
       JSON.stringify(report, null, 2),
     );
-    // Restore the intact importable result, not the intentionally corrupted test cases.
+    await writeFile(
+      new URL('report.json', runDirectory),
+      JSON.stringify(report, null, 2),
+    );
     return report;
+  } catch (error) {
+    const failure = createPlanningFailureArtifact(error);
+    await writeFile(
+      new URL('failure.json', runDirectory),
+      JSON.stringify({ planner: plannerLabel, runId, phase, failure }, null, 2),
+    );
+    console.error(
+      JSON.stringify({
+        phase,
+        failureName: failure.name,
+        stage: failure.stage,
+        cause: failure.cause,
+        artifact: fileURLToPath(new URL('failure.json', runDirectory)),
+      }),
+    );
+    throw error;
   } finally {
     await new Promise((resolve) => server.close(resolve));
     if (volumeCreated)

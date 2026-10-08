@@ -7,13 +7,16 @@ export function completeReviewableWorkflowGraphProposal(
   capabilityCount: number,
   readyCallCount: number,
 ): ReviewableWorkflowGraphProposal {
-  if (capabilityCount > 0 && output.nativeNodes === undefined)
-    throw new Error('model reviewable workflow graph.nativeNodes is required');
+  if (capabilityCount > 0 && output.additionalNativeNodes === undefined)
+    throw new Error(
+      'model reviewable workflow graph.additionalNativeNodes is required',
+    );
   if (readyCallCount > 0 && output.blockedCalls === undefined)
     throw new Error('model reviewable workflow graph.blockedCalls is required');
+  const { additionalNativeNodes, ...proposal } = output;
   return {
-    ...output,
-    nativeNodes: capabilityCount === 0 ? [] : output.nativeNodes!,
+    ...proposal,
+    nativeNodes: capabilityCount === 0 ? [] : additionalNativeNodes!,
     blockedCalls: readyCallCount === 0 ? [] : output.blockedCalls!,
   };
 }

@@ -409,16 +409,23 @@ test('graph planners connect prepared native nodes without asking the model to r
         return {
           async invoke(messages) {
             const input = JSON.parse(messages[1].content);
-            assert.deepEqual(input.preparedNativeNodes, nativeNodes);
+            assert.deepEqual(
+              input.preparedNativeNodes,
+              nativeNodes.map((node) => ({
+                ...node,
+                inputPorts: ['main'],
+                outputPorts: ['main'],
+              })),
+            );
             assert.deepEqual(input.nativeOutputs, nativeOutputs);
             return reviewable
               ? {
-                  nativeNodes: [],
+                  additionalNativeNodes: [],
                   edges: plan.edges,
                   additionalGaps: [],
                   blockedCalls: [],
                 }
-              : { nativeNodes: [], edges: plan.edges, gaps: [] };
+              : { additionalNativeNodes: [], edges: plan.edges, gaps: [] };
           },
         };
       },
@@ -475,10 +482,14 @@ test('official LangGraph examples use OSS native binding and keep typed data inc
               },
             ];
             if (options.name === 'plan_workflow_graph')
-              return schema.parse({ nativeNodes: [], edges, gaps: [] });
+              return schema.parse({
+                additionalNativeNodes: [],
+                edges,
+                gaps: [],
+              });
             if (options.name === 'plan_reviewable_workflow_graph')
               return schema.parse({
-                nativeNodes: [],
+                additionalNativeNodes: [],
                 edges,
                 additionalGaps: [],
                 blockedCalls: [],
