@@ -95,7 +95,7 @@ npm run generate
 
 `.env`와 `artifacts/`는 Git에서 제외한다. `LLM_API_KEY`는 로컬 환경에만 저장한다. 모델은 JSON Schema 기반 선택과 OAS에서 만든 Zod schema의 function calling을 지원해야 한다. OpenAI 호환 endpoint는 CLI에서 연결하고, 다른 LangChain 모델이나 Chomsky 토큰 발급은 호출자가 구성한 모델을 graph factory에 주입한다. 내부 endpoint·토큰 발급 방식은 이 패키지에 넣지 않는다.
 
-`OAS_SOURCES_JSON`은 문서 ID와 파일 경로 목록이다. CLI는 JSON을 읽어 표준 OAS인지 검사한다. `DEPLOYMENTS_JSON`은 선택 사항이며, 문서 ID별 실행 주소와 기존 n8n credential 참조를 받는다. 배열 전체·문서별 항목·개별 `baseUrl`·`credentialBindings`를 생략할 수 있다. 생략한 주소는 `https://replace_me.invalid`, 필요한 Bearer 참조는 `REPLACE_ME:<documentId>:<schemeName>`으로 표시한다. 모델 연결·OAS·시나리오 등 다른 필수 설정은 유지하고, 기존 출력 파일도 덮어쓰지 않는다.
+`OAS_SOURCES_JSON`은 문서 ID와 파일 경로 목록이다. CLI는 JSON을 읽어 표준 OAS인지 검사한다. `DEPLOYMENTS_JSON`은 선택 사항이며, 문서 ID별 실행 주소와 기존 n8n credential 참조를 받는다. 배열 전체·문서별 항목·개별 `baseUrl`·`credentialBindings`를 생략할 수 있다. 생략한 주소는 `https://replace_me.invalid`, 필요한 credential 참조는 `REPLACE_ME:<documentId>:<schemeName>`으로 표시한다. 모델 연결·OAS·시나리오 등 다른 필수 설정은 유지하고, 기존 출력 파일도 덮어쓰지 않는다.
 
 ```ts
 const graph = createPlannedWorkflowGenerationGraph({
@@ -112,6 +112,25 @@ const graph = createPlannedWorkflowGenerationGraph({
 미설정 항목은 노드의 `notes`와 `notesInFlow`로 표시한다. OAS의 `servers`에서 실행 주소를 자동 선택하거나 credential 비밀값을 JSON에 넣지 않는다. OAS가 인증을 요구하지 않으면 credential placeholder도 만들지 않는다. 잘못 입력한 URL·credential, 중복·없는 문서 ID, 필수 요청값 누락은 오류다. 현재 지원하지 않는 인증 조합을 임의의 Bearer로 바꾸지도 않는다.
 
 템플릿은 import할 수 있지만 실제 설정을 연결하기 전에는 실행용 결과가 아니다. 주소·credential을 넣어 다시 생성하거나 JSON의 placeholder를 교체한 뒤 기존 n8n credential을 선택한다. 응답 바인딩이 있는 요청의 주소는 `Materialize` 노드 설정에도 들어 있으므로 HTTP Request 노드만 수정해서는 충분하지 않다. `baseUrl`을 제공해 재생성하면 이 설정을 함께 반영한다.
+
+### OAS 인증과 credential 참조
+
+인증 종류는 LLM이 고르지 않는다. core의 `resolveOpenApiSecurity`가 OAS의 인증 요구와 scope를 읽고, n8n의 `resolveHttpRequestAuthentication`이 기존 credential 종류로 매핑한다. 직접 입력한 요청값과 선행 응답 바인딩은 같은 인증 경로를 사용한다.
+
+| OAS security scheme | n8n credential type |
+| ------------------- | ------------------- |
+| `http / bearer`     | `httpBearerAuth`    |
+| `http / basic`      | `httpBasicAuth`     |
+| `http / digest`     | `httpDigestAuth`    |
+| `apiKey / header`   | `httpHeaderAuth`    |
+| `apiKey / query`    | `httpQueryAuth`     |
+| `oauth2`            | `oAuth2Api`         |
+
+호출자는 OAS scheme 이름을 키로 기존 credential의 ID·이름을 제공한다. API key의 header/query 이름은 OAS의 `name`과 같아야 한다. OAuth2의 grant·token URL·scope는 n8n credential에 설정한다. 비밀값은 workflow JSON이나 모델 입력에 넣지 않는다. 노드 안내에 OAS 요구를 표시하지만, 라이브러리가 n8n credential 저장소의 실제 설정까지 검사하는 것은 아니다. 설정 방법은 [n8n 공식 HTTP Request credential 문서](https://docs.n8n.io/integrations/builtin/credentials/httprequest)를 따른다.
+
+`security` 배열에 인증 대안이 여러 개면 0부터 시작하는 `securityRequirementIndex`를 명시해야 한다. 첫 대안을 자동 선택하지 않는다. `{}` 대안을 명시적으로 선택하면 익명 요청이다. factory의 문서별 deployment에 넣은 index는 해당 문서의 선택된 API 모두에 적용된다. API별 선택이 다르면 독립 함수 `createHttpRequestNode`에 각각 전달한다. 여러 scheme을 동시에 요구하는 AND 조합, cookie API key, OpenID Connect, mutual TLS의 변환은 남은 작업이다. 해당 기능이 있는 표준 OAS의 수용 자체를 거절하지는 않는다.
+
+`npm run test:http-authentication-local-n8n`은 격리 n8n 2.37.10에서 위 6종을 직접 입력·선행 응답 바인딩으로 각각 실행한다. 로컬 서버가 인증 전송, Digest challenge 응답, OAuth2 client-credentials 토큰 발급을 확인한다. 다른 OAuth2 grant나 실제 서비스 권한까지 검증한 결과는 아니다. 임시 credential은 검증 후 n8n volume과 함께 제거한다.
 
 ## 실제 코드 흐름
 
@@ -161,7 +180,7 @@ const result = await graph.invoke({
 // Review result.selection, result.arguments and result.workflow before execution.
 ```
 
-LLM은 graph 의존성으로 주입하고 state에는 넣지 않는다. credential의 ID·이름만 JSON에 기록한다. 실제 ICL Bearer 토큰과 n8n 인스턴스 관리 키는 서로 다른 인증값이며 어느 것도 모델 입력에 넣지 않는다. 현재 n8n 인증 매핑은 단일 HTTP Bearer다. 다른 OAS 인증을 모두 변환하는 것은 아니다.
+LLM은 graph 의존성으로 주입하고 state에는 넣지 않는다. credential의 ID·이름만 JSON에 기록한다. 실제 ICL Bearer 토큰과 n8n 인스턴스 관리 키는 서로 다른 인증값이며 어느 것도 모델 입력에 넣지 않는다. 새 HTTP Request 경로는 위 6종 인증을 매핑한다. `/legacy`의 단일 Bearer 계약은 유지하며, 모든 OAS 인증을 변환하는 것은 아니다.
 
 출력 JSON의 API·값·배포 주소를 검토한 뒤, 별도의 승인 단계에서 n8n으로 import·실행한다. 이 예제는 JSON을 생성할 뿐 실제 endpoint를 호출하거나 원격 n8n을 수정하지 않는다. 호스트는 승인·재질의·LangGraph `interrupt`와 checkpointer·실행 권한을 별도로 구성해야 한다. SDK 검증 통과와 실제 API 성공도 구분한다.
 

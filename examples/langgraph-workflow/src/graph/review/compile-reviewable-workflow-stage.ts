@@ -43,6 +43,7 @@ export function compileReviewableWorkflowStage(
       arguments: item.arguments,
       baseUrl: deployment?.baseUrl,
       credentialBindings: deployment?.credentialBindings,
+      securityRequirementIndex: deployment?.securityRequirementIndex,
       apiNodeNames: names,
       nativeOutputSources,
       position: [300, index * 200],

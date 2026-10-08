@@ -1,18 +1,20 @@
-import type { Operation } from '@openapi-flow/core/internal';
 import type { CredentialBindings } from './legacy/request-workflow.js';
+import type { HttpRequestAuthenticationMapping } from './authentication.js';
 
 export interface HttpRequestDeploymentOptions {
   baseUrl?: string;
   credentialBindings?: CredentialBindings;
+  securityRequirementIndex?: number;
 }
 
 export interface ResolveHttpRequestDeploymentInput extends HttpRequestDeploymentOptions {
   documentId: string;
-  operation: Operation;
+  authentication?: HttpRequestAuthenticationMapping;
 }
 
 export interface ResolvedHttpRequestDeployment {
   baseUrl: string;
   credentialBindings: CredentialBindings;
   pendingFields: string[];
+  authentication?: HttpRequestAuthenticationMapping;
 }

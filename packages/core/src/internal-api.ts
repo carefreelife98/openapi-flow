@@ -10,6 +10,7 @@ export * from './openapi/inbound/list-inbound-operations.js';
 export * from './openapi/inbound/webhook/parse-webhook-operations.js';
 export * from './openapi/request/create-operation-catalog.js';
 export * from './openapi/request/operation-mapping.js';
+export * from './openapi/request/map-http-operation-contract.js';
 export * from './openapi/request/parse-operation-responses.js';
 export * from './openapi/request/parse-request-body.js';
 export * from './openapi/request/parse-request-operations.js';

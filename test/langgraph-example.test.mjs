@@ -231,3 +231,31 @@ test('official graph templates missing deployment fields and rejects duplicate d
     /duplicate documentId/,
   );
 });
+
+test('official graph forwards the explicit OAS authentication alternative to the request compiler', async () => {
+  const alternate = globalThis.structuredClone(spec);
+  alternate.security = [{ bearer: [] }, {}];
+  const model = () => scriptedModel(choosePrice, { path: { id: 'item-1' } });
+  const graphInput = {
+    ...inputs,
+    sources: [{ id: 'inventory', spec: alternate }],
+  };
+  await assert.rejects(
+    createWorkflowGenerationGraph({ model: model() }).invoke(graphInput),
+    /securityRequirementIndex is required/,
+  );
+  for (const index of [0, 1]) {
+    const result = await createWorkflowGenerationGraph({
+      model: model(),
+      deployments: [{ ...deployments[0], securityRequirementIndex: index }],
+    }).invoke(graphInput);
+    const request = result.workflow.nodes.find(
+      (node) => node.type === 'n8n-nodes-base.httpRequest',
+    );
+    assert.equal(
+      request.parameters.genericAuthType,
+      index === 0 ? 'httpBearerAuth' : undefined,
+    );
+    assert.equal(Boolean(request.credentials?.httpBearerAuth), index === 0);
+  }
+});

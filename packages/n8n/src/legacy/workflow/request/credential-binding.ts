@@ -1,12 +1,12 @@
 import { newCredential } from '@n8n/workflow-sdk';
-import type { Operation } from '@openapi-flow/core/internal';
+import type { CredentialBindingRequest } from '../../../types/authentication.js';
 import type { CredentialBindings } from '../../../types/legacy/request-workflow.js';
 import { isObject } from '@openapi-flow/core/internal';
 
 export { looksLikeCredential } from '../../../nodes/request/authentication/credential-field-name.js';
 
 export function resolveCredentialBinding(
-  operation: Operation,
+  operation: CredentialBindingRequest,
   credentialBindings: CredentialBindings,
 ) {
   if (!isObject(credentialBindings)) {

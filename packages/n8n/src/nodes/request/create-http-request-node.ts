@@ -1,5 +1,5 @@
 import { validateApiArguments } from '@openapi-flow/core';
-import { mapOperationForWorkflow } from '@openapi-flow/core/internal';
+import { mapHttpOperationContract } from '@openapi-flow/core/internal';
 import type { JsonObject } from '@openapi-flow/core/internal';
 import type {
   CreateHttpRequestNodeInput,
@@ -13,6 +13,7 @@ import { createBoundRequestFragment } from './bindings/create-bound-request-frag
 import { serializeHttpRequest } from './serialization/serialize-http-request.js';
 import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
 import { createRequestDeploymentNotes } from './deployment/create-request-deployment-notes.js';
+import { resolveHttpRequestAuthentication } from './authentication/resolve-http-request-authentication.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -38,22 +39,23 @@ export function createHttpRequestNode(
     throw new Error(
       `arguments[${args.callId}] is missing ${validation.missingInputs.join(', ')}`,
     );
-  const operation = mapOperationForWorkflow(
-    {
-      security: contract.effective.security,
-      components: { securitySchemes: contract.effective.securitySchemes },
-    },
+  const operation = mapHttpOperationContract(
     contract.path,
     contract.method,
     contract.key.operationRef,
     contract.pathItem as unknown as JsonObject,
     contract.operation,
   );
+  const authentication = resolveHttpRequestAuthentication({
+    operation: contract,
+    securityRequirementIndex: input.securityRequirementIndex,
+  });
   const deployment = resolveHttpRequestDeployment({
     documentId: contract.key.documentId,
-    operation,
+    authentication,
     baseUrl: input.baseUrl,
     credentialBindings: input.credentialBindings,
+    securityRequirementIndex: input.securityRequirementIndex,
   });
   const resolvedInput = { ...input, ...deployment };
   let fragment: N8nNodeFragment;
@@ -84,7 +86,7 @@ export function createHttpRequestNode(
       body,
       headers,
       authentication: resolveCredentialBinding(
-        operation,
+        deployment,
         deployment.credentialBindings,
       ),
       shouldAssert: false,
@@ -98,11 +100,18 @@ export function createHttpRequestNode(
       outputPorts: { main: 0 },
     };
   }
-  if (deployment.pendingFields.length) {
-    const notes = createRequestDeploymentNotes(
-      contract.key.documentId,
-      deployment,
-    );
+  if (
+    deployment.pendingFields.length ||
+    authentication?.credentialRequirements
+  ) {
+    const notes = [
+      ...(deployment.pendingFields.length
+        ? [createRequestDeploymentNotes(contract.key.documentId, deployment)]
+        : []),
+      ...(authentication?.credentialRequirements
+        ? [authentication.credentialRequirements]
+        : []),
+    ].join('\n');
     for (const requestNode of fragment.nodes) {
       requestNode.config.notes = notes;
       requestNode.config.notesInFlow = true;

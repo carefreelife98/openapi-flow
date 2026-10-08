@@ -10,6 +10,7 @@ export function resolveHttpRequestDeployment(
   const options = httpRequestDeploymentOptionsSchema.parse({
     baseUrl: input.baseUrl,
     credentialBindings: input.credentialBindings,
+    securityRequirementIndex: input.securityRequirementIndex,
   });
   const pendingFields: string[] = [];
   let baseUrl: string;
@@ -21,7 +22,7 @@ export function resolveHttpRequestDeployment(
   }
   const credentialBindings =
     options.credentialBindings === undefined ? {} : options.credentialBindings;
-  const schemeName = input.operation.authentication?.schemeName;
+  const schemeName = input.authentication?.schemeName;
   if (
     schemeName !== undefined &&
     !Object.hasOwn(credentialBindings, schemeName)
@@ -32,5 +33,10 @@ export function resolveHttpRequestDeployment(
     };
     pendingFields.push(`credentialBindings.${schemeName}`);
   }
-  return { baseUrl, credentialBindings, pendingFields };
+  return {
+    baseUrl,
+    credentialBindings,
+    pendingFields,
+    authentication: input.authentication,
+  };
 }

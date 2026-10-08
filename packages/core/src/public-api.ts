@@ -34,3 +34,5 @@ export { validateApiBindingGaps } from './bindings/validate-api-binding-gaps.js'
 export type * from './types/reviewable-workflow.js';
 export { createReviewableWorkflowGraphPlan } from './workflow/create-reviewable-workflow-graph-plan.js';
 export { validateReviewableWorkflowGraphPlan } from './workflow/validate-reviewable-workflow-graph-plan.js';
+export { resolveOpenApiSecurity } from './openapi/common/resolve-openapi-security.js';
+export type * from './types/security.js';

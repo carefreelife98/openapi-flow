@@ -70,10 +70,7 @@ export function createBoundRequestFragment(
           value: '={{ $json.body.value }}',
         }
       : undefined,
-    authentication: resolveCredentialBinding(
-      config.operation,
-      input.credentialBindings,
-    ),
+    authentication: resolveCredentialBinding(input, input.credentialBindings),
     shouldAssert: false,
   });
   // Headers may include bound values; HTTP Request supports a JSON expression.

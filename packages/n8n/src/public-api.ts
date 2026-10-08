@@ -14,3 +14,5 @@ export { createN8nNativeOutputSources } from './workflow/create-n8n-native-outpu
 export type * from './types/output-binding-source.js';
 export { compilePlannedN8nWorkflow } from './workflow/compile-planned-n8n-workflow.js';
 export type * from './types/native-capability.js';
+export { resolveHttpRequestAuthentication } from './nodes/request/authentication/resolve-http-request-authentication.js';
+export type * from './types/authentication.js';

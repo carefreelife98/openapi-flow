@@ -26,4 +26,5 @@ export const httpRequestDeploymentOptionsSchema = z.strictObject({
       }),
     )
     .optional(),
+  securityRequirementIndex: z.number().int().nonnegative().optional(),
 }) satisfies z.ZodType<HttpRequestDeploymentOptions>;

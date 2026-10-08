@@ -127,6 +127,7 @@ export function createRequestMaterials(
         nativeOutputSources,
         baseUrl: deployment?.baseUrl,
         credentialBindings: deployment?.credentialBindings,
+        securityRequirementIndex: deployment?.securityRequirementIndex,
         apiNodeNames: Object.fromEntries(
           state.arguments!.map((call) => [
             call.callId,

@@ -401,7 +401,7 @@ test('two selected OAS documents independently apply their partial deployment op
   assert.match(billing.notes, /OAS billing requires baseUrl/);
 });
 
-test('deployment placeholders do not discard unsupported OAS authentication requirements', async () => {
+test('deployment placeholders do not silently select an OAS authentication alternative', async () => {
   const alternateSpec = globalThis.structuredClone(spec);
   alternateSpec.security = [{ bearer: [] }, {}];
   const alternateCatalog = await createApiCatalog([
@@ -410,5 +410,8 @@ test('deployment placeholders do not discard unsupported OAS authentication requ
   const [operation] = await resolveApiOperations(alternateCatalog, [
     alternateCatalog.operations.find((item) => item.path === '/items').key,
   ]);
-  assert.throws(() => fragment({}, operation), /unsupported alternatives/);
+  assert.throws(
+    () => fragment({}, operation),
+    /securityRequirementIndex is required/,
+  );
 });

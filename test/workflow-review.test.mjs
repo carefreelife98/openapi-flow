@@ -289,6 +289,27 @@ const dependencies = (model) => ({
   model,
   capabilities: createN8nNativeCapabilities(),
 });
+
+test('review compilation preserves the explicit OAS authentication choice', async () => {
+  const sources = globalThis.structuredClone(generationInput.sources);
+  sources[0].spec.components = {
+    securitySchemes: { auth: { type: 'http', scheme: 'basic' } },
+  };
+  sources[0].spec.security = [{ auth: [] }, {}];
+  const result = await createReviewableWorkflowGenerationGraph({
+    ...dependencies(scriptedReviewModel('complete')),
+    deployments: [{ documentId: sources[0].id, securityRequirementIndex: 0 }],
+  }).invoke({ ...generationInput, sources });
+  const request = result.workflow.nodes.find(
+    (node) => node.type === 'n8n-nodes-base.httpRequest',
+  );
+  assert.equal(request.parameters.genericAuthType, 'httpBasicAuth');
+  assert.equal(
+    request.credentials.httpBasicAuth.id,
+    `REPLACE_ME:${sources[0].id}:auth`,
+  );
+});
+
 for (const [mode, stage, expectedRequests] of [
   ['selection-gap', 'api-selection', 2],
   ['binding-gap', 'api-bindings', 1],
@@ -422,18 +443,14 @@ test('unsupported authentication in an unblocked call remains a compiler error',
   const sources = globalThis.structuredClone(generationInput.sources);
   sources[0].spec.components = {
     securitySchemes: {
-      oauth: {
-        type: 'oauth2',
-        flows: {
-          clientCredentials: {
-            tokenUrl: 'https://auth.example.test/token',
-            scopes: {},
-          },
-        },
+      discovery: {
+        type: 'openIdConnect',
+        openIdConnectUrl:
+          'https://auth.example.test/.well-known/openid-configuration',
       },
     },
   };
-  sources[0].spec.security = [{ oauth: [] }];
+  sources[0].spec.security = [{ discovery: [] }];
   await assert.rejects(
     createReviewableWorkflowGenerationGraph(
       dependencies(scriptedReviewModel('complete')),
