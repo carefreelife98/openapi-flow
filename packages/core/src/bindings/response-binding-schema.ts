@@ -2,6 +2,7 @@ import type { ApiOperationContract } from '../types/api-operation.js';
 import type { BindingSchema } from '../types/api-bindings.js';
 import { isObject } from '../utils/is-object.js';
 import { schemasAtPointer } from './schema-at-pointer.js';
+import { normalizeOasValueSchema } from '../openapi/common/normalize-oas-value-schema.js';
 
 export function responseBindingSchemas(
   operation: ApiOperationContract,
@@ -14,7 +15,15 @@ export function responseBindingSchemas(
         if (!isObject(media)) return [];
         const schema = media.schema;
         return typeof schema === 'boolean' || isObject(schema)
-          ? schemasAtPointer(schema, pointer)
+          ? schemasAtPointer(
+              normalizeOasValueSchema(
+                schema,
+                operation.openapiVersion.startsWith('3.0.')
+                  ? 'openapi-3.0'
+                  : 'draft-2020-12',
+              ),
+              pointer,
+            )
           : pointer === ''
             ? [true]
             : [];

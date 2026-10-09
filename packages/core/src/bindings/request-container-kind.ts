@@ -3,6 +3,7 @@ import type {
   RequestContainerKind,
 } from '../types/api-bindings.js';
 import { requestBindingSchemas } from './request-binding-schema.js';
+import { schemaAllowsContainer } from './schema-allows-container.js';
 
 /** Container identity comes from the OAS, never from a numeric property name. */
 export function requestContainerKind(
@@ -13,19 +14,8 @@ export function requestContainerKind(
     return 'object';
   const kinds = new Set<string>();
   for (const schema of requestBindingSchemas(material, pointer)) {
-    if (typeof schema === 'boolean') continue;
-    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
-    for (const type of types)
-      if (type === 'array' || type === 'object') kinds.add(type);
-    if (schema.type === undefined) {
-      if (
-        schema.properties !== undefined ||
-        schema.additionalProperties !== undefined
-      )
-        kinds.add('object');
-      if (schema.items !== undefined || schema.prefixItems !== undefined)
-        kinds.add('array');
-    }
+    if (schemaAllowsContainer(schema, 'object')) kinds.add('object');
+    if (schemaAllowsContainer(schema, 'array')) kinds.add('array');
   }
   if (kinds.size !== 1)
     throw new Error(

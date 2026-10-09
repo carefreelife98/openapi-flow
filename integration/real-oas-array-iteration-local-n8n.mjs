@@ -261,13 +261,25 @@ try {
       received.length,
       mode === 'normal' ? config.rows.length + 1 : 1,
     );
-    if (mode === 'normal')
+    if (mode === 'normal') {
       assert.deepEqual(
         received
           .filter((call) => call.kind === 'detail')
-          .map((call) => call.value),
-        config.rows.map((row) => row[config.itemField]),
+          .map((call) => call.value)
+          .sort(),
+        config.rows.map((row) => row[config.itemField]).sort(),
       );
+      const materialized =
+        execution.data.resultData.runData['Materialize detail'][0].data.main[0];
+      assert.equal(materialized.length, config.rows.length);
+      for (const [index, item] of materialized.entries()) {
+        assert.equal(item.pairedItem.item, index);
+        assert.equal(
+          new URL(item.json.url).searchParams.get(config.targetParameter),
+          String(config.rows[index][config.itemField]),
+        );
+      }
+    }
     results.push({
       mode,
       status: 'passed',
