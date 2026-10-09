@@ -19,12 +19,18 @@ export interface N8nFragmentEdge {
   to: string;
   input: number;
 }
+export interface N8nFragmentInputEndpoint {
+  nodeId: string;
+  input: number;
+}
 export interface N8nNodeFragment {
   nodeId: string;
   nodes: N8nSdkNode[];
   entry: N8nSdkNode;
   exit: N8nSdkNode;
   inputPorts: Record<string, number>;
+  /** Explicit per-port SDK entry nodes for fragments with independent input readers. */
+  inputEndpoints?: Record<string, N8nFragmentInputEndpoint>;
   outputPorts: Record<string, number>;
   internalEdges?: N8nFragmentEdge[];
   bindingSources?: N8nOutputBindingSource[];

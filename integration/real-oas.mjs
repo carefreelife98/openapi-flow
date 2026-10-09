@@ -10,6 +10,9 @@ import { compileWorkflow } from '@openapi-flow/n8n/legacy';
 import {
   compileReviewableN8nWorkflow,
   createN8nNativeCapabilities,
+  createItemJoinCapability,
+  createJsonOutputCapability,
+  createN8nNativeOutputSources,
 } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
@@ -42,9 +45,81 @@ const requireN8n = createRequire(
 );
 const { Ajv2020 } = requireN8n('ajv/dist/2020.js');
 const addFormats = requireN8n('ajv-formats');
+const { z } = requireN8n('zod');
 if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
+
+test('private real OAS contracts compile two distinct call instances of the same operation into item-join readers', async () => {
+  let count = 0;
+  for (const file of files) {
+    const catalog = await createApiCatalog([
+      {
+        id: file,
+        spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      },
+    ]);
+    const contracts = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const candidates = contracts.filter((entry) =>
+      Object.values(entry.operation.responses ?? {}).some(
+        (response) => Object.keys(response.content ?? {}).length,
+      ),
+    );
+    assert.ok(
+      candidates.length >= 1,
+      'each private OAS must supply a response-bearing operation',
+    );
+    const operations = [candidates[0], candidates[0]];
+    const materials = operations.map((operation, i) => ({
+      callId: 'call-' + i,
+      operation,
+    }));
+    const scope = createJsonOutputCapability({
+      name: 'private-scope',
+      description: 'Explicit singleton regression scope.',
+      parametersSchema: z.strictObject({ document: z.literal(file) }),
+    });
+    const scopes = createN8nNativeOutputSources({
+      nativeNodes: [
+        { id: 'scope', capability: scope.name, parameters: { document: file } },
+      ],
+      capabilities: [scope],
+      apiNodeNames: {},
+    });
+    const capability = createItemJoinCapability({ materials, scopes });
+    const parameters = {
+      scopeNodeId: 'scope',
+      sourceCallIds: materials.map((material) => material.callId),
+    };
+    const schema = capability.outputSchema(parameters);
+    const ajv = new Ajv2020({
+      strict: false,
+      allErrors: true,
+      discriminator: true,
+    });
+    addFormats(ajv);
+    ajv.compile(schema);
+    const fragment = capability.compile({
+      planned: { id: 'join', capability: capability.name, parameters },
+      position: [0, 0],
+      apiNodeNames: Object.fromEntries(
+        materials.map((material) => [material.callId, material.callId]),
+      ),
+    });
+    assert.deepEqual(
+      fragment.bindingSources
+        .filter((source) => source.kind === 'api-response')
+        .map((source) => source.operation),
+      operations,
+    );
+    assert.equal(Object.keys(fragment.inputEndpoints).length, 2);
+    count++;
+  }
+  assert.equal(count, files.length);
+});
 
 test('all private real OAS response contracts compile with the runtime validator without rewritten data', async () => {
   let count = 0;

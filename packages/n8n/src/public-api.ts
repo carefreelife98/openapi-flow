@@ -20,3 +20,5 @@ export { createResponseArrayCapability } from './nodes/native/create-response-ar
 export type * from './types/array-iteration.js';
 export { createResponseCollectionCapability } from './nodes/native/create-response-collection-capability.js';
 export type * from './types/response-collection.js';
+export { createItemJoinCapability } from './nodes/native/item-join/create-item-join-capability.js';
+export type * from './types/item-join.js';

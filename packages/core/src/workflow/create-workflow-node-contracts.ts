@@ -40,7 +40,15 @@ export function createWorkflowNodeContracts({
       id: native.id,
       inputs: capability.inputPorts(parameters),
       outputs: capability.outputPorts(parameters),
-      references: capability.responseReferences(parameters),
+      references: [
+        ...capability.responseReferences(parameters),
+        ...(capability.nodeOutputReferences
+          ? capability.nodeOutputReferences(parameters)
+          : []),
+      ],
+      ...(capability.inputReferences
+        ? { inputReferences: capability.inputReferences(parameters) }
+        : {}),
       dependencyNodeIds: [],
       waitsForAllInputs: capability.waitsForAllInputs,
       exclusiveOutputPorts: capability.exclusiveOutputPorts,

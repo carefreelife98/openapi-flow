@@ -1,6 +1,6 @@
 import type { N8nNodeFragment } from '../types/node-fragment.js';
 
-/** Internal implementation nodes must form one connected entry-to-exit DAG. */
+/** Internal implementation nodes must form one declared-entries-to-exit DAG. */
 export function validateNodeFragments(fragments: N8nNodeFragment[]): void {
   for (const fragment of fragments) {
     const byId = new Map(fragment.nodes.map((item) => [item.id, item]));
@@ -13,6 +13,29 @@ export function validateNodeFragments(fragments: N8nNodeFragment[]): void {
         `node fragment ${fragment.nodeId} has invalid entry/exit or duplicate IDs`,
       );
     const edges = fragment.internalEdges ?? [];
+    const endpoints = fragment.inputEndpoints;
+    if (
+      endpoints &&
+      (Object.keys(endpoints).length !==
+        Object.keys(fragment.inputPorts).length ||
+        Object.keys(fragment.inputPorts).some(
+          (port) =>
+            !Object.hasOwn(endpoints, port) ||
+            !byId.has(endpoints[port].nodeId) ||
+            !Number.isInteger(endpoints[port].input) ||
+            endpoints[port].input < 0 ||
+            endpoints[port].input !== fragment.inputPorts[port],
+        ) ||
+        !Object.values(endpoints).some(
+          (endpoint) => endpoint.nodeId === fragment.entry.id,
+        ))
+    )
+      throw new Error(
+        `node fragment ${fragment.nodeId} has invalid input endpoints`,
+      );
+    const entries = endpoints
+      ? new Set(Object.values(endpoints).map((endpoint) => endpoint.nodeId))
+      : new Set([fragment.entry.id]);
     const keys = new Set<string>();
     for (const edge of edges) {
       const key = JSON.stringify(edge);
@@ -44,12 +67,11 @@ export function validateNodeFragments(fragments: N8nNodeFragment[]): void {
       active.delete(id);
       reached.add(id);
     }
-    visit(fragment.entry.id);
+    for (const entry of entries) visit(entry);
     if (
       reached.size !== byId.size ||
       edges.some(
-        (edge) =>
-          edge.to === fragment.entry.id || edge.from === fragment.exit.id,
+        (edge) => entries.has(edge.to) || edge.from === fragment.exit.id,
       ) ||
       fragment.nodes.some(
         (item) =>

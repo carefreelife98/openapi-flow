@@ -24,7 +24,7 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node ../../scripts/build-request-runtime.mjs",
+    "build": "tsc -p tsconfig.json && node ../../scripts/build-request-runtime.mjs && node ../../scripts/build-item-join-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

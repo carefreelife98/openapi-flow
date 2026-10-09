@@ -34,6 +34,14 @@ export interface WorkflowCapability {
   responseReferences: (
     parameters: JsonValueObject,
   ) => WorkflowResponseReference[];
+  /** Native provenance required by this implementation, never inferred from values. */
+  nodeOutputReferences?: (
+    parameters: JsonValueObject,
+  ) => WorkflowNodeOutputReference[];
+  /** Dependencies required on a specific incoming port, before a join combines routes. */
+  inputReferences?: (
+    parameters: JsonValueObject,
+  ) => Record<string, WorkflowValueReference[]>;
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;
   /** Explicit native JSON output contract; absent means no bindable output. */
@@ -89,6 +97,7 @@ export interface WorkflowPlanNodeContract {
   inputs: string[];
   outputs: string[];
   references: WorkflowValueReference[];
+  inputReferences?: Record<string, WorkflowValueReference[]>;
   dependencyNodeIds: string[];
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;

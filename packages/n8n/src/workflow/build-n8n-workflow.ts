@@ -68,6 +68,22 @@ export function buildN8nWorkflow({
       'workflow SDK node IDs and names must be unique and not use the Start trigger identity',
     );
   validateNodeFragments(nodes);
+  if (
+    starts.some((id) => {
+      const fragment = byId.get(id);
+      return (
+        fragment?.inputEndpoints &&
+        new Set(
+          Object.values(fragment.inputEndpoints).map(
+            (endpoint) => endpoint.nodeId,
+          ),
+        ).size > 1
+      );
+    })
+  )
+    throw new Error(
+      'workflow starts cannot bypass independent fragment input endpoints',
+    );
   const successors = new Map(
     nodes.map((fragment) => [fragment.nodeId, [] as string[]]),
   );
@@ -138,11 +154,14 @@ export function buildN8nWorkflow({
   for (const edge of edges) {
     const source = byId.get(edge.from)!;
     const target = byId.get(edge.to)!;
+    const endpoint = target.inputEndpoints?.[edge.input];
     built = built.connect(
       source.exit,
       source.outputPorts[edge.output],
-      target.entry,
-      target.inputPorts[edge.input],
+      endpoint
+        ? target.nodes.find((node) => node.id === endpoint.nodeId)!
+        : target.entry,
+      endpoint ? endpoint.input : target.inputPorts[edge.input],
     );
   }
   const checked = validateWorkflow(built);
