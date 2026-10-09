@@ -9,6 +9,7 @@ import { URL } from 'node:url';
 import {
   compileIteration,
   compileConditionalIteration,
+  compileCollectedIteration,
 } from '../test/fixtures/array-iteration-fixture.mjs';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 
@@ -20,6 +21,7 @@ const rows = [
   { id: 'same/42', amount: 5 },
 ];
 let mode = 'normal';
+let caseOffset = 0;
 const calls = [];
 const failures = [];
 function docker(args, input) {
@@ -74,6 +76,17 @@ const server = createServer(async (request, response) => {
         `${body.id}:${body.amount}`,
       );
       result = body;
+    } else if (url.pathname === '/submit') {
+      assert.ok(Array.isArray(body));
+      assert.deepEqual(
+        [...body].sort((a, b) => a.amount - b.amount),
+        calls
+          .slice(caseOffset)
+          .filter((call) => call.path.startsWith('/confirm/'))
+          .map((call) => call.body)
+          .sort((a, b) => a.amount - b.amount),
+      );
+      result = { accepted: body.length };
     } else throw Error('Unexpected local route');
     response.writeHead(200, {
       'content-type':
@@ -101,6 +114,13 @@ try {
   const conditional = compileConditionalIteration(
     `http://host.docker.internal:${server.address().port}`,
   );
+  const collection = compileCollectedIteration(
+    `http://host.docker.internal:${server.address().port}`,
+  );
+  const conditionalCollection = compileCollectedIteration(
+    `http://host.docker.internal:${server.address().port}`,
+    true,
+  );
   await mkdir(directory, { recursive: true });
   await writeFile(
     new URL('workflow.json', directory),
@@ -112,6 +132,14 @@ try {
     JSON.stringify(conditional.workflow, null, 2),
   );
   created = true;
+  for (const [file, workflow] of [
+    ['collection-workflow.json', collection.workflow],
+    ['conditional-collection-workflow.json', conditionalCollection.workflow],
+  ])
+    await writeFile(
+      new URL(file, directory),
+      JSON.stringify(workflow, null, 2),
+    );
   const runtime = [
     'run',
     '--rm',
@@ -124,29 +152,73 @@ try {
   ];
   const imported = await docker(
     [...runtime, 'import:workflow', '--input=/dev/stdin'],
-    JSON.stringify([result.workflow, conditional.workflow]),
+    JSON.stringify([
+      result.workflow,
+      conditional.workflow,
+      collection.workflow,
+      conditionalCollection.workflow,
+    ]),
   );
   assert.equal(imported.code, 0, imported.stderr);
   const results = [];
-  for (mode of [
-    'normal',
-    'conditional',
-    'empty',
-    'invalid-source',
-    'invalid-response',
-    'wrong-media',
-  ]) {
+  const cases = [
+    ...[
+      'normal',
+      'empty',
+      'invalid-source',
+      'invalid-response',
+      'wrong-media',
+    ].map((name) => ({ name, mode: name, workflowId: 'array-iteration' })),
+    {
+      name: 'conditional',
+      mode: 'conditional',
+      workflowId: 'array-conditional',
+    },
+    { name: 'collection', mode: 'collection', workflowId: 'array-collection' },
+    {
+      name: 'conditional-collection',
+      mode: 'conditional-collection',
+      workflowId: 'array-conditional-collection',
+    },
+    { name: 'empty-collection', mode: 'empty', workflowId: 'array-collection' },
+  ];
+  for (const sample of cases) {
+    mode = sample.mode;
     const offset = calls.length;
+    caseOffset = offset;
     const output = await docker([
       ...runtime,
       'execute',
-      '--id=' +
-        (mode === 'conditional' ? 'array-conditional' : 'array-iteration'),
+      '--id=' + sample.workflowId,
       '--rawOutput',
     ]);
     const execution = readN8nExecution(output.stdout);
     const received = calls.slice(offset);
-    if (mode === 'normal') {
+    if (mode === 'collection' || mode === 'conditional-collection') {
+      assert.equal(
+        execution.status,
+        'success',
+        JSON.stringify(execution.data.resultData.error),
+      );
+      assert.equal(received.length, mode === 'collection' ? 8 : 7);
+      const collected =
+        execution.data.resultData.runData['collected-results'][0].data.main[0];
+      assert.equal(collected.length, 1);
+      assert.deepEqual(
+        collected[0].json.items,
+        execution.data.resultData.runData[
+          'Request confirm'
+        ][0].data.main[0].map((item) => item.json.body),
+      );
+      assert.equal(
+        received.filter((call) => call.path === '/submit').length,
+        1,
+      );
+      assert.deepEqual(
+        received.find((call) => call.path === '/submit').body,
+        collected[0].json.items,
+      );
+    } else if (mode === 'normal') {
       assert.equal(
         execution.status,
         'success',
@@ -193,6 +265,16 @@ try {
     } else if (mode === 'empty') {
       assert.equal(execution.status, 'success');
       assert.equal(received.length, 1);
+      if (sample.name === 'empty-collection') {
+        assert.equal(
+          execution.data.resultData.runData['collected-results'],
+          undefined,
+        );
+        assert.equal(
+          execution.data.resultData.runData['Request submit'],
+          undefined,
+        );
+      }
     } else {
       assert.equal(execution.status, 'error');
       assert.equal(
@@ -203,7 +285,7 @@ try {
     }
     assert.deepEqual(failures, []);
     results.push({
-      mode,
+      mode: sample.name,
       status: 'passed',
       execution: execution.status,
       requests: received.length,

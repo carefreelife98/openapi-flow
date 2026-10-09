@@ -11,7 +11,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.cts'],
     ignores: ['**/types/**'],
     rules: {
       'no-restricted-syntax': [

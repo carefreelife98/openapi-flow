@@ -1,18 +1,18 @@
 import { node } from '@n8n/workflow-sdk';
 import { readFileSync } from 'node:fs';
-import { createResponseArrayItemSchema } from '@openapi-flow/core';
+import { createResponseValueSchema } from '@openapi-flow/core';
 import type { ApiBindingMaterial } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '../../types/native-capability.js';
 import type {
-  CreateResponseArrayCapabilityInput,
-  ResponseArrayParameters,
-} from '../../types/array-iteration.js';
-import { createResponseArrayParametersSchema } from '../../schemas/response-array-schema.js';
+  CreateResponseCollectionCapabilityInput,
+  ResponseCollectionParameters,
+} from '../../types/response-collection.js';
+import { createResponseCollectionParametersSchema } from '../../schemas/response-collection-schema.js';
 import { createOutputReaderCode } from '../request/bindings/create-output-reader-code.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
 
-export function createResponseArrayCapability(
-  input: CreateResponseArrayCapabilityInput,
+export function createResponseCollectionCapability(
+  input: CreateResponseCollectionCapabilityInput,
 ): N8nNativeCapability {
   const materials = new Map(
     input.materials.map((material) => [material.callId, material]),
@@ -22,23 +22,27 @@ export function createResponseArrayCapability(
     materials.size !== input.materials.length ||
     input.materials.some((material) => !material.callId.trim())
   )
-    throw new Error('response array capability requires unique API materials');
-  const parametersSchema = createResponseArrayParametersSchema([
+    throw new Error(
+      'response collection capability requires unique API materials',
+    );
+  const parametersSchema = createResponseCollectionParametersSchema([
     ...materials.keys(),
   ]);
-  function source(parameters: ResponseArrayParameters): ApiBindingMaterial {
+  function source(
+    parameters: ResponseCollectionParameters,
+  ): ApiBindingMaterial {
     const material = materials.get(parameters.sourceNodeId);
     if (!material)
       throw new Error(
-        `response array: unknown sourceNodeId ${parameters.sourceNodeId}`,
+        `response collection: unknown sourceNodeId ${parameters.sourceNodeId}`,
       );
-    createResponseArrayItemSchema(material.operation, parameters.pointer);
+    createResponseValueSchema(material.operation, parameters.pointer);
     return material;
   }
   return {
-    name: 'split-api-response-array',
+    name: 'collect-api-responses',
     description:
-      'Split a declared OAS response array into one unchanged JSON item per element using n8n Split Out. Output is {item: element}. Downstream bound requests must use linked item mode. An empty array creates no downstream items.',
+      'Collect unchanged item-linked API response values from one incoming stream into {items: values} using n8n Aggregate. Validates each full OAS response first. Preserves null, nested arrays, duplicates and received order. Not a branch join. Empty streams do not trigger this node or create an artificial result.',
     parametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
@@ -60,12 +64,15 @@ export function createResponseArrayCapability(
       return {
         type: 'object',
         properties: {
-          item: createResponseArrayItemSchema(
-            source(parameters).operation,
-            parameters.pointer,
-          ),
+          items: {
+            type: 'array',
+            items: createResponseValueSchema(
+              source(parameters).operation,
+              parameters.pointer,
+            ),
+          },
         },
-        required: ['item'],
+        required: ['items'],
         additionalProperties: false,
       };
     },
@@ -84,38 +91,54 @@ export function createResponseArrayCapability(
         ),
         'utf8',
       );
-      const read = createOutputReaderCode([
-        {
-          kind: 'api-response',
-          nodeId: material.callId,
-          nodeName: apiNodeNames[material.callId],
-          operation: material.operation,
-        },
-      ]);
+      const read = createOutputReaderCode(
+        [
+          {
+            kind: 'api-response',
+            nodeId: material.callId,
+            nodeName: apiNodeNames[material.callId],
+            operation: material.operation,
+          },
+        ],
+        true,
+      );
       const extract = node({
         type: 'n8n-nodes-base.code',
         version: 2,
         config: {
-          id: `${planned.id}-read-array`,
-          name: `Read array ${planned.id}`,
+          id: `${planned.id}-read-values`,
+          name: `Read values ${planned.id}`,
           position,
           parameters: {
             mode: 'runOnceForAllItems',
-            jsCode: `${runtime}\nconst inputItems=$input.all();if(inputItems.length!==1)throw new Error('Response array extraction requires one input item; got '+inputItems.length);\n${read}\nconst parameters=${javascriptJsonLiteral(parameters)};\nconst array=OpenApiFlowRequestRuntime.pointerValue(responses[parameters.sourceNodeId],parameters.pointer);if(!Array.isArray(array))throw new Error('Response '+parameters.sourceNodeId+parameters.pointer+' must be an array');return [{json:{items:array},pairedItem:{item:0}}];`,
+            jsCode: `${runtime}\nconst parameters=${javascriptJsonLiteral(parameters)};\nreturn $input.all().map((_,inputIndex)=>{${read}\nconst value=OpenApiFlowRequestRuntime.pointerValue(responses[parameters.sourceNodeId],parameters.pointer);if(value===undefined)throw new Error('Missing response pointer '+parameters.sourceNodeId+parameters.pointer);return {json:{value},pairedItem:{item:inputIndex}};});`,
           },
         },
       });
-      const split = node({
-        type: 'n8n-nodes-base.splitOut',
+      const aggregate = node({
+        type: 'n8n-nodes-base.aggregate',
         version: 1,
         config: {
           id: planned.id,
           name: planned.id,
           position: [position[0] + 220, position[1]],
           parameters: {
-            fieldToSplitOut: 'items',
-            include: 'noOtherFields',
-            options: { destinationFieldName: 'item', disableDotNotation: true },
+            aggregate: 'aggregateIndividualFields',
+            fieldsToAggregate: {
+              fieldToAggregate: [
+                {
+                  fieldToAggregate: 'value',
+                  renameField: true,
+                  outputFieldName: 'items',
+                },
+              ],
+            },
+            options: {
+              disableDotNotation: true,
+              mergeLists: false,
+              keepMissing: true,
+              includeBinaries: false,
+            },
           },
         },
       });
@@ -129,13 +152,13 @@ export function createResponseArrayCapability(
             operation: material.operation,
           },
         ],
-        nodes: [extract, split],
+        nodes: [extract, aggregate],
         entry: extract,
-        exit: split,
+        exit: aggregate,
         inputPorts: { main: 0 },
         outputPorts: { main: 0 },
         internalEdges: [
-          { from: extract.id, output: 0, to: split.id, input: 0 },
+          { from: extract.id, output: 0, to: aggregate.id, input: 0 },
         ],
       };
     },

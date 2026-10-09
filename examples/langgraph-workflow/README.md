@@ -114,6 +114,14 @@ const request = createHttpRequestNode({
 
 `npm run test:array-iteration-local-n8n`은 공개 계약 서버에서 기본 반복, item별 IF·assertion, 빈 배열과 실패 사례를 검증한다. import 가능한 JSON은 `.local-artifacts/array-iteration/workflow.json`과 `conditional-workflow.json`에 저장된다. 실제 ICL OAS를 사용한 로컬 검증 산출물은 비공개 `.local-artifacts/real-array-iteration/`에 남는다. 이 실행 검증은 실제 모델의 선택 정확도 평가나 실서비스 호출 검증과 다르다.
 
+### 반복 결과 수집
+
+`createResponseCollectionCapability({ materials })`를 등록하면 모델이 `collect-api-responses`의 `sourceNodeId`와 응답 본문 `pointer`를 선택한다. 코드가 실제 연결된 응답을 각각 원본 OAS로 검사하고 공식 Aggregate 노드를 만든다. 출력은 `{ items: 수집한 값의 배열 }`이다. `null`, 중복 값, 중첩 배열을 유지하며 다음 API의 배열 입력에는 `/items`를 바인딩한다. 수집 뒤의 API는 하나의 배열을 받으므로 일반 단일 item 모드를 사용한다.
+
+이 기능은 한 번의 노드 실행에 들어온 item을 모은다. 네트워크 응답 도착 순서나 여러 배치의 전체 수집을 보장하지 않는다. 빈 스트림에서는 수집 노드가 실행되지 않으며 빈 결과나 후속 호출을 임의로 만들지 않는다. item별 분기 합류 기능으로 사용해서도 안 된다. 수집한 값은 n8n 입력 item의 순서를 유지한다.
+
+`.local-artifacts/array-iteration/collection-workflow.json`은 item별 검사 뒤 결과를 모아 다음 API로 보내는 예시다. `conditional-collection-workflow.json`은 IF의 조건을 통과한 결과만 모은다. 두 예시의 계획은 회귀 테스트가 지정하며, 실제 모델 품질 평가 결과는 아니다.
+
 실제 ICL OAS를 사용한 재현 명령은 다음과 같다. 모델 응답을 스크립트로 지정하는 기본 검사이며 실제 ICL 서비스는 호출하지 않는다. 실제 LangChain 모델은 검증 함수에 별도로 주입할 수 있다.
 
 ```sh

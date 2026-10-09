@@ -42,6 +42,8 @@ export function validateCompiledBindingSources(
       throw new Error(
         `binding fragment ${fragment.nodeId} must declare every native producer exactly once`,
       );
+  }
+  for (const fragment of [...apiNodes, ...nativeNodes]) {
     for (const source of fragment.bindingSources ?? []) {
       const producer =
         source.kind === 'api-response'

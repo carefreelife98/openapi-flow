@@ -5,6 +5,7 @@ import standaloneCode from 'ajv/dist/standalone/index.js';
 import { buildSync } from 'esbuild';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { CompileStandaloneValidatorInput } from '../../../types/schema-compilation.js';
 import { bundledLicenseBanner } from '../../../utils/bundled-license-banner.js';
 
@@ -36,6 +37,12 @@ export function compileStandaloneValidator({
     write: false,
     legalComments: 'inline',
     metafile: true,
+    // Standard keywords stay intact. JSON equality must not inspect constructors.
+    alias: {
+      'ajv/dist/runtime/equal': fileURLToPath(
+        new URL('../../../utils/json-values-equal.cjs', import.meta.url),
+      ),
+    },
   });
   const require = createRequire(import.meta.url);
   return (

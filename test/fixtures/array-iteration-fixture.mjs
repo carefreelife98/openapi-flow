@@ -9,6 +9,7 @@ import {
   createHttpRequestNode,
   compilePlannedN8nWorkflow,
   createN8nNativeCapabilities,
+  createResponseCollectionCapability,
 } from '@openapi-flow/n8n';
 
 export const itemSchema = {
@@ -70,6 +71,23 @@ export const spec = {
           content: { 'application/json': { schema: itemSchema } },
         },
         responses: response(itemSchema),
+      },
+    },
+    '/submit': {
+      post: {
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'array', items: itemSchema },
+            },
+          },
+        },
+        responses: response({
+          type: 'object',
+          required: ['accepted'],
+          properties: { accepted: { type: 'integer' } },
+        }),
       },
     },
   },
@@ -167,7 +185,18 @@ export function compileIteration(baseUrl = 'https://fixture.test') {
 export function compileConditionalIteration(baseUrl = 'https://fixture.test') {
   return compileScenario(baseUrl, true);
 }
-function compileScenario(baseUrl, conditional) {
+export function compileCollectedIteration(
+  baseUrl = 'https://fixture.test',
+  conditional = false,
+) {
+  return compileScenario(baseUrl, conditional, true);
+}
+function compileScenario(baseUrl, conditional, collected = false) {
+  const collection = {
+    id: 'collected-results',
+    capability: 'collect-api-responses',
+    parameters: { sourceNodeId: 'confirm', pointer: '' },
+  };
   const assertion = {
     id: 'verify-item',
     capability: 'assert-responses',
@@ -210,6 +239,7 @@ function compileScenario(baseUrl, conditional) {
       ...plan.nativeNodes,
       ...(conditional ? [gate] : []),
       assertion,
+      ...(collected ? [collection] : []),
     ],
     edges: [
       ...plan.edges.filter((edge) => !conditional || edge.to !== 'confirm'),
@@ -230,16 +260,72 @@ function compileScenario(baseUrl, conditional) {
           ]
         : []),
       { from: 'confirm', output: 'main', to: 'verify-item', input: 'main' },
+      ...(collected
+        ? [
+            {
+              from: 'verify-item',
+              output: 'main',
+              to: 'collected-results',
+              input: 'main',
+            },
+            {
+              from: 'collected-results',
+              output: 'main',
+              to: 'submit',
+              input: 'main',
+            },
+          ]
+        : []),
     ],
   };
+  const registered = collected
+    ? [...capabilities, createResponseCollectionCapability({ materials })]
+    : capabilities;
+  const selected = collected
+    ? [
+        ...graphMaterials,
+        {
+          operation: contracts.find(
+            (operation) => operation.path === '/submit',
+          ),
+          arguments: {
+            callId: 'submit',
+            values: {},
+            unresolvedInputs: [],
+            bindings: [binding('/body', 'collected-results', '/items')],
+          },
+        },
+      ]
+    : graphMaterials;
+  const requestFragments = materials.map((material) =>
+    requestNode(material.callId, baseUrl),
+  );
+  if (collected)
+    requestFragments.push(
+      createHttpRequestNode({
+        ...selected.at(-1),
+        baseUrl,
+        credentialBindings: {},
+        position: [1000, 0],
+        nativeOutputSources: createN8nNativeOutputSources({
+          nativeNodes: graphPlan.nativeNodes,
+          capabilities: registered,
+          apiNodeNames: names,
+        }),
+      }),
+    );
   return compilePlannedN8nWorkflow({
-    id: conditional ? 'array-conditional' : 'array-iteration',
+    id: collected
+      ? conditional
+        ? 'array-conditional-collection'
+        : 'array-collection'
+      : conditional
+        ? 'array-conditional'
+        : 'array-iteration',
     name: 'Array iteration',
     plan: graphPlan,
-    materials: graphMaterials,
-    capabilities,
-    apiNodes: materials.map((material) =>
-      requestNode(material.callId, baseUrl),
-    ),
+    materials: selected,
+    capabilities: registered,
+    apiNodes: requestFragments,
   });
 }
