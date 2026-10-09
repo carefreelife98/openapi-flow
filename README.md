@@ -4,6 +4,12 @@ Composable Node.js libraries for selecting APIs from OpenAPI documents, generati
 
 This branch contains **unreleased 0.2.0 work**. The published `@openapi-flow/core@0.1.0` has a different API. The new `langchain` and `n8n` packages have not been published. To use this source, run `npm ci && npm run build` in the workspace with Node.js 24 or later.
 
+## Current development scope
+
+Focus on workflows started by **Manual Trigger** that call OAS-defined outgoing REST APIs. This includes multi-API selection, OAS-typed request values, response bindings, and conditions/joins using explicitly supplied native capabilities. Item-wise iteration remains unfinished work within this scope.
+
+Further webhook/callback implementation is deferred, including inbound authentication/schema checks and callback registration/correlation. Existing inbound extraction and legacy compilation are retained, not removed or expanded. This development priority does not restrict acceptance of standards-valid OAS documents.
+
 ## Package boundaries
 
 | Package                   | Responsibility                                                                | Main functions                                                                                                      |
@@ -152,7 +158,7 @@ Declared native JSON outputs can now feed API requests. `createNativeOutputContr
 
 Remaining: exhaustive OAS response-pointer/type proof, item-wise loops, combined/OIDC/mTLS/cookie-key authentication mappings and all native n8n variants. Automatic semantic/unit/type correction is not a planned feature. Explicit user-requested calculations may be registered separately; source values must remain intact and results must satisfy the target OAS. Static checks do not prove natural-language coverage or every complex schema implication; review and execution tests remain necessary. Existing legacy scalar bindings remain covered under `/legacy`.
 
-Webhook/callback extraction stays in core; inbound compilation lives in n8n. Receiving-request authentication/schema checks and callback registration/correlation remain pending. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
+Webhook/callback extraction stays in core; inbound compilation lives in n8n. Further inbound work is deferred under the current Manual Trigger/REST scope. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
 See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [design/implementation status](docs/composable-api-design.ko.md). The [earlier API reference](docs/legacy-api.md) and [earlier walkthrough](docs/legacy-code-walkthrough.ko.md) describe the pre-split implementation, not current main exports. Legacy model functions are under `@openapi-flow/langchain/legacy`; compilers under `@openapi-flow/n8n/legacy`; full host compositions under `examples/legacy-generation/`. `@openapi-flow/core/internal` is an unstable adapter integration boundary.
 

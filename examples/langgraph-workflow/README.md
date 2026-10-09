@@ -2,6 +2,12 @@
 
 `openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API에는 모델이 조건·연결까지 계획하는 factory와 호스트가 연결을 명시하는 factory를 제공한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 아직 배포하지 않은 `0.2.0` 소스를 대상으로 한다.
 
+## 현재 개발 범위
+
+Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
+
+Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
+
 ## native 출력 바인딩
 
 ### 분리된 계획과 optional 재료
