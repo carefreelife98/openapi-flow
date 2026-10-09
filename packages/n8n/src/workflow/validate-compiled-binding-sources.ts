@@ -58,6 +58,18 @@ export function validateCompiledBindingSources(
         throw new Error(
           `binding source ${source.nodeId} does not match its declared native output schema`,
         );
+      if (
+        source.kind === 'api-response' &&
+        source.operation &&
+        !isDeepStrictEqual(
+          source.operation,
+          materials.find((item) => item.arguments.callId === source.nodeId)
+            ?.operation,
+        )
+      )
+        throw new Error(
+          `binding source ${source.nodeId} does not match its original OAS response contract`,
+        );
     }
   }
 }

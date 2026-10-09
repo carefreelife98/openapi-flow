@@ -2,10 +2,13 @@ import type { NativeCheck } from '../../types/native-capability.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
 
 /** Library-owned runtime, shared by IF expressions and assertion Code nodes. */
-const responseCheckRuntime = `
+function responseCheckRuntime(linked: boolean): string {
+  return `
 function read(operand) {
   if (operand.source === 'literal') return operand.value;
-  const item = $(names[operand.nodeId]).first().json;
+  ${linked ? 'const envelope = $(names[operand.nodeId]).itemMatching(inputIndex);' : "const items = $(names[operand.nodeId]).all();if(items.length !== 1)throw new Error('Response '+operand.nodeId+' requires an unambiguous single JSON item');const envelope = items[0];"}
+  if (!envelope || !envelope.json) throw new Error('Missing response item: ' + operand.nodeId);
+  const item = envelope.json;
   if (!Object.hasOwn(item, 'body') || item.body === undefined)
     throw new Error('Missing response body: ' + operand.nodeId);
   let value = item.body;
@@ -40,14 +43,19 @@ function compare(check) {
     default: throw new Error('Unknown comparison operator');
   }
 }`;
+}
 
-export function responseCheckCode(names: Record<string, string>): string {
-  return `const names = ${javascriptJsonLiteral(names)};\n${responseCheckRuntime}`;
+export function responseCheckCode(
+  names: Record<string, string>,
+  linked = false,
+): string {
+  return `const names = ${javascriptJsonLiteral(names)};\n${responseCheckRuntime(linked)}`;
 }
 
 export function conditionExpression(
   check: NativeCheck,
   names: Record<string, string>,
+  linked = false,
 ): string {
-  return `={{ (() => { ${responseCheckCode(names)}; return compare(${javascriptJsonLiteral(check)}); })() }}`;
+  return `={{ (() => { ${linked ? 'const inputIndex=$itemIndex;' : ''}${responseCheckCode(names, linked)}; return compare(${javascriptJsonLiteral(check)}); })() }}`;
 }

@@ -19,6 +19,8 @@ export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
 ): N8nNodeFragment {
   const { operation: contract, arguments: args } = input;
+  if (input.itemMode !== undefined && input.itemMode !== 'linked')
+    throw new Error('itemMode must be linked or omitted');
   if (!args || typeof args.callId !== 'string' || !args.callId.trim())
     throw new Error('arguments.callId must be non-empty');
   if (!Array.isArray(args.unresolvedInputs))

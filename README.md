@@ -10,6 +10,39 @@ Focus on workflows started by **Manual Trigger** that call OAS-defined outgoing 
 
 Further webhook/callback implementation is deferred, including inbound authentication/schema checks and callback registration/correlation. Existing inbound extraction and legacy compilation are retained, not removed or expanded. This development priority does not restrict acceptance of standards-valid OAS documents.
 
+## TODO and roadmap
+
+The agreed order is **item-wise execution → contract/response validation → multi-API quality evaluation → release preparation**. Request-format and authentication extensions are deferred; they are not prerequisites for this iteration.
+
+- [ ] **1. Item-wise execution (current):** explicitly split an OAS response array into items; preserve item linking through dependent API calls; validate empty, multiple, reordered and invalid items without selecting the first item or coercing values. Batch loops and per-item joins need explicit execution contracts.
+  - [x] Initial array-to-items capability, linked HTTP requests, item-aware IF/assertions and isolated n8n regression coverage.
+  - [ ] Nested/batch loops, item-scoped fan-out joins and explicit collection of per-item results.
+- [ ] **2. Additional request formats (later):** multipart upload, text and binary mappings and actual execution tests. Keep standards-valid document intake independent of node mapping.
+- [ ] **3. Additional authentication (later):** AND combinations, cookie API key, OpenID Connect and mTLS. Preserve the existing implemented credential mappings.
+- [ ] **4. Contract/response validation (current):** validate actual source response bodies against the OAS response selected by runtime status and media type; strengthen complex-schema/pointer tests; investigate the recorded n8n top-level JSON-string response issue without narrowing OAS acceptance or rewriting data.
+  - [x] OAS-derived runtime response validation, exact/range/default response precedence, media-type specificity and complex-schema regression tests.
+  - [ ] Exhaustive pointer/schema implication coverage and reproduction/resolution of the upstream n8n JSON-string response issue.
+- [ ] **5. Multi-API/DAG quality evaluation (after 1 and 4):** evaluate the current public pipeline rather than legacy single-operation selection; measure operation choices, typed values, bindings, branches, iteration and gap reports across repeated runs. Keep contract-server execution distinct from real business API validation.
+- [ ] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
+
+Webhook/callback work remains deferred. Supporting every n8n native node and automatically changing data semantics/types are not roadmap requirements; add only explicitly required native capabilities.
+
+For stage 5, freeze reviewed Honeypot/ICL OAS snapshots and scenario answers before measuring the model. Cover independent APIs, a five-API dependent DAG, native conditions/joins/assertions, array iteration and unavailable capabilities. Keep an unseen scenario group separate from prompt-development cases. Repeat the same model configuration and record first-proposal validity, API precision/recall, required input completion, binding/condition correctness, gap accuracy, execution outcomes, latency and token usage. Report numerator/denominator and rejected plans; do not hide failures with retries or fixture-specific corrections.
+
+Quality evaluation must call the current independent public planning functions with a real model, then compile and execute accepted plans against an isolated OAS contract server. Deterministic regression tests establish implementation behavior, not model quality. A contract-server pass does not prove real-service business behavior. Agree on release thresholds after measuring the baseline, rather than declaring completion from a single successful workflow.
+
+## Item-wise execution and source response contracts
+
+Register `createResponseArrayCapability({ materials })` after resolving selected OAS API contracts. A native planner chooses only the source call ID and RFC 6901 array pointer. Code derives the `{ item: element }` output contract, validates the original response, and builds a Code reader plus the official Split Out node. Values are wrapped, not converted or flattened; an empty array emits no items.
+
+Use `createHttpRequestNode({ ..., itemMode: 'linked', apiResponseContracts })` for calls in that item scope. The runtime uses n8n `itemMatching(inputIndex)` to read each source through ancestry, then returns a `pairedItem` pointing to its own input. It does not zip source arrays, match IDs or choose a first result. API sources in linked mode require `apiResponseContracts[callId]`. Supplied response-contract maps must contain every API source; compilation checks original contracts against materials. In single-item mode, providing this map enables source validation; omission retains the earlier request-only validation path, not a claimed response-contract proof. Official multi-API examples now supply the map.
+
+`createN8nNativeCapabilities({ itemMode: 'linked' })` builds item-aware IF conditions and response assertions for that scope. The ordinary registry now rejects ambiguous multi-item response reads instead of taking the first result. Merge Append is still a branch join, not a per-item join or collection primitive. Do not treat it as an item-wise zip. The official host examples accept explicit `linkedItemCallIds`; they do not infer execution scopes from matching field names or model-created JSON.
+
+`createApiResponseSchema({ operation })` derives a validator for observed response metadata/body. Exact status definitions override ranges, ranges override `default`, and specific media types override wildcards, following the [OAS Responses and Response definitions](https://spec.openapis.org/oas/v3.2.1.html#responses-object). `apiResponseValidationValue` projects status and normalized Content-Type for validation without altering body values. This is not an LLM-planned expected-status assertion. Runtime validation rejects a violated OAS source contract before a dependent HTTP request is sent.
+
+Run `npm run test:array-iteration-local-n8n` for public contract cases; import examples are written to `.local-artifacts/array-iteration/workflow.json` and `conditional-workflow.json`. The private real-OAS runner accepts an explicit configuration via `OPENAPI_FLOW_ITERATION_CONFIG` and writes only local artifacts. These are deterministic execution regressions, not LLM quality scores or business-service tests. See the [official usage example](examples/langgraph-workflow/README.md#item별-rest-api-호출).
+
 ## Package boundaries
 
 | Package                   | Responsibility                                                                | Main functions                                                                                                      |
@@ -152,7 +185,7 @@ The graph validator requires producers to be complete on every route to consumer
 
 `planReviewableWorkflowGraph` designs an internal DAG from ready/blocked API materials and identified gaps. Core validates identities, ports, cycles, joins and available responses even when gaps exist. `compileReviewableN8nWorkflow` returns the common `workflow` JSON: complete plans connect Start normally; gap plans preserve implementable HTTP/native nodes and internal connections, replace unresolved steps with failing Code placeholders, add explanatory Sticky Notes, omit every Start-to-root edge and set `active: false`. Its review result is `{ status: 'needs-review', workflow, diagnostics }`. Invalid OAS, malformed plans and missing required literals remain errors. Disconnected Start is a generation policy, not a security boundary: edited/partial executions still require host approval. See the [official example](examples/langgraph-workflow/README.md#결손-검토용-json).
 
-Declared native JSON outputs can now feed API requests. `createNativeOutputContracts` derives their contracts from registered capabilities and validated parameters; `planApiBindings({ nativeOutputs })` includes those sources without inventing schemas. `createN8nNativeOutputSources` resolves their actual SDK exit-node names for `createHttpRequestNode({ nativeOutputSources })`. The compiler checks names/contracts and producer availability on every incoming route. Runtime checks both the native output and complete OAS request without coercion, defaults or repair. Current binding scope is one unambiguous JSON item; item-wise iteration needs a separate execution scope.
+Declared native JSON outputs can now feed API requests. `createNativeOutputContracts` derives their contracts from registered capabilities and validated parameters; `planApiBindings({ nativeOutputs })` includes those sources without inventing schemas. `createN8nNativeOutputSources` resolves their actual SDK exit-node names for `createHttpRequestNode({ nativeOutputSources })`. The compiler checks names/contracts and producer availability on every incoming route. Runtime checks both the native output and complete OAS request without coercion, defaults or repair. Ordinary bindings require one unambiguous JSON item; explicitly linked execution uses the item scope described above.
 
 `createJsonOutputCapability` provides typed, explicit literal context through n8n Edit Fields JSON mode. It does not convert API responses, evaluate literal expression-like text or infer values. It is opt-in and leaves the existing default native registry unchanged. Hosts may register other deterministic native producers with an `outputSchema` callback. Graph planners accept `preparedNativeNodes`: code preserves their parameters while the model designs connections and any additional nodes. The [official example](examples/langgraph-workflow/README.md#native-출력-바인딩) wires these public functions.
 
@@ -177,6 +210,7 @@ npm test
 OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
 npm run test:request-bindings-local-n8n
+npm run test:array-iteration-local-n8n
 npm run test:deployment-template-local-n8n
 npm run test:workflow-review-local-n8n
 ```

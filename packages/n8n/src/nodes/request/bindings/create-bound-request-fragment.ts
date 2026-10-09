@@ -22,7 +22,9 @@ export function createBoundRequestFragment(
     'utf8',
   );
   const validator = compileRequestValidator(config);
-  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\n${createOutputReaderCode(sources)}\nreturn [{json:OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator)}];`;
+  const linked = input.itemMode === 'linked';
+  const materialize = `OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator)`;
+  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\n${linked ? `return $input.all().map((_,inputIndex)=>{${createOutputReaderCode(sources, true)}\nreturn {json:${materialize},pairedItem:{item:inputIndex}};});` : `${createOutputReaderCode(sources)}\nreturn [{json:${materialize}}];`}`;
   const materializer = node({
     type: 'n8n-nodes-base.code',
     version: 2,

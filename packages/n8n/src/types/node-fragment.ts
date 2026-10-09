@@ -35,6 +35,10 @@ export interface CreateHttpRequestNodeInput extends HttpRequestDeploymentOptions
   position: [number, number];
   apiNodeNames?: Record<string, string>;
   nativeOutputSources?: N8nNativeOutputSource[];
+  /** Linked mode uses n8n ancestry, never index-zipping independent source arrays. */
+  itemMode?: 'linked';
+  /** When supplied, every referenced API must have its original response contract. */
+  apiResponseContracts?: Record<string, ApiOperationContract>;
 }
 
 export type CreateBoundHttpRequestNodeInput = CreateHttpRequestNodeInput &

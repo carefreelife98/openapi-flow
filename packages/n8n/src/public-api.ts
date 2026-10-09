@@ -16,3 +16,5 @@ export { compilePlannedN8nWorkflow } from './workflow/compile-planned-n8n-workfl
 export type * from './types/native-capability.js';
 export { resolveHttpRequestAuthentication } from './nodes/request/authentication/resolve-http-request-authentication.js';
 export type * from './types/authentication.js';
+export { createResponseArrayCapability } from './nodes/native/create-response-array-capability.js';
+export type * from './types/array-iteration.js';

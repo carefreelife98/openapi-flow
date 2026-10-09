@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { URL } from 'node:url';
 import process from 'node:process';
 import test from 'node:test';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
@@ -18,7 +19,10 @@ import {
   resolveApiOperations,
   createApiArgumentsSchema,
   createReviewableWorkflowGraphPlan,
+  createApiResponseSchema,
+  createResponseArrayItemSchema,
 } from '@openapi-flow/core';
+import { createRequire } from 'node:module';
 import { createOperationCatalog } from '@openapi-flow/core/internal';
 import { generateWorkflow } from '../examples/legacy-generation/dist/generate-workflow.js';
 import { createOperationSelectionSchema } from '../packages/langchain/dist/legacy/schemas/operation-selection-schema.js';
@@ -33,9 +37,76 @@ const files = entries
   .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
   .map((entry) => entry.name)
   .sort();
+const requireN8n = createRequire(
+  new URL('../packages/n8n/package.json', import.meta.url),
+);
+const { Ajv2020 } = requireN8n('ajv/dist/2020.js');
+const addFormats = requireN8n('ajv-formats');
 if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
+
+test('all private real OAS response contracts compile with the runtime validator without rewritten data', async () => {
+  let count = 0;
+  for (const file of files) {
+    const catalog = await createApiCatalog([
+      {
+        id: file,
+        spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      },
+    ]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    for (const operation of operations) {
+      const ajv = new Ajv2020({
+        strict: false,
+        allErrors: true,
+        discriminator: true,
+      });
+      addFormats(ajv);
+      ajv.compile(createApiResponseSchema({ operation }));
+      count++;
+    }
+  }
+  assert.ok(count > 0);
+});
+
+test('private real OAS arrays derive iteration item contracts from their original response schemas', async () => {
+  let count = 0;
+  function pointers(schema, pointer = '') {
+    if (!schema || typeof schema !== 'object') return [];
+    return [
+      ...(schema.type === 'array' ? [pointer] : []),
+      ...Object.entries(schema.properties ?? {}).flatMap(([key, child]) =>
+        pointers(
+          child,
+          pointer + '/' + key.replaceAll('~', '~0').replaceAll('/', '~1'),
+        ),
+      ),
+    ];
+  }
+  for (const file of files) {
+    const catalog = await createApiCatalog([
+      {
+        id: file,
+        spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      },
+    ]);
+    for (const operation of await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    ))
+      for (const response of Object.values(operation.operation.responses ?? {}))
+        for (const media of Object.values(response.content ?? {}))
+          for (const pointer of pointers(media.schema)) {
+            assert.ok(createResponseArrayItemSchema(operation, pointer));
+            count++;
+          }
+  }
+  assert.ok(count > 0);
+});
 
 test('real OAS files form a multi-document operation catalog', async () => {
   const sources = await Promise.all(

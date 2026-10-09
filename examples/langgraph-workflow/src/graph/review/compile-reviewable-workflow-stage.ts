@@ -46,6 +46,12 @@ export function compileReviewableWorkflowStage(
       securityRequirementIndex: deployment?.securityRequirementIndex,
       apiNodeNames: names,
       nativeOutputSources,
+      ...(dependencies.linkedItemCallIds?.includes(item.arguments.callId)
+        ? { itemMode: 'linked' as const }
+        : {}),
+      apiResponseContracts: Object.fromEntries(
+        ready.map((source) => [source.arguments.callId, source.operation]),
+      ),
       position: [300, index * 200],
     });
   });

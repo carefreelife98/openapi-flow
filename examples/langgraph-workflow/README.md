@@ -6,6 +6,8 @@
 
 Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
 
+반복 실행의 기본 경로는 구현했다. 아래의 item별 REST API 호출을 사용한다. 중첩·배치 반복과 item별 분기 합류·결과 수집은 루트 README의 TODO에 남겨 두었다.
+
 Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
 
 ## native 출력 바인딩
@@ -77,7 +79,40 @@ const graph = createReviewableWorkflowGenerationGraph({
 
 이 예시는 기존 시나리오의 명시적인 값을 n8n Edit Fields(JSON)로 출력한다. 새로운 값을 추측하거나 API 응답을 수정하지 않는다. 사용자 시나리오가 이 값을 다음 API에 쓰도록 요구하면 모델은 `/productId`에서 대상 OAS 요청 필드로 바인딩하고 선행 연결을 설계한다. ID·생산자·입력 위치를 실제 계약과 대조하며, 단순히 필드명이 같다는 이유로 연결하지 않는다.
 
-커스텀 native 기능은 `outputSchema(parameters)`로 JSON 출력 계약을 선언한다. 계약은 구현에서 도출하며 모델에게 생성시키지 않는다. 현재는 하나의 명확한 JSON item을 바인딩한다. 여러 item 중 하나를 임의로 고르는 동작과 항목별 반복은 제공하지 않는다. 이 예시의 `preparedNativeNodes`는 호스트가 지정하지만 바인딩·검사·컴파일은 OSS의 공개 함수가 수행한다. 자연어에서 임의의 모든 native 생산자를 먼저 고르는 계획 단계까지 자동 제공하는 것은 아니다.
+커스텀 native 기능은 `outputSchema(parameters)`로 JSON 출력 계약을 선언한다. 계약은 구현에서 도출하며 모델에게 생성시키지 않는다. 이 예시는 하나의 명확한 JSON item을 바인딩한다. 여러 item을 처리할 때는 아래의 명시적인 linked 모드를 사용하며, 첫 item을 임의로 고르지 않는다. 이 예시의 `preparedNativeNodes`는 호스트가 지정하지만 바인딩·검사·컴파일은 OSS의 공개 함수가 수행한다. 자연어에서 임의의 모든 native 생산자를 먼저 고르는 계획 단계까지 자동 제공하는 것은 아니다.
+
+## item별 REST API 호출
+
+API 계약을 조회한 뒤 `createResponseArrayCapability({ materials })`를 native 기능 목록에 등록한다. `materials`에는 호출별 `callId`와 원본 OAS 계약이 있다. `planNativeNodes`는 반복할 API의 ID와 배열의 JSON Pointer를 선택한다. 코드가 원본 응답 계약을 검사하고 item 스키마와 공식 Split Out 노드를 만든다. 출력은 `{ item: 원본 배열 항목 }`이며 값과 타입은 바꾸지 않는다.
+
+```ts
+const capabilities = [
+  createResponseArrayCapability({ materials }),
+  ...createN8nNativeCapabilities({ itemMode: 'linked' }),
+];
+// planNativeNodes → createNativeOutputContracts → planApiBindings
+// → generateApiArguments → planWorkflowConnections 순으로 독립 호출한다.
+
+const request = createHttpRequestNode({
+  operation,
+  arguments: plannedArguments,
+  position: [600, 0],
+  itemMode: 'linked',
+  apiNodeNames,
+  nativeOutputSources,
+  apiResponseContracts, // callId → 해당 선행 API의 원본 OAS 계약
+  baseUrl,
+  credentialBindings,
+});
+```
+
+`itemMode: 'linked'`는 현재 입력 item과 연결된 선행 결과를 `itemMatching(inputIndex)`로 읽는다. 출력의 `pairedItem`이 다음 노드에서도 이 연결을 유지한다. ID가 같은 항목이나 분기 후 순서가 바뀐 항목도 배열의 인덱스로 짝짓지 않는다. 빈 배열은 다음 API를 호출하지 않는다. 연결이 모호하거나 값이 계약과 다르면 실패하며 다른 값을 대신 넣지 않는다.
+
+공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`는 item별 zip·결과 수집 기능이 아니며, 배치·중첩 반복과 item별 합류 계약은 아직 미완료다.
+
+선행 API 응답 검증에는 `apiResponseContracts`를 제공한다. linked 모드의 API 응답 바인딩에는 이 계약이 필수다. 실제 상태 코드와 Content-Type으로 OAS 응답 스키마를 고르고 본문 전체를 검사한 뒤 요청값을 조립한다. 모델에게 예상 상태 코드를 생성시키는 로직이 아니다. 기존 단일 item 경로에서 이 계약을 생략하면 요청값 검증만 수행하며, 선행 응답 전체를 검증했다고 볼 수 없다.
+
+`npm run test:array-iteration-local-n8n`은 공개 계약 서버에서 기본 반복, item별 IF·assertion, 빈 배열과 실패 사례를 검증한다. import 가능한 JSON은 `.local-artifacts/array-iteration/workflow.json`과 `conditional-workflow.json`에 저장된다. 실제 ICL OAS를 사용한 로컬 검증 산출물은 비공개 `.local-artifacts/real-array-iteration/`에 남는다. 이 실행 검증은 실제 모델의 선택 정확도 평가나 실서비스 호출 검증과 다르다.
 
 실제 ICL OAS를 사용한 재현 명령은 다음과 같다. 모델 응답을 스크립트로 지정하는 기본 검사이며 실제 ICL 서비스는 호출하지 않는다. 실제 LangChain 모델은 검증 함수에 별도로 주입할 수 있다.
 

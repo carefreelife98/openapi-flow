@@ -125,6 +125,15 @@ export function createRequestMaterials(
         operation,
         arguments: args,
         nativeOutputSources,
+        ...(dependencies.linkedItemCallIds?.includes(args.callId)
+          ? { itemMode: 'linked' as const }
+          : {}),
+        apiResponseContracts: Object.fromEntries(
+          state.arguments!.map((call, sourceIndex) => [
+            call.callId,
+            state.contracts![sourceIndex],
+          ]),
+        ),
         baseUrl: deployment?.baseUrl,
         credentialBindings: deployment?.credentialBindings,
         securityRequirementIndex: deployment?.securityRequirementIndex,

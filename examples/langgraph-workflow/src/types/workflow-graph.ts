@@ -30,6 +30,8 @@ export interface GraphDependencies {
 }
 
 export interface ApiPreparationDependencies extends GraphDependencies {
+  /** Explicit per-call linked item execution; single-item requests are unchanged. */
+  linkedItemCallIds?: string[];
   reviewSelection?: (selection: ApiSelection) => void;
   reviewBindings?: (plan: ApiBindingPlan) => void | Promise<void>;
 }

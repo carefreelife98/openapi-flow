@@ -22,6 +22,10 @@ export type MergeParameters = z.infer<typeof mergeParametersSchema>;
 export type AssertionParameters = z.infer<typeof assertionParametersSchema>;
 export type StopParameters = z.infer<typeof stopParametersSchema>;
 
+export interface NativeItemExecutionOptions {
+  itemMode?: 'linked';
+}
+
 export interface CompileNativeNodeInput {
   planned: PlannedNativeNode;
   apiNodeNames: Record<string, string>;

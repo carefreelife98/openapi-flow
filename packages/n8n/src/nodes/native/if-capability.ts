@@ -1,11 +1,16 @@
 import { node } from '@n8n/workflow-sdk';
-import type { N8nNativeCapability } from '../../types/native-capability.js';
+import type {
+  N8nNativeCapability,
+  NativeItemExecutionOptions,
+} from '../../types/native-capability.js';
 import { ifParametersSchema } from '../../schemas/native-capability-schemas.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { conditionExpression } from './response-check-code.js';
 
-export function createIfCapability(): N8nNativeCapability {
+export function createIfCapability(
+  input: NativeItemExecutionOptions = {},
+): N8nNativeCapability {
   return {
     name: 'if',
     description:
@@ -37,7 +42,11 @@ export function createIfCapability(): N8nNativeCapability {
                 },
                 conditions: parameters.conditions.map((check, index) => ({
                   id: `${planned.id}-${index}`,
-                  leftValue: conditionExpression(check, apiNodeNames),
+                  leftValue: conditionExpression(
+                    check,
+                    apiNodeNames,
+                    input.itemMode === 'linked',
+                  ),
                   rightValue: true,
                   operator: { type: 'boolean', operation: 'equals' },
                 })),

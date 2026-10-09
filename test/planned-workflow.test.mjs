@@ -155,7 +155,7 @@ test('response comparisons execute deep JSON equality and reject missing pointer
     .parameters.jsCode;
   const execute = (values) =>
     vm.runInNewContext(`(function(){${code}})()`, {
-      $: (name) => ({ first: () => ({ json: { body: values[name] } }) }),
+      $: (name) => ({ all: () => [{ json: { body: values[name] } }] }),
     });
   assert.equal(
     execute({
@@ -183,7 +183,7 @@ test('IF generated expression uses the same type-strict response comparison', ()
   ).parameters.conditions.conditions[0].leftValue;
   const run = (code) =>
     vm.runInNewContext(expression.slice(3, -2).trim(), {
-      $: () => ({ first: () => ({ json: { body: { code } } }) }),
+      $: () => ({ all: () => [{ json: { body: { code } } }] }),
     });
   assert.equal(run(0), true);
   assert.equal(run('0'), false);
@@ -198,7 +198,7 @@ test('IF expressions encode nested JSON and brace-containing data without n8n cl
   assert.equal(expression.slice(3, -2).includes('}}'), false);
   assert.equal(
     vm.runInNewContext(expression.slice(3, -2).trim(), {
-      $: () => ({ first: () => ({ json: { body: { code: '}}' } } }) }),
+      $: () => ({ all: () => [{ json: { body: { code: '}}' } } }] }),
     }),
     true,
   );

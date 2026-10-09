@@ -1,11 +1,16 @@
 import { node } from '@n8n/workflow-sdk';
-import type { N8nNativeCapability } from '../../types/native-capability.js';
+import type {
+  N8nNativeCapability,
+  NativeItemExecutionOptions,
+} from '../../types/native-capability.js';
 import { assertionParametersSchema } from '../../schemas/native-capability-schemas.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { responseCheckCode } from './response-check-code.js';
 
-export function createResponseAssertionCapability(): N8nNativeCapability {
+export function createResponseAssertionCapability(
+  input: NativeItemExecutionOptions = {},
+): N8nNativeCapability {
   return {
     name: 'assert-responses',
     description:
@@ -19,7 +24,11 @@ export function createResponseAssertionCapability(): N8nNativeCapability {
     exclusiveOutputPorts: false,
     compile: ({ planned, apiNodeNames, position }) => {
       const parameters = assertionParametersSchema.parse(planned.parameters);
-      const code = `${responseCheckCode(apiNodeNames)}\nconst checks = ${JSON.stringify(parameters.checks)};\nfor (const check of checks) if (!compare(check)) throw new Error(check.message);\nreturn [{json: {pass: true, assertionCount: checks.length}}];`;
+      const checkCode = `${responseCheckCode(apiNodeNames, input.itemMode === 'linked')}\nconst checks = ${JSON.stringify(parameters.checks)};\nfor (const check of checks) if (!compare(check)) throw new Error(check.message);`;
+      const code =
+        input.itemMode === 'linked'
+          ? `return $input.all().map((_,inputIndex)=>{${checkCode}\nreturn {json:{pass:true,assertionCount:checks.length},pairedItem:{item:inputIndex}};});`
+          : `${checkCode}\nreturn [{json: {pass: true, assertionCount: checks.length}}];`;
       return createNativeFragment(
         node({
           type: 'n8n-nodes-base.code',

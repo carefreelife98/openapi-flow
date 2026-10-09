@@ -33,10 +33,20 @@ export function resolveOutputBindingSources(
       !input.apiNodeNames[nodeId].trim()
     )
       throw new Error(`apiNodeNames is missing ${nodeId}`);
+    if (
+      (input.apiResponseContracts || input.itemMode === 'linked') &&
+      (!input.apiResponseContracts ||
+        !Object.hasOwn(input.apiResponseContracts, nodeId) ||
+        !input.apiResponseContracts[nodeId])
+    )
+      throw new Error(`apiResponseContracts is missing ${nodeId}`);
     return {
       kind: 'api-response',
       nodeId,
       nodeName: input.apiNodeNames[nodeId],
+      ...(input.apiResponseContracts
+        ? { operation: input.apiResponseContracts[nodeId] }
+        : {}),
     };
   });
 }

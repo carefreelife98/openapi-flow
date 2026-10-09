@@ -20,6 +20,7 @@
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
     "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",
+    "test:array-iteration-local-n8n": "npm run build && node integration/array-iteration-local-n8n.mjs",
     "test:http-authentication-local-n8n": "npm run build && node integration/http-authentication-local-n8n.mjs",
     "test:native-output-bindings-local-n8n": "npm run build && node integration/native-output-bindings-local-n8n.mjs",
     "test:orchestration-local-n8n": "npm run build && node integration/native-output-bindings-local-n8n.mjs --orchestrated",
