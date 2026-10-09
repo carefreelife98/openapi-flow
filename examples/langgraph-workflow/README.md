@@ -6,7 +6,7 @@
 
 Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
 
-반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 중첩·배치 반복과 실행 간 합류·누적 수집은 루트 README의 TODO에 남겨 두었다.
+반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드로 API 응답 배열을 두 단계에서 분리하는 중첩 반복도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 배치 반복과 실행 간 합류·누적 수집은 루트 README의 TODO에 남겨 두었다.
 
 Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
 
@@ -108,7 +108,21 @@ const request = createHttpRequestNode({
 
 `itemMode: 'linked'`는 현재 입력 item과 연결된 선행 결과를 `itemMatching(inputIndex)`로 읽는다. 출력의 `pairedItem`이 다음 노드에서도 이 연결을 유지한다. ID가 같은 항목이나 분기 후 순서가 바뀐 항목도 배열의 인덱스로 짝짓지 않는다. 빈 배열은 다음 API를 호출하지 않는다. 연결이 모호하거나 값이 계약과 다르면 실패하며 다른 값을 대신 넣지 않는다.
 
-공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`만으로는 item별 zip·결과 수집을 보장하지 않는다. 아래의 전용 합류 기능은 원본 item 연결을 검사하며, 배치·중첩 반복은 아직 미완료다.
+공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`만으로는 item별 zip·결과 수집을 보장하지 않는다. 아래의 전용 합류 기능은 원본 item 연결을 검사하며, 배치 반복은 아직 미완료다.
+
+### API 응답 배열의 중첩 반복
+
+부모별 API 응답에 자식 배열이 있다면 `createResponseArrayCapability({ materials, itemMode: 'linked' })`로 등록한다. 이 모드는 각 입력 item에 연결된 API 응답 전체를 검사하고 배열을 분리한다. 처음 들어오는 단일 응답에도 같은 registry를 사용할 수 있다. 모드를 생략한 기존 경로는 한 개의 입력과 명확한 단일 응답만 허용한다.
+
+```text
+Manual Trigger → 부모 목록 API → 부모 Split Out
+              → 부모별 자식 목록 API → 자식 Split Out
+              → 부모·자식·중간 응답을 바인딩한 후속 API
+```
+
+모델은 제공된 API의 `sourceNodeId`와 배열 `pointer`만 선택한다. 실행 모드는 호스트가 정하고 코드가 배열 계약과 item 연결을 만든다. 자식 배열이 빈 부모는 후속 요청을 만들지 않으며 다른 부모의 연결에도 영향을 주지 않는다. 값·타입을 변환하거나 ID가 같다는 이유로 결과를 합치지 않는다. API 외 native 출력 배열의 분리, 배치 반복과 실행 간 누적 수집까지 구현한 것은 아니다.
+
+`npm run test:nested-array-iteration-local-n8n`은 API 다섯 개와 두 단계 Split Out을 실행한다. IF로 부모를 걸러내는 예시를 포함한 import JSON과 8개 사례의 보고서는 `.local-artifacts/nested-array-iteration/`에 저장된다. 계획은 회귀 테스트가 지정한다. 실제 모델의 중첩 반복 선택 정확도는 별도 평가가 필요하다. 예시에는 종료된 임시 계약 서버 주소가 있으므로 다시 실행하려면 주소와 서버를 구성한다.
 
 선행 API 응답 검증에는 `apiResponseContracts`를 제공한다. linked 모드의 API 응답 바인딩에는 이 계약이 필수다. 실제 상태 코드와 Content-Type으로 OAS 응답 스키마를 고르고 본문 전체를 검사한 뒤 요청값을 조립한다. 모델에게 예상 상태 코드를 생성시키는 로직이 아니다. 기존 단일 item 경로에서 이 계약을 생략하면 요청값 검증만 수행하며, 선행 응답 전체를 검증했다고 볼 수 없다.
 

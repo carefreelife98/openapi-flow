@@ -18,7 +18,8 @@ The agreed order is **item-wise execution → contract/response validation → m
   - [x] Initial array-to-items capability, linked HTTP requests, item-aware IF/assertions and isolated n8n regression coverage.
   - [x] Explicit collection of one item stream's unchanged API response values with official Aggregate, including a following OAS array-body request.
   - [x] Item-scoped API fan-out join by shared native item ancestry, with per-port dependencies and missing/duplicate response rejection.
-  - [ ] Nested/batch loops, cross-invocation joins and collection across separately executed streams.
+  - [x] Nested API response array splitting in explicit linked mode, preserving parent/child/intermediate response ancestry through five APIs.
+  - [ ] Batch loops, cross-invocation joins and collection across separately executed streams.
 - [ ] **2. Additional request formats (later):** multipart upload, text and binary mappings and actual execution tests. Keep standards-valid document intake independent of node mapping.
 - [ ] **3. Additional authentication (later):** AND combinations, cookie API key, OpenID Connect and mTLS. Preserve the existing implemented credential mappings.
 - [ ] **4. Contract/response validation (current):** validate actual source response bodies against the OAS response selected by runtime status and media type; strengthen complex-schema/pointer tests; investigate the recorded n8n top-level JSON-string response issue without narrowing OAS acceptance or rewriting data.
@@ -38,6 +39,10 @@ Quality evaluation must call the current independent public planning functions w
 ## Item-wise execution and source response contracts
 
 Register `createResponseArrayCapability({ materials })` after resolving selected OAS API contracts. A native planner chooses only the source call ID and RFC 6901 array pointer. Code derives the `{ item: element }` output contract, validates the original response, and builds a Code reader plus the official Split Out node. Values are wrapped, not converted or flattened; an empty array emits no items.
+
+For nested API arrays, register `createResponseArrayCapability({ materials, itemMode: 'linked' })`. This host-owned mode reads each input item's linked API response, validates the full response and emits an array wrapper paired with that input. Official Split Out links each child to its own wrapper; subsequent linked HTTP calls can bind the original parent, child and intermediate API response. A parent's empty array emits no children without shifting other parents' ancestry. The same linked registry also supports the initial single response. Without this mode, the original reader still requires exactly one input and one unambiguous source response. This is nested splitting within one node invocation, not Loop Over Items batching, cross-run accumulation or automatic iteration-scope planning.
+
+Run `npm run test:nested-array-iteration-local-n8n` for the five-API nested regression. Import JSON, an IF-filtered variant and their eight-case report are written to `.local-artifacts/nested-array-iteration/`. The workflow uses a temporary local contract server: configure a running endpoint before importing it for execution. Its deterministic plan tests runtime contracts, not real-model planning quality or business-service semantics. The adapter preserves explicit [Code item links](https://docs.n8n.io/build/work-with-data/reference-data/link-data-items/preserving-linking-in-the-code-node/); the tested [n8n 2.37.10 Split Out implementation](https://github.com/n8n-io/n8n/blob/n8n%402.37.10/packages/nodes-base/nodes/Transform/SplitOut/SplitOut.node.ts) assigns each child its source input's `pairedItem`.
 
 Use `createHttpRequestNode({ ..., itemMode: 'linked', apiResponseContracts })` for calls in that item scope. The runtime uses n8n `itemMatching(inputIndex)` to read each source through ancestry, then returns a `pairedItem` pointing to its own input. It does not zip source arrays, match IDs or choose a first result. API sources in linked mode require `apiResponseContracts[callId]`. Supplied response-contract maps must contain every API source; compilation checks original contracts against materials. In single-item mode, providing this map enables source validation; omission retains the earlier request-only validation path, not a claimed response-contract proof. Official multi-API examples now supply the map.
 
@@ -231,6 +236,7 @@ OPENAPI_FLOW_REAL_OAS_DIR=/path/to/private/oas npm run test:real-oas
 npm run test:local-n8n
 npm run test:request-bindings-local-n8n
 npm run test:array-iteration-local-n8n
+npm run test:nested-array-iteration-local-n8n
 npm run test:deployment-template-local-n8n
 npm run test:workflow-review-local-n8n
 ```

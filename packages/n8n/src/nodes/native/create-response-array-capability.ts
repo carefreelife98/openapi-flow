@@ -1,5 +1,4 @@
 import { node } from '@n8n/workflow-sdk';
-import { readFileSync } from 'node:fs';
 import { createResponseArrayItemSchema } from '@openapi-flow/core';
 import type { ApiBindingMaterial } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '../../types/native-capability.js';
@@ -8,12 +7,16 @@ import type {
   ResponseArrayParameters,
 } from '../../types/array-iteration.js';
 import { createResponseArrayParametersSchema } from '../../schemas/response-array-schema.js';
-import { createOutputReaderCode } from '../request/bindings/create-output-reader-code.js';
-import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
+import { createResponseArrayReaderCode } from './create-response-array-reader-code.js';
 
 export function createResponseArrayCapability(
   input: CreateResponseArrayCapabilityInput,
 ): N8nNativeCapability {
+  if (input.itemMode !== undefined && input.itemMode !== 'linked')
+    throw new Error(
+      'response array capability: itemMode must be linked or omitted',
+    );
+  const linked = input.itemMode === 'linked';
   const materials = new Map(
     input.materials.map((material) => [material.callId, material]),
   );
@@ -77,21 +80,16 @@ export function createResponseArrayCapability(
         !apiNodeNames[material.callId].trim()
       )
         throw new Error(`apiNodeNames is missing ${material.callId}`);
-      const runtime = readFileSync(
-        new URL(
-          '../request/runtime/request-runtime.bundle.js',
-          import.meta.url,
-        ),
-        'utf8',
-      );
-      const read = createOutputReaderCode([
+      const read = createResponseArrayReaderCode(
         {
           kind: 'api-response',
           nodeId: material.callId,
           nodeName: apiNodeNames[material.callId],
           operation: material.operation,
         },
-      ]);
+        parameters,
+        linked,
+      );
       const extract = node({
         type: 'n8n-nodes-base.code',
         version: 2,
@@ -101,7 +99,7 @@ export function createResponseArrayCapability(
           position,
           parameters: {
             mode: 'runOnceForAllItems',
-            jsCode: `${runtime}\nconst inputItems=$input.all();if(inputItems.length!==1)throw new Error('Response array extraction requires one input item; got '+inputItems.length);\n${read}\nconst parameters=${javascriptJsonLiteral(parameters)};\nconst array=OpenApiFlowRequestRuntime.pointerValue(responses[parameters.sourceNodeId],parameters.pointer);if(!Array.isArray(array))throw new Error('Response '+parameters.sourceNodeId+parameters.pointer+' must be an array');return [{json:{items:array},pairedItem:{item:0}}];`,
+            jsCode: read,
           },
         },
       });

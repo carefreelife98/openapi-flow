@@ -13,6 +13,7 @@ import {
   createItemJoinCapability,
   createJsonOutputCapability,
   createN8nNativeOutputSources,
+  createResponseArrayCapability,
 } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
@@ -148,7 +149,7 @@ test('all private real OAS response contracts compile with the runtime validator
   assert.ok(count > 0);
 });
 
-test('private real OAS arrays derive iteration item contracts from their original response schemas', async () => {
+test('private real OAS arrays derive item contracts and compile singleton and linked readers from original schemas', async () => {
   let count = 0;
   function pointers(schema, pointer = '') {
     if (!schema || typeof schema !== 'object') return [];
@@ -177,6 +178,29 @@ test('private real OAS arrays derive iteration item contracts from their origina
         for (const media of Object.values(response.content ?? {}))
           for (const pointer of pointers(media.schema)) {
             assert.ok(createResponseArrayItemSchema(operation, pointer));
+            for (const options of [{}, { itemMode: 'linked' }]) {
+              const capability = createResponseArrayCapability({
+                materials: [{ callId: 'source', operation }],
+                ...options,
+              });
+              const fragment = capability.compile({
+                planned: {
+                  id: 'split',
+                  capability: capability.name,
+                  parameters: { sourceNodeId: 'source', pointer },
+                },
+                position: [0, 0],
+                apiNodeNames: { source: 'Request source' },
+              });
+              assert.equal(fragment.exit.type, 'n8n-nodes-base.splitOut');
+              assert.equal(fragment.bindingSources[0].operation, operation);
+              assert.equal(
+                fragment.entry.config.parameters.jsCode.includes(
+                  'itemMatching(inputIndex)',
+                ),
+                options.itemMode === 'linked',
+              );
+            }
             count++;
           }
   }
