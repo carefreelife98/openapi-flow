@@ -7,6 +7,7 @@ import { assertionParametersSchema } from '../../schemas/native-capability-schem
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { responseCheckCode } from './response-check-code.js';
+import { createResponseCheckReader } from './response-checks/create-response-check-reader.js';
 
 export function createResponseAssertionCapability(
   input: NativeItemExecutionOptions = {},
@@ -22,9 +23,16 @@ export function createResponseAssertionCapability(
       responseReferences(assertionParametersSchema.parse(parameters).checks),
     waitsForAllInputs: false,
     exclusiveOutputPorts: false,
-    compile: ({ planned, apiNodeNames, position }) => {
+    compile: ({ planned, apiNodeNames, apiResponseContracts, position }) => {
       const parameters = assertionParametersSchema.parse(planned.parameters);
-      const checkCode = `${responseCheckCode(apiNodeNames, input.itemMode === 'linked')}\nconst checks = ${JSON.stringify(parameters.checks)};\nfor (const check of checks) if (!compare(check)) throw new Error(check.message);`;
+      const reader = createResponseCheckReader({
+        nodeId: planned.id,
+        checks: parameters.checks,
+        apiNodeNames,
+        apiResponseContracts,
+        linked: input.itemMode === 'linked',
+      });
+      const checkCode = `${responseCheckCode(reader.code)}\nconst checks = ${JSON.stringify(parameters.checks)};\nfor (const check of checks) if (!compare(check)) throw new Error(check.message);`;
       const code =
         input.itemMode === 'linked'
           ? `return $input.all().map((_,inputIndex)=>{${checkCode}\nreturn {json:{pass:true,assertionCount:checks.length},pairedItem:{item:inputIndex}};});`
@@ -47,7 +55,11 @@ export function createResponseAssertionCapability(
         ['main'],
         ['main'],
       );
-      return { ...fragment, preservesInputItems: input.itemMode === 'linked' };
+      return {
+        ...fragment,
+        preservesInputItems: input.itemMode === 'linked',
+        bindingSources: reader.bindingSources,
+      };
     },
   };
 }

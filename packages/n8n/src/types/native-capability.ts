@@ -4,6 +4,7 @@ import type {
   WorkflowCapability,
   WorkflowGraphPlan,
   WorkflowApiMaterial,
+  ApiOperationContract,
 } from '@openapi-flow/core';
 import type { N8nNodeFragment } from './node-fragment.js';
 import type {
@@ -30,6 +31,8 @@ export interface CompileNativeNodeInput {
   planned: PlannedNativeNode;
   apiNodeNames: Record<string, string>;
   position: [number, number];
+  /** Original OAS contracts are required by compilers that read API responses. */
+  apiResponseContracts?: Record<string, ApiOperationContract>;
 }
 
 export interface N8nNativeCapability extends WorkflowCapability {
@@ -53,5 +56,5 @@ export interface CompilePlannedN8nWorkflowInput {
 
 export type CompileNativeWorkflowNodesInput = Pick<
   CompilePlannedN8nWorkflowInput,
-  'plan' | 'apiNodes' | 'capabilities'
+  'plan' | 'apiNodes' | 'capabilities' | 'materials'
 >;

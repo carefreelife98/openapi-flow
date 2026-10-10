@@ -31,7 +31,10 @@ export function compileReviewableN8nWorkflow(
     throw new Error('review apiNodes must exactly match unblocked ready calls');
   if (!input.plan.gaps.length)
     return compilePlannedN8nWorkflow({ ...input, materials: ready });
-  const nativeNodes = compileNativeWorkflowNodes(input);
+  const nativeNodes = compileNativeWorkflowNodes({
+    ...input,
+    materials: ready,
+  });
   validateCompiledBindingSources(
     input.apiNodes,
     nativeNodes,

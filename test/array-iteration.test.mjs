@@ -66,6 +66,9 @@ test('ordinary native response checks reject ambiguous items rather than taking 
       },
     },
     apiNodeNames: names,
+    apiResponseContracts: Object.fromEntries(
+      materials.map((item) => [item.callId, item.operation]),
+    ),
     position: [0, 0],
   });
   assert.throws(

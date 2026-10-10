@@ -110,6 +110,16 @@ const request = createHttpRequestNode({
 
 공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`만으로는 item별 zip·결과 수집을 보장하지 않는다. 아래의 전용 합류 기능은 원본 item 연결을 검사한다. 배치 실행에는 별도의 공개 컴파일 함수를 사용한다.
 
+### IF와 assertion의 원본 응답 검사
+
+조건이나 assertion이 API 응답을 읽으면 선택한 필드만 비교하기 전에 원본 OAS 응답 전체를 검사한다. 비교하지 않는 형제 필드가 잘못됐거나 status·Content-Type이 계약과 다르면 실패한다. IF 조건이 false가 될 응답도 검사에서 제외하지 않는다. 이는 모델이 예상 상태 코드를 정하는 단계가 아니라 실제 응답의 OAS 적합성 검사다.
+
+공개 워크플로우 compiler는 `materials`에서 원본 응답 계약을 도출한다. 호스트가 같은 계약을 다시 작성하거나 LangGraph에 보정 단계를 넣을 필요는 없다. capability의 `compile`을 직접 호출할 때만 참조 API의 `apiResponseContracts`와 실제 `apiNodeNames`를 명시해야 한다. API 참조가 없는 literal 비교에는 응답 계약이 필요 없다.
+
+IF는 Code 검사 노드 다음에 공식 IF 노드를 연결한다. 검사 노드는 원본 JSON·binary와 item 연결을 유지하고 가짜 item을 만들지 않는다. assertion도 같은 공통 reader를 사용한다. 타입은 `types/`, 공통 검사 생성은 `nodes/native/response-checks/`, IF·assertion 구현은 각각의 capability 파일에 있다.
+
+`npm run test:array-iteration-local-n8n`은 신규 실패 사례 5개를 포함한 14개 실행을 검사한다. n8n 2.37.10은 `:`가 있는 오류의 표시 메시지를 잘라내는 문제가 있다. 원본 오류는 실행 stack에 남으므로 보고서에 두 값을 구분해 기록한다. 후속 호출 차단은 검증하지만 오류 표시 문제를 해결했다고 주장하지 않는다. 진단 메시지를 변형하는 우회도 추가하지 않았다.
+
 ### API 응답 배열의 중첩 반복
 
 부모별 API 응답에 자식 배열이 있다면 `createResponseArrayCapability({ materials, itemMode: 'linked' })`로 등록한다. 이 모드는 각 입력 item에 연결된 API 응답 전체를 검사하고 배열을 분리한다. 처음 들어오는 단일 응답에도 같은 registry를 사용할 수 있다. 모드를 생략한 기존 경로는 한 개의 입력과 명확한 단일 응답만 허용한다.

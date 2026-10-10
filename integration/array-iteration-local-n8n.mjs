@@ -67,6 +67,8 @@ const server = createServer(async (request, response) => {
       );
       result = { receipt: `${body.id}:${body.amount}`, input: body };
       if (mode === 'invalid-response') result.receipt = 42;
+      if (mode === 'invalid-conditional-response' && body.amount === 2)
+        result.receipt = 42;
     } else if (url.pathname.startsWith('/confirm/')) {
       assert.ok(
         rows.some((row) => row.id === body.id && row.amount === body.amount),
@@ -76,6 +78,7 @@ const server = createServer(async (request, response) => {
         `${body.id}:${body.amount}`,
       );
       result = body;
+      if (mode === 'invalid-assertion-response') result = { ...body, id: 42 };
     } else if (url.pathname === '/submit') {
       assert.ok(Array.isArray(body));
       assert.deepEqual(
@@ -88,12 +91,22 @@ const server = createServer(async (request, response) => {
       );
       result = { accepted: body.length };
     } else throw Error('Unexpected local route');
-    response.writeHead(200, {
-      'content-type':
-        mode === 'wrong-media' && url.pathname === '/records'
-          ? 'text/plain'
-          : 'application/json',
-    });
+    response.writeHead(
+      mode === 'invalid-assertion-status' &&
+        url.pathname.startsWith('/confirm/')
+        ? 201
+        : 200,
+      {
+        'content-type':
+          (mode === 'wrong-media' && url.pathname === '/records') ||
+          (mode === 'invalid-conditional-media' &&
+            url.pathname === '/details') ||
+          (mode === 'invalid-assertion-media' &&
+            url.pathname.startsWith('/confirm/'))
+            ? 'text/plain'
+            : 'application/json',
+      },
+    );
     response.end(JSON.stringify(result));
   } catch (error) {
     failures.push(error.message);
@@ -181,6 +194,14 @@ try {
       workflowId: 'array-conditional-collection',
     },
     { name: 'empty-collection', mode: 'empty', workflowId: 'array-collection' },
+    ...['invalid-conditional-response', 'invalid-conditional-media'].map(
+      (name) => ({ name, mode: name, workflowId: 'array-conditional' }),
+    ),
+    ...[
+      'invalid-assertion-response',
+      'invalid-assertion-media',
+      'invalid-assertion-status',
+    ].map((name) => ({ name, mode: name, workflowId: 'array-iteration' })),
   ];
   for (const sample of cases) {
     mode = sample.mode;
@@ -218,6 +239,34 @@ try {
         received.find((call) => call.path === '/submit').body,
         collected[0].json.items,
       );
+    } else if (
+      mode.startsWith('invalid-conditional-') ||
+      mode.startsWith('invalid-assertion-')
+    ) {
+      assert.equal(execution.status, 'error');
+      const expectedNode = mode.startsWith('invalid-conditional-')
+        ? 'Validate responses amount-gate'
+        : 'verify-item';
+      assert.equal(execution.data.resultData.lastNodeExecuted, expectedNode);
+      // n8n 2.37.10's task runner truncates colon-containing messages.
+      // Assert the preserved original error, not its broken display field.
+      assert.match(
+        execution.data.resultData.error.stack,
+        /^Error: Response (details|confirm) does not match its OAS contract: /,
+      );
+      assert.equal(
+        received.length,
+        mode.startsWith('invalid-conditional-') ? 4 : 7,
+      );
+      assert.equal(
+        received.filter((call) => call.path === '/submit').length,
+        0,
+      );
+      if (mode.startsWith('invalid-conditional-'))
+        assert.equal(
+          received.filter((call) => call.path.startsWith('/confirm/')).length,
+          0,
+        );
     } else if (mode === 'normal') {
       assert.equal(
         execution.status,
@@ -289,6 +338,14 @@ try {
       status: 'passed',
       execution: execution.status,
       requests: received.length,
+      ...(mode.startsWith('invalid-conditional-') ||
+      mode.startsWith('invalid-assertion-')
+        ? {
+            failedNode: execution.data.resultData.lastNodeExecuted,
+            reportedMessage: execution.data.resultData.error.message,
+            originalError: execution.data.resultData.error.stack.split('\n')[0],
+          }
+        : {}),
     });
   }
   const report = {

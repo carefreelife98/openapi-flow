@@ -141,7 +141,7 @@ function compile(graphPlan = plan(), customCapabilities = capabilities) {
 }
 test('typed plan compiles IF, waiting Merge, library-owned assertions and StopAndError', () => {
   const result = compile();
-  assert.equal(result.workflow.nodes.length, 8);
+  assert.equal(result.workflow.nodes.length, 9);
   assert.equal(result.workflow.settings.executionOrder, 'v1');
   assert.equal(result.workflow.connections.gate.main[1][0].node, 'stop');
   assert.equal(
@@ -155,7 +155,17 @@ test('response comparisons execute deep JSON equality and reject missing pointer
     .parameters.jsCode;
   const execute = (values) =>
     vm.runInNewContext(`(function(){${code}})()`, {
-      $: (name) => ({ all: () => [{ json: { body: values[name] } }] }),
+      $: (name) => ({
+        all: () => [
+          {
+            json: {
+              body: values[name],
+              statusCode: 200,
+              headers: { 'content-type': 'application/json' },
+            },
+          },
+        ],
+      }),
     });
   assert.equal(
     execute({
@@ -168,9 +178,17 @@ test('response comparisons execute deep JSON equality and reject missing pointer
     () =>
       execute({
         'Request left': { result: { a: 1 } },
-        'Request right': { result: { a: '1' } },
+        'Request right': { result: { a: 2 } },
       }),
     /PRICE_MISMATCH/,
+  );
+  assert.throws(
+    () =>
+      execute({
+        'Request left': { result: { a: 1 } },
+        'Request right': { result: { a: '1' } },
+      }),
+    /OAS contract/,
   );
   assert.throws(
     () => execute({ 'Request left': {}, 'Request right': { result: {} } }),
@@ -398,7 +416,7 @@ test('official graph adds the model graph-plan stage without any compose callbac
     'graph-plan',
     'compile',
   ]);
-  assert.equal(result.workflow.nodes.length, 8);
+  assert.equal(result.workflow.nodes.length, 9);
 });
 test('unmet requirements return a gap proposal and cannot be compiled', async () => {
   const expected = {

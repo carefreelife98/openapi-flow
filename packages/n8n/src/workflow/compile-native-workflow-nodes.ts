@@ -7,6 +7,9 @@ export function compileNativeWorkflowNodes(
   const names = Object.fromEntries(
     input.apiNodes.map((item) => [item.nodeId, item.exit.name]),
   );
+  const apiResponseContracts = Object.fromEntries(
+    input.materials.map((item) => [item.arguments.callId, item.operation]),
+  );
   const nativeNodes = input.plan.nativeNodes.map((planned, index) => {
     const capability = input.capabilities.find(
       (item) => item.name === planned.capability,
@@ -16,6 +19,7 @@ export function compileNativeWorkflowNodes(
     const compiled = capability.compile({
       planned,
       apiNodeNames: names,
+      apiResponseContracts,
       position: [600 + index * 250, 300],
     });
     if (

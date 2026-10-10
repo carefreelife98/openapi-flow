@@ -1,17 +1,15 @@
 import type { NativeCheck } from '../../types/native-capability.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
+import { responseReferences } from './common/response-references.js';
 
 /** Library-owned runtime, shared by IF expressions and assertion Code nodes. */
-function responseCheckRuntime(linked: boolean): string {
+function responseCheckRuntime(): string {
   return `
 function read(operand) {
   if (operand.source === 'literal') return operand.value;
-  ${linked ? 'const envelope = $(names[operand.nodeId]).itemMatching(inputIndex);' : "const items = $(names[operand.nodeId]).all();if(items.length !== 1)throw new Error('Response '+operand.nodeId+' requires an unambiguous single JSON item');const envelope = items[0];"}
-  if (!envelope || !envelope.json) throw new Error('Missing response item: ' + operand.nodeId);
-  const item = envelope.json;
-  if (!Object.hasOwn(item, 'body') || item.body === undefined)
+  if (!Object.hasOwn(responses, operand.nodeId) || responses[operand.nodeId] === undefined)
     throw new Error('Missing response body: ' + operand.nodeId);
-  let value = item.body;
+  let value = responses[operand.nodeId];
   if (operand.pointer === '') return value;
   for (const encoded of operand.pointer.slice(1).split('/')) {
     const key = encoded.replace(/~1/g, '/').replace(/~0/g, '~');
@@ -45,11 +43,8 @@ function compare(check) {
 }`;
 }
 
-export function responseCheckCode(
-  names: Record<string, string>,
-  linked = false,
-): string {
-  return `const names = ${javascriptJsonLiteral(names)};\n${responseCheckRuntime(linked)}`;
+export function responseCheckCode(responseReaderCode: string): string {
+  return `${responseReaderCode}\n${responseCheckRuntime()}`;
 }
 
 export function conditionExpression(
@@ -57,5 +52,18 @@ export function conditionExpression(
   names: Record<string, string>,
   linked = false,
 ): string {
-  return `={{ (() => { ${linked ? 'const inputIndex=$itemIndex;' : ''}${responseCheckCode(names, linked)}; return compare(${javascriptJsonLiteral(check)}); })() }}`;
+  const declaredNames = Object.fromEntries(
+    responseReferences([check]).map((ref) => [ref.nodeId, names[ref.nodeId]]),
+  );
+  // The preceding Code guard validates full responses. Keep IF expressions small.
+  const reader = `const names=${javascriptJsonLiteral(declaredNames)};
+const responses=Object.create(null);
+for (const id of Object.keys(names)) {
+  ${linked ? 'const envelope=$(names[id]).itemMatching(inputIndex);' : "const items=$(names[id]).all();if(items.length!==1)throw new Error('Response '+id+' requires an unambiguous single JSON item');const envelope=items[0];"}
+  if (!envelope || !envelope.json || !Object.hasOwn(envelope.json, 'body'))
+    throw new Error('Missing response body: '+id);
+  responses[id]=envelope.json.body;
+}
+`;
+  return `={{ (() => { ${linked ? 'const inputIndex=$itemIndex;' : ''}${responseCheckCode(reader)}; return compare(${javascriptJsonLiteral(check)}); })() }}`;
 }

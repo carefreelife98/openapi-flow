@@ -51,6 +51,57 @@ if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
 
+test('private real OAS contracts compile full-response guards for native IF and assertions', async () => {
+  for (const file of files) {
+    const catalog = await createApiCatalog([
+      {
+        id: file,
+        spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      },
+    ]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const operation = operations.find((entry) =>
+      Object.values(entry.operation.responses ?? {}).some(
+        (response) => Object.keys(response.content ?? {}).length,
+      ),
+    );
+    assert.ok(operation, 'each private OAS must have a response contract');
+    const check = {
+      left: { source: 'response', nodeId: 'source', pointer: '' },
+      operator: 'notEquals',
+      right: { source: 'literal', value: null },
+    };
+    for (const options of [{}, { itemMode: 'linked' }])
+      for (const capability of createN8nNativeCapabilities(options).filter(
+        (entry) => ['if', 'assert-responses'].includes(entry.name),
+      )) {
+        const fragment = capability.compile({
+          planned: {
+            id: 'check',
+            capability: capability.name,
+            parameters:
+              capability.name === 'if'
+                ? { combinator: 'and', conditions: [check] }
+                : { checks: [{ ...check, message: 'Body must not be null' }] },
+          },
+          position: [0, 0],
+          apiNodeNames: { source: 'Request source' },
+          apiResponseContracts: { source: operation },
+        });
+        assert.equal(fragment.bindingSources[0].operation, operation);
+        assert.equal(fragment.entry.type, 'n8n-nodes-base.code');
+        assert.ok(
+          fragment.entry.config.parameters.jsCode.includes(
+            'OpenApiFlowResponseValidator0',
+          ),
+        );
+      }
+  }
+});
+
 test('private real OAS contracts compile two distinct call instances of the same operation into item-join readers', async () => {
   let count = 0;
   for (const file of files) {

@@ -7,6 +7,8 @@ import { ifParametersSchema } from '../../schemas/native-capability-schemas.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { conditionExpression } from './response-check-code.js';
+import { createResponseCheckReader } from './response-checks/create-response-check-reader.js';
+import { createResponseCheckGuard } from './response-checks/create-response-check-guard.js';
 
 export function createIfCapability(
   input: NativeItemExecutionOptions = {},
@@ -22,9 +24,16 @@ export function createIfCapability(
       responseReferences(ifParametersSchema.parse(parameters).conditions),
     waitsForAllInputs: false,
     exclusiveOutputPorts: true,
-    compile: ({ planned, apiNodeNames, position }) => {
+    compile: ({ planned, apiNodeNames, apiResponseContracts, position }) => {
       const parameters = ifParametersSchema.parse(planned.parameters);
-      return createNativeFragment(
+      const reader = createResponseCheckReader({
+        nodeId: planned.id,
+        checks: parameters.conditions,
+        apiNodeNames,
+        apiResponseContracts,
+        linked: input.itemMode === 'linked',
+      });
+      const fragment = createNativeFragment(
         node({
           type: 'n8n-nodes-base.if',
           version: 2.2,
@@ -59,6 +68,22 @@ export function createIfCapability(
         ['main'],
         ['true', 'false'],
       );
+      if (!reader.bindingSources.length) return fragment;
+      const guard = createResponseCheckGuard({
+        nodeId: planned.id,
+        readerCode: reader.code,
+        linked: input.itemMode === 'linked',
+        position,
+      });
+      return {
+        ...fragment,
+        entry: guard,
+        nodes: [guard, ...fragment.nodes],
+        internalEdges: [
+          { from: guard.id, output: 0, to: fragment.entry.id, input: 0 },
+        ],
+        bindingSources: reader.bindingSources,
+      };
     },
   };
 }

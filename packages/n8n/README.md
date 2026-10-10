@@ -25,6 +25,14 @@ Compilation types live in `src/types/reviewable-workflow.ts` and `src/types/work
 
 Our code is MIT-licensed. The separately licensed `@n8n/workflow-sdk` dependency is subject to n8n's [Sustainable Use License](https://docs.n8n.io/n8n-community-license/). Our license does not change those terms. See [third-party notices](./THIRD_PARTY_NOTICES.md) and the [workspace guide](https://github.com/carefreelife98/openapi-flow#implemented-checkpoint-and-remaining-work).
 
+## Native response checks
+
+`compilePlannedN8nWorkflow`, `compileBatchedN8nWorkflow` and `compileReviewableN8nWorkflow` provide original API response contracts from their materials to native compilers. IF/assertions require the original OAS contract and actual source name for each referenced API. If invoking a capability's `compile` directly, supply `apiResponseContracts` alongside `apiNodeNames`; literal-only checks need no response context. Assembly rejects a different declared contract or producer.
+
+Shared compilation lives in `nodes/native/response-checks/`, with types in `types/response-check-compilation.ts` and `types/response-check-guard.ts`. IF uses Code guard → official IF, preserving input values, binary fields and paired-item ancestry. Its expressions contain only source reads and comparisons. Assertions use the same full-response reader before checking values. Runtime status/media select the OAS response contract; matching one field never exempts invalid sibling fields. No schema or data conversion is introduced.
+
+`test:array-iteration-local-n8n` covers 14 cases, including five new IF/assertion failures with no forbidden downstream calls. Its report explicitly retains the original error and the n8n display message. n8n 2.37.10's [task-runner parser](https://github.com/n8n-io/n8n/blob/n8n%402.37.10/packages/%40n8n/task-runner/src/js-task-runner/errors/execution-error.ts) truncates colon-containing errors despite preserving the original stack. This display defect remains unresolved; the adapter does not rewrite errors to accommodate it.
+
 ## Declared native output bindings
 
 `createJsonOutputCapability({ name, description, parametersSchema })` creates an opt-in typed literal producer using the official SDK's Edit Fields (`n8n-nodes-base.set`, version 3.4) JSON mode. Parameters are validated unchanged: schema coercion, defaults or transformations cannot silently rewrite them. Expression-like strings and dotted keys remain data. This is not a general calculation engine or an automatic conversion step.
