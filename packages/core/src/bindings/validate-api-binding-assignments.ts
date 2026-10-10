@@ -5,7 +5,7 @@ import type {
 import { pointerTokens } from './json-pointer.js';
 import { requestBindingSchemas } from './request-binding-schema.js';
 import { responseBindingSchemas } from './response-binding-schema.js';
-import { schemasAtPointer } from './schema-at-pointer.js';
+import { nativeBindingSchemas } from './native-binding-schema.js';
 import { validateNativeOutputContracts } from './validate-native-output-contracts.js';
 
 function declaredTypes(schemas: BindingSchema[]): Set<string> {
@@ -82,7 +82,7 @@ export function validateApiBindingAssignments({
       pointers.push(binding.targetPointer);
       const targets = requestBindingSchemas(target, binding.targetPointer);
       const sources = native
-        ? schemasAtPointer(native.schema, binding.sourcePointer)
+        ? nativeBindingSchemas(native, binding.sourcePointer)
         : responseBindingSchemas(source!.operation, binding.sourcePointer);
       if (!targets.length)
         throw new Error(

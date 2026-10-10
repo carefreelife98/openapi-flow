@@ -9,18 +9,43 @@ import {
   unionBindingSchemas,
 } from './combine-binding-schemas.js';
 import { schemaAllowsContainer } from './schema-allows-container.js';
+import type { SchemaResourceContext } from '../types/schema-resource.js';
 
 /** Resolve declared object fields, array items and composition alternatives. */
 export function schemasAtPointer(
   schema: BindingSchema,
   pointer: string,
+  resources?: SchemaResourceContext,
 ): BindingSchema[] {
+  const active = new Map<BindingSchema, Set<string>>();
   function visit(
     current: BindingSchema,
     tokens: string[],
     inheritedKinds: RequestContainerKind[] = ['object', 'array'],
   ): BindingSchema {
-    if (!tokens.length || typeof current === 'boolean') return current;
+    if (typeof current === 'boolean') return current;
+    if (!tokens.length)
+      return resources ? resources.reference(current) : current;
+    if (resources && typeof current.$ref === 'string') {
+      const key = JSON.stringify([tokens, inheritedKinds]);
+      const pending = active.get(current) ?? new Set<string>();
+      if (pending.has(key))
+        throw new Error(
+          `Native pointer projection has a non-progressing reference cycle at ${pointer}`,
+        );
+      pending.add(key);
+      active.set(current, pending);
+      const siblings = { ...current };
+      delete siblings.$ref;
+      try {
+        return intersectBindingSchemas([
+          visit(resources.resolve(current), tokens, inheritedKinds),
+          visit(siblings, tokens, inheritedKinds),
+        ]);
+      } finally {
+        pending.delete(key);
+      }
+    }
     const [token, ...rest] = tokens;
     const kinds = inheritedKinds.filter((kind) =>
       schemaAllowsContainer(current, kind),

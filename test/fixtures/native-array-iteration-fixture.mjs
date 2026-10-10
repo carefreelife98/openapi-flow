@@ -27,6 +27,13 @@ export const contextSchema = z.strictObject({
   groups: z.array(groupSchema),
   marker: z.literal('original'),
 });
+export const referencedContextSchema = contextSchema.extend({
+  groups: z.array(
+    groupSchema.extend({
+      children: z.array(childSchema.extend({ payload: z.json() })),
+    }),
+  ),
+});
 export const context = {
   marker: 'original',
   groups: [
@@ -100,11 +107,12 @@ const bind = (targetPointer, sourceNodeId, sourcePointer) => ({
 export function createNativeIterationInput(
   baseUrl = 'https://fixture.test',
   value = context,
+  producerSchema = contextSchema,
 ) {
   const producer = createJsonOutputCapability({
     name: 'scenario-context',
     description: 'Explicit scenario groups, without invented values.',
-    parametersSchema: contextSchema,
+    parametersSchema: producerSchema,
   });
   const contextNode = {
     id: 'context',
@@ -227,6 +235,12 @@ export function createNativeIterationInput(
     plan: { nativeNodes, starts: ['context'], edges, gaps: [] },
   };
 }
-export function compileNativeIteration(baseUrl, value = context) {
-  return compilePlannedN8nWorkflow(createNativeIterationInput(baseUrl, value));
+export function compileNativeIteration(
+  baseUrl,
+  value = context,
+  producerSchema = contextSchema,
+) {
+  return compilePlannedN8nWorkflow(
+    createNativeIterationInput(baseUrl, value, producerSchema),
+  );
 }

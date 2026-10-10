@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { createNativeArrayCapability } from '@openapi-flow/n8n';
 
-// This intentionally exits nonzero until native schema resource scope is preserved.
+// Regression for both original source scope and a reusable projected item contract.
 const require = createRequire(
   new URL('../packages/n8n/package.json', import.meta.url),
 );
@@ -38,3 +38,10 @@ capability.compile({
   apiNodeNames: {},
   position: [0, 0],
 });
+const itemOutput = capability.outputSchema({
+  sourceNodeId: 'source',
+  pointer: '/rows',
+});
+const validateItem = new Ajv2020({ strict: false }).compile(itemOutput);
+assert.equal(validateItem({ item: { id: 'original' } }), true);
+assert.equal(validateItem({ item: { id: 42 } }), false);

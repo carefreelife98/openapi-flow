@@ -8,6 +8,8 @@ import process from 'node:process';
 import { URL } from 'node:url';
 import {
   context,
+  contextSchema,
+  referencedContextSchema,
   compileNativeIteration,
 } from '../test/fixtures/native-array-iteration-fixture.mjs';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
@@ -100,32 +102,38 @@ try {
     'invalid-follow-up',
     'wrong-media',
   ];
-  const fixtures = cases.map((name) => {
-    const value = globalThis.structuredClone(context);
-    if (name === 'empty-parents') value.groups = [];
-    if (name === 'empty-children')
-      value.groups.forEach((group) => {
-        group.children = [];
-      });
-    if (name === 'one-child')
-      value.groups = [
-        { ...context.groups[0], children: [context.groups[0].children[0]] },
-      ];
-    const workflow = compileNativeIteration(baseUrl, value).workflow;
-    workflow.id = 'native-array-' + name;
-    if (name.startsWith('invalid-native-')) {
-      // Deliberate fault injection after valid compilation; never repair producer data.
-      const corrupt = globalThis.structuredClone(context);
-      if (name === 'invalid-native-sibling') corrupt.marker = 'changed';
-      if (name === 'invalid-native-item')
-        corrupt.groups[0].children[0].amount = '8';
-      if (name === 'invalid-native-missing') delete corrupt.groups;
-      workflow.nodes.find(
-        (node) => node.id === 'context',
-      ).parameters.jsonOutput = JSON.stringify(corrupt);
-    }
-    return { name, value, workflow };
-  });
+  const fixtures = cases.flatMap((name) =>
+    ['inline', 'references'].map((variant) => {
+      const value = globalThis.structuredClone(context);
+      if (name === 'empty-parents') value.groups = [];
+      if (name === 'empty-children')
+        value.groups.forEach((group) => {
+          group.children = [];
+        });
+      if (name === 'one-child')
+        value.groups = [
+          { ...context.groups[0], children: [context.groups[0].children[0]] },
+        ];
+      const workflow = compileNativeIteration(
+        baseUrl,
+        value,
+        variant === 'references' ? referencedContextSchema : contextSchema,
+      ).workflow;
+      workflow.id = 'native-array-' + variant + '-' + name;
+      if (name.startsWith('invalid-native-')) {
+        // Deliberate fault injection after valid compilation; never repair producer data.
+        const corrupt = globalThis.structuredClone(context);
+        if (name === 'invalid-native-sibling') corrupt.marker = 'changed';
+        if (name === 'invalid-native-item')
+          corrupt.groups[0].children[0].amount = '8';
+        if (name === 'invalid-native-missing') delete corrupt.groups;
+        workflow.nodes.find(
+          (node) => node.id === 'context',
+        ).parameters.jsonOutput = JSON.stringify(corrupt);
+      }
+      return { name, variant, value, workflow };
+    }),
+  );
   const directory = new URL(
     '../.local-artifacts/native-array-iteration/',
     import.meta.url,
@@ -134,6 +142,10 @@ try {
   await writeFile(
     new URL('five-api-workflow.json', directory),
     JSON.stringify(fixtures[0].workflow, null, 2),
+  );
+  await writeFile(
+    new URL('five-api-references-workflow.json', directory),
+    JSON.stringify(fixtures[1].workflow, null, 2),
   );
   assert.equal((await docker(['volume', 'create', volume])).code, 0);
   created = true;
@@ -248,6 +260,7 @@ try {
     assert.deepEqual(failures, []);
     results.push({
       mode,
+      variant: fixture.variant,
       status: 'passed',
       execution: execution.status,
       requests: received.length,

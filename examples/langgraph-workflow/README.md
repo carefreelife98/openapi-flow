@@ -165,9 +165,13 @@ const arrayCapability = createNativeArrayCapability({
 
 linked 모드는 각 입력에 연결된 producer를 읽으므로 부모·자식의 연결을 유지한다. 빈 배열은 자식을 만들지 않는다. 값을 펼치거나 타입을 바꾸지 않으며 ID·값이 같아도 합치지 않는다. 모드를 생략하면 한 입력과 명확한 단일 producer 출력만 허용한다. 누락된 pointer나 잘못된 원본 필드·item은 후속 API 호출 전에 실패한다.
 
-`npm run test:native-array-iteration-local-n8n`은 두 단계 Split Out과 서로 다른 REST API 다섯 개를 조립해 10개 사례를 실행한다. 정상 사례는 중간의 빈 부모를 건너뛰고 요청 13회를 수행한다. 분기·연결 기준 합류·수집 뒤 배열 본문을 보내며 원래 값을 유지한다. import JSON과 보고서는 `.local-artifacts/native-array-iteration/five-api-workflow.json`과 `report.json`에 저장한다. 실제 예시의 전체 구성은 `test/fixtures/native-array-iteration-fixture.mjs`에서 확인한다. 임시 서버 주소가 포함되므로 다시 실행하려면 서버와 주소를 구성해야 한다. 지정된 계획의 회귀 검사이며 Chomsky의 선택 정확도나 실서비스 동작을 입증하지 않는다.
+`npm run test:native-array-iteration-local-n8n`은 두 단계 Split Out과 서로 다른 REST API 다섯 개를 조립해 20개 사례를 실행한다. 기존 inline 계약과 재귀 `$defs`·`$ref` producer 계약으로 같은 10개 사례를 각각 검사한다. 정상 사례는 중간의 빈 부모를 건너뛰고 요청 13회를 수행하며 분기·연결 기준 합류·수집 뒤 배열 본문을 보낸다. 원래 값은 바꾸지 않는다. import JSON과 보고서는 `.local-artifacts/native-array-iteration/five-api-workflow.json`, `five-api-references-workflow.json`과 `report.json`에 저장한다. 전체 구성은 `test/fixtures/native-array-iteration-fixture.mjs`에서 확인한다. 임시 서버 주소가 포함되므로 다시 실행하려면 서버와 주소를 구성해야 한다. 지정된 계획의 회귀 검사이며 Chomsky의 선택 정확도나 실서비스 동작을 입증하지 않는다.
 
-native 스키마의 로컬 `$defs`·`$ref` 참조에는 미해결 결손이 있다. 공통 검증 객체에 스키마를 넣을 때 원래 참조 기준이 바뀌며 item 계약을 도출할 때도 원래 resource를 보존해야 한다. `npm run test:native-schema-references`는 유효한 원본 스키마로 이 문제를 재현하고 현재 실패한다. 참조를 삭제하거나 타입을 느슨하게 만드는 우회는 넣지 않았다. 모든 native JSON Schema가 지원된다고 보면 안 된다.
+이전에 발견한 로컬 `$defs`·`$ref` 참조 결손은 원본 검사와 item 계약 도출 양쪽에서 수정했다. 각 producer의 원본 스키마를 독립된 루트로 검사하며, item·pointer 계약은 원본 resource를 보관한 표준 compound schema에서 원래 위치를 참조한다. Ajv의 공개 `addSchema`·`getSchema`와 fast-uri로 참조를 조회한다. `$id`가 없는 resource에는 코드가 결정적인 오프라인 조회 URI를 부여한다. 외부 서버에서 스키마를 가져오거나 사용자 데이터에 기본값을 넣는 동작은 없다.
+
+원본 계약·값·타입은 유지하며 `$ref`와 같은 위치의 제약도 함께 적용한다. 이름이 같은 `$defs`를 사용하는 producer도 각각의 원본으로 검사한다. JavaScript에서 같은 스키마 객체를 여러 위치에 재사용하면 JSON의 각 위치를 복제해 참조 기준을 구분하고, JSON이 아닌 값이나 객체 순환은 필드를 버리지 않고 오류로 알린다. `const` 안의 `$ref`처럼 보이는 데이터는 스키마 참조로 해석하지 않는다.
+
+`npm run test:native-schema-references`는 이제 원본 compiler와 재사용 가능한 item 계약의 정상·실패 값을 검사하는 통과 회귀 검사다. 재귀 참조, anchor, 중첩 상대 `$id`, 특수문자 pointer와 JSON 저장·복원도 검사한다. 외부 resource registry 주입, 동적 참조 범위의 projection 검증과 모든 복합 계약의 포함 관계 증명은 남아 있으므로 모든 native JSON Schema 지원이 끝났다고 보지는 않는다.
 
 ### 반복 결과 수집
 
