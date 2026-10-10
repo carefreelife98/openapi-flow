@@ -68,7 +68,8 @@ export function createIfCapability(
         ['main'],
         ['true', 'false'],
       );
-      if (!reader.bindingSources.length) return fragment;
+      const partition = { ...fragment, partitionsInputItems: true };
+      if (!reader.bindingSources.length) return partition;
       const guard = createResponseCheckGuard({
         nodeId: planned.id,
         readerCode: reader.code,
@@ -76,7 +77,7 @@ export function createIfCapability(
         position,
       });
       return {
-        ...fragment,
+        ...partition,
         entry: guard,
         nodes: [guard, ...fragment.nodes],
         internalEdges: [

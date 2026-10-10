@@ -11,6 +11,7 @@ export type * from './types/reviewable-workflow.js';
 export { createN8nNativeCapabilities } from './nodes/native/create-native-capabilities.js';
 export { createJsonOutputCapability } from './nodes/native/create-json-output-capability.js';
 export { createPassThroughCapability } from './nodes/native/create-pass-through-capability.js';
+export { createExclusiveBranchMergeCapability } from './nodes/native/create-exclusive-branch-merge-capability.js';
 export { createN8nNativeOutputSources } from './workflow/create-n8n-native-output-sources.js';
 export type * from './types/output-binding-source.js';
 export { compilePlannedN8nWorkflow } from './workflow/compile-planned-n8n-workflow.js';

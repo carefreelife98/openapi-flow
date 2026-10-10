@@ -52,6 +52,12 @@ export function createWorkflowNodeContracts({
       dependencyNodeIds: [],
       waitsForAllInputs: capability.waitsForAllInputs,
       exclusiveOutputPorts: capability.exclusiveOutputPorts,
+      ...(capability.rejoinsExclusiveOutputs
+        ? {
+            rejoinsExclusiveOutputs:
+              capability.rejoinsExclusiveOutputs(parameters),
+          }
+        : {}),
     });
   }
   return contracts;

@@ -44,6 +44,8 @@ export interface WorkflowCapability {
   ) => Record<string, WorkflowValueReference[]>;
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;
+  /** Rejoin alternatives from this declared exclusive producer, not independent branches. */
+  rejoinsExclusiveOutputs?: (parameters: JsonValueObject) => string;
   /** Explicit native JSON output contract; absent means no bindable output. */
   outputSchema?: (parameters: JsonValueObject) => BindingSchema;
 }
@@ -101,6 +103,7 @@ export interface WorkflowPlanNodeContract {
   dependencyNodeIds: string[];
   waitsForAllInputs: boolean;
   exclusiveOutputPorts: boolean;
+  rejoinsExclusiveOutputs?: string;
 }
 
 export interface WorkflowNodeContractsInput {

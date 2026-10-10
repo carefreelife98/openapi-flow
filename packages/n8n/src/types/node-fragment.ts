@@ -33,6 +33,10 @@ export interface N8nNodeFragment {
   preservesInputItems?: boolean;
   /** Compiler-owned reduction of complete branches, not a positional or value join. */
   joinsInputItemsByAncestry?: N8nItemAncestryJoin;
+  /** Exactly one linked item across the declared mutually exclusive output ports. */
+  partitionsInputItems?: boolean;
+  /** Append complete alternatives from the named partition producer. */
+  rejoinsExclusiveOutputs?: string;
   nodes: N8nSdkNode[];
   entry: N8nSdkNode;
   exit: N8nSdkNode;

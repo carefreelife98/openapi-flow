@@ -32,6 +32,13 @@ export function compileNativeWorkflowNodes(
       throw new Error(
         `Native compiler ${planned.capability} violated declared node identity/ports`,
       );
+    if (
+      compiled.rejoinsExclusiveOutputs !==
+      capability.rejoinsExclusiveOutputs?.(planned.parameters)
+    )
+      throw new Error(
+        `Native compiler ${planned.capability} violated declared rejoinsExclusiveOutputs`,
+      );
     return compiled;
   });
   return nativeNodes;

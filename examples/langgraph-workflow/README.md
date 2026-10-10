@@ -205,9 +205,26 @@ const result = compileBatchedN8nWorkflow({
 
 기존 DAG의 경로는 `목록 → Split Out → details → confirm → audit → verify-item → 수집 → submit`이다. 코드는 원본 계획을 검사하고 공식 SDK로 Loop Over Items를 추가한다. `loop`는 details로 들어가고 verify-item은 제어 노드로 돌아온다. 모든 배치가 끝나면 `done`으로 수집·submit을 한 번 실행한다. linked 요청·검증은 각 item의 원본 응답 연결을 유지하고 OAS로 값을 검사한다. 원본 DAG 자체에 순환을 허용하는 것은 아니다.
 
-배치 범위는 하나의 입구와 출구를 두고 입력 item마다 연결된 결과 하나를 내거나 오류로 끝나야 한다. linked 요청과 linked assertion은 `preservesInputItems`로 이 계약을 선언한다. 완전한 분기는 아래의 명시적인 ancestry 합류로 묶는다. 사용자 compiler도 선언한 계약을 지켜야 하며, 검사가 임의 JavaScript의 동작까지 증명하지는 않는다. IF·Split Out·Aggregate·일반 Merge Append는 배치 반환 계약이 없어 범위 안에 넣으면 거절한다. 빈 출력 때문에 반환 연결이 실행되지 않으면 남은 배치가 중단될 수 있다. 이 검사는 OAS 문서 수용 제한이 아니다. Split Out은 범위 앞에, 수집은 완료 뒤에 둔다. 조건·필터 경로, 중첩 범위와 자동 범위 계획은 남은 작업이다.
+배치 범위는 하나의 입구와 출구를 두고 입력 item마다 연결된 결과 하나를 내거나 오류로 끝나야 한다. linked 요청과 linked assertion은 `preservesInputItems`로 이 계약을 선언한다. 완전한 병렬 분기는 아래의 ancestry 합류로 묶는다. 사용자 compiler도 선언한 계약을 지켜야 하며 검사가 임의 JavaScript의 동작까지 증명하지는 않는다. IF의 한쪽을 버리는 경로, Split Out·Aggregate·일반 Merge Append는 완전한 반환 계약이 없다. 빈 출력 때문에 반환 연결이 실행되지 않으면 남은 배치가 중단될 수 있다. 이 검사는 OAS 문서 수용 제한이 아니다. Split Out은 범위 앞에, 수집은 완료 뒤에 둔다. item을 제거하는 Filter의 완료 처리, 중첩 범위와 자동 범위 계획은 남은 작업이다.
 
 `npm run test:batch-iteration-local-n8n`은 API 다섯 개, 배치 크기 1·2·10, 연속 배치 범위, 시작점의 배치, 완료 후 수집과 오류 중단을 포함한 10개 사례를 실행한다. import JSON과 보고서는 `.local-artifacts/batch-iteration/`에 저장한다. 비공개 ICL OAS 계약 서버는 기존 설정에 `OPENAPI_FLOW_ITERATION_BATCH_SIZE=2`를 추가해 검사하며 산출물은 `.local-artifacts/real-array-iteration/batch-2/`에 남는다. 임시 서버 주소가 포함돼 다시 실행하려면 서버와 주소를 구성해야 한다. 실제 모델 품질 평가나 실서비스 호출 검증은 아니다.
+
+### 배치 안의 조건과 건너뛰기
+
+`createExclusiveBranchMergeCapability()`를 registry에 명시적으로 추가하면 `rejoin-exclusive-branches`를 사용할 수 있다. 모델이 정하는 설정은 기존 IF의 `sourceNodeId`뿐이며 Merge의 버전·모드·입력 개수는 코드가 만든다. IF의 두 경로를 서로 다른 `input1`·`input2`로 연결한다. 조건에 맞지 않는 item에 업무 호출이 필요 없다면 `createPassThroughCapability()`로 실제 입력을 그대로 반환하는 경로를 계획한다. 두 capability 모두 기본 registry에 자동 추가하지 않는다.
+
+```text
+details → eligible IF ─ true → confirm → audit → verify-item ┐
+                     └ false → skip-business-call ──────────┤
+                                       returned-items Merge → 배치 반환
+배치 완료 → details의 원본 /input 수집 → submit
+```
+
+core는 같은 IF의 서로 다른 두 대안이 모두 합류하는지 검사한다. 배치 compiler는 각 대안의 중간 노드가 item 하나당 연결된 출력 하나를 유지하고 같은 범위 안에서 돌아오는지도 확인한다. 한쪽의 누락·중복, 독립 분기 혼합과 잘못된 소스는 오류다. 일반 `merge-append`의 독립 분기 계약은 유지한다. true에서만 실행한 audit 응답을 false나 합류 뒤에서 무조건 읽을 수 있게 만들지도 않는다.
+
+실행은 공식 Merge 3.2 Append와 `executionOrder: 'v1'`을 사용한다. n8n 2.37.10의 대기 노드 처리를 실제 실행으로 확인했다. 한 대안이 비어 있어도 다른 대안의 실제 item을 그대로 반환하며 빈 완료 item·`alwaysOutputData`·값 보정은 넣지 않았다. item을 없애는 Filter를 지원한 결과로 해석하면 안 된다. 모든 item을 건너뛰어도 완료되지만 반환 경로에는 원래 item이 남는다.
+
+`npm run test:conditional-batch-local-n8n`은 크기 1·2·10에서 전부 통과·일부 통과·전부 건너뛰기와 빈 입력·원본/응답/media type/assertion 오류를 포함한 14개 사례를 검사한다. API 다섯 개가 있지만 confirm·audit은 조건에 맞는 item만 호출한다. 수집 대상은 모든 item의 원본 details `/input`이며 건너뛴 item을 업무 API 성공 응답으로 표시하지 않는다. import 예시는 `.local-artifacts/conditional-batch/workflow-conditional-batch-1-3.json`, 보고서는 같은 폴더의 `report.json`이다. 다시 실행하려면 종료된 임시 서버와 주소를 구성해야 한다. 지정 계획의 계약 서버 검증이며 실제 Chomsky 품질 평가나 업무 서비스 호출은 수행하지 않는다.
 
 ### 배치 안의 API 분기와 합류
 
@@ -425,7 +442,7 @@ Start → 코어 조회 → IF ─ false → Stop And Error
 
 ## 다음 확장
 
-필요한 추가 n8n 기능의 매퍼, 조건·필터를 포함한 배치 경로, 중첩 배치 범위와 실행 간 합류·수집은 남은 작업이다. 응답값의 의미·타입을 자동으로 바꾸지 않는다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+필요한 추가 n8n 기능의 매퍼, item을 제거하는 Filter의 배치 완료 처리, 중첩 배치 범위와 실행 간 합류·수집은 남은 작업이다. 조건의 두 경로를 명시적으로 다시 합치는 배치는 위의 별도 기능으로 지원한다. 응답값의 의미·타입을 자동으로 바꾸지 않는다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
 
 ## 자연어에서 조건·연결까지 계획하기
 

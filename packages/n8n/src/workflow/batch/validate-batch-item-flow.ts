@@ -1,4 +1,5 @@
 import type { ValidateBatchItemFlowInput } from '../../types/batch-execution.js';
+import { validateBatchExclusiveRejoin } from './validate-batch-exclusive-rejoin.js';
 
 /** Prove one result per entry item through declared preservation and ancestry joins. */
 export function validateBatchItemFlow({
@@ -61,9 +62,29 @@ export function validateBatchItemFlow({
         `batch ${scope.id}: every member must lie between its entry and exit`,
       );
     const join = fragment.joinsInputItemsByAncestry;
+    const rejoin = fragment.rejoinsExclusiveOutputs;
+    const partition = fragment.partitionsInputItems;
     if (
-      Object.keys(fragment.outputPorts).join() !== 'main' ||
+      partition &&
+      (fragment.preservesInputItems ||
+        join ||
+        rejoin ||
+        Object.keys(fragment.inputPorts).join() !== 'main' ||
+        fragment.inputEndpoints ||
+        Object.keys(fragment.outputPorts).length < 2 ||
+        Object.keys(fragment.outputPorts).some(
+          (port) =>
+            innerOutgoing.filter((edge) => edge.output === port).length !== 1,
+        ))
+    )
+      throw new Error(
+        `batch ${scope.id}: item-preserving main path contract requires every partition output of ${id} to return exactly once`,
+      );
+    if (
+      (!partition && Object.keys(fragment.outputPorts).join() !== 'main') ||
       (!join &&
+        !partition &&
+        !rejoin &&
         (fragment.preservesInputItems !== true ||
           Object.keys(fragment.inputPorts).join() !== 'main' ||
           fragment.inputEndpoints)) ||
@@ -73,7 +94,18 @@ export function validateBatchItemFlow({
         `batch ${scope.id}: member ${id} requires an item-preserving main path contract or an explicit ancestry join`,
       );
     let inherited: Set<string>;
-    if (join) {
+    if (rejoin) {
+      validateBatchExclusiveRejoin(
+        { scope, fragments, edges, otherBatchNodeIds },
+        id,
+      );
+      const branches = innerIncoming.map((edge) => ancestors.get(edge.from)!);
+      inherited = new Set(
+        [...branches[0]].filter((ancestor) =>
+          branches.every((branch) => branch.has(ancestor)),
+        ),
+      );
+    } else if (join) {
       const ports = Object.keys(fragment.inputPorts);
       if (
         id === scope.entryNodeId ||

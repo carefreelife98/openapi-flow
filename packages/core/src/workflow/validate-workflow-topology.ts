@@ -3,6 +3,7 @@ import type {
   WorkflowRouteState,
 } from '../types/workflow-plan.js';
 import { validateWorkflowEdges } from './validate-workflow-edges.js';
+import { validateExclusiveOutputRejoin } from './validate-exclusive-output-rejoin.js';
 
 function combineRoutes(
   left: WorkflowRouteState,
@@ -67,6 +68,22 @@ export function validateWorkflowTopology({
       }),
     );
     let states: WorkflowRouteState[];
+    if (current.rejoinsExclusiveOutputs !== undefined) {
+      if (
+        current.inputs.some(
+          (port) => edges.filter((edge) => edge.input === port).length !== 1,
+        ) ||
+        edges.length !== current.inputs.length
+      )
+        throw new Error(
+          `node ${current.id}: each rejoin input requires exactly one source`,
+        );
+      validateExclusiveOutputRejoin(
+        current,
+        nodes.get(current.rejoinsExclusiveOutputs),
+        inputs,
+      );
+    }
     if (current.waitsForAllInputs) {
       if (
         current.inputs.some(

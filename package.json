@@ -25,6 +25,7 @@
     "test:native-schema-references": "npm run build && node integration/native-schema-reference-repro.mjs",
     "test:nested-array-iteration-local-n8n": "npm run build && node integration/nested-array-iteration-local-n8n.mjs",
     "test:batch-iteration-local-n8n": "npm run build && node integration/batch-iteration-local-n8n.mjs",
+    "test:conditional-batch-local-n8n": "npm run build && node integration/batch-iteration-local-n8n.mjs --conditional",
     "test:item-join-local-n8n": "npm run build && node integration/item-join-local-n8n.mjs",
     "test:batch-item-join-local-n8n": "npm run build && node integration/item-join-local-n8n.mjs --batch",
     "test:schema-projection-local-n8n": "npm run build && node integration/schema-projection-local-n8n.mjs",
