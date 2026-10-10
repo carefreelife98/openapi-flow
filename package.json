@@ -21,6 +21,8 @@
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
     "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",
     "test:array-iteration-local-n8n": "npm run build && node integration/array-iteration-local-n8n.mjs",
+    "test:native-array-iteration-local-n8n": "npm run build && node integration/native-array-iteration-local-n8n.mjs",
+    "test:native-schema-references": "npm run build && node integration/native-schema-reference-repro.mjs",
     "test:nested-array-iteration-local-n8n": "npm run build && node integration/nested-array-iteration-local-n8n.mjs",
     "test:batch-iteration-local-n8n": "npm run build && node integration/batch-iteration-local-n8n.mjs",
     "test:item-join-local-n8n": "npm run build && node integration/item-join-local-n8n.mjs",

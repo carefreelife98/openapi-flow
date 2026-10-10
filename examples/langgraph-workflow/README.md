@@ -130,13 +130,44 @@ Manual Trigger → 부모 목록 API → 부모 Split Out
               → 부모·자식·중간 응답을 바인딩한 후속 API
 ```
 
-모델은 제공된 API의 `sourceNodeId`와 배열 `pointer`만 선택한다. 실행 모드는 호스트가 정하고 코드가 배열 계약과 item 연결을 만든다. 자식 배열이 빈 부모는 후속 요청을 만들지 않으며 다른 부모의 연결에도 영향을 주지 않는다. 값·타입을 변환하거나 ID가 같다는 이유로 결과를 합치지 않는다. API 외 native 출력 배열의 분리와 실행 간 누적 수집은 아직 구현하지 않았다. 배치 실행은 아래의 별도 컴파일 경로다.
+모델은 제공된 API의 `sourceNodeId`와 배열 `pointer`만 선택한다. 실행 모드는 호스트가 정하고 코드가 배열 계약과 item 연결을 만든다. 자식 배열이 빈 부모는 후속 요청을 만들지 않으며 다른 부모의 연결에도 영향을 주지 않는다. 값·타입을 변환하거나 ID가 같다는 이유로 결과를 합치지 않는다. 실행 간 누적 수집은 아직 구현하지 않았다. 배치 실행은 아래의 별도 컴파일 경로다.
 
 `npm run test:nested-array-iteration-local-n8n`은 API 다섯 개와 두 단계 Split Out을 실행한다. IF로 부모를 걸러내는 예시를 포함한 import JSON과 8개 사례의 보고서는 `.local-artifacts/nested-array-iteration/`에 저장된다. 계획은 회귀 테스트가 지정한다. 실제 모델의 중첩 반복 선택 정확도는 별도 평가가 필요하다. 예시에는 종료된 임시 계약 서버 주소가 있으므로 다시 실행하려면 주소와 서버를 구성한다.
 
 선행 API 응답 검증에는 `apiResponseContracts`를 제공한다. linked 모드의 API 응답 바인딩에는 이 계약이 필수다. 실제 상태 코드와 Content-Type으로 OAS 응답 스키마를 고르고 본문 전체를 검사한 뒤 요청값을 조립한다. 모델에게 예상 상태 코드를 생성시키는 로직이 아니다. 기존 단일 item 경로에서 이 계약을 생략하면 요청값 검증만 수행하며, 선행 응답 전체를 검증했다고 볼 수 없다.
 
 `npm run test:array-iteration-local-n8n`은 공개 계약 서버에서 기본 반복, item별 IF·assertion, 빈 배열과 실패 사례를 검증한다. import 가능한 JSON은 `.local-artifacts/array-iteration/workflow.json`과 `conditional-workflow.json`에 저장된다. 실제 ICL OAS를 사용한 로컬 검증 산출물은 비공개 `.local-artifacts/real-array-iteration/`에 남는다. 이 실행 검증은 실제 모델의 선택 정확도 평가나 실서비스 호출 검증과 다르다.
+
+### Native 출력 배열의 반복
+
+API 응답이 아닌 native 노드의 JSON 출력 배열은 `createNativeArrayCapability`로 분리한다. 호스트가 실제 producer에서 출력 계약과 컴파일된 노드 이름을 도출해 `sources`로 전달한다. 모델은 그 목록의 `sourceNodeId`와 배열 `pointer`만 선택한다. 코드가 출력 스키마를 만들고 원본 전체를 검사한 뒤 공식 Split Out 노드를 조립한다. API 응답의 pointer는 본문 기준이고 native 출력의 pointer는 JSON 루트 기준이다.
+
+```ts
+import {
+  createNativeArrayCapability,
+  createN8nNativeOutputSources,
+} from '@openapi-flow/n8n';
+
+// producerCapability와 producerPlan은 앞선 계획 단계의 실제 결과다.
+const sources = createN8nNativeOutputSources({
+  nativeNodes: [producerPlan],
+  capabilities: [producerCapability],
+  apiNodeNames: {},
+});
+const arrayCapability = createNativeArrayCapability({
+  sources,
+  itemMode: 'linked',
+});
+// 다음 planNativeNodes 호출의 capabilities에 arrayCapability를 전달한다.
+```
+
+원본이 `{ groups: [...] }`이면 모델은 `/groups`를 선택하고 각 출력은 `{ item: 원래 group }`이 된다. 다음 단계가 `/item/children`을 분리한다면 먼저 부모 Split Out의 출력 계약을 `createN8nNativeOutputSources`로 도출한다. 그 계약과 원래 producer의 계약을 다음 단계 registry에 전달한다. 같은 이름의 capability를 중복 등록하지 않고 해당 단계의 registry 항목을 교체한다. 이 단계 구성은 호스트가 맡으며 OSS가 반복 범위를 자동 탐색한 결과는 아니다.
+
+linked 모드는 각 입력에 연결된 producer를 읽으므로 부모·자식의 연결을 유지한다. 빈 배열은 자식을 만들지 않는다. 값을 펼치거나 타입을 바꾸지 않으며 ID·값이 같아도 합치지 않는다. 모드를 생략하면 한 입력과 명확한 단일 producer 출력만 허용한다. 누락된 pointer나 잘못된 원본 필드·item은 후속 API 호출 전에 실패한다.
+
+`npm run test:native-array-iteration-local-n8n`은 두 단계 Split Out과 서로 다른 REST API 다섯 개를 조립해 10개 사례를 실행한다. 정상 사례는 중간의 빈 부모를 건너뛰고 요청 13회를 수행한다. 분기·연결 기준 합류·수집 뒤 배열 본문을 보내며 원래 값을 유지한다. import JSON과 보고서는 `.local-artifacts/native-array-iteration/five-api-workflow.json`과 `report.json`에 저장한다. 실제 예시의 전체 구성은 `test/fixtures/native-array-iteration-fixture.mjs`에서 확인한다. 임시 서버 주소가 포함되므로 다시 실행하려면 서버와 주소를 구성해야 한다. 지정된 계획의 회귀 검사이며 Chomsky의 선택 정확도나 실서비스 동작을 입증하지 않는다.
+
+native 스키마의 로컬 `$defs`·`$ref` 참조에는 미해결 결손이 있다. 공통 검증 객체에 스키마를 넣을 때 원래 참조 기준이 바뀌며 item 계약을 도출할 때도 원래 resource를 보존해야 한다. `npm run test:native-schema-references`는 유효한 원본 스키마로 이 문제를 재현하고 현재 실패한다. 참조를 삭제하거나 타입을 느슨하게 만드는 우회는 넣지 않았다. 모든 native JSON Schema가 지원된다고 보면 안 된다.
 
 ### 반복 결과 수집
 

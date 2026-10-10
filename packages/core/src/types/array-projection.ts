@@ -1,6 +1,6 @@
 import type { BindingSchema } from './api-bindings.js';
 
-export interface ResponseArrayItemProjection {
+export interface ArrayItemProjection {
   allowsArray: boolean;
   schema: BindingSchema;
 }

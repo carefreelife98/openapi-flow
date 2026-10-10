@@ -19,6 +19,7 @@ The agreed order is **item-wise execution → contract/response validation → m
   - [x] Explicit collection of one item stream's unchanged API response values with official Aggregate, including a following OAS array-body request.
   - [x] Item-scoped API fan-out join by shared native item ancestry, with per-port dependencies and missing/duplicate response rejection.
   - [x] Nested API response array splitting in explicit linked mode, preserving parent/child/intermediate response ancestry through five APIs.
+  - [x] Explicit native JSON output array splitting, including two linked split levels, parent ancestry and five distinct REST APIs.
   - [x] Explicit finite Loop Over Items scopes for item-preserving linear paths, linked references across batches and completion-time response collection.
   - [x] Complete API fan-out inside a finite batch, with explicit shared-ancestor joins, reordered branches and one completion-time collection.
   - [ ] Conditional/filtering batch paths, nested batch scopes, automatic batch-scope planning, cross-invocation joins and collection across separately executed streams.
@@ -30,6 +31,7 @@ The agreed order is **item-wise execution → contract/response validation → m
   - [x] Conjunctive pointer/item projections, property-pattern interactions and OAS 3.0 syntax normalization, with differential and isolated n8n coverage.
   - [x] Full original OAS response validation before native IF/assertion comparisons, including unexamined fields, runtime status and media type.
   - [ ] Exhaustive pointer/schema implication coverage and resolution of the upstream n8n JSON-string response and task-runner error-display issues.
+  - [ ] Preserve native JSON Schema resource scope through source validation and item projection; local `$defs`/`$ref` currently fail in the recorded reproduction.
 - [ ] **5. Multi-API/DAG quality evaluation (after 1 and 4):** evaluate the current public pipeline rather than legacy single-operation selection; measure operation choices, typed values, bindings, branches, iteration and gap reports across repeated runs. Keep contract-server execution distinct from real business API validation.
 - [ ] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
 
@@ -66,6 +68,18 @@ These are necessary value candidates, not complete schema implication proofs or 
 Run `npm run test:array-iteration-local-n8n` for public contract cases; import examples are written to `.local-artifacts/array-iteration/workflow.json` and `conditional-workflow.json`. The private real-OAS runner accepts an explicit configuration via `OPENAPI_FLOW_ITERATION_CONFIG` and writes only local artifacts. These are deterministic execution regressions, not LLM quality scores or business-service tests. See the [official usage example](examples/langgraph-workflow/README.md#item별-rest-api-호출).
 
 `createResponseCollectionCapability({ materials })` registers `collect-api-responses`. The planner selects only a supplied API call ID and a response-body pointer. Code validates each item-linked full response and selected value, then builds the official [Aggregate node](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.aggregate/) with list merging disabled and null retention enabled. Output `{ items: values }` preserves duplicates, nesting, types and received item order; it does not promise network completion order. Bind `/items` to a subsequent OAS array input in ordinary single-item mode. An empty stream does not run the collection or downstream API and does not fabricate `{ items: [] }`. Collection is per node invocation, not a cross-branch join or standalone accumulator. After an explicit batch scope it receives the Loop Over Items completion stream, resolves each item's original response across node runs and collects once. The compiled collector's original source contract is checked against workflow materials.
+
+## Native output arrays
+
+Register `createNativeArrayCapability({ sources, itemMode: 'linked' })` with actual `N8nNativeOutputSource` contracts derived by `createN8nNativeOutputSources`. The model selects only `sourceNodeId` and an RFC 6901 `pointer`; code derives the item schema and builds official Split Out nodes. Native pointers address the native JSON root, while API pointers address the HTTP response body. Both capabilities share array projection, reader and SDK fragment mechanics without treating native schemas as OAS response contracts.
+
+The reader validates the complete original source before extracting the array. Each element remains `{ item: originalElement }` without flattening, conversion or fabricated values. Linked mode preserves each parent's ancestry through nested splits; empty arrays emit no children. Ordinary mode requires one input and one unambiguous source item. Unknown sources, missing pointers, non-array values, invalid original output and mismatched compiled source names/contracts fail explicitly.
+
+For nested native arrays, the host first derives the parent split's output contract, then registers the next planning stage with both original and derived sources. Replace that stage's capability registry entry rather than registering duplicate names. Automatic recursive registry/scope planning is not implemented. See the [official host example](examples/langgraph-workflow/README.md#native-출력-배열의-반복).
+
+`npm run test:native-array-iteration-local-n8n` runs ten deterministic cases on n8n 2.37.10. Two Split Out levels feed five distinct REST APIs, fan-out, ancestry-based join, collection and one final array-body call. The normal case makes 13 requests; an empty middle group and identical values retain their own ancestry. Invalid native fields/items and API contract/media failures stop forbidden later calls. Import JSON/report: `.local-artifacts/native-array-iteration/five-api-workflow.json` and `report.json`. Configure a running endpoint before execution. This does not measure Chomsky planning quality or call business services.
+
+**Known schema-resource defect:** embedding a native source schema inside the shared validation object's `properties` changes the root for local `$ref` values. Item projection also needs to preserve the original resource context. `npm run test:native-schema-references` deliberately reproduces this defect and exits nonzero for an otherwise valid `$defs`/`$ref` schema. General native JSON Schema support is not complete. Do not remove references, broaden types or repair data to hide it; OAS intake rules remain unchanged.
 
 ## Explicit batch execution
 

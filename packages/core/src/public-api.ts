@@ -40,4 +40,5 @@ export { createApiResponseSchema } from './openapi/response/create-api-response-
 export { apiResponseValidationValue } from './openapi/response/api-response-validation-value.js';
 export type * from './types/api-response.js';
 export { createResponseArrayItemSchema } from './openapi/response/create-response-array-item-schema.js';
+export { createNativeArrayItemSchema } from './bindings/create-native-array-item-schema.js';
 export { createResponseValueSchema } from './openapi/response/create-response-value-schema.js';

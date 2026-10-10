@@ -1,4 +1,3 @@
-import { node } from '@n8n/workflow-sdk';
 import { createResponseArrayItemSchema } from '@openapi-flow/core';
 import type { ApiBindingMaterial } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '../../types/native-capability.js';
@@ -7,7 +6,7 @@ import type {
   ResponseArrayParameters,
 } from '../../types/array-iteration.js';
 import { createResponseArrayParametersSchema } from '../../schemas/response-array-schema.js';
-import { createResponseArrayReaderCode } from './create-response-array-reader-code.js';
+import { createArrayNodeFragment } from './arrays/create-array-node-fragment.js';
 
 export function createResponseArrayCapability(
   input: CreateResponseArrayCapabilityInput,
@@ -80,62 +79,18 @@ export function createResponseArrayCapability(
         !apiNodeNames[material.callId].trim()
       )
         throw new Error(`apiNodeNames is missing ${material.callId}`);
-      const read = createResponseArrayReaderCode(
-        {
+      return createArrayNodeFragment({
+        planned,
+        position,
+        parameters,
+        linked,
+        source: {
           kind: 'api-response',
           nodeId: material.callId,
           nodeName: apiNodeNames[material.callId],
           operation: material.operation,
         },
-        parameters,
-        linked,
-      );
-      const extract = node({
-        type: 'n8n-nodes-base.code',
-        version: 2,
-        config: {
-          id: `${planned.id}-read-array`,
-          name: `Read array ${planned.id}`,
-          position,
-          parameters: {
-            mode: 'runOnceForAllItems',
-            jsCode: read,
-          },
-        },
       });
-      const split = node({
-        type: 'n8n-nodes-base.splitOut',
-        version: 1,
-        config: {
-          id: planned.id,
-          name: planned.id,
-          position: [position[0] + 220, position[1]],
-          parameters: {
-            fieldToSplitOut: 'items',
-            include: 'noOtherFields',
-            options: { destinationFieldName: 'item', disableDotNotation: true },
-          },
-        },
-      });
-      return {
-        nodeId: planned.id,
-        bindingSources: [
-          {
-            kind: 'api-response',
-            nodeId: material.callId,
-            nodeName: apiNodeNames[material.callId],
-            operation: material.operation,
-          },
-        ],
-        nodes: [extract, split],
-        entry: extract,
-        exit: split,
-        inputPorts: { main: 0 },
-        outputPorts: { main: 0 },
-        internalEdges: [
-          { from: extract.id, output: 0, to: split.id, input: 0 },
-        ],
-      };
     },
   };
 }
