@@ -24,6 +24,7 @@
     "test:nested-array-iteration-local-n8n": "npm run build && node integration/nested-array-iteration-local-n8n.mjs",
     "test:batch-iteration-local-n8n": "npm run build && node integration/batch-iteration-local-n8n.mjs",
     "test:item-join-local-n8n": "npm run build && node integration/item-join-local-n8n.mjs",
+    "test:batch-item-join-local-n8n": "npm run build && node integration/item-join-local-n8n.mjs --batch",
     "test:schema-projection-local-n8n": "npm run build && node integration/schema-projection-local-n8n.mjs",
     "test:json-response-local-n8n": "npm run build && node integration/json-response-local-n8n.mjs",
     "test:http-authentication-local-n8n": "npm run build && node integration/http-authentication-local-n8n.mjs",

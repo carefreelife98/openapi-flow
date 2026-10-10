@@ -6,7 +6,7 @@
 
 Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
 
-반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드의 중첩 배열 분리와 명시적인 직렬 범위의 배치 반복도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 분기·중첩 배치 범위, 실행 간 합류·누적 수집과 자동 배치 범위 계획은 루트 README의 TODO에 남겨 두었다.
+반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드의 중첩 배열 분리, 직렬 배치 반복과 배치 안의 완전한 API 분기·합류도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 조건·필터를 포함한 배치 경로, 중첩 배치 범위, 실행 간 합류·누적 수집과 자동 배치 범위 계획은 루트 README의 TODO에 남겨 두었다.
 
 Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
 
@@ -160,9 +160,51 @@ const result = compileBatchedN8nWorkflow({
 
 기존 DAG의 경로는 `목록 → Split Out → details → confirm → audit → verify-item → 수집 → submit`이다. 코드는 원본 계획을 검사하고 공식 SDK로 Loop Over Items를 추가한다. `loop`는 details로 들어가고 verify-item은 제어 노드로 돌아온다. 모든 배치가 끝나면 `done`으로 수집·submit을 한 번 실행한다. linked 요청·검증은 각 item의 원본 응답 연결을 유지하고 OAS로 값을 검사한다. 원본 DAG 자체에 순환을 허용하는 것은 아니다.
 
-현재 배치 범위는 입력 item 하나당 연결된 출력 하나를 내거나 오류로 끝나는 직렬 경로다. linked 요청과 linked assertion은 이 실행 계약을 선언한다. 사용자 compiler도 같은 계약을 지켜야 한다. IF·Split Out·Aggregate·다중 입력 합류를 범위 안에 넣으면 거절한다. 한 배치가 빈 출력이 되면 반환 연결이 실행되지 않아 남은 배치가 중단될 수 있기 때문이다. 이 검사는 OAS 문서 수용 제한이 아니다. Split Out은 범위 앞에, 수집은 완료 뒤에 둔다. 분기·중첩 범위와 자동 범위 계획은 남은 작업이다.
+배치 범위는 하나의 입구와 출구를 두고 입력 item마다 연결된 결과 하나를 내거나 오류로 끝나야 한다. linked 요청과 linked assertion은 `preservesInputItems`로 이 계약을 선언한다. 완전한 분기는 아래의 명시적인 ancestry 합류로 묶는다. 사용자 compiler도 선언한 계약을 지켜야 하며, 검사가 임의 JavaScript의 동작까지 증명하지는 않는다. IF·Split Out·Aggregate·일반 Merge Append는 배치 반환 계약이 없어 범위 안에 넣으면 거절한다. 빈 출력 때문에 반환 연결이 실행되지 않으면 남은 배치가 중단될 수 있다. 이 검사는 OAS 문서 수용 제한이 아니다. Split Out은 범위 앞에, 수집은 완료 뒤에 둔다. 조건·필터 경로, 중첩 범위와 자동 범위 계획은 남은 작업이다.
 
 `npm run test:batch-iteration-local-n8n`은 API 다섯 개, 배치 크기 1·2·10, 연속 배치 범위, 시작점의 배치, 완료 후 수집과 오류 중단을 포함한 10개 사례를 실행한다. import JSON과 보고서는 `.local-artifacts/batch-iteration/`에 저장한다. 비공개 ICL OAS 계약 서버는 기존 설정에 `OPENAPI_FLOW_ITERATION_BATCH_SIZE=2`를 추가해 검사하며 산출물은 `.local-artifacts/real-array-iteration/batch-2/`에 남는다. 임시 서버 주소가 포함돼 다시 실행하려면 서버와 주소를 구성해야 한다. 실제 모델 품질 평가나 실서비스 호출 검증은 아니다.
+
+### 배치 안의 API 분기와 합류
+
+각 분기가 모든 입력 item의 결과를 하나씩 내면 배치 안에서도 분기·합류한다. 목록 응답을 `each-record`로 나눈 뒤 공통 입구에서 alpha·beta·gamma API로 나눠 보내고, `joined`에서 같은 원본 item의 응답을 합쳐 consume API에 전달하는 경로다. 마지막 배치까지 처리하면 완료 출력으로 결과를 한 번 수집한다.
+
+```text
+records → each-record → [배치 입구 → alpha ┐
+                                 → beta  ├→ joined → consume] → 수집
+                                 → gamma ┘
+```
+
+공통 입구가 필요하면 `createPassThroughCapability()`를 등록하고 `{ id: 'batch-entry', capability: 'pass-through', parameters: {} }`를 계획에 둔다. 공식 [No Operation 노드](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.noop/)로 입력을 그대로 전달한다. 결손 API의 대역이나 빈 배치의 완료 신호를 만드는 기능은 아니며 기본 registry에 자동 등록하지 않는다. 이미 있는 item 보존 노드를 입구로 써도 된다.
+
+아래 `completePlanInput`에는 위의 입구·분기·합류·후속 호출·수집 연결과 각 API의 원본 계약이 있어야 한다. `join-api-items`는 아래 절의 방식으로 등록하며, 공유 scope는 실제 `each-record` 출력이다.
+
+```ts
+import {
+  compileBatchedN8nWorkflow,
+  createPassThroughCapability,
+} from '@openapi-flow/n8n';
+
+const result = compileBatchedN8nWorkflow({
+  ...completePlanInput,
+  capabilities: [
+    ...completePlanInput.capabilities,
+    createPassThroughCapability(),
+  ],
+  batchScopes: [
+    {
+      id: 'process-branch-batches',
+      batchSize: 2,
+      nodeIds: ['batch-entry', 'alpha', 'beta', 'gamma', 'joined', 'consume'],
+      entryNodeId: 'batch-entry',
+      exitNodeId: 'consume',
+    },
+  ],
+});
+```
+
+코드는 `joinsInputItemsByAncestry: { scopeNodeId }` 선언과 분기별 조상 연결을 검사한다. 이 합류 선언은 단일 입력을 보존한다는 `preservesInputItems`와 구분한다. 분기 순서나 같은 ID·값으로 짝짓지 않는다. 배치 앞의 item 보존 relay도 원본 연결을 유지하지만, 앞선 별도 배치의 완료 출력을 원본 출구 노드의 마지막 실행 결과로 간주하지는 않는다. 조건으로 일부 item을 빼는 배치, 중첩 배치와 서로 다른 scope 실행의 합류는 아직 지원 완료 범위가 아니다.
+
+`npm run test:batch-item-join-local-n8n`은 배치 크기 1·2·10, 분기 2·3개, 순서를 뒤집은 분기, 같은 ID·값, 빈 입력과 계약·media type 오류를 포함한 8개 사례를 실행한다. `.local-artifacts/batch-item-join/five-api-workflow.json`은 API 다섯 개로 원본 item 세 개에 요청 13회를 수행한 예시다. 합류는 배치마다 하고 수집은 완료 뒤 한 번만 한다. 중간 오류는 이후 배치와 최종 수집을 중단하지만 이미 완료한 API 호출을 되돌리지는 않는다. 임시 서버 주소를 쓰는 지정 회귀 계획이므로 실제 모델 품질이나 실서비스 동작을 입증하지는 않는다.
 
 ### item별 API 분기 합류
 
@@ -184,7 +226,7 @@ const joinCapability = createItemJoinCapability({
 
 코드는 각 분기의 OAS 응답을 검사하고 n8n의 item 연결로 같은 원본 item의 결과만 합친다. ID나 JSON 값이 같아도 별도 item으로 유지한다. 한 분기의 순서가 달라져도 합류되며, 참여한 item의 분기 응답이 빠지거나 중복되면 후속 API를 호출하기 전에 실패한다. 모든 분기가 같은 item을 제외하면 그 item은 출력하지 않는다. 이는 모든 원본 item이 반드시 처리됐다는 보장을 뜻하지는 않는다.
 
-출력은 `{ responses: { callId: 원본 응답 본문 } }`이다. 후속 API는 linked 모드에서 이 출력과 기존 API·scope 값에 바인딩한다. `pairedItem`은 합류에 참여한 입력 모두를 보존한다. 현재는 한 번의 실행 안에서 합류하며 중첩·배치·다른 실행의 합류는 지원 완료 범위가 아니다.
+출력은 `{ responses: { callId: 원본 응답 본문 } }`이다. 후속 API는 linked 모드에서 이 출력과 기존 API·scope 값에 바인딩한다. `pairedItem`은 합류에 참여한 입력 모두를 보존한다. 한 번의 실행 안에서 합류하며, 위의 명시적인 배치에서는 배치별 실행마다 완전한 분기를 합친다. 중첩 배치와 다른 scope 실행의 합류는 지원 완료 범위가 아니다.
 
 `npm run test:item-join-local-n8n`의 `.local-artifacts/item-join/five-api-workflow.json`은 목록 API 하나, 독립 분기 API 세 개, 합류 뒤 API 하나를 사용하는 import 예시다. 원본과 분기의 순서·동일 값·필터·결손을 검사하는 지정 계획이며, 실제 모델 품질 평가나 실서비스 실행 결과로 해석하면 안 된다.
 
@@ -338,7 +380,7 @@ Start → 코어 조회 → IF ─ false → Stop And Error
 
 ## 다음 확장
 
-필요한 추가 n8n 기능의 매퍼, 분기·중첩 배치 범위와 실행 간 합류·수집은 남은 작업이다. 응답값의 의미·타입을 자동으로 바꾸지 않는다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+필요한 추가 n8n 기능의 매퍼, 조건·필터를 포함한 배치 경로, 중첩 배치 범위와 실행 간 합류·수집은 남은 작업이다. 응답값의 의미·타입을 자동으로 바꾸지 않는다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
 
 ## 자연어에서 조건·연결까지 계획하기
 

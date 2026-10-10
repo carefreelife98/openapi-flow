@@ -77,3 +77,4 @@ export const stopParametersSchema = z.strictObject({
       'StopAndError message when this branch executes. Input: main; no output.',
     ),
 });
+export const passThroughParametersSchema = z.strictObject({});

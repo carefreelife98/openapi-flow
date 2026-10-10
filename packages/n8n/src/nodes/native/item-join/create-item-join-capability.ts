@@ -158,6 +158,7 @@ export function createItemJoinCapability({
       });
       return {
         nodeId: planned.id,
+        joinsInputItemsByAncestry: { scopeNodeId: parameters.scopeNodeId },
         nodes: [...readers, merge, joined],
         entry: readers[0],
         exit: joined,

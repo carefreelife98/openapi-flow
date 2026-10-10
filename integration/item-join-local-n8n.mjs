@@ -10,21 +10,34 @@ import {
   createItemJoinFixture,
   rows,
 } from '../test/fixtures/item-join-fixture.mjs';
+import { compileBatchItemJoin } from '../test/fixtures/batch-item-join-fixture.mjs';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 
 const image = 'n8nio/n8n:2.37.10';
 const volume = `openapi-flow-item-join-${process.pid}-${Date.now()}`;
-const cases = [
-  { mode: 'reordered', branches: 2 },
-  { mode: 'reordered', branches: 3 },
-  { mode: 'empty', branches: 2 },
-  { mode: 'both-filtered', branches: 2 },
-  { mode: 'missing', branches: 2 },
-  { mode: 'empty-branch', branches: 2 },
-  { mode: 'duplicate', branches: 2 },
-  { mode: 'ambiguous', branches: 2 },
-  { mode: 'invalid-response', branches: 2 },
-];
+const batched = process.argv.includes('--batch');
+const cases = batched
+  ? [
+      { mode: 'reordered', branches: 2, size: 1 },
+      { mode: 'reordered', branches: 2, size: 2 },
+      { mode: 'reordered', branches: 2, size: 10 },
+      { mode: 'reordered', branches: 3, size: 2 },
+      { mode: 'empty', branches: 2, size: 2 },
+      { mode: 'invalid-source', branches: 2, size: 2 },
+      { mode: 'invalid-response', branches: 2, size: 1 },
+      { mode: 'wrong-media', branches: 3, size: 2 },
+    ]
+  : [
+      { mode: 'reordered', branches: 2 },
+      { mode: 'reordered', branches: 3 },
+      { mode: 'empty', branches: 2 },
+      { mode: 'both-filtered', branches: 2 },
+      { mode: 'missing', branches: 2 },
+      { mode: 'empty-branch', branches: 2 },
+      { mode: 'duplicate', branches: 2 },
+      { mode: 'ambiguous', branches: 2 },
+      { mode: 'invalid-response', branches: 2 },
+    ];
 let mode;
 const calls = [],
   serverErrors = [];
@@ -57,13 +70,24 @@ const server = createServer(async (request, response) => {
     calls.push({ path: url.pathname, body });
     let result;
     if (url.pathname === '/records')
-      result = { records: mode === 'empty' ? [] : rows };
+      result = {
+        records:
+          mode === 'empty'
+            ? []
+            : mode === 'invalid-source'
+              ? [{ ...rows[0], amount: '8' }]
+              : rows,
+      };
     else if (['/alpha', '/beta', '/gamma'].includes(url.pathname)) {
       assert.ok(
         rows.some((row) => JSON.stringify(row) === JSON.stringify(body)),
       );
       result = { branch: url.pathname.slice(1), item: body };
-      if (mode === 'invalid-response' && url.pathname === '/beta')
+      if (
+        mode === 'invalid-response' &&
+        url.pathname === '/beta' &&
+        (!batched || body.amount === 2)
+      )
         result.item.amount = '8';
     } else if (url.pathname.startsWith('/consume/')) {
       const values = Object.values(body);
@@ -79,7 +103,12 @@ const server = createServer(async (request, response) => {
       assert.equal(url.searchParams.get('id'), body.alpha.item.id);
       result = { accepted: true };
     } else throw Error('Unexpected local route');
-    response.writeHead(200, { 'content-type': 'application/json' });
+    response.writeHead(200, {
+      'content-type':
+        mode === 'wrong-media' && url.pathname === '/beta'
+          ? 'text/plain'
+          : 'application/json',
+    });
     response.end(JSON.stringify(result));
   } catch (error) {
     serverErrors.push(error.message);
@@ -94,13 +123,25 @@ try {
   const fixtures = [];
   for (const sample of cases)
     fixtures.push(
-      await createItemJoinFixture(baseUrl, sample.mode, sample.branches),
+      batched
+        ? await compileBatchItemJoin(
+            baseUrl,
+            sample.mode,
+            sample.branches,
+            sample.size,
+          )
+        : await createItemJoinFixture(baseUrl, sample.mode, sample.branches),
     );
-  const directory = new URL('../.local-artifacts/item-join/', import.meta.url);
+  const directory = new URL(
+    batched
+      ? '../.local-artifacts/batch-item-join/'
+      : '../.local-artifacts/item-join/',
+    import.meta.url,
+  );
   await mkdir(directory, { recursive: true });
   for (const [file, fixture] of [
     ['workflow.json', fixtures[0]],
-    ['five-api-workflow.json', fixtures[1]],
+    ['five-api-workflow.json', fixtures[batched ? 3 : 1]],
   ])
     await writeFile(
       new URL(file, directory),
@@ -144,6 +185,8 @@ try {
       'duplicate',
       'ambiguous',
       'invalid-response',
+      'invalid-source',
+      'wrong-media',
     ].includes(mode);
     assert.equal(
       execution.status,
@@ -151,7 +194,15 @@ try {
       JSON.stringify(execution.data.resultData.error),
     );
     if (failureCase) {
-      assert.equal(consumed.length, 0);
+      assert.equal(
+        consumed.length,
+        batched && mode === 'invalid-response' ? 1 : 0,
+      );
+      if (batched)
+        assert.equal(
+          execution.data.resultData.runData['batch-results'],
+          undefined,
+        );
       if (mode === 'missing' || mode === 'empty-branch')
         assert.match(
           execution.data.resultData.error.message,
@@ -166,7 +217,9 @@ try {
       assert.equal(received.length, 1);
       assert.equal(execution.data.resultData.runData.joined, undefined);
     } else {
-      const joined = execution.data.resultData.runData.joined[0].data.main[0];
+      const runData = execution.data.resultData.runData;
+      const joinedRuns = runData.joined;
+      const joined = joinedRuns.flatMap((run) => run.data.main[0]);
       const expected = mode === 'both-filtered' ? [rows[0], rows[2]] : rows;
       assert.equal(joined.length, expected.length);
       assert.equal(consumed.length, expected.length);
@@ -179,11 +232,57 @@ try {
         for (const value of Object.values(item.json.responses))
           assert.deepEqual(value.item, item.json.responses.alpha.item);
       }
+      if (batched) {
+        const lengths = [];
+        for (let offset = 0; offset < rows.length; offset += sample.size)
+          lengths.push(Math.min(sample.size, rows.length - offset));
+        assert.deepEqual(
+          joinedRuns.map((run) => run.data.main[0].length),
+          lengths,
+        );
+        assert.deepEqual(
+          runData['Request consume'].map((run) => run.data.main[0].length),
+          lengths,
+        );
+        assert.equal(
+          runData['process-branch-batches'].length,
+          lengths.length + 1,
+        );
+        assert.equal(
+          runData['process-branch-batches'].at(-1).data.main[0].length,
+          rows.length,
+        );
+        assert.equal(runData['batch-results'].length, 1);
+        assert.deepEqual(
+          runData['batch-results'][0].data.main[0][0].json.items,
+          rows,
+        );
+        for (const [runIndex, run] of joinedRuns.entries()) {
+          const expectedIndexes = Array.from(
+            { length: lengths[runIndex] },
+            (_, i) => runIndex * sample.size + i,
+          );
+          for (let branch = 0; branch < sample.branches; branch++) {
+            const reader =
+              runData[`Read branch ${branch + 1} joined`][runIndex].data
+                .main[0];
+            assert.deepEqual(
+              reader.map((item) => item.json.scopeIndex).sort((a, b) => a - b),
+              expectedIndexes,
+            );
+          }
+          assert.deepEqual(
+            run.data.main[0].map((item) => item.json.responses.alpha.item),
+            expectedIndexes.map((index) => rows[index]),
+          );
+        }
+      }
     }
     assert.deepEqual(serverErrors, []);
     results.push({
       mode,
       branches: sample.branches,
+      ...(batched ? { batchSize: sample.size } : {}),
       status: 'passed',
       execution: execution.status,
       requests: received.length,

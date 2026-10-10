@@ -23,10 +23,16 @@ export interface N8nFragmentInputEndpoint {
   nodeId: string;
   input: number;
 }
+export interface N8nItemAncestryJoin {
+  /** One output per shared scope ancestor, retaining every contributing link. */
+  scopeNodeId: string;
+}
 export interface N8nNodeFragment {
   nodeId: string;
   /** Compiler-owned contract: one linked output per input, or an execution error. */
   preservesInputItems?: boolean;
+  /** Compiler-owned reduction of complete branches, not a positional or value join. */
+  joinsInputItemsByAncestry?: N8nItemAncestryJoin;
   nodes: N8nSdkNode[];
   entry: N8nSdkNode;
   exit: N8nSdkNode;

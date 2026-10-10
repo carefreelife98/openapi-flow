@@ -4,6 +4,7 @@ import type {
   CompiledN8nBatchExecutionScope,
 } from '../../types/batch-execution.js';
 import { batchExecutionScopesSchema } from '../../schemas/batch-execution-schema.js';
+import { validateBatchItemFlow } from './validate-batch-item-flow.js';
 
 /** Lower explicitly bounded, cardinality-preserving paths; never allow arbitrary cycles. */
 export function createBatchExecutionScopes(
@@ -34,15 +35,6 @@ export function createBatchExecutionScopes(
           `batch ${scope.id}: missing or overlapping member ${id}`,
         );
       owners.add(id);
-      if (
-        fragment.preservesInputItems !== true ||
-        Object.keys(fragment.inputPorts).join() !== 'main' ||
-        Object.keys(fragment.outputPorts).join() !== 'main' ||
-        fragment.inputEndpoints
-      )
-        throw new Error(
-          `batch ${scope.id}: member ${id} requires a one-input/one-output item-preserving main path contract`,
-        );
       const incoming = input.edges.filter((edge) => edge.to === id);
       const outgoing = input.edges.filter((edge) => edge.from === id);
       if (
@@ -56,24 +48,21 @@ export function createBatchExecutionScopes(
         throw new Error(
           `batch ${scope.id}: member ${id} crosses the entry/exit boundary`,
         );
-      const innerIncoming = incoming.filter((edge) => members.has(edge.from));
-      const innerOutgoing = outgoing.filter((edge) => members.has(edge.to));
-      if (
-        innerIncoming.length !== (id === scope.entryNodeId ? 0 : 1) ||
-        innerOutgoing.length !== (id === scope.exitNodeId ? 0 : 1)
-      )
-        throw new Error(
-          `batch ${scope.id}: members must form a single entry-to-exit path`,
-        );
-      if (id === scope.entryNodeId && incoming.length > 1)
-        throw new Error(
-          `batch ${scope.id}: entry requires one upstream stream`,
-        );
       if (id !== scope.entryNodeId && input.starts.includes(id))
         throw new Error(
           `batch ${scope.id}: only its entry may be a workflow start`,
         );
     }
+    validateBatchItemFlow({
+      scope,
+      fragments,
+      edges: input.edges,
+      otherBatchNodeIds: new Set(
+        scopes
+          .filter((other) => other.id !== scope.id)
+          .flatMap((other) => other.nodeIds),
+      ),
+    });
     const entry = fragments.get(scope.entryNodeId)!;
     const position = entry.entry.config.position;
     if (

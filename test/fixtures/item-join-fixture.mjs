@@ -204,6 +204,13 @@ export async function createItemJoinFixture(
       });
       return {
         nodeId: planned.id,
+        preservesInputItems: [
+          'reordered',
+          'empty',
+          'invalid-response',
+          'wrong-media',
+          'invalid-source',
+        ].includes(mode),
         nodes: [sdk],
         entry: sdk,
         exit: sdk,
