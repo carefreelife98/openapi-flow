@@ -25,6 +25,8 @@ export interface N8nFragmentInputEndpoint {
 }
 export interface N8nNodeFragment {
   nodeId: string;
+  /** Compiler-owned contract: one linked output per input, or an execution error. */
+  preservesInputItems?: boolean;
   nodes: N8nSdkNode[];
   entry: N8nSdkNode;
   exit: N8nSdkNode;

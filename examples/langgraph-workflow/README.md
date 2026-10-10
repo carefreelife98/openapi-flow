@@ -6,7 +6,7 @@
 
 Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
 
-반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드로 API 응답 배열을 두 단계에서 분리하는 중첩 반복도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 배치 반복과 실행 간 합류·누적 수집은 루트 README의 TODO에 남겨 두었다.
+반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드의 중첩 배열 분리와 명시적인 직렬 범위의 배치 반복도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 분기·중첩 배치 범위, 실행 간 합류·누적 수집과 자동 배치 범위 계획은 루트 README의 TODO에 남겨 두었다.
 
 Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
 
@@ -108,7 +108,7 @@ const request = createHttpRequestNode({
 
 `itemMode: 'linked'`는 현재 입력 item과 연결된 선행 결과를 `itemMatching(inputIndex)`로 읽는다. 출력의 `pairedItem`이 다음 노드에서도 이 연결을 유지한다. ID가 같은 항목이나 분기 후 순서가 바뀐 항목도 배열의 인덱스로 짝짓지 않는다. 빈 배열은 다음 API를 호출하지 않는다. 연결이 모호하거나 값이 계약과 다르면 실패하며 다른 값을 대신 넣지 않는다.
 
-공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`만으로는 item별 zip·결과 수집을 보장하지 않는다. 아래의 전용 합류 기능은 원본 item 연결을 검사하며, 배치 반복은 아직 미완료다.
+공식 graph factory에서 명시적인 반복 호출 범위는 `linkedItemCallIds`로 지정한다. API 원본 계약이 있어야 배열 기능을 등록할 수 있으므로, 동적인 등록이 필요한 호스트는 위의 독립 단계들을 LangGraph 노드로 구성한다. 기존 factory가 모든 반복 범위를 자동 계획한다고 주장하지 않는다. `Merge Append`만으로는 item별 zip·결과 수집을 보장하지 않는다. 아래의 전용 합류 기능은 원본 item 연결을 검사한다. 배치 실행에는 별도의 공개 컴파일 함수를 사용한다.
 
 ### API 응답 배열의 중첩 반복
 
@@ -120,7 +120,7 @@ Manual Trigger → 부모 목록 API → 부모 Split Out
               → 부모·자식·중간 응답을 바인딩한 후속 API
 ```
 
-모델은 제공된 API의 `sourceNodeId`와 배열 `pointer`만 선택한다. 실행 모드는 호스트가 정하고 코드가 배열 계약과 item 연결을 만든다. 자식 배열이 빈 부모는 후속 요청을 만들지 않으며 다른 부모의 연결에도 영향을 주지 않는다. 값·타입을 변환하거나 ID가 같다는 이유로 결과를 합치지 않는다. API 외 native 출력 배열의 분리, 배치 반복과 실행 간 누적 수집까지 구현한 것은 아니다.
+모델은 제공된 API의 `sourceNodeId`와 배열 `pointer`만 선택한다. 실행 모드는 호스트가 정하고 코드가 배열 계약과 item 연결을 만든다. 자식 배열이 빈 부모는 후속 요청을 만들지 않으며 다른 부모의 연결에도 영향을 주지 않는다. 값·타입을 변환하거나 ID가 같다는 이유로 결과를 합치지 않는다. API 외 native 출력 배열의 분리와 실행 간 누적 수집은 아직 구현하지 않았다. 배치 실행은 아래의 별도 컴파일 경로다.
 
 `npm run test:nested-array-iteration-local-n8n`은 API 다섯 개와 두 단계 Split Out을 실행한다. IF로 부모를 걸러내는 예시를 포함한 import JSON과 8개 사례의 보고서는 `.local-artifacts/nested-array-iteration/`에 저장된다. 계획은 회귀 테스트가 지정한다. 실제 모델의 중첩 반복 선택 정확도는 별도 평가가 필요하다. 예시에는 종료된 임시 계약 서버 주소가 있으므로 다시 실행하려면 주소와 서버를 구성한다.
 
@@ -132,9 +132,37 @@ Manual Trigger → 부모 목록 API → 부모 Split Out
 
 `createResponseCollectionCapability({ materials })`를 등록하면 모델이 `collect-api-responses`의 `sourceNodeId`와 응답 본문 `pointer`를 선택한다. 코드가 실제 연결된 응답을 각각 원본 OAS로 검사하고 공식 Aggregate 노드를 만든다. 출력은 `{ items: 수집한 값의 배열 }`이다. `null`, 중복 값, 중첩 배열을 유지하며 다음 API의 배열 입력에는 `/items`를 바인딩한다. 수집 뒤의 API는 하나의 배열을 받으므로 일반 단일 item 모드를 사용한다.
 
-이 기능은 한 번의 노드 실행에 들어온 item을 모은다. 네트워크 응답 도착 순서나 여러 배치의 전체 수집을 보장하지 않는다. 빈 스트림에서는 수집 노드가 실행되지 않으며 빈 결과나 후속 호출을 임의로 만들지 않는다. item별 분기 합류 기능으로 사용해서도 안 된다. 수집한 값은 n8n 입력 item의 순서를 유지한다.
+이 기능은 한 번의 노드 실행에 들어온 item을 모으며 네트워크 응답 도착 순서를 보장하지 않는다. 배치 범위 뒤에 배치 완료 출력이 연결되면 모든 처리 item을 한 번에 받는다. reader가 각 item의 연결로 여러 실행 회차의 원본 API 응답을 읽는다. 빈 스트림에서는 수집 노드가 실행되지 않으며 빈 결과나 후속 호출을 임의로 만들지 않는다. item별 분기 합류 기능으로 사용해서도 안 된다. 수집한 값은 n8n 입력 item의 순서를 유지한다.
 
 `.local-artifacts/array-iteration/collection-workflow.json`은 item별 검사 뒤 결과를 모아 다음 API로 보내는 예시다. `conditional-collection-workflow.json`은 IF의 조건을 통과한 결과만 모은다. 두 예시의 계획은 회귀 테스트가 지정하며, 실제 모델 품질 평가 결과는 아니다.
+
+### 명시적인 배치 실행
+
+OAS 계약·요청값·바인딩·native 설정·연결 계획을 만든 뒤 `compileBatchedN8nWorkflow`를 호출한다. 아래의 `completePlanInput`은 일반 `compilePlannedN8nWorkflow`와 같은 입력이다. 배치 크기와 범위는 호스트가 제공하며 모델에게 실행 JavaScript나 순환 연결을 생성시키지 않는다.
+
+```ts
+import { compileBatchedN8nWorkflow } from '@openapi-flow/n8n';
+
+const result = compileBatchedN8nWorkflow({
+  ...completePlanInput,
+  batchScopes: [
+    {
+      id: 'process-record-batches',
+      batchSize: 2,
+      nodeIds: ['details', 'confirm', 'audit', 'verify-item'],
+      entryNodeId: 'details',
+      exitNodeId: 'verify-item',
+    },
+  ],
+});
+// 검토 후 result.workflow를 import한다. 이 함수는 실행하지 않는다.
+```
+
+기존 DAG의 경로는 `목록 → Split Out → details → confirm → audit → verify-item → 수집 → submit`이다. 코드는 원본 계획을 검사하고 공식 SDK로 Loop Over Items를 추가한다. `loop`는 details로 들어가고 verify-item은 제어 노드로 돌아온다. 모든 배치가 끝나면 `done`으로 수집·submit을 한 번 실행한다. linked 요청·검증은 각 item의 원본 응답 연결을 유지하고 OAS로 값을 검사한다. 원본 DAG 자체에 순환을 허용하는 것은 아니다.
+
+현재 배치 범위는 입력 item 하나당 연결된 출력 하나를 내거나 오류로 끝나는 직렬 경로다. linked 요청과 linked assertion은 이 실행 계약을 선언한다. 사용자 compiler도 같은 계약을 지켜야 한다. IF·Split Out·Aggregate·다중 입력 합류를 범위 안에 넣으면 거절한다. 한 배치가 빈 출력이 되면 반환 연결이 실행되지 않아 남은 배치가 중단될 수 있기 때문이다. 이 검사는 OAS 문서 수용 제한이 아니다. Split Out은 범위 앞에, 수집은 완료 뒤에 둔다. 분기·중첩 범위와 자동 범위 계획은 남은 작업이다.
+
+`npm run test:batch-iteration-local-n8n`은 API 다섯 개, 배치 크기 1·2·10, 연속 배치 범위, 시작점의 배치, 완료 후 수집과 오류 중단을 포함한 10개 사례를 실행한다. import JSON과 보고서는 `.local-artifacts/batch-iteration/`에 저장한다. 비공개 ICL OAS 계약 서버는 기존 설정에 `OPENAPI_FLOW_ITERATION_BATCH_SIZE=2`를 추가해 검사하며 산출물은 `.local-artifacts/real-array-iteration/batch-2/`에 남는다. 임시 서버 주소가 포함돼 다시 실행하려면 서버와 주소를 구성해야 한다. 실제 모델 품질 평가나 실서비스 호출 검증은 아니다.
 
 ### item별 API 분기 합류
 
@@ -310,7 +338,7 @@ Start → 코어 조회 → IF ─ false → Stop And Error
 
 ## 다음 확장
 
-다른 n8n 자체 기능의 매퍼, 응답값 변환·아이템별 반복은 남은 작업이다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
+필요한 추가 n8n 기능의 매퍼, 분기·중첩 배치 범위와 실행 간 합류·수집은 남은 작업이다. 응답값의 의미·타입을 자동으로 바꾸지 않는다. Code·IF의 응답 비교와 API 요청값의 응답 바인딩은 각각 별도 단계로 구현했다. 의존성 보안 경고의 해결은 실행 검증과 별개다. 자동 `npm audit fix --force`는 사용하지 않는다.
 
 ## 자연어에서 조건·연결까지 계획하기
 
@@ -342,11 +370,11 @@ const result = await graph.invoke({
 
 기본 registry는 IF, Merge Append, 응답 검증용 Code, StopAndError를 등록한다. 각 매퍼는 `packages/n8n/src/nodes/native/`의 별도 파일이며 공통 fragment·응답 참조 처리는 `common/`에 둔다. Code는 모델의 JavaScript가 아니라 타입 있는 비교 항목을 라이브러리가 변환한 코드다. 응답 참조는 `{source: 'response', nodeId, pointer: '/result/...'}`로 표현하며 `pointer`는 OAS 응답 본문 기준이다. n8n의 `body` envelope와 SDK 노드 이름은 컴파일러가 연결한다.
 
-독립적으로는 `planApiBindings`, `generateApiArguments`, `planWorkflowGraph`, `compilePlannedN8nWorkflow`를 나누어 호출한다. 응답 바인딩은 `{kind: 'node-output', sourceNodeId, sourcePointer: '/result/id', targetPointer: '/path/id'}`처럼 OAS 본문·요청 기준 Pointer로 표현한다. `reviewBindings` hook에서 검토할 수 있다. 모델의 리터럴 출력 스키마에서는 바인딩 필드를 제외하고, 실행 시 Code가 실제 값을 읽어 완성된 요청을 OAS schema로 검사한다. 단일 API 호출 응답이 여러 아이템으로 나뉘면 임의로 첫 아이템을 고르지 않고 중단한다. 아이템별 반복과 자체 노드 출력 바인딩은 아직 별도 구현이 필요하다.
+독립적으로는 `planApiBindings`, `generateApiArguments`, `planWorkflowGraph`, `compilePlannedN8nWorkflow`를 나누어 호출한다. 응답 바인딩은 `{kind: 'node-output', sourceNodeId, sourcePointer: '/result/id', targetPointer: '/path/id'}`처럼 OAS 본문·요청 기준 Pointer로 표현한다. `reviewBindings` hook에서 검토할 수 있다. 모델의 리터럴 출력 스키마에서는 바인딩 필드를 제외하고, 실행 시 Code가 실제 값을 읽어 완성된 요청을 OAS schema로 검사한다. 일반 단일 item 모드는 여러 응답 중 첫 값을 고르지 않고 중단한다. 반복 범위에는 위의 linked 모드를 사용하며 native 출력 바인딩도 명시적인 계약으로 제공한다.
 
 리터럴 생성은 core의 `createApiArgumentGenerationContract`에서 Zod 출력 schema·모델 입력 설명·호출 필요 여부를 함께 만든다. 바인딩된 요청 필드의 원본 정의나 바인딩 계획을 이 단계의 모델에 다시 보내지 않는다. 열린 객체에서도 바인딩 대상은 생성 금지 제약으로 차단하며 나머지 추가 속성은 OAS대로 허용한다. 생성할 값이 없는 중첩된 닫힌 body와 전체 body 바인딩은 모델을 호출하지 않는다. OAS가 허용한 선택 필드라도 시나리오가 생략을 요구했다면 그 요구를 따라야 하며, 시나리오 검증 실패와 OAS 검증 실패는 별개다.
 
-호스트는 capability의 설명·설정 schema·포트·분기 의미·응답 참조 추출기·컴파일러를 등록해 확장한다. n8n의 모든 노드를 자동 지원한다는 뜻은 아니다. 자체 비교 노드는 현재 첫 응답 아이템의 본문을 대상으로 한다.
+호스트는 capability의 설명·설정 schema·포트·분기 의미·응답 참조 추출기·컴파일러를 등록해 확장한다. n8n의 모든 노드를 자동 지원한다는 뜻은 아니다. 자체 비교 노드도 일반 모드에서는 명확한 단일 응답을 요구하며 linked 모드에서는 현재 item의 연결된 응답을 검사한다.
 
 검사는 존재하지 않는 노드·포트, 중복 ID·연결, 잘못된 시작점, 순환, 앞서 실행되지 않은 API 응답 참조, 서로 배타적인 IF 분기의 Merge를 거절한다. 응답 필드의 모든 OAS dialect·타입을 정적으로 증명하지는 않는다. 실행 중 없는 필드를 읽으면 오류를 내며 다른 값으로 채우지 않는다. 시나리오 요구를 빠짐없이 계획했는지는 사람 검토와 정상·실패 fixture 검증으로 확인해야 한다.
 

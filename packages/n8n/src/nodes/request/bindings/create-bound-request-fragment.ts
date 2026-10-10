@@ -84,6 +84,7 @@ export function createBoundRequestFragment(
   };
   return {
     nodeId: config.arguments.callId,
+    preservesInputItems: linked,
     bindingSources: sources,
     nodes: [materializer, request],
     entry: materializer,

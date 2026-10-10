@@ -17,12 +17,20 @@ import {
   createN8nNativeOutputSources,
   createHttpRequestNode,
   compilePlannedN8nWorkflow,
+  compileBatchedN8nWorkflow,
   resolveHttpRequestAuthentication,
 } from '@openapi-flow/n8n';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 
 const configPath = process.env.OPENAPI_FLOW_ITERATION_CONFIG;
 assert.ok(configPath, 'OPENAPI_FLOW_ITERATION_CONFIG is required');
+const batchSetting = process.env.OPENAPI_FLOW_ITERATION_BATCH_SIZE;
+if (batchSetting !== undefined)
+  assert.ok(
+    /^[1-9]\d*$/.test(batchSetting) &&
+      Number.isSafeInteger(Number(batchSetting)),
+    'OPENAPI_FLOW_ITERATION_BATCH_SIZE must be a positive safe integer',
+  );
 const config = JSON.parse(await readFile(configPath, 'utf8'));
 assert.ok(
   config.specPath &&
@@ -182,7 +190,7 @@ let created = false;
 try {
   await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
   const baseUrl = `http://host.docker.internal:${server.address().port}`;
-  const result = compilePlannedN8nWorkflow({
+  const input = {
     id: 'real-array-iteration',
     name: 'Real OAS array iteration',
     materials: graphMaterials,
@@ -204,9 +212,26 @@ try {
           : {}),
       }),
     ),
-  });
+  };
+  const result =
+    batchSetting === undefined
+      ? compilePlannedN8nWorkflow(input)
+      : compileBatchedN8nWorkflow({
+          ...input,
+          batchScopes: [
+            {
+              id: 'detail-batches',
+              batchSize: Number(batchSetting),
+              nodeIds: ['detail'],
+              entryNodeId: 'detail',
+              exitNodeId: 'detail',
+            },
+          ],
+        });
   const directory = new URL(
-    '../.local-artifacts/real-array-iteration/',
+    batchSetting === undefined
+      ? '../.local-artifacts/real-array-iteration/'
+      : `../.local-artifacts/real-array-iteration/batch-${batchSetting}/`,
     import.meta.url,
   );
   await mkdir(directory, { recursive: true });
@@ -269,14 +294,35 @@ try {
           .sort(),
         config.rows.map((row) => row[config.itemField]).sort(),
       );
-      const materialized =
-        execution.data.resultData.runData['Materialize detail'][0].data.main[0];
-      assert.equal(materialized.length, config.rows.length);
-      for (const [index, item] of materialized.entries()) {
-        assert.equal(item.pairedItem.item, index);
+      const runData = execution.data.resultData.runData;
+      const runs = runData['Materialize detail'];
+      assert.equal(
+        runs.flatMap((run) => run.data.main[0]).length,
+        config.rows.length,
+      );
+      for (const [runIndex, run] of runs.entries()) {
+        const upstream =
+          batchSetting === undefined
+            ? runData['each-item'][0].data.main[0]
+            : runData['detail-batches'][runIndex].data.main[1];
+        const materialized = run.data.main[0];
+        assert.equal(materialized.length, upstream.length);
+        for (const [index, item] of materialized.entries()) {
+          assert.equal(item.pairedItem.item, index);
+          assert.equal(
+            new URL(item.json.url).searchParams.get(config.targetParameter),
+            String(upstream[item.pairedItem.item].json.item[config.itemField]),
+          );
+        }
+      }
+      if (batchSetting !== undefined) {
         assert.equal(
-          new URL(item.json.url).searchParams.get(config.targetParameter),
-          String(config.rows[index][config.itemField]),
+          runs.length,
+          Math.ceil(config.rows.length / Number(batchSetting)),
+        );
+        assert.equal(
+          runData['detail-batches'].at(-1).data.main[0].length,
+          config.rows.length,
         );
       }
     }
@@ -292,6 +338,7 @@ try {
     target: 'private-real-OAS-local-contract-server',
     planner: 'explicit-fixture-no-LLM',
     businessServiceCalls: 0,
+    ...(batchSetting === undefined ? {} : { batchSize: Number(batchSetting) }),
     results,
   };
   await writeFile(

@@ -95,6 +95,7 @@ export function createHttpRequestNode(
     });
     fragment = {
       nodeId: args.callId,
+      preservesInputItems: true,
       nodes: [request],
       entry: request,
       exit: request,

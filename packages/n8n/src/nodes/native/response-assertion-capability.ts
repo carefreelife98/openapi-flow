@@ -29,7 +29,7 @@ export function createResponseAssertionCapability(
         input.itemMode === 'linked'
           ? `return $input.all().map((_,inputIndex)=>{${checkCode}\nreturn {json:{pass:true,assertionCount:checks.length},pairedItem:{item:inputIndex}};});`
           : `${checkCode}\nreturn [{json: {pass: true, assertionCount: checks.length}}];`;
-      return createNativeFragment(
+      const fragment = createNativeFragment(
         node({
           type: 'n8n-nodes-base.code',
           version: 2,
@@ -47,6 +47,7 @@ export function createResponseAssertionCapability(
         ['main'],
         ['main'],
       );
+      return { ...fragment, preservesInputItems: input.itemMode === 'linked' };
     },
   };
 }

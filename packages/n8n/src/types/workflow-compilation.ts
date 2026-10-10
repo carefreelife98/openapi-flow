@@ -2,6 +2,7 @@ import type { WorkflowJSON } from '@n8n/workflow-sdk';
 import type { N8nNodeFragment } from './node-fragment.js';
 import type { N8nSdkNode } from './node-fragment.js';
 import type { WorkflowReviewGap } from '@openapi-flow/core';
+import type { N8nBatchExecutionScope } from './batch-execution.js';
 
 export interface N8nGraphEdge {
   from: string;
@@ -24,6 +25,7 @@ export interface N8nCompileResult {
 export interface BuildN8nWorkflowInput extends AssembleN8nWorkflowInput {
   triggerConnections: 'connected' | 'detached';
   annotations: N8nSdkNode[];
+  batchScopes?: N8nBatchExecutionScope[];
 }
 
 export interface N8nWorkflowJSON extends WorkflowJSON {

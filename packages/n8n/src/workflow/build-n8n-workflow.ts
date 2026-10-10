@@ -4,6 +4,7 @@ import type {
   N8nWorkflowJSON,
 } from '../types/workflow-compilation.js';
 import { validateNodeFragments } from './validate-node-fragments.js';
+import { createBatchExecutionScopes } from './batch/create-batch-execution-scopes.js';
 
 export function buildN8nWorkflow({
   id,
@@ -13,6 +14,7 @@ export function buildN8nWorkflow({
   starts,
   triggerConnections,
   annotations,
+  batchScopes,
 }: BuildN8nWorkflowInput): N8nWorkflowJSON {
   if (!['connected', 'detached'].includes(triggerConnections))
     throw new Error('triggerConnections must be connected or detached');
@@ -52,9 +54,21 @@ export function buildN8nWorkflow({
     nodes.some((fragment) => !fragment.nodeId.trim())
   )
     throw new Error('workflow nodes require unique non-empty nodeId');
+  const batches =
+    batchScopes === undefined
+      ? []
+      : createBatchExecutionScopes({
+          id,
+          name,
+          nodes,
+          edges,
+          starts,
+          batchScopes,
+        });
   const sdkNodes = [
     ...nodes.flatMap((fragment) => fragment.nodes),
     ...annotations,
+    ...batches.map((batch) => batch.controller),
   ];
   const sdkIds = sdkNodes.map((node) => node.id);
   const sdkNames = sdkNodes.map((node) => node.name);
@@ -139,6 +153,21 @@ export function buildN8nWorkflow({
   let built = workflow(id, name).add(start);
   for (const fragment of nodes)
     for (const node of fragment.nodes) built = built.add(node);
+  for (const batch of batches) {
+    built = built.add(batch.controller);
+    built = built.connect(
+      batch.controller,
+      1,
+      byId.get(batch.scope.entryNodeId)!.entry,
+      byId.get(batch.scope.entryNodeId)!.inputPorts.main,
+    );
+    built = built.connect(
+      byId.get(batch.scope.exitNodeId)!.exit,
+      byId.get(batch.scope.exitNodeId)!.outputPorts.main,
+      batch.controller,
+      0,
+    );
+  }
   for (const fragment of nodes)
     for (const edge of fragment.internalEdges ?? [])
       built = built.connect(
@@ -149,19 +178,41 @@ export function buildN8nWorkflow({
       );
   if (triggerConnections === 'connected')
     for (const nodeId of starts)
-      built = built.connect(start, 0, byId.get(nodeId)!.entry, 0);
+      built = built.connect(
+        start,
+        0,
+        batches.find((batch) => batch.scope.entryNodeId === nodeId)
+          ?.controller ?? byId.get(nodeId)!.entry,
+        0,
+      );
   for (const note of annotations) built = built.add(note);
   for (const edge of edges) {
     const source = byId.get(edge.from)!;
     const target = byId.get(edge.to)!;
     const endpoint = target.inputEndpoints?.[edge.input];
+    const sourceBatch = batches.find(
+      (batch) =>
+        batch.scope.exitNodeId === edge.from &&
+        !batch.scope.nodeIds.includes(edge.to),
+    );
+    const targetBatch = batches.find(
+      (batch) =>
+        batch.scope.entryNodeId === edge.to &&
+        !batch.scope.nodeIds.includes(edge.from),
+    );
     built = built.connect(
-      source.exit,
-      source.outputPorts[edge.output],
-      endpoint
-        ? target.nodes.find((node) => node.id === endpoint.nodeId)!
-        : target.entry,
-      endpoint ? endpoint.input : target.inputPorts[edge.input],
+      sourceBatch ? sourceBatch.controller : source.exit,
+      sourceBatch ? 0 : source.outputPorts[edge.output],
+      targetBatch
+        ? targetBatch.controller
+        : endpoint
+          ? target.nodes.find((node) => node.id === endpoint.nodeId)!
+          : target.entry,
+      targetBatch
+        ? 0
+        : endpoint
+          ? endpoint.input
+          : target.inputPorts[edge.input],
     );
   }
   const checked = validateWorkflow(built);

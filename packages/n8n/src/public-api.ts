@@ -22,3 +22,8 @@ export { createResponseCollectionCapability } from './nodes/native/create-respon
 export type * from './types/response-collection.js';
 export { createItemJoinCapability } from './nodes/native/item-join/create-item-join-capability.js';
 export type * from './types/item-join.js';
+export { compileBatchedN8nWorkflow } from './workflow/batch/compile-batched-n8n-workflow.js';
+export type {
+  N8nBatchExecutionScope,
+  CompileBatchedN8nWorkflowInput,
+} from './types/batch-execution.js';
