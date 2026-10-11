@@ -141,7 +141,7 @@ function compile(graphPlan = plan(), customCapabilities = capabilities) {
 }
 test('typed plan compiles IF, waiting Merge, library-owned assertions and StopAndError', () => {
   const result = compile();
-  assert.equal(result.workflow.nodes.length, 9);
+  assert.equal(result.workflow.nodes.length, 12);
   assert.equal(result.workflow.settings.executionOrder, 'v1');
   assert.equal(result.workflow.connections.gate.main[1][0].node, 'stop');
   assert.equal(
@@ -416,7 +416,7 @@ test('official graph adds the model graph-plan stage without any compose callbac
     'graph-plan',
     'compile',
   ]);
-  assert.equal(result.workflow.nodes.length, 9);
+  assert.equal(result.workflow.nodes.length, 12);
 });
 test('unmet requirements return a gap proposal and cannot be compiled', async () => {
   const expected = {

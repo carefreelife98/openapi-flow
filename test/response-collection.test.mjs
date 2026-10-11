@@ -180,8 +180,12 @@ test('collected API bodies feed a single OAS array request after item-wise asser
       'n8n-nodes-base.aggregate',
     );
     assert.equal(
-      result.workflow.nodes.find((node) => node.id === 'submit').type,
+      result.workflow.nodes.find((node) => node.id === 'submit-transport').type,
       'n8n-nodes-base.httpRequest',
+    );
+    assert.equal(
+      result.workflow.nodes.find((node) => node.id === 'submit').type,
+      'n8n-nodes-base.code',
     );
     assert.ok(
       result.workflow.connections['collected-results'].main[0].some(

@@ -15,6 +15,7 @@ import {
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 
 const image = 'n8nio/n8n:2.37.10';
+const nativeBaseline = process.argv.includes('--native');
 const volume = `openapi-flow-json-response-${process.pid}-${Date.now()}`;
 const cases = [
   { id: 'plain-string', body: 'ordinary string' },
@@ -45,15 +46,37 @@ function docker(args, input) {
     child.stdin.end(input);
   });
 }
-const server = createServer((request, response) => {
-  const sample = cases.find((sample) => request.url === '/' + sample.id);
+const received = [];
+const server = createServer(async (request, response) => {
+  const echo = request.url.startsWith('/echo/');
+  const sample = cases.find(
+    (sample) => request.url === (echo ? '/echo/' : '/') + sample.id,
+  );
   if (!sample) {
     response.writeHead(404);
     response.end();
     return;
   }
-  response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(JSON.stringify(sample.body));
+  if (echo) {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const rawBody = Buffer.concat(chunks).toString('utf8');
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (error) {
+      received.push({ case: sample.id, rawBody, error: error.message });
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: error.message }));
+      return;
+    }
+    received.push({ case: sample.id, body });
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(body));
+  } else {
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(sample.body));
+  }
 });
 let created = false;
 try {
@@ -80,13 +103,66 @@ try {
                 },
               },
             },
+            ['/echo/' + sample.id]: {
+              post: {
+                requestBody: {
+                  required: true,
+                  content: {
+                    'application/json': { schema: { const: sample.body } },
+                  },
+                },
+                responses: {
+                  200: {
+                    description: 'Echo the received value',
+                    content: {
+                      'application/json': { schema: { const: sample.body } },
+                    },
+                  },
+                },
+              },
+              delete: {
+                requestBody: {
+                  required: true,
+                  content: {
+                    'application/json': { schema: { const: sample.body } },
+                  },
+                },
+                responses: {
+                  200: {
+                    description: 'Echo literal DELETE JSON',
+                    content: {
+                      'application/json': { schema: { const: sample.body } },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     ]);
-    const [operation] = await resolveApiOperations(catalog, [
-      catalog.operations[0].key,
-    ]);
+    const contracts = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const operation = contracts.find((entry) => entry.path === '/' + sample.id);
+    const echoOperation = contracts.find(
+      (entry) => entry.path === '/echo/' + sample.id && entry.method === 'POST',
+    );
+    const literalOperation = contracts.find(
+      (entry) =>
+        entry.path === '/echo/' + sample.id && entry.method === 'DELETE',
+    );
+    const literalMaterial = {
+      operation: literalOperation,
+      arguments: {
+        callId: 'literal',
+        values: { body: sample.body },
+        bindings: [],
+        unresolvedInputs: [],
+        requestMediaType: 'application/json',
+      },
+    };
     const material = {
       operation,
       arguments: {
@@ -96,30 +172,78 @@ try {
         unresolvedInputs: [],
       },
     };
+    const echoMaterial = {
+      operation: echoOperation,
+      arguments: {
+        callId: 'echo',
+        values: {},
+        unresolvedInputs: [],
+        requestMediaType: 'application/json',
+        bindings: [
+          {
+            kind: 'node-output',
+            sourceNodeId: 'source',
+            sourcePointer: '',
+            targetPointer: '/body',
+          },
+        ],
+      },
+    };
     const capability = createResponseCollectionCapability({
-      materials: [{ callId: 'source', operation }],
+      materials: [
+        { callId: 'source', operation },
+        { callId: 'echo', operation: echoOperation },
+        { callId: 'literal', operation: literalOperation },
+      ],
     });
     const result = compilePlannedN8nWorkflow({
       id: sample.id,
       name: 'JSON response ' + sample.id,
-      materials: [material],
+      materials: nativeBaseline
+        ? [material]
+        : [material, echoMaterial, literalMaterial],
       capabilities: [capability],
       apiNodes: [
         createHttpRequestNode({ ...material, baseUrl, position: [300, 0] }),
+        ...(!nativeBaseline
+          ? [
+              createHttpRequestNode({
+                ...echoMaterial,
+                baseUrl,
+                position: [960, 0],
+                apiNodeNames: { source: 'Request source' },
+                apiResponseContracts: { source: operation },
+              }),
+              createHttpRequestNode({
+                ...literalMaterial,
+                baseUrl,
+                position: [1620, 0],
+              }),
+            ]
+          : []),
       ],
       plan: {
         nativeNodes: [
           {
             id: 'observed-values',
             capability: capability.name,
-            parameters: { sourceNodeId: 'source', pointer: '' },
+            parameters: {
+              sourceNodeId: nativeBaseline ? 'source' : 'literal',
+              pointer: '',
+            },
           },
         ],
         starts: ['source'],
         gaps: [],
         edges: [
+          ...(!nativeBaseline
+            ? [
+                { from: 'source', output: 'main', to: 'echo', input: 'main' },
+                { from: 'echo', output: 'main', to: 'literal', input: 'main' },
+              ]
+            : []),
           {
-            from: 'source',
+            from: nativeBaseline ? 'source' : 'literal',
             output: 'main',
             to: 'observed-values',
             input: 'main',
@@ -127,10 +251,28 @@ try {
         ],
       },
     });
+    if (nativeBaseline) {
+      result.workflow.nodes = result.workflow.nodes.filter(
+        (node) => node.id !== 'source',
+      );
+      const transport = result.workflow.nodes.find(
+        (node) => node.id === 'source-transport',
+      );
+      transport.id = 'source';
+      transport.name = 'Request source';
+      transport.parameters.options.response.response = {
+        fullResponse: true,
+        responseFormat: 'autodetect',
+      };
+      result.workflow.connections.Start.main[0][0].node = 'Request source';
+      delete result.workflow.connections['Receive source'];
+    }
     workflows.push(result.workflow);
   }
   const directory = new URL(
-    '../.local-artifacts/json-response/',
+    nativeBaseline
+      ? '../.local-artifacts/json-response/native/'
+      : '../.local-artifacts/json-response/',
     import.meta.url,
   );
   await mkdir(directory, { recursive: true });
@@ -174,6 +316,22 @@ try {
     if (execution.status === 'success') {
       assert.deepEqual(collected.items, [sample.body]);
       assert.deepEqual(observed.body, sample.body);
+      if (!nativeBaseline) {
+        const requests = received.filter((entry) => entry.case === sample.id);
+        assert.equal(requests.length, 2);
+        for (const request of requests)
+          assert.deepEqual(request.body, sample.body);
+        assert.deepEqual(
+          execution.data.resultData.runData['Request echo'][0].data.main[0][0]
+            .json.body,
+          sample.body,
+        );
+        assert.deepEqual(
+          execution.data.resultData.runData['Request literal'][0].data
+            .main[0][0].json.body,
+          sample.body,
+        );
+      }
       preserved = true;
     }
     results.push({
@@ -193,6 +351,10 @@ try {
     target: 'isolated-local-contract-server',
     businessServiceCalls: 0,
     planner: 'deterministic-fixture-no-LLM',
+    mode: nativeBaseline
+      ? 'native-autodetect-baseline'
+      : 'oss-raw-response-decoding-and-bound-echo',
+    received,
     results,
   };
   await writeFile(
@@ -200,9 +362,15 @@ try {
     JSON.stringify(report, null, 2),
   );
   console.log(JSON.stringify(report));
-  // A known upstream defect remains a failed contract check, not a green test.
-  if (results.some((result) => result.status === 'failed'))
-    process.exitCode = 1;
+  if (nativeBaseline) {
+    // A known upstream defect remains a failed contract check, not a green test.
+    if (results.some((result) => result.status === 'failed'))
+      process.exitCode = 1;
+  } else
+    assert.ok(
+      results.every((result) => result.status === 'passed'),
+      'OSS raw response decoding failed',
+    );
 } finally {
   await new Promise((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),

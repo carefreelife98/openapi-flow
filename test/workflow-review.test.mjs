@@ -73,7 +73,7 @@ test('common workflow preserves HTTP nodes, both gap connections and a detached 
   );
   assert.equal(
     result.workflow.connections['확인 필요 · refund'].main[0][0].node,
-    'Request call-2',
+    'Receive call-2',
   );
   assert.deepEqual(input.plan.starts, ['call-1']);
   const code = result.workflow.nodes.find((node) => node.id === 'refund');

@@ -108,7 +108,7 @@ test('each supported scheme preserves optional deployment placeholders rather th
       },
       position: [300, 0],
     });
-    assert.equal(fragment.exit.config.parameters.genericAuthType, type);
+    assert.equal(fragment.entry.config.parameters.genericAuthType, type);
     assert.match(fragment.exit.config.notes, /REPLACE_ME/);
   }
 });

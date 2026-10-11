@@ -223,10 +223,10 @@ test('selection, OAS-typed argument generation, node compilation and assembly ca
     edges: [],
   });
   assert.equal(compiled.status, 'complete');
-  assert.equal(compiled.workflow.nodes.length, 2);
+  assert.equal(compiled.workflow.nodes.length, 3);
   assert.equal(
-    compiled.workflow.nodes.find((node) => node.id === 'create').parameters
-      .method,
+    compiled.workflow.nodes.find((node) => node.id === 'create-transport')
+      .parameters.method,
     'POST',
   );
 });

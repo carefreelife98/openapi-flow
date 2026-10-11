@@ -198,7 +198,11 @@ test('bound request templates materialize typed values and retain visible deploy
     },
   );
   assert.equal(result[0].json.url, 'https://replace_me.invalid/detail/a%2Fb');
-  assert.equal(bound.exit.config.parameters.url, '={{ $json.url }}');
+  assert.equal(
+    bound.nodes.find((node) => node.type === 'n8n-nodes-base.httpRequest')
+      .config.parameters.url,
+    '={{ $json.url }}',
+  );
 });
 
 function model() {

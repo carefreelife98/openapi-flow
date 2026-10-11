@@ -7,13 +7,14 @@ import type {
 } from '../../types/node-fragment.js';
 import { originFrom } from '../../legacy/workflow/request/base-url.js';
 import { resolveCredentialBinding } from '../../legacy/workflow/request/credential-binding.js';
-import { httpRequestNode } from '../../legacy/workflow/request/http-request-node.js';
 import { absoluteOperationPath } from '../../legacy/workflow/request/request-url.js';
 import { createBoundRequestFragment } from './bindings/create-bound-request-fragment.js';
 import { serializeHttpRequest } from './serialization/serialize-http-request.js';
+import { createSerializedHttpRequestNode } from './serialization/create-serialized-http-request-node.js';
 import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
 import { createRequestDeploymentNotes } from './deployment/create-request-deployment-notes.js';
 import { resolveHttpRequestAuthentication } from './authentication/resolve-http-request-authentication.js';
+import { createHttpResponseDecoder } from './response/create-http-response-decoder.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -79,10 +80,11 @@ export function createHttpRequestNode(
       args.values,
       args.requestMediaType,
     );
-    const request = httpRequestNode({
+    const request = createSerializedHttpRequestNode({
+      bodySource: 'literal',
       operation,
-      id: args.callId,
-      name: 'Request ' + args.callId,
+      id: `${args.callId}-transport`,
+      name: 'Receive ' + args.callId,
       position: input.position,
       url,
       body,
@@ -103,6 +105,7 @@ export function createHttpRequestNode(
       outputPorts: { main: 0 },
     };
   }
+  fragment = createHttpResponseDecoder({ fragment, method: contract.method });
   if (
     deployment.pendingFields.length ||
     authentication?.credentialRequirements

@@ -147,7 +147,7 @@ test('official graph uses public stages and exports credential references, not t
   );
   assert.equal(node.credentials.httpBearerAuth.id, 'test-credential');
   assert.match(node.parameters.url, /inventory\.example\.test/);
-  assert.equal(result.workflow.nodes.length, 2);
+  assert.equal(result.workflow.nodes.length, 3);
 });
 
 test('official graph refuses missing inputs without inventing values', async () => {

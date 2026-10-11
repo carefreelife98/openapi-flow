@@ -185,7 +185,7 @@ test('DAG example combines five API fragments with named native ports independen
   ).invoke(input);
   assert.equal(chat.calls(), 6);
   assert.equal(result.arguments.length, 5);
-  assert.equal(result.workflow.nodes.length, 10);
+  assert.equal(result.workflow.nodes.length, 15);
   assert.equal(result.contracts[0].path, paths.at(-1));
   const firstRequest = result.workflow.nodes.find(
     (item) =>

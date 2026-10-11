@@ -230,6 +230,10 @@ test('DAG compiles data producers, independent siblings and explicit join, regar
   );
   assert.equal(
     result.workflow.connections['Materialize summary'].main[0][0].node,
+    'Receive summary',
+  );
+  assert.equal(
+    result.workflow.connections['Receive summary'].main[0][0].node,
     'Request summary',
   );
   const broken = globalThis.structuredClone(graphPlan);

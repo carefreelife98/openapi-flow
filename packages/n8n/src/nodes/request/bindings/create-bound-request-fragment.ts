@@ -6,7 +6,7 @@ import type {
 } from '../../../types/node-fragment.js';
 import type { RequestMaterializationConfig } from '../../../types/request-materialization.js';
 import { javascriptJsonLiteral } from '../../../utils/javascript-json-literal.js';
-import { httpRequestNode } from '../../../legacy/workflow/request/http-request-node.js';
+import { createSerializedHttpRequestNode } from '../serialization/create-serialized-http-request-node.js';
 import { resolveCredentialBinding } from '../../../legacy/workflow/request/credential-binding.js';
 import { compileRequestValidator } from './compile-request-validator.js';
 import { resolveOutputBindingSources } from './resolve-output-binding-sources.js';
@@ -58,10 +58,11 @@ export function createBoundRequestFragment(
     throw new Error(
       `${config.operation.operationRef}: requestBody media type ${mediaType} has no n8n mapping`,
     );
-  const request = httpRequestNode({
+  const request = createSerializedHttpRequestNode({
+    bodySource: 'materialized',
     operation: config.operation,
-    id: config.arguments.callId,
-    name: 'Request ' + config.arguments.callId,
+    id: `${config.arguments.callId}-transport`,
+    name: 'Receive ' + config.arguments.callId,
     position: [input.position[0] + 220, input.position[1]],
     url: '={{ $json.url }}',
     headers: [],

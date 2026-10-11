@@ -227,7 +227,7 @@ for (const selection of ['application/json', null])
     );
     assert.equal(node.parameters.contentType, 'json');
     assert.equal(
-      JSON.parse(node.parameters.jsonBody).Query,
+      JSON.parse(JSON.parse(node.parameters.jsonBody)).Query,
       'query { item { id } }',
     );
   });
