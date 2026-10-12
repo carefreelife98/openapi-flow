@@ -24,6 +24,7 @@ export interface ApiCatalog {
   operations: ApiOperationCandidate[];
 }
 
+/** One scenario call instance; separate roles may reference the same operation key. */
 export interface SelectedApiOperation {
   key: ApiOperationKey;
   purpose: string;

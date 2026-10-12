@@ -5,23 +5,27 @@ export function createApiSelectionSchema(candidateIds: string[]) {
     throw new Error('operations must contain candidates for model selection');
   return z
     .object({
-      operations: z.array(
-        z
-          .object({
-            candidateId: z
-              .enum(candidateIds)
-              .describe(
-                'Exact identifier from supplied candidates; do not invent an API.',
-              ),
-            purpose: z
-              .string()
-              .min(1)
-              .describe(
-                'Why this API is needed for the user scenario. This is not an execution order.',
-              ),
-          })
-          .strict(),
-      ),
+      operations: z
+        .array(
+          z
+            .object({
+              candidateId: z
+                .enum(candidateIds)
+                .describe(
+                  'Exact identifier from supplied candidates; the same candidate may be used by multiple required call instances.',
+                ),
+              purpose: z
+                .string()
+                .min(1)
+                .describe(
+                  'The scenario role of this one API call instance. Describe separate required calls separately; this is not an execution order.',
+                ),
+            })
+            .strict(),
+        )
+        .describe(
+          'One entry per required API call instance, not a deduplicated API catalog. Repeat a candidateId only when the scenario requires separate calls to that API.',
+        ),
       gaps: z.array(
         z
           .object({

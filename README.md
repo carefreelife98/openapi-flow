@@ -35,6 +35,8 @@ The agreed order is **item-wise execution → contract/response validation → m
   - [ ] Exhaustive pointer/schema implication coverage and upstream n8n JSON-string response/task-runner error-display fixes.
   - [x] Preserve native schema roots during source validation and original resources in item/pointer projections, with local/recursive `$ref`, anchors and nested `$id` regressions.
 - [ ] **5. Multi-API/DAG quality evaluation (after 1 and 4):** evaluate the current public pipeline rather than legacy single-operation selection; measure operation choices, typed values, bindings, branches, iteration and gap reports across repeated runs. Keep contract-server execution distinct from real business API validation.
+  - [x] Public multi-API selection evaluator with frozen OAS hashes, repeated first attempts, document-aware call-instance scoring, separate scenario cohorts and explicit rejection/usage records. See the [evaluation example](examples/langgraph-workflow/README.md#다중-api-선택-품질-평가).
+  - [ ] Extend the baseline to typed arguments, bindings, native parameters/conditions, DAG connections, iteration and isolated n8n execution; review scenario answers and agree on release thresholds.
 - [ ] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
   - [ ] Resolve dependency audit findings in the current Scalar/undici and n8n SDK/axios chains with verified compatible upstream versions; do not force-downgrade or add unchecked overrides.
 
@@ -43,6 +45,8 @@ Webhook/callback work remains deferred. Supporting every n8n native node and aut
 For stage 5, freeze reviewed Honeypot/ICL OAS snapshots and scenario answers before measuring the model. Cover independent APIs, a five-API dependent DAG, native conditions/joins/assertions, array iteration and unavailable capabilities. Keep an unseen scenario group separate from prompt-development cases. Repeat the same model configuration and record first-proposal validity, API precision/recall, required input completion, binding/condition correctness, gap accuracy, execution outcomes, latency and token usage. Report numerator/denominator and rejected plans; do not hide failures with retries or fixture-specific corrections.
 
 Quality evaluation must call the current independent public planning functions with a real model, then compile and execute accepted plans against an isolated OAS contract server. Deterministic regression tests establish implementation behavior, not model quality. A contract-server pass does not prove real-service business behavior. Agree on release thresholds after measuring the baseline, rather than declaring completion from a single successful workflow.
+
+`npm run eval:selection` now evaluates `selectApiOperations` across a version-2 multi-document dataset. This first substage measures selection only, not end-to-end workflow quality. `npm run eval:selection:legacy` retains the version-1 single-operation evaluator for explicit legacy comparisons; do not use its results as evidence for the current public pipeline.
 
 ## Item-wise execution and source response contracts
 

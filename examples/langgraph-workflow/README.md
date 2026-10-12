@@ -6,9 +6,60 @@
 
 Manual Trigger로 시작해 OAS에 정의된 REST API를 호출하는 워크플로우에 집중한다. 여러 API 선택, 요청값 생성, 선행 응답 바인딩과 제공된 native 기능을 사용한 조건·합류가 대상이다. 여러 item의 반복 실행은 이 범위에 남아 있는 과제다.
 
-반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드의 중첩 배열 분리, 직렬 배치 반복과 배치 안의 완전한 API 분기·합류도 검증했다. 아래의 item별 REST API 호출과 합류 기능을 사용한다. 조건·필터를 포함한 배치 경로, 중첩 배치 범위, 실행 간 합류·누적 수집과 자동 배치 범위 계획은 루트 README의 TODO에 남겨 두었다.
+반복 실행의 기본 경로와 한 번의 실행 안에서 결과 수집·API 분기 합류를 구현했다. linked 모드의 중첩 배열 분리, 직렬 배치 반복과 배치 안의 완전한 API 분기·합류도 검증했다. 명시적인 IF 양쪽 경로의 재합류를 사용한 조건부 배치도 지원한다. item을 버리는 Filter의 배치 완료 처리, 중첩 배치 범위, 실행 간 합류·누적 수집과 자동 배치 범위 계획은 루트 README의 TODO에 남겨 두었다.
 
 Webhook·callback의 추가 구현은 보류한다. 수신 요청의 인증·스키마 검사와 callback 등록·응답 연결도 당장은 구현하지 않는다. 기존 inbound 추출·legacy 생성 코드는 유지하며, 이 개발 범위 때문에 표준에 맞는 OAS 문서를 거절하지 않는다.
+
+## 다중 API 선택 품질 평가
+
+`npm run eval:selection`은 현재 공개 함수 `selectApiOperations`를 평가한다. 여러 OAS의 카탈로그와 시나리오만 모델에 보내고, 정답은 응답을 받은 뒤 코드가 대조한다. 요청값·응답 바인딩·native 설정·DAG·n8n 실행은 이 평가에 포함하지 않는다. API 다섯 개를 정확히 선택해도 의존 연결까지 맞게 설계했다는 뜻은 아니다.
+
+공개 입력 예시는 [evaluation/api-selection.dataset.json](evaluation/api-selection.dataset.json)에 있다. 같은 공개 OAS를 두 문서 ID로 등록해 서비스 구분, 같은 API의 두 호출 인스턴스와 없는 API의 결손 탐지를 확인한다. 이 예시는 평가기 사용법을 위한 작은 입력이며 제품 품질을 대표하는 정답셋은 아니다. 실서비스 OAS·시나리오·응답 보고서는 비공개 경로에 보관한다.
+
+저장소 루트에서 모델을 호출하지 않고 입력을 검사한다.
+
+```sh
+OPENAPI_FLOW_EVAL_CASES=examples/langgraph-workflow/evaluation/api-selection.dataset.json \
+  npm run eval:selection -- --validate-only
+```
+
+`version: 2` 입력은 `repeats`, `sources`, `cases`를 갖는다. `sources`의 `specFile`은 입력 파일 기준 경로이며 `sha256`은 OAS 파일 원본 바이트의 SHA-256이다. 문서·사례 ID 중복, 해시 불일치, 표준에 맞지 않는 OAS와 카탈로그에 없는 정답 참조는 모델 호출 전에 실패한다. 이 해시는 평가 입력을 고정하기 위한 검사이며 OAS 수용 범위에 새 제한을 두지 않는다. OAS를 바꿨다면 정답을 검토한 뒤 해시도 명시적으로 갱신한다.
+
+각 사례에는 `id`, `cohort`, `scenario`, `expectedOperations`, `expectedGap`이 필요하다. 정답 API는 `{ documentId, operationRef }`로 지정한다. 선택 스키마의 각 항목은 API 종류가 아닌 필요한 호출 한 번을 뜻한다. 같은 API를 다른 역할로 두 번 호출해야 하면 모델도 두 항목을 반환하고 정답에도 같은 참조를 두 번 적는다. 코드는 이 항목을 중복 제거하거나 부족한 호출을 복제하지 않는다. 선택 목록의 순서는 실행 순서가 아니므로 채점하지 않으며, 호출 목적의 의미도 자동 채점하지 않는다. `expectedGap`은 결손이 있는지만 비교한다. 결손 설명의 정확성이나 요구 충족 정도는 사람이 별도로 검토한다.
+
+`development`는 프롬프트 개발에 사용하는 사례, `holdout`은 해당 실행 전까지 프롬프트 수정에 사용하지 않은 별도 사례 묶음이다. 이름만 붙였다고 미사용 상태가 보장되지는 않는다. 두 묶음을 분리하고 정답을 사람이 검토한 뒤 고정해야 한다. 평가 실패를 보고 프롬프트를 바꾸면 해당 사례를 더 이상 미사용 평가셋으로 취급하지 않는다.
+
+실제 측정에는 `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY`를 로컬 환경에 설정한다. 필요하면 `LLM_HEADERS_JSON`으로 모델 연결 헤더를 명시한다. 이 평가 CLI는 `.env`를 자동으로 읽지 않는다. 인증값을 명령 기록이나 평가 입력에 넣지 않는다. 결과는 아직 없는 새 파일 경로로 지정한다.
+
+```sh
+OPENAPI_FLOW_EVAL_CASES=examples/langgraph-workflow/evaluation/api-selection.dataset.json \
+OPENAPI_FLOW_EVAL_OUTPUT=.local-artifacts/selection-quality/public-pilot-01.json \
+  npm run eval:selection
+```
+
+CLI는 `temperature: 0`, `maxRetries: 0`, 호출당 60초 제한을 사용한다. 각 반복은 독립적인 첫 제안이며 재시도나 출력 보정은 하지 않는다. 같은 설정을 기록해 반복하더라도 모델 응답이 항상 같다는 보장은 없다. Chomsky의 토큰 발급 등 별도 인증은 호스트에서 처리하고 `SelectionEvaluationObserver`를 callbacks에 등록한 모델을 `runApiSelectionEvaluation`에 주입한다. 해당 함수도 답을 고치거나 재호출하지 않지만 모델 내부 재시도는 호출자가 꺼야 한다. 전달한 `modelSettings`는 호스트가 명시한 설정 기록이며 모델을 변경하지 않는다.
+
+보고서는 시도별 선택·채점·모델 응답 텍스트와 표준 `usage_metadata`를 보관한다. 요청 헤더, 토큰과 분류하지 않은 전송 오류 본문은 저장하지 않는다. 생성된 텍스트에도 입력에서 유래한 정보가 있을 수 있으므로 보고서를 공개하지 않는다. `*.attempts.jsonl`을 각 시도 직후 기록하고 최종 JSON에 전체·묶음별 요약을 남긴다. 기존 결과 파일을 덮어쓰지 않는다.
+
+채점 기준은 다음과 같다.
+
+- `exactMatch`: 문서별 API와 호출 개수가 모두 맞고 결손 유무도 맞은 시도 수 / 실행한 시도 수.
+- `firstProposalValidity`: 공개 함수가 수용한 첫 제안 수 / 실제 모델 호출이 시작된 시도 수. 수용은 정답이라는 뜻이 아니다.
+- `apiPrecision`: 맞게 고른 API 호출 수 / 고른 API 호출 수. `apiRecall`은 맞게 고른 API 호출 수 / 정답 API 호출 수. 같은 API의 반복 호출도 각각 센다.
+- `gapDetection`: 결손 유무가 맞은 시도 수 / 실행한 시도 수. 결손 설명의 의미를 평가하는 점수는 아니다.
+- `averageDurationMs`: 실행한 시도의 평균 소요 시간. 거절된 시도도 포함한다. 모든 관측 응답에 사용량이 있고 시작 후 응답 없이 끝난 호출이 없을 때만 토큰 합계를 기록한다. 측정할 수 없는 값이나 분모가 0인 비율은 `null`이다.
+
+스키마 거절도 실패로 기록하고 다음 독립 반복을 진행한다. HTTP 오류·연결 실패·시간 초과가 발생하면 그 시도를 기록한 뒤 실행을 중단하고 `complete: false`, `unattempted`로 남은 수를 표시한다. 미실행 사례를 성공이나 실패로 채점하지 않는다. `--validate-only`는 모델 품질 점수를 만들지 않는다. 측정 CLI는 중단·거절·오답이 있으면 종료 코드 1을 반환하지만, 제품 배포 기준은 평가 결과를 검토한 뒤 별도로 정한다.
+
+타입은 `src/types/api-selection-evaluation.ts`, 입력 스키마는 `src/schemas/api-selection-evaluation-schema.ts`, 준비·호출·채점·집계는 `src/evaluation/selection/`에 분리했다. 이전 단일 API 평가기는 `npm run eval:selection:legacy`로만 실행한다.
+
+### 2026-10-12 선택 단계의 초기 측정
+
+비공개 Honeypot·ICL OAS의 37개 후보를 사용해 12개 시나리오를 3회씩 실제 Chomsky 모델로 평가했다. 초기 완전 일치는 34/36회였으며, 두 실패는 같은 API의 시작·종료 호출을 목록 한 항목으로 합친 경우였다. 선택 코드와 스키마는 반복 후보를 허용했지만, 모델 안내에는 API 기능 선택과 호출 인스턴스 선택의 구분이 명확하지 않았다.
+
+프롬프트와 필드 설명에 항목별 호출·역할을 명시한 뒤 같은 사례의 재평가는 36/36회 일치했다. 코드의 호출 복제나 정답 주입은 없다. 초기 보고서와 실패 응답은 보존했다. 재평가 사례는 모두 `development`로 분류했으며, 미사용 평가셋의 품질 점수로 보고하지 않는다. 두 실행은 같은 모델 구성과 60초 제한, `maxRetries: 0`을 사용했다. 이 호스트는 temperature를 명시하지 않아 보고서의 값은 `null`이며, CLI의 `temperature: 0` 측정과 혼합하지 않는다.
+
+이 정답셋은 소스 검토를 바탕으로 구성한 초기 입력이며 사용자 검토가 끝난 대표 평가셋은 아니다. 스키마 거절은 두 실행 모두 0회였지만, 그것만으로 시나리오를 충족한다고 판단하지 않는다. 이번 실행은 API 목록·호출 개수와 결손 유무만 측정했다. 업무 API와 n8n은 호출하지 않았다. 새 미사용 사례와 요청값·바인딩·native 조건·DAG·실행 평가가 남아 있다.
 
 ## native 출력 바인딩
 

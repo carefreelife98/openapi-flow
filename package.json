@@ -14,8 +14,8 @@
     "build": "node scripts/clean-build.mjs && npm run build --workspace @openapi-flow/core && npm run build --workspace @openapi-flow/langchain && npm run build --workspace @openapi-flow/n8n && npm run build --workspace @openapi-flow/example-langgraph-workflow && tsc -p examples/legacy-generation/tsconfig.json",
     "typecheck": "npm run build && npm run typecheck --workspaces",
     "lint": "eslint packages/*/src test integration examples/*/src",
-    "format:check": "prettier --check packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
-    "format": "prettier --write packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
+    "format:check": "prettier --check packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
+    "format": "prettier --write packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
     "test": "npm run build && node --test test/legacy/*.test.mjs test/*.test.mjs",
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
@@ -37,7 +37,8 @@
     "test:deployment-template-local-n8n": "npm run build && node integration/deployment-template-local-n8n.mjs",
     "test:workflow-review-local-n8n": "npm run build && node integration/workflow-review-local-n8n.mjs",
     "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
-    "eval:selection": "npm run build && node integration/evaluate-operation-selection.mjs"
+    "eval:selection": "npm run build && node examples/langgraph-workflow/dist/cli/evaluate-api-selection.js",
+    "eval:selection:legacy": "npm run build && node integration/evaluate-operation-selection.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

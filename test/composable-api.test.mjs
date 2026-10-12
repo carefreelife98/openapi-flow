@@ -231,6 +231,47 @@ test('selection, OAS-typed argument generation, node compilation and assembly ca
   );
 });
 
+test('discovery selection preserves separate roles of the same API without deduplicating call instances', async () => {
+  const { catalog, operations } = await contracts();
+  const selected = await selectApiOperations({
+    operations,
+    scenario:
+      'Read the same item before and after the test using separate calls',
+    model: modelReturning(
+      {
+        operations: [
+          { candidateId: 'candidate-2', purpose: 'Read before the test' },
+          { candidateId: 'candidate-2', purpose: 'Read after the test' },
+        ],
+        gaps: [],
+      },
+      (schema) => {
+        const wire = toJsonSchema(schema);
+        assert.match(
+          wire.properties.operations.description,
+          /One entry per required API call instance/,
+        );
+        assert.match(
+          wire.properties.operations.items.properties.purpose.description,
+          /this one API call instance/,
+        );
+      },
+    ),
+  });
+  assert.equal(selected.operations.length, 2);
+  assert.deepEqual(selected.operations[0].key, selected.operations[1].key);
+  assert.notEqual(
+    selected.operations[0].purpose,
+    selected.operations[1].purpose,
+  );
+  const resolved = await resolveApiOperations(
+    catalog,
+    selected.operations.map((operation) => operation.key),
+  );
+  assert.equal(resolved.length, 2);
+  assert.deepEqual(resolved[0].key, resolved[1].key);
+});
+
 test('missing inputs remain visible; type errors and OAS constraints fail at the boundary', async () => {
   const {
     contracts: [operation],

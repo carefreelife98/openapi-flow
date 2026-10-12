@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "repeats": 3,
+  "sources": [
+    {
+      "id": "inventory-east",
+      "specFile": "../specs/inventory.openapi.json",
+      "sha256": "007f0fcf11a82fe71fba0196a9a96f611cf0f8d52b0c751ba92f16e9c27af2f0"
+    },
+    {
+      "id": "inventory-west",
+      "specFile": "../specs/inventory.openapi.json",
+      "sha256": "007f0fcf11a82fe71fba0196a9a96f611cf0f8d52b0c751ba92f16e9c27af2f0"
+    }
+  ],
+  "cases": [
+    {
+      "id": "east-details-control",
+      "cohort": "development",
+      "scenario": "Read complete product details from inventory-east only.",
+      "expectedOperations": [
+        {
+          "documentId": "inventory-east",
+          "operationRef": "#/paths/~1products~1{id}/get"
+        }
+      ],
+      "expectedGap": false
+    },
+    {
+      "id": "two-service-price",
+      "cohort": "holdout",
+      "scenario": "Read the product price once from inventory-east and once from inventory-west. No complete product details are needed.",
+      "expectedOperations": [
+        {
+          "documentId": "inventory-east",
+          "operationRef": "#/paths/~1products~1{id}~1price/get"
+        },
+        {
+          "documentId": "inventory-west",
+          "operationRef": "#/paths/~1products~1{id}~1price/get"
+        }
+      ],
+      "expectedGap": false
+    },
+    {
+      "id": "same-api-two-roles",
+      "cohort": "holdout",
+      "scenario": "Read the product price from inventory-east twice: once at the beginning and once at the end for comparison. No complete product details are needed.",
+      "expectedOperations": [
+        {
+          "documentId": "inventory-east",
+          "operationRef": "#/paths/~1products~1{id}~1price/get"
+        },
+        {
+          "documentId": "inventory-east",
+          "operationRef": "#/paths/~1products~1{id}~1price/get"
+        }
+      ],
+      "expectedGap": false
+    },
+    {
+      "id": "missing-refund",
+      "cohort": "holdout",
+      "scenario": "Refund a paid order. Do not select unrelated inventory read APIs as a refund substitute.",
+      "expectedOperations": [],
+      "expectedGap": true
+    }
+  ]
+}
