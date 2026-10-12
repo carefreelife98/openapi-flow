@@ -50,7 +50,7 @@ export function createApiBindingPlanSchema(
             }),
           )
           .describe(
-            'Only scenario-requested response-to-request dependencies. Empty for independently supplied literal inputs.',
+            'Only scenario-requested response-to-request dependencies. Return [] when no dependency is requested. Independent literals, supplied or missing, are handled by the later argument-generation stage and are not binding gaps.',
           ),
       }),
     ),
@@ -59,18 +59,25 @@ export function createApiBindingPlanSchema(
         z.strictObject({
           callId: z
             .enum(ids)
-            .describe('Exact API whose request cannot be prepared.'),
+            .describe(
+              'Exact selected API whose explicitly requested data dependency cannot be represented. An independent literal input does not make this call blocked.',
+            ),
           targetPointer: z
             .string()
             .min(1)
             .describe(
               'RFC 6901 pointer to the affected request input declared by this API OAS.',
             ),
-          description: z.string().min(1),
+          description: z
+            .string()
+            .min(1)
+            .describe(
+              'Explain the requested dependency and why its producer, source contract or required transformation prevents a binding. Never describe a successful no-binding decision or a missing independent literal here.',
+            ),
         }),
       )
       .describe(
-        'Only API request-input requirements that need unavailable data or transformations. Control flow and response assertions belong to the later graph planner, not these gaps. Do not invent values or APIs.',
+        'Blocking failures of explicitly requested response-to-request dependencies only. Return [] if there are no such failures, including when all inputs are independent literals. Not informational notes, missing independent literals, missing API capabilities, control flow or response assertions. Those belong to other planning stages. Do not invent values or APIs.',
       ),
   });
 }

@@ -7,6 +7,9 @@ import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
 import { createReviewableWorkflowGraphSchema } from '../packages/langchain/dist/schemas/reviewable-workflow-graph-schema.js';
 import { completeReviewableWorkflowGraphProposal } from '../packages/langchain/dist/workflow/complete-reviewable-workflow-graph-proposal.js';
 import { createApiSelectionSchema } from '../packages/langchain/dist/schemas/api-selection-schema.js';
+import { createApiBindingPlanSchema } from '../packages/langchain/dist/schemas/api-binding-plan-schema.js';
+import { createNativeNodePlanSchema } from '../packages/langchain/dist/schemas/native-node-plan-schema.js';
+import { materials, bindingPlan } from './fixtures/request-binding-fixture.mjs';
 
 const require = createRequire(
   new URL('../packages/n8n/package.json', import.meta.url),
@@ -105,4 +108,69 @@ test('discovery selection cannot decide detailed contract insufficiency', () => 
     }).success,
     false,
   );
+});
+
+test('binding wire schema describes dependency failures separately from literal generation', () => {
+  const schema = createApiBindingPlanSchema(materials);
+  const wire = toJsonSchema(schema);
+  assert.equal(validator.validateSchema(wire), true);
+  assert.match(wire.properties.gaps.description, /Blocking failures/);
+  assert.match(wire.properties.gaps.description, /Return \[\]/);
+  assert.match(
+    wire.properties.gaps.items.properties.description.description,
+    /Never describe a successful no-binding decision/,
+  );
+  assert.match(
+    wire.properties.calls.items.properties.bindings.description,
+    /Independent literals, supplied or missing/,
+  );
+  assert.deepEqual(schema.parse(bindingPlan), bindingPlan);
+  const noDependencies = {
+    calls: materials.map((item) => ({ callId: item.callId, bindings: [] })),
+    gaps: [],
+  };
+  assert.deepEqual(schema.parse(noDependencies), noDependencies);
+  const unsupported = {
+    ...noDependencies,
+    gaps: [
+      {
+        callId: materials[1].callId,
+        targetPointer: '/path/id',
+        description: 'The requested producer does not declare the required ID.',
+      },
+    ],
+  };
+  assert.deepEqual(schema.parse(unsupported), unsupported);
+});
+
+test('native wire schema excludes later API implementation tasks from gap ownership', () => {
+  const schema = createNativeNodePlanSchema(createN8nNativeCapabilities());
+  const wire = toJsonSchema(schema);
+  assert.equal(validator.validateSchema(wire), true);
+  assert.match(
+    wire.properties.gaps.description,
+    /Blocking unmet native behavior/,
+  );
+  assert.match(
+    wire.properties.gaps.description,
+    /Selected OAS API calls are implemented separately/,
+  );
+  assert.match(
+    wire.properties.gaps.items.properties.description.description,
+    /Never a reminder/,
+  );
+  assert.deepEqual(schema.parse({ nativeNodes: [], gaps: [] }), {
+    nativeNodes: [],
+    gaps: [],
+  });
+  const unsupported = {
+    nativeNodes: [],
+    gaps: [
+      {
+        description:
+          'The requested native behavior has no supplied implementation.',
+      },
+    ],
+  };
+  assert.deepEqual(schema.parse(unsupported), unsupported);
 });

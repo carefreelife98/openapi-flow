@@ -26,9 +26,18 @@ export function createNativeNodePlanSchema(
         'Only new instances required by the scenario, with values following the supplied implementation schema. No ports, output schemas, code or n8n JSON.',
       ),
     gaps: z
-      .array(z.strictObject({ description: z.string().min(1) }))
+      .array(
+        z.strictObject({
+          description: z
+            .string()
+            .min(1)
+            .describe(
+              'Describe a requested native behavior that cannot be represented and the missing capability or contract. Never a reminder to generate API requests, bindings or connections later.',
+            ),
+        }),
+      )
       .describe(
-        'Explicit requirements that supplied capabilities and contracts cannot implement. Never replace missing data with an invented value or a different capability.',
+        'Blocking unmet native behavior only. Return [] when requested native behavior is representable. Selected OAS API calls are implemented separately; their bindings, request arguments and connections belong to later stages, not these gaps. Never invent missing data or substitute a capability.',
       ),
   });
 }

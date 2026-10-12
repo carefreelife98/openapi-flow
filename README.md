@@ -37,7 +37,8 @@ The agreed order is **item-wise execution → contract/response validation → m
 - [ ] **5. Multi-API/DAG quality evaluation (after 1 and 4):** evaluate the current public pipeline rather than legacy single-operation selection; measure operation choices, typed values, bindings, branches, iteration and gap reports across repeated runs. Keep contract-server execution distinct from real business API validation.
   - [x] Public multi-API selection evaluator with frozen OAS hashes, repeated first attempts, document-aware call-instance scoring, separate scenario cohorts and explicit rejection/usage records. See the [evaluation example](examples/langgraph-workflow/README.md#다중-api-선택-품질-평가).
   - [x] Initial known-case workflow pilot using the current orchestrated factory, OAS-typed arguments, runtime response bindings, native conditions and isolated n8n execution. This is development regression coverage, not unseen-scenario reliability; one false binding-gap report remains recorded.
-  - [ ] Extend the baseline to typed arguments, bindings, native parameters/conditions, DAG connections, iteration and isolated n8n execution; review scenario answers and agree on release thresholds.
+  - [x] Clarify binding/native gap ownership in prompts and wire-schema descriptions without deleting reported gaps. A separate new-wording workflow pilot scored 10/12 with original failures preserved; contracts and fixtures were reused, so this is not new-service holdout reliability.
+  - [ ] Extend evaluation to new contracts, multi-service execution, iteration and native-to-API producers; add detailed stage metrics, review scenario answers and agree on release thresholds. Response-pointer choice and single/bulk selection mismatches remain recorded.
 - [ ] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
   - [ ] Resolve dependency audit findings in the current Scalar/undici and n8n SDK/axios chains with verified compatible upstream versions; do not force-downgrade or add unchecked overrides.
 
@@ -199,7 +200,11 @@ const contracts = await resolveApiOperations(
 // The host chooses a specific call and its explicit DAG context.
 const operation = contracts[0];
 if (!operation) throw new Error('Selection returned no operation');
-const requestMediaType = await selectApiRequestMediaType({ operation, scenario, model });
+const requestMediaType = await selectApiRequestMediaType({
+  operation,
+  scenario,
+  model,
+});
 const args = await generateApiArguments({
   callId: 'request-1',
   operation,

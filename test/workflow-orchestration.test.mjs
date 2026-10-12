@@ -165,6 +165,48 @@ test('native-only orchestration derives implementation ports then compiles throu
   ]);
 });
 
+test('native planning states deferred API ownership and preserves genuine native gaps', async () => {
+  const output = {
+    nativeNodes: [],
+    gaps: [
+      {
+        description:
+          'No supplied implementation for the requested native behavior.',
+      },
+    ],
+  };
+  const chat = {
+    withStructuredOutput() {
+      return {
+        async invoke(messages) {
+          assert.match(
+            messages[0].content,
+            /do not require a native HTTP capability/,
+          );
+          assert.match(
+            messages[0].content,
+            /not implementation notes or reminders/,
+          );
+          return output;
+        },
+      };
+    },
+  };
+  const result = await planNativeNodes({
+    planId: 'native-ownership',
+    scenario: 'Perform a native behavior without a supplied implementation.',
+    capabilities: [contextCapability],
+    model: chat,
+  });
+  assert.deepEqual(result.gaps, [
+    {
+      id: 'native-ownership-gap-1',
+      stage: 'workflow-graph',
+      description: output.gaps[0].description,
+    },
+  ]);
+});
+
 test('supplied native instance and fixed edge remain unchanged; schema requests no unavailable fields', async () => {
   const original = globalThis.structuredClone(nativeNodes);
   const chat = model(

@@ -102,6 +102,55 @@ test('fully bound requests have no literal values for the model to decide', asyn
   assert.deepEqual(args.unresolvedInputs, []);
   assert.deepEqual(args.bindings, detail.arguments.bindings);
 });
+
+test('binding planning leaves independent literals to argument generation without repairing gaps', async () => {
+  const independentPlan = {
+    calls: materials.map((item) => ({ callId: item.callId, bindings: [] })),
+    gaps: [],
+  };
+  const model = {
+    withStructuredOutput() {
+      return {
+        async invoke(messages) {
+          assert.match(
+            messages[0].content,
+            /later API argument-generation stage/,
+          );
+          assert.match(messages[0].content, /successful decision, never a gap/);
+          return independentPlan;
+        },
+      };
+    },
+  };
+  assert.deepEqual(
+    await planApiBindings({
+      materials,
+      scenario:
+        'Use independent values. Report the unrelated missing refund API separately.',
+      model,
+    }),
+    independentPlan,
+  );
+  const reportedGap = {
+    ...independentPlan,
+    gaps: [
+      {
+        callId: 'detail',
+        targetPointer: '/path/id',
+        description: 'Required producer is unavailable',
+      },
+    ],
+  };
+  model.withStructuredOutput = () => ({ invoke: async () => reportedGap });
+  assert.deepEqual(
+    await planApiBindings({
+      materials,
+      scenario: 'Use the ID from an unavailable producer.',
+      model,
+    }),
+    reportedGap,
+  );
+});
 test('binding validation rejects missing identities/fields, overlap, incompatible types, self references and cycles', () => {
   validateApiBindingPlan({ materials, plan: bindingPlan });
   for (const [mutate, error] of [
