@@ -26,6 +26,9 @@ export { createReviewableNodeContracts } from './workflow/create-reviewable-node
 export { validateWorkflowEdges } from './workflow/validate-workflow-edges.js';
 export { validateNativeOutputContracts } from './bindings/validate-native-output-contracts.js';
 export { parseNativeNodeParameters } from './workflow/parse-native-node-parameters.js';
+export { createWorkflowPlanningCapabilities } from './workflow/create-workflow-planning-capabilities.js';
+export { validateNativeApiResponseReferences } from './workflow/validate-native-api-response-references.js';
+export type * from './types/workflow-capability-planning.js';
 export { validateApiBindingPlan } from './bindings/validate-api-binding-plan.js';
 export { materializeApiArguments } from './bindings/materialize-api-arguments.js';
 export { createApiRequestSchema } from './schemas/create-api-request-schema.js';

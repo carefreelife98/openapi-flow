@@ -1,8 +1,11 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import {
   createReviewableWorkflowGraphPlan,
   createNativeOutputContracts,
+  createWorkflowPlanningCapabilities,
+  validateNativeApiResponseReferences,
 } from '@openapi-flow/core';
 import type {
   ReviewableWorkflowGraphPlan,
@@ -26,6 +29,18 @@ export async function planReviewableWorkflowGraph(
 ): Promise<ReviewableWorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
   const preparedNativeNodes = input.preparedNativeNodes ?? [];
+  const apiCallIds = input.materials.map((material) =>
+    material.status === 'ready' ? material.arguments.callId : material.callId,
+  );
+  const planningCapabilities = createWorkflowPlanningCapabilities({
+    capabilities: input.capabilities,
+    apiCallIds,
+  });
+  validateNativeApiResponseReferences({
+    nativeNodes: preparedNativeNodes,
+    capabilities: input.capabilities,
+    apiCallIds,
+  });
   const nativeOutputs = createNativeOutputContracts({
     nativeNodes: preparedNativeNodes,
     capabilities: input.capabilities,
@@ -34,7 +49,7 @@ export async function planReviewableWorkflowGraph(
     .filter((item) => item.status === 'ready')
     .map((item) => item.arguments.callId);
   const schema = createReviewableWorkflowGraphSchema(
-    input.capabilities,
+    planningCapabilities,
     readyIds,
   );
   const output: ReviewableWorkflowGraphOutput = await input.model
@@ -73,7 +88,7 @@ export async function planReviewableWorkflowGraph(
             inputPorts: ['main'],
             outputPorts: ['main'],
           })),
-          capabilities: input.capabilities.map((capability) => ({
+          capabilities: planningCapabilities.map((capability) => ({
             name: capability.name,
             description: capability.description,
             parametersSchema: z.toJSONSchema(capability.parametersSchema),
@@ -85,8 +100,17 @@ export async function planReviewableWorkflowGraph(
     ]);
   let proposal: ReviewableWorkflowGraphProposal;
   try {
+    const parsed = parseStructuredOutput(
+      schema,
+      output,
+      'model reviewable workflow graph',
+    );
+    if (!isDeepStrictEqual(parsed, output))
+      throw new Error(
+        'native model schema must validate without defaults, coercion or transformation',
+      );
     proposal = completeReviewableWorkflowGraphProposal(
-      parseStructuredOutput(schema, output, 'model reviewable workflow graph'),
+      parsed,
       input.capabilities.length,
       readyIds.length,
     );

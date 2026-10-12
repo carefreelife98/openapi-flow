@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiCallArguments, JsonValueObject } from './api-arguments.js';
 import type { BindingSchema } from './api-bindings.js';
+import type { WorkflowCapabilityPlanningContext } from './workflow-capability-planning.js';
 
 export interface WorkflowApiMaterial {
   operation: ApiOperationContract;
@@ -29,6 +30,10 @@ export interface WorkflowCapability {
   name: string;
   description: string;
   parametersSchema: z.ZodType<JsonValueObject>;
+  /** Optional generation contract specialized by the capability, never by field-name guessing. */
+  createPlanningParametersSchema?: (
+    context: WorkflowCapabilityPlanningContext,
+  ) => z.ZodType<JsonValueObject>;
   inputPorts: (parameters: JsonValueObject) => string[];
   outputPorts: (parameters: JsonValueObject) => string[];
   responseReferences: (

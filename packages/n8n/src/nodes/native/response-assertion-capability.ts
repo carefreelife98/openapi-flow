@@ -4,6 +4,7 @@ import type {
   NativeItemExecutionOptions,
 } from '../../types/native-capability.js';
 import { assertionParametersSchema } from '../../schemas/native-capability-schemas.js';
+import { createAssertionPlanningParametersSchema } from '../../schemas/create-native-comparison-planning-schema.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { responseCheckCode } from './response-check-code.js';
@@ -17,6 +18,7 @@ export function createResponseAssertionCapability(
     description:
       'n8n Code: library-generated JSON comparisons. main input/output. Returns pass/assertionCount on success and can be the final node; no separate success/end node is needed. Failed checks throw their message and fail the workflow, without a failure output port. Join branches before comparing their responses.',
     parametersSchema: assertionParametersSchema,
+    createPlanningParametersSchema: createAssertionPlanningParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
     responseReferences: (parameters) =>

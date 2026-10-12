@@ -1,7 +1,10 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { isDeepStrictEqual } from 'node:util';
 import {
   createWorkflowGraphPlan,
   createNativeOutputContracts,
+  createWorkflowPlanningCapabilities,
+  validateNativeApiResponseReferences,
 } from '@openapi-flow/core';
 import type { WorkflowGraphPlan } from '@openapi-flow/core';
 import { z } from 'zod';
@@ -21,8 +24,20 @@ export async function planWorkflowGraph(
   input: PlanWorkflowGraphInput,
 ): Promise<WorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
-  const schema = createWorkflowGraphProposalSchema(input.capabilities);
   const preparedNativeNodes = input.preparedNativeNodes ?? [];
+  const apiCallIds = input.materials.map(
+    (material) => material.arguments.callId,
+  );
+  const planningCapabilities = createWorkflowPlanningCapabilities({
+    capabilities: input.capabilities,
+    apiCallIds,
+  });
+  const schema = createWorkflowGraphProposalSchema(planningCapabilities);
+  validateNativeApiResponseReferences({
+    nativeNodes: preparedNativeNodes,
+    capabilities: input.capabilities,
+    apiCallIds,
+  });
   const nativeOutputs = createNativeOutputContracts({
     nativeNodes: preparedNativeNodes,
     capabilities: input.capabilities,
@@ -65,7 +80,7 @@ export async function planWorkflowGraph(
             inputPorts: ['main'],
             outputPorts: ['main'],
           })),
-          capabilities: input.capabilities.map((capability) => ({
+          capabilities: planningCapabilities.map((capability) => ({
             name: capability.name,
             description: capability.description,
             parametersSchema: z.toJSONSchema(capability.parametersSchema),
@@ -78,6 +93,10 @@ export async function planWorkflowGraph(
   let proposal: WorkflowGraphOutput;
   try {
     proposal = parseStructuredOutput(schema, output, 'model workflow graph');
+    if (!isDeepStrictEqual(proposal, output))
+      throw new Error(
+        'native model schema must validate without defaults, coercion or transformation',
+      );
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new WorkflowGraphPlanningError(

@@ -4,6 +4,7 @@ import {
   validateWorkflowEdges,
   validateApiArguments,
   validateApiBindingAssignments,
+  validateNativeApiResponseReferences,
 } from '@openapi-flow/core';
 import type { ReviewableWorkflowGraphPlan } from '@openapi-flow/core';
 import type {
@@ -20,6 +21,13 @@ export function prepareWorkflowConnectionMaterials(
   const nativeNodes = input.nativeNodes ?? [];
   const gaps = input.gaps ?? [];
   const edges = input.edges ?? [];
+  validateNativeApiResponseReferences({
+    nativeNodes,
+    capabilities,
+    apiCallIds: materials.map((material) =>
+      material.status === 'ready' ? material.arguments.callId : material.callId,
+    ),
+  });
   const nativeOutputs = createNativeOutputContracts({
     nativeNodes,
     capabilities,

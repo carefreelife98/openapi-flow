@@ -119,6 +119,8 @@ const result = await graph.invoke({
 
 흐름은 OAS 카탈로그 → API 선택 → OAS 계약 조회 → 본문 형식 → native 선택·설정 → 코드의 출력 계약 도출 → API 바인딩·남은 요청값 → 연결 계획 → 코드 검사·공식 SDK JSON이다. native 인스턴스가 바인딩 전에 존재하므로 새 생산자의 실제 출력을 API 입력으로 지정할 수 있다. 전체 입력이 바인딩되면 literal 값 생성 모델 호출은 없다.
 
+native IF·응답 검사 계획은 이번에 선택된 API 호출 ID만 참조하도록 동적 enum을 전달한다. API 종류가 같아도 호출 인스턴스가 다르면 각각 선택할 수 있다. API 재료가 없으면 응답 참조는 제공하지 않되 literal 비교와 다른 native 기능은 유지한다. 코드도 capability가 선언한 응답 참조를 검사하므로 잘못된 ID는 바인딩·연결 계획 전에 거절한다. 사용자 정의 capability는 `createPlanningParametersSchema({ apiCallIds })` hook으로 자기 출력 계약을 구체화할 수 있으며, hook이 없으면 기존 스키마를 바꾸지 않는다. 준비된 노드의 잘못된 응답 참조는 모델 호출 전에 오류다. ID 허용 목록은 응답 필드 존재·비교 의미·선행 실행을 보장하지 않으며 기존 OAS·DAG·실행 경로 검사는 유지한다.
+
 각 OSS 함수도 따로 사용할 수 있다. `planNativeNodes`는 선택된 API 계약과 등록된 native 스키마에서 인스턴스·설정만 제안한다. 포트·출력 계약·결손 ID는 코드가 도출한다. `planWorkflowConnections`는 확정된 재료의 연결·결손만 제안하고 API 값이나 native 설정을 다시 생성하지 않는다. `orchestrateWorkflow`는 준비된 API 입력을 대상으로 이 두 함수를 조합하며 `materials`, `capabilities`, `preparedNativeNodes`, `gaps`, `edges`를 각각 생략할 수 있다. 주지 않은 기능·API를 선택하지 않고 기본 registry도 넣지 않는다. 준비된 native 노드가 있으면 그 구현 registry는 필요하다.
 
 연결 단계에는 확정된 native 노드의 실제 조건·연산자·설정과 구현이 정의한 포트를 함께 전달한다. IF가 `code != 0`을 검사하면 true는 오류 경로이며, `code == 0`을 검사하면 true가 성공 경로다. 노드 이름이나 포트 이름만 보고 성공 분기를 추측하지 않는다. 이 설정은 읽기 전용 입력 문맥이며 연결 응답 스키마에는 native 파라미터가 없다. LLM이 만든 native 노드도 다음 단계에서는 확정된 재료로 다루며, 사용자가 미리 준비한 노드가 있어야 한다는 뜻은 아니다.

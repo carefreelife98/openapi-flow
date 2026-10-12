@@ -1,7 +1,11 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
-import { createNativeOutputContracts } from '@openapi-flow/core';
+import {
+  createNativeOutputContracts,
+  createWorkflowPlanningCapabilities,
+  validateNativeApiResponseReferences,
+} from '@openapi-flow/core';
 import type {
   NativeNodePlan,
   NativeNodeProposal,
@@ -32,9 +36,18 @@ export async function planNativeNodes(
     new Set(existingIds).size !== existingIds.length
   )
     throw new Error('native planning materials require unique non-empty IDs');
+  validateNativeApiResponseReferences({
+    nativeNodes: prepared,
+    capabilities,
+    apiCallIds: apiIds,
+  });
   // No registered choice means no native-selection model call, not an inferred registry.
   if (!capabilities.length) return { nativeNodes: [], gaps: [] };
-  const schema = createNativeNodePlanSchema(capabilities);
+  const planningCapabilities = createWorkflowPlanningCapabilities({
+    capabilities,
+    apiCallIds: apiIds,
+  });
+  const schema = createNativeNodePlanSchema(planningCapabilities);
   const output: NativeNodeProposal = await input.model
     .withStructuredOutput<NativeNodeProposal>(z.toJSONSchema(schema), {
       name: 'plan_native_nodes',
@@ -58,7 +71,7 @@ export async function planNativeNodes(
             prepared,
             capabilities,
           ),
-          capabilities: capabilities.map((capability) => ({
+          capabilities: planningCapabilities.map((capability) => ({
             name: capability.name,
             description: capability.description,
             parametersSchema: z.toJSONSchema(capability.parametersSchema),
@@ -85,6 +98,11 @@ export async function planNativeNodes(
     if (proposal.nativeNodes.some((node) => apiIds.includes(node.id)))
       throw new Error('native node plan contains an API callId');
     createNativeOutputContracts({ nativeNodes: nodes, capabilities });
+    validateNativeApiResponseReferences({
+      nativeNodes: nodes,
+      capabilities,
+      apiCallIds: apiIds,
+    });
     const gaps = proposal.gaps.map((gap, index) => ({
       id: `${input.planId}-gap-${index + 1}`,
       stage: 'workflow-graph' as const,

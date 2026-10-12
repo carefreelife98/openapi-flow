@@ -4,6 +4,7 @@ import type {
   NativeItemExecutionOptions,
 } from '../../types/native-capability.js';
 import { ifParametersSchema } from '../../schemas/native-capability-schemas.js';
+import { createIfPlanningParametersSchema } from '../../schemas/create-native-comparison-planning-schema.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
 import { conditionExpression } from './response-check-code.js';
@@ -18,6 +19,7 @@ export function createIfCapability(
     description:
       'n8n IF: main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions.',
     parametersSchema: ifParametersSchema,
+    createPlanningParametersSchema: createIfPlanningParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['true', 'false'],
     responseReferences: (parameters) =>
