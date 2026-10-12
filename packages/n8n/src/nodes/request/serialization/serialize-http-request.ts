@@ -68,6 +68,7 @@ export function serializeHttpRequest(
     throw new Error(
       `${operation.operationRef}: requestMediaType must select a declared body media type`,
     );
+  headers.push({ name: 'Content-Type', value: mediaType });
   if (
     values.body !== null &&
     typeof values.body === 'object' &&

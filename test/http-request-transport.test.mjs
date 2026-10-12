@@ -1,6 +1,64 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSerializedHttpRequestNode } from '../packages/n8n/dist/nodes/request/serialization/create-serialized-http-request-node.js';
+import { createApiCatalog, resolveApiOperations } from '@openapi-flow/core';
+import { createHttpRequestNode } from '@openapi-flow/n8n';
+
+for (const mediaType of [
+  'application/json',
+  'application/x-www-form-urlencoded',
+]) {
+  test(`literal transport sends the selected OAS body media type ${mediaType} explicitly`, async () => {
+    const catalog = await createApiCatalog([
+      {
+        id: 'echo',
+        spec: {
+          openapi: '3.1.0',
+          info: { title: 'Request media fixture', version: '1' },
+          paths: {
+            '/echo': {
+              post: {
+                requestBody: {
+                  required: true,
+                  content: {
+                    [mediaType]: {
+                      schema: {
+                        type: 'object',
+                        required: ['name'],
+                        properties: { name: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+                responses: { 200: { description: 'Echo' } },
+              },
+            },
+          },
+        },
+      },
+    ]);
+    const [operation] = await resolveApiOperations(catalog, [
+      catalog.operations[0].key,
+    ]);
+    const fragment = createHttpRequestNode({
+      operation,
+      arguments: {
+        callId: 'echo',
+        values: { body: { name: 'A B' } },
+        bindings: [],
+        unresolvedInputs: [],
+        requestMediaType: mediaType,
+      },
+      baseUrl: 'https://example.test',
+      position: [0, 0],
+    });
+    const transport = fragment.entry.config.parameters;
+    assert.equal(transport.sendHeaders, true);
+    assert.deepEqual(transport.headerParameters.parameters, [
+      { name: 'Content-Type', value: mediaType },
+    ]);
+  });
+}
 
 for (const method of ['POST', 'DELETE']) {
   for (const body of [

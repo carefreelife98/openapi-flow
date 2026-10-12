@@ -20,6 +20,7 @@ import {
   requestFragment,
   plan as boundPlan,
 } from './fixtures/native-output-binding-fixture.mjs';
+import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
 
 function model(outputs, inspect = () => {}) {
   const calls = [];
@@ -54,6 +55,40 @@ const literalApi = {
     bindings: [],
   },
 };
+
+test('connection planning receives the actual inverted IF condition without adding native parameters to its output schema', async () => {
+  const condition = {
+    id: 'not-success',
+    capability: 'if',
+    parameters: {
+      combinator: 'and',
+      conditions: [
+        {
+          left: { source: 'literal', value: 0 },
+          operator: 'notEquals',
+          right: { source: 'literal', value: 0 },
+        },
+      ],
+    },
+  };
+  const chat = model(
+    { plan_workflow_connections: connections() },
+    (name, input, wire) => {
+      assert.equal(name, 'plan_workflow_connections');
+      assert.deepEqual(input.nativeNodes[0].parameters, condition.parameters);
+      assert.deepEqual(input.nativeNodes[0].outputPorts, ['true', 'false']);
+      assert.equal(wire.properties.nativeNodes, undefined);
+      assert.equal(wire.properties.parameters, undefined);
+    },
+  );
+  const plan = await planWorkflowConnections({
+    scenario: 'Route the actual IF condition.',
+    model: chat,
+    nativeNodes: [condition],
+    capabilities: createN8nNativeCapabilities(),
+  });
+  assert.deepEqual(plan.nativeNodes, [condition]);
+});
 
 test('API-only orchestration omits absent native choices and locks OAS request values', async () => {
   const chat = model(
@@ -132,9 +167,21 @@ test('native-only orchestration derives implementation ports then compiles throu
 
 test('supplied native instance and fixed edge remain unchanged; schema requests no unavailable fields', async () => {
   const original = globalThis.structuredClone(nativeNodes);
-  const chat = model({
-    plan_workflow_connections: connections([], { blockedCalls: [] }),
-  });
+  const chat = model(
+    {
+      plan_workflow_connections: connections([], { blockedCalls: [] }),
+    },
+    (name, input, wire) => {
+      assert.equal(name, 'plan_workflow_connections');
+      assert.deepEqual(
+        input.nativeNodes[0].parameters,
+        nativeNodes[0].parameters,
+      );
+      assert.deepEqual(input.nativeNodes[0].inputPorts, ['main']);
+      assert.deepEqual(input.nativeNodes[0].outputPorts, ['main']);
+      assert.equal(wire.properties.nativeNodes, undefined);
+    },
+  );
   const result = await planWorkflowConnections({
     scenario: 'Use supplied context ID without changes.',
     model: chat,

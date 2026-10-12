@@ -188,6 +188,10 @@ test('runtime materialization preserves scalar/object/array types and reuses OAS
     price: { price: 12.5 },
     stock: { stock: 0 },
   });
+  assert.equal(
+    JSON.parse(result.headersJson)['Content-Type'],
+    'application/json',
+  );
   assert.deepEqual(JSON.parse(result.body.value), {
     id: 'runtime/42',
     price: 12.5,

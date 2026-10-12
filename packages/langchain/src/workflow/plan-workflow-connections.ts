@@ -13,6 +13,7 @@ import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { ReviewableWorkflowGraphPlanningError } from './reviewable-workflow-graph-planning-error.js';
 import { prepareWorkflowConnectionMaterials } from './prepare-workflow-connection-materials.js';
+import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
 
 export async function planWorkflowConnections(
   input: PlanWorkflowConnectionsInput,
@@ -37,6 +38,14 @@ export async function planWorkflowConnections(
         JSON.stringify({
           scenario: input.scenario,
           nodes: contracts,
+          ...(nativeNodes.length
+            ? {
+                nativeNodes: createPreparedNativeNodeMaterials(
+                  nativeNodes,
+                  capabilities,
+                ),
+              }
+            : {}),
           edges,
           gaps,
           readyCallIds: readyIds,

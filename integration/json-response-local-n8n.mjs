@@ -70,7 +70,11 @@ const server = createServer(async (request, response) => {
       response.end(JSON.stringify({ error: error.message }));
       return;
     }
-    received.push({ case: sample.id, body });
+    received.push({
+      case: sample.id,
+      body,
+      contentType: request.headers['content-type'],
+    });
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify(body));
   } else {
@@ -319,8 +323,13 @@ try {
       if (!nativeBaseline) {
         const requests = received.filter((entry) => entry.case === sample.id);
         assert.equal(requests.length, 2);
-        for (const request of requests)
+        for (const request of requests) {
+          assert.match(
+            String(request.contentType),
+            /^application\/json(?:\s*;|$)/,
+          );
           assert.deepEqual(request.body, sample.body);
+        }
         assert.deepEqual(
           execution.data.resultData.runData['Request echo'][0].data.main[0][0]
             .json.body,
