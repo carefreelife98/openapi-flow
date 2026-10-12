@@ -45,7 +45,7 @@ export function createApiBindingPlanSchema(
               sourcePointer: z
                 .string()
                 .describe(
-                  'RFC 6901 pointer into an API response BODY or a declared native JSON output. Empty string means the entire value. Use the supplied source contract.',
+                  'RFC 6901 pointer into an API response BODY or a declared native JSON output. Empty string means the entire value. Use exact schema-declared responsePointerCatalog paths where applicable, without transport-envelope prefixes. Dynamic paths require scenario and contract evidence; the catalog is not a whitelist or a runtime existence guarantee.',
                 ),
             }),
           )

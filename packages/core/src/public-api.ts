@@ -42,3 +42,5 @@ export type * from './types/api-response.js';
 export { createResponseArrayItemSchema } from './openapi/response/create-response-array-item-schema.js';
 export { createNativeArrayItemSchema } from './bindings/create-native-array-item-schema.js';
 export { createResponseValueSchema } from './openapi/response/create-response-value-schema.js';
+export { listApiResponsePointers } from './openapi/response/list-api-response-pointers.js';
+export type * from './types/api-response-pointers.js';

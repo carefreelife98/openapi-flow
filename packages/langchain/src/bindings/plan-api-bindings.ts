@@ -3,6 +3,7 @@ import {
   validateApiBindingAssignments,
   validateApiBindingGaps,
   validateNativeOutputContracts,
+  listApiResponsePointers,
 } from '@openapi-flow/core';
 import type { ApiBindingPlan } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from '../types/binding-planning.js';
@@ -41,6 +42,7 @@ export async function planApiBindings(
               operation: operation.operation,
               effective: operation.effective,
             },
+            responsePointerCatalog: listApiResponsePointers(operation),
           })),
         }),
       ),

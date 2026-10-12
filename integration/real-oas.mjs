@@ -25,6 +25,7 @@ import {
   createReviewableWorkflowGraphPlan,
   createApiResponseSchema,
   createResponseArrayItemSchema,
+  listApiResponsePointers,
 } from '@openapi-flow/core';
 import { createRequire } from 'node:module';
 import { createOperationCatalog } from '@openapi-flow/core/internal';
@@ -50,6 +51,71 @@ const { z } = requireN8n('zod');
 if (files.length === 0) {
   throw new Error(`OPENAPI_FLOW_REAL_OAS_DIR has no JSON files: ${directory}`);
 }
+
+test('private real OAS pointer catalogs preserve declared response locations without guessed envelope segments', async () => {
+  let variants = 0;
+  let iclChecked = false;
+  for (const file of files) {
+    const catalog = await createApiCatalog([
+      {
+        id: file,
+        spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+      },
+    ]);
+    const contracts = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((x) => x.key),
+    );
+    for (const operation of contracts) {
+      const before = globalThis.structuredClone(operation);
+      for (const entry of listApiResponsePointers(operation)) {
+        variants++;
+        const schema =
+          operation.operation.responses[entry.responseKey].content[
+            entry.mediaType
+          ].schema;
+        for (const field of [
+          ...entry.declaredPointers,
+          ...entry.dynamicLocations,
+        ]) {
+          const location =
+            field.schemaLocation === ''
+              ? []
+              : field.schemaLocation
+                  .slice(1)
+                  .split('/')
+                  .map((token) =>
+                    token.replaceAll('~1', '/').replaceAll('~0', '~'),
+                  );
+          const declaration = location.reduce(
+            (value, token) => value[token],
+            schema,
+          );
+          assert.notEqual(
+            declaration,
+            undefined,
+            'Catalog location must identify an original schema declaration',
+          );
+        }
+        if (
+          operation.path === '/item/core/getItemInfo' &&
+          operation.method === 'GET'
+        ) {
+          const paths = entry.declaredPointers.map((x) => x.pointer);
+          assert.ok(paths.includes('/result/gdNo'));
+          assert.ok(paths.includes('/result/cached'));
+          assert.ok(!paths.includes('/result/result/gdNo'));
+          assert.ok(!paths.includes('/result/result/cached'));
+          iclChecked = true;
+        }
+      }
+      assert.deepEqual(operation, before);
+    }
+  }
+  assert.ok(variants > 0);
+  if (files.some((file) => file === 'icl.openapi.json'))
+    assert.equal(iclChecked, true);
+});
 
 test('private real OAS contracts compile full-response guards for native IF and assertions', async () => {
   for (const file of files) {
