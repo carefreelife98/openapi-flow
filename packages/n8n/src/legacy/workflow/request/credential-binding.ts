@@ -1,6 +1,7 @@
 import { newCredential } from '@n8n/workflow-sdk';
 import type { CredentialBindingRequest } from '../../../types/authentication.js';
 import type { CredentialBindings } from '../../../types/legacy/request-workflow.js';
+import type { ResolvedAuthentication } from '../../../types/legacy/request-node.js';
 import { isObject } from '@openapi-flow/core/internal';
 
 export { looksLikeCredential } from '../../../nodes/request/authentication/credential-field-name.js';
@@ -8,7 +9,7 @@ export { looksLikeCredential } from '../../../nodes/request/authentication/crede
 export function resolveCredentialBinding(
   operation: CredentialBindingRequest,
   credentialBindings: CredentialBindings,
-) {
+): ResolvedAuthentication | undefined {
   if (!isObject(credentialBindings)) {
     throw new Error(
       'credentialBindings must be an OAS-scheme-to-n8n-credential map',
