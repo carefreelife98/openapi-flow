@@ -67,6 +67,7 @@ try {
     [
       'install',
       '--ignore-scripts',
+      '--omit=dev',
       '--no-audit',
       '--no-fund',
       '--registry=https://registry.npmjs.org',
@@ -79,6 +80,33 @@ try {
     { cwd: consumer, maxBuffer: 8 * 1024 * 1024, timeout: 300_000 },
   );
   console.log(installed.stdout);
+  phase = 'dependency-contract';
+  const tsconfig = JSON.parse(
+    await readFile(join(consumer, 'tsconfig.json'), 'utf8'),
+  );
+  assert.equal(tsconfig.compilerOptions.strict, true);
+  assert.equal(tsconfig.compilerOptions.skipLibCheck, false);
+  const consumerManifest = JSON.parse(
+    await readFile(join(consumer, 'package.json'), 'utf8'),
+  );
+  const consumerDependencies = Object.keys(
+    consumerManifest.dependencies,
+  ).sort();
+  assert.deepEqual(consumerDependencies, [
+    '@langchain/core',
+    '@openapi-flow/core',
+    '@openapi-flow/langchain',
+    '@openapi-flow/n8n',
+    '@types/node',
+    'typescript',
+    'zod',
+  ]);
+  const adapterManifest = JSON.parse(
+    await readFile(
+      join(consumer, 'node_modules/@openapi-flow/n8n/package.json'),
+      'utf8',
+    ),
+  );
   phase = 'typecheck';
   await execute(
     process.execPath,
@@ -106,6 +134,10 @@ try {
       integrity,
     })),
     typecheck: 'passed',
+    skippedLibraryChecks: false,
+    omittedDevelopmentDependencies: true,
+    consumerDependencies,
+    adapterDependencies: adapterManifest.dependencies,
     ...output,
     limitations: [
       'Compilation and isolated installation only; no new model quality, n8n execution, business API access or npm publication. The supplied OAS stays outside package tarballs.',

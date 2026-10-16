@@ -2,6 +2,14 @@
 
 Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Unreleased `0.2.0` source; this package is not yet published.
 
+## Installed declaration dependencies
+
+This adapter's public types reference `@n8n/workflow-sdk@0.33.1`, which depends on `n8n-workflow@2.40.1`. The latter's published declarations import modules/types that its manifest lists only as development dependencies. A consumer does not install another package's development dependencies. This adapter therefore declares the required packages in its own `dependencies`: `@n8n/config@2.38.0`, `nock@14.0.14`, `@types/express@5.0.1`, `@types/json-schema@7.0.15`, `@types/luxon@3.2.0` and `@types/ssh2@1.15.0`. These versions follow that pinned workflow package's declared development dependency versions; a fresh strict consumer verifies compatibility.
+
+Normal installation brings these packages automatically, including production installations that omit development dependencies. Consumers do not need to install them manually, enable `skipLibCheck`, add declaration shims or run a custom installation script. These dependencies do not start an HTTP server, execute nock or configure an n8n instance. Core and LangChain packages do not own this SDK-specific contract. Keep these declarations until a verified SDK/workflow upgrade supplies its complete public declaration dependency graph; remove them only after the independent strict consumer still passes. See the [TypeScript publishing guidance](https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html#dependencies).
+
+## Public APIs
+
 - `createHttpRequestNode`: full selected OAS contract + literal values/response bindings + optional trusted base URL/credential references → SDK node fragment. Bound requests additionally require `apiNodeNames` and compile into materialization Code → HTTP Request.
 - `httpRequestDeploymentOptionsSchema`: shared validation for optional execution settings. Missing URLs become `https://replace_me.invalid`; required missing Bearer references become `REPLACE_ME:<documentId>:<schemeName>`. Supplied invalid settings fail rather than becoming placeholders.
 - `assembleN8nWorkflow`: explicit fragments, named ports, edges and starts → SDK-validated importable JSON. Fan-out is supported; node-array order does not define execution order.

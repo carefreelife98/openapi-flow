@@ -4,4 +4,6 @@
 
 Other dependencies retain their own licenses. The MIT license in this package applies to openapi-flow's code only.
 
+The adapter also installs `@n8n/config` and its dependencies to resolve the pinned SDK's public declaration imports. The installed `@n8n/config`, `@n8n/di` and `@n8n/constants` packages ship their own n8n license notices; this adapter does not replace those notices or bundle those packages' source code. `nock` and the Express, JSON Schema, SSH2 and Luxon declaration packages likewise retain their own license notices.
+
 Runtime-bound HTTP requests include library-owned materialization code and an Ajv-generated standalone request validator. Any bundled validator dependency retains its complete license notice in the generated Code node. Ajv and ajv-formats are MIT-licensed; their transitive runtime helpers retain their own MIT or BSD notices when bundled. The schema compiler and the n8n SDK are not embedded in these Code nodes. esbuild is used on the host to bundle standalone runtime code and is separately MIT-licensed.
