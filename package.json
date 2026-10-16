@@ -13,9 +13,9 @@
   "scripts": {
     "build": "node scripts/clean-build.mjs && npm run build --workspace @openapi-flow/core && npm run build --workspace @openapi-flow/langchain && npm run build --workspace @openapi-flow/n8n && npm run build --workspace @openapi-flow/example-langgraph-workflow && tsc -p examples/legacy-generation/tsconfig.json",
     "typecheck": "npm run build && npm run typecheck --workspaces",
-    "lint": "eslint packages/*/src test integration examples/*/src",
-    "format:check": "prettier --check packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
-    "format": "prettier --write packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs",
+    "lint": "eslint packages/*/src test integration examples/*/src scripts/release/*.mjs scripts/verify-release-candidate.mjs",
+    "format:check": "prettier --check packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs scripts/release/*.mjs scripts/verify-release-candidate.mjs",
+    "format": "prettier --write packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs scripts/release/*.mjs scripts/verify-release-candidate.mjs",
     "test": "npm run build && node --test test/legacy/*.test.mjs test/*.test.mjs",
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
     "test:packed-consumer": "npm run build && node integration/packed-consumer-smoke.mjs",

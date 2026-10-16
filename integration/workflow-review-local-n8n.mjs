@@ -19,6 +19,7 @@ import {
   scriptedReviewModel,
 } from '../test/fixtures/workflow-review-fixture.mjs';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
+import { reconnectFixtureStart } from './utils/reconnect-fixture-start.mjs';
 
 const image = 'n8nio/n8n:2.37.10';
 const volume = `openapi-flow-workflow-review-${process.pid}-${Date.now()}`;
@@ -39,6 +40,7 @@ try {
   await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
   const baseUrl = `http://host.docker.internal:${server.address().port}`;
   const workflows = [];
+  let selectionGapState;
   const modes = ['selection-gap', 'binding-gap', 'graph-gap'];
   for (const mode of modes) {
     const result = await createReviewableWorkflowGenerationGraph({
@@ -53,6 +55,7 @@ try {
     assert.equal(result.workflow.connections.Start, undefined);
     assert.equal(result.workflow.active, false);
     workflows.push(result.workflow);
+    if (mode === 'selection-gap') selectionGapState = result;
   }
   const input = await compilationInput();
   input.id = 'public-review-independent-roots';
@@ -71,19 +74,21 @@ try {
     createHttpRequestNode({ ...material, baseUrl, position: [300, 0] }),
   );
   workflows.push(compileReviewableN8nWorkflow(input).workflow);
-  const reconnected = globalThis.structuredClone(workflows[0]);
+  assert.ok(selectionGapState?.reviewPlan && selectionGapState.reviewMaterials);
+  assert.equal(selectionGapState.reviewPlan.starts.length, 1);
+  const rootId = selectionGapState.reviewPlan.starts[0];
+  const rootMaterial = selectionGapState.reviewMaterials.find(
+    (material) =>
+      material.status === 'ready' && material.arguments.callId === rootId,
+  );
+  assert.ok(rootMaterial && rootMaterial.status === 'ready');
+  const rootFragment = createHttpRequestNode({
+    ...rootMaterial,
+    baseUrl,
+    position: [300, 0],
+  });
+  const reconnected = reconnectFixtureStart(workflows[0], rootFragment);
   reconnected.id = 'public-review-reconnected';
-  reconnected.connections.Start = {
-    main: [
-      [
-        {
-          node: 'Request public-review-selection-gap-request-1',
-          type: 'main',
-          index: 0,
-        },
-      ],
-    ],
-  };
   workflows.push(reconnected);
   await mkdir(directory, { recursive: true });
   for (const workflow of workflows)
@@ -182,8 +187,9 @@ try {
         JSON.stringify({ executedNodes, calls }),
       );
       const placeholder = workflow.nodes.find(
-        (node) => node.type === 'n8n-nodes-base.code',
+        (node) => node.id === selectionGapState.reviewPlan.gaps[0].id,
       );
+      assert.ok(placeholder && placeholder.type === 'n8n-nodes-base.code');
       assert.equal(
         execution.data.resultData.lastNodeExecuted,
         placeholder.name,
