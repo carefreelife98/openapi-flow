@@ -2,9 +2,13 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-This branch contains **unreleased 0.2.0 work**. The published `@openapi-flow/core@0.1.0` has a different API. The new `langchain` and `n8n` packages have not been published. To use this source, run `npm ci && npm run build` in the workspace with Node.js 24 or later.
+Version **0.2.0** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Core 0.1.0 has a different API; do not mix it with the 0.2.0 adapters. Use Node.js 24 or later and supply a compatible LangChain host dependency.
 
-For the coordinated package split, see the [0.2.0 release preparation](docs/releases/0.2.0.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). Preparation is not publication approval. Numeric model-quality thresholds remain an owner decision after reviewing the measurements.
+```sh
+npm install @openapi-flow/core@0.2.0 @openapi-flow/langchain@0.2.0 @openapi-flow/n8n@0.2.0 @langchain/core@^1
+```
+
+See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
 
 ## Current development scope
 
@@ -43,14 +47,14 @@ The agreed order is **item-wise execution → contract/response validation → m
   - [x] Expose an advisory OAS-declared response-pointer catalog to binding planning without closing open schemas or repairing output. The next live regression was interrupted by a model timeout; a stored five-input Merge plan passed a separate no-model runtime audit after removing the evaluator's unjustified exact-four-input criterion.
   - [x] Specialize native IF/assertion response IDs from actual API call instances and reject undeclared references before downstream planning without changing custom schemas or final route checks. A separate same-case regression matched 8/8 expected outcomes (44 model calls, 14 isolated n8n executions); reused cases/contracts are not unseen-service reliability or release approval.
   - [x] Run a real-model multi-service pilot on frozen ICL/Honeypot contracts and separate native-to-API and response-array iteration pilots. Multi-service first-attempt scoring was 2/4 because an evaluator incorrectly required an assertion node; the two unchanged rejected plans passed a separate no-model runtime audit. Native-to-API and iteration generation matched 4/4 expected outcomes. Across these runs: 42 model calls, 34 isolated n8n executions including the separate audits. This is task-specific development evidence, not unseen-service reliability.
-  - [ ] Owner review of the frozen scenario answers and measured shorter-query results; choose numeric release thresholds after reviewing them. Older cohorts retain their original measurement limits and recorded response-pointer/single-bulk mismatches; do not retroactively relabel them using the newer cohort.
+  - [ ] Define numeric quality criteria and broader held-out evaluation for subsequent releases. The owner accepted 0.2.0 after receiving the measured results without setting a numeric threshold. Older cohorts retain their original measurement limits and recorded response-pointer/single-bulk mismatches; do not retroactively relabel them using the newer cohort.
   - [x] Complete a separate shorter-query follow-up on two additional private service contracts: 11/12 executable first attempts, 6/6 negative outcomes, API/literal/binding/comparison precision and recall, complete per-call usage and isolated execution. See [0.2.0 measurements](docs/releases/0.2.0-quality.md). Known task families and small sample size do not establish unseen-service reliability; numeric release thresholds remain owner-selected after reviewing results.
-- [ ] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
+- [x] **6. Release preparation (after evaluation):** synchronize current usage docs, test installed package tarballs in an independent consumer and publish the split 0.2.0 packages only after release approval.
   - [x] Pack and independently install the three libraries without workspace symlinks; compile workflow JSON from an actual OAS with installed packages. Fix a leaked local-variable expression in the emitted credential-binding return declaration by declaring its existing named return contract explicitly.
   - [x] Pass the independent consumer's strict TypeScript check with `skipLibCheck: false`. The n8n adapter explicitly installs public declaration dependencies omitted by the pinned SDK/workflow chain. The security update uses SDK 0.36.4 → n8n-workflow 2.43.4 and verifies the complete dependency contract again. Consumers do not manually install SDK helpers or skip declaration checks.
   - [x] Resolve the recorded Scalar/undici and n8n SDK/axios audit findings through verified parent updates, without overrides or forced downgrades. Parser 0.29.13 installs undici 7.29.1; SDK 0.36.4 installs n8n-workflow 2.43.4 and axios 1.20.0. See the [dated security review](docs/dependency-security-review-2026-10-16.md) for verification and limits. This is not a claim that the package is free of every security risk.
   - [x] Document the 0.2.0 migration, host/library responsibility boundary, deferred extensions and publication checklist. Add a repeatable technical candidate check with explicit private inputs, packed-file/export/dependency validation and retained failure logs.
-  - [ ] Review the measured short-query quality cohort and agree numeric acceptance thresholds; owner release approval and npm publication remain pending.
+  - [x] Publish the exact verified 0.2.0 tarballs after the owner's explicit release request. All three public versions and `latest` tags are confirmed, with registry integrity matching the tested artifacts. See the separate [registry consumer verification](docs/releases/0.2.0-publication.md); the original quality failures and limits are retained.
 
 Webhook/callback work remains deferred. Supporting every n8n native node and automatically changing data semantics/types are not roadmap requirements; add only explicitly required native capabilities.
 

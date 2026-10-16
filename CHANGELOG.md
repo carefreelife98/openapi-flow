@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-10-16
 
 ### Package/API changes
 
@@ -22,8 +22,8 @@
 - Focus: host-reviewed Manual Trigger / outgoing REST workflows. No HTTP server, embedded agent loop, automatic execution or mandatory MCP connection.
 - Further webhook/callback work, additional body/authentication mappings and advanced batch cases remain deferred. Unsupported selected-node mappings fail separately from OAS document intake.
 - Model-generated gaps, API choices and conditions require review. Known-contract fixture results do not prove unseen-service or production business correctness.
-- See [release preparation](docs/releases/0.2.0.md), [criteria](docs/releases/0.2.0-criteria.md) and [migration](docs/migration-0.2.0.md).
+- See the [release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [criteria](docs/releases/0.2.0-criteria.md) and [migration](docs/migration-0.2.0.md).
 
 ## 0.1.0
 
-Earlier published core API. Its usage must not be inferred from current unreleased 0.2.0 examples. Legacy behavior retained in this source is explicitly separated under the documented legacy entrypoints.
+Earlier published core API. Its usage must not be inferred from the 0.2.0 examples. Legacy behavior retained in this source is explicitly separated under the documented legacy entrypoints.

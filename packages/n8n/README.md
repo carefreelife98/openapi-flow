@@ -1,6 +1,6 @@
 # @openapi-flow/n8n
 
-Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Unreleased `0.2.0` source; this package is not yet published.
+Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.2.0` is published and depends on matching core `0.2.0`.
 
 ## Installed declaration dependencies
 

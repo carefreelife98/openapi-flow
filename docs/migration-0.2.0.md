@@ -13,13 +13,21 @@
 
 Use each package's exported entrypoint rather than deep-importing source or `dist` paths. `core/runtime` is execution-only; `core/internal` is explicitly unstable. Earlier planning and compilation entrypoints are under `langchain/legacy` and `n8n/legacy`. The old API documentation is historical, not a reference for current main exports.
 
-## Installation before publication
+## Installation
+
+All three packages are published at 0.2.0. Install matching versions and the host's LangChain dependency:
+
+```sh
+npm install @openapi-flow/core@0.2.0 @openapi-flow/langchain@0.2.0 @openapi-flow/n8n@0.2.0 @langchain/core@^1
+```
+
+See the [publication verification](releases/0.2.0-publication.md) for artifact and registry-consumer checks.
 
 The source workspace can be built with `npm ci && npm run build`. The official [LangGraph example](../examples/langgraph-workflow/README.md) is a host composition in this repository, not a fourth published package or a server.
 
-For an independent application before registry publication, install the three verified tarballs from the release-candidate artifact directory in one npm command, together with your compatible LangChain peer dependency. The tarball consumer gate verifies this path. Do not require consumers to install hidden SDK declaration helpers or enable `skipLibCheck`.
+An independent application can also install the three verified tarballs from the release-candidate artifact directory in one npm command, together with its compatible LangChain peer dependency. The tarball consumer gate verifies this path. Do not require consumers to install hidden SDK declaration helpers or enable `skipLibCheck`.
 
-After a separately approved publication, install the same exact 0.2.0 versions of all three packages. Until then, a registry installation command for unpublished versions is not a valid quick start.
+Do not mix 0.1.0 core with 0.2.0 adapters or deep-import the source workspace to bypass installed declarations.
 
 ## Replace the old combined flow
 

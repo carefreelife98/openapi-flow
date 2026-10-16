@@ -1,6 +1,6 @@
 # @openapi-flow/langchain
 
-Independent model calls for OpenAPI workflows. Unreleased `0.2.0` source; this package is not yet published.
+Independent model calls for OpenAPI workflows. Version `0.2.0` is published and depends on matching core `0.2.0`.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
 - `planApiBindings`: selected OAS contracts and optional declared `nativeOutputs` → output-to-request pointer bindings and request-data gaps, independently of native control-flow planning. API pointers read response bodies; native pointers read the declared JSON output. Neither changes value types or semantics.
