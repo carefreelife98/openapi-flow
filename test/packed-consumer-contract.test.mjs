@@ -14,14 +14,17 @@ test('n8n adapter installs the public declaration dependencies of its pinned SDK
     ),
   );
   const declarationDependencies = {
-    '@n8n/config': '2.38.0',
+    '@n8n/config': '2.41.2',
+    '@sentry/node': '10.70.0',
+    '@types/estree': '1.0.8',
     '@types/express': '5.0.1',
     '@types/json-schema': '7.0.15',
     '@types/luxon': '3.2.0',
+    '@types/semver': '7.7.0',
     '@types/ssh2': '1.15.0',
     nock: '14.0.14',
   };
-  assert.equal(manifest.dependencies['@n8n/workflow-sdk'], '0.33.1');
+  assert.equal(manifest.dependencies['@n8n/workflow-sdk'], '0.36.4');
   for (const [name, version] of Object.entries(declarationDependencies)) {
     assert.equal(manifest.dependencies[name], version, name);
     assert.equal(manifest.devDependencies?.[name], undefined, name);

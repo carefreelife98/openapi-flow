@@ -45,7 +45,7 @@
     "@eslint/js": "10.0.1",
     "@langchain/core": "1.2.12",
     "@langchain/openai": "^1.5.13",
-    "@n8n/workflow-sdk": "0.33.1",
+    "@n8n/workflow-sdk": "0.36.4",
     "@types/node": "^24.0.0",
     "esbuild": "0.28.2",
     "eslint": "10.11.0",

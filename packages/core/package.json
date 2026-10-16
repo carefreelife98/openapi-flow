@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@scalar/json-schema-validator": "^0.1.6",
-    "@scalar/openapi-parser": "0.29.7",
+    "@scalar/openapi-parser": "0.29.13",
     "@scalar/openapi-types": "0.9.7",
     "@scalar/openapi-validator": "0.1.6",
     "ajv": "8.20.0",
