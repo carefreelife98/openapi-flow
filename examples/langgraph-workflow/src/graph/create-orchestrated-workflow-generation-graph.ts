@@ -1,8 +1,4 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
-import {
-  planNativeNodes,
-  planWorkflowConnections,
-} from '@openapi-flow/langchain';
 import type {
   PlannedGraphDependencies,
   OrchestratedGraphDependencies,
@@ -11,10 +7,11 @@ import type {
 } from '../types/workflow-graph.js';
 import { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 import { createApiPreparationStages } from './prepare-api-workflow.js';
-import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 import { createApiRequestMediaTypesStage } from './select-api-request-media-types-stage.js';
 import { prepareReviewableApiCalls } from './review/prepare-reviewable-api-calls.js';
 import { compileReviewableWorkflowStage } from './review/compile-reviewable-workflow-stage.js';
+import { createNativeNodePlanningStage } from './plan-native-nodes-stage.js';
+import { createWorkflowConnectionPlanningStage } from './plan-workflow-connections-stage.js';
 
 /** Host-owned composition. Native contracts exist before API bindings are planned. */
 export function createOrchestratedWorkflowGenerationGraph(
@@ -42,30 +39,7 @@ export function createOrchestratedWorkflowGenerationGraph(
       );
     return stages.buildCatalog(state);
   }
-  async function planNatives(state: WorkflowState): Promise<WorkflowUpdate> {
-    if (!state.contracts)
-      throw new Error('native planning requires resolved API contracts');
-    const proposed = await planNativeNodes({
-      planId: `${state.workflowId}-native`,
-      scenario: state.scenario,
-      model: dependencies.model,
-      capabilities: dependencies.capabilities,
-      preparedNativeNodes: dependencies.preparedNativeNodes,
-      apiMaterials: state.contracts.length
-        ? createApiBindingMaterials(state)
-        : [],
-    });
-    return {
-      nativePlan: {
-        ...proposed,
-        nativeNodes: [
-          ...(dependencies.preparedNativeNodes ?? []),
-          ...proposed.nativeNodes,
-        ],
-      },
-      trace: [...state.trace, 'native-plan'],
-    };
-  }
+  const planNatives = createNativeNodePlanningStage(dependencies);
   async function prepareCalls(state: WorkflowState): Promise<WorkflowUpdate> {
     if (!state.nativePlan) throw new Error('API binding requires native plan');
     return prepareReviewableApiCalls(state, {
@@ -73,22 +47,7 @@ export function createOrchestratedWorkflowGenerationGraph(
       preparedNativeNodes: state.nativePlan.nativeNodes,
     });
   }
-  async function connectNodes(state: WorkflowState): Promise<WorkflowUpdate> {
-    if (!state.nativePlan || !state.reviewMaterials || !state.diagnostics)
-      throw new Error(
-        'connection planning requires native/API materials and diagnostics',
-      );
-    const reviewPlan = await planWorkflowConnections({
-      scenario: state.scenario,
-      model: dependencies.model,
-      materials: state.reviewMaterials,
-      nativeNodes: state.nativePlan.nativeNodes,
-      capabilities: dependencies.capabilities,
-      gaps: [...state.diagnostics, ...state.nativePlan.gaps],
-    });
-    await dependencies.reviewPlan?.(reviewPlan);
-    return { reviewPlan, trace: [...state.trace, 'connections'] };
-  }
+  const connectNodes = createWorkflowConnectionPlanningStage(dependencies);
   return new StateGraph(workflowStateSchema)
     .addNode('buildCatalog', buildCatalog)
     .addNode('selectOperations', stages.selectOperations)

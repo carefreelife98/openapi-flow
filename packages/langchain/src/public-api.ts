@@ -1,5 +1,8 @@
 export { selectApiOperations } from './selection/select-api-operations.js';
+export { analyzeApiSelection } from './selection/analyze-api-selection.js';
 export { generateApiArguments } from './arguments/generate-api-arguments.js';
+export { extractApiInputAnswers } from './arguments/extract-api-input-answers.js';
+export type * from './types/api-input-answers.js';
 export { selectApiRequestMediaType } from './arguments/select-api-request-media-type.js';
 export type * from './types/request-media-selection.js';
 export type * from './types/operation-selection.js';

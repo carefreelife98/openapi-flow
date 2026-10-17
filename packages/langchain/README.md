@@ -1,5 +1,7 @@
 # @openapi-flow/langchain
 
+Unreleased source additions provide `analyzeApiSelection` and `extractApiInputAnswers`. The former separates consequential API-role choices from absent capabilities; the latter extracts only pending, OAS-typed answers and checks their complete value spans against the user's actual reply. Existing selectors remain available. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
+
 Independent model calls for OpenAPI workflows. Version `0.2.0` is published and depends on matching core `0.2.0`.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.

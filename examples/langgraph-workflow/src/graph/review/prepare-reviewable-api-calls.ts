@@ -1,7 +1,11 @@
 import { planApiBindings, generateApiArguments } from '@openapi-flow/langchain';
-import { createNativeOutputContracts } from '@openapi-flow/core';
+import {
+  createNativeOutputContracts,
+  inspectApiArgumentRequirements,
+} from '@openapi-flow/core';
 import type {
   ApiBindingPlan,
+  ApiCallArguments,
   ReviewableWorkflowApiMaterial,
 } from '@openapi-flow/core';
 import type {
@@ -13,11 +17,42 @@ import { createApiBindingMaterials } from '../prepare-api-binding-materials.js';
 import { collectSelectionReviewGaps } from './collect-selection-review-gaps.js';
 import { collectApiBindingReviewGaps } from './collect-api-binding-review-gaps.js';
 import { collectBlockedCallGaps } from './collect-blocked-call-gaps.js';
+import type {
+  PreparedApiMaterials,
+  PendingApiArguments,
+  ApiLiteralInputMode,
+} from '../../types/api-preparation.js';
+import type { ApiInputRequirement } from '@openapi-flow/core';
 
 export async function prepareReviewableApiCalls(
   state: WorkflowState,
   dependencies: PlannedGraphDependencies,
 ): Promise<WorkflowUpdate> {
+  const result = await prepareReviewableApiMaterials(
+    state,
+    dependencies,
+    'scenario',
+  );
+  if (result.requirements.length)
+    throw new Error(
+      `Request inputs need user clarification: ${JSON.stringify(result.requirements.map((item) => item.targetPointer))}`,
+    );
+  return {
+    bindingPlan: result.bindingPlan,
+    reviewMaterials: result.reviewMaterials,
+    diagnostics: result.diagnostics,
+    trace: result.trace,
+  };
+}
+
+/** Shared preparation: interactive hosts retain missing values rather than fabricating them. */
+export async function prepareReviewableApiMaterials(
+  state: WorkflowState,
+  dependencies: PlannedGraphDependencies,
+  literalInputMode: ApiLiteralInputMode,
+): Promise<PreparedApiMaterials> {
+  if (!['scenario', 'confirmed-only'].includes(literalInputMode))
+    throw new Error('API preparation requires an explicit literal input mode');
   if (!state.contracts || !state.selection)
     throw new Error(
       'review preparation requires resolved contracts and selection',
@@ -28,6 +63,8 @@ export async function prepareReviewableApiCalls(
       bindingPlan: { calls: [], gaps: [] },
       reviewMaterials: [],
       diagnostics: selectionGaps,
+      pendingArguments: [],
+      requirements: [],
       trace: [...state.trace, 'bindings', 'arguments'],
     };
   const materials = createApiBindingMaterials(state);
@@ -54,6 +91,8 @@ export async function prepareReviewableApiCalls(
     bindingGaps,
   });
   const reviewMaterials: ReviewableWorkflowApiMaterial[] = [];
+  const pendingArguments: PendingApiArguments[] = [];
+  const requirements: ApiInputRequirement[] = [];
   for (const material of materials) {
     const call = bindingPlan.calls.find(
       (item) => item.callId === material.callId,
@@ -72,16 +111,36 @@ export async function prepareReviewableApiCalls(
       });
       continue;
     }
-    const args = await generateApiArguments({
+    const args: ApiCallArguments =
+      literalInputMode === 'scenario'
+        ? await generateApiArguments({
+            ...material,
+            bindings: call.bindings,
+            scenario: state.scenario,
+            model: dependencies.model,
+          })
+        : {
+            callId: material.callId,
+            values: {},
+            bindings: call.bindings,
+            unresolvedInputs: [],
+            ...(material.requestMediaType === undefined
+              ? {}
+              : { requestMediaType: material.requestMediaType }),
+          };
+    const inspection = inspectApiArgumentRequirements({
       ...material,
-      bindings: call.bindings,
-      scenario: state.scenario,
-      model: dependencies.model,
+      values: args.values,
+      bindings: args.bindings,
     });
-    if (args.unresolvedInputs.length)
-      throw new Error(
-        `Request inputs need user clarification: ${JSON.stringify(args.unresolvedInputs)}`,
-      );
+    args.unresolvedInputs = inspection.requirements.map(
+      (item) => item.targetPointer,
+    );
+    if (inspection.status === 'needs-input') {
+      requirements.push(...inspection.requirements);
+      pendingArguments.push({ operation: material.operation, arguments: args });
+      continue;
+    }
     reviewMaterials.push({
       status: 'ready',
       operation: material.operation,
@@ -92,6 +151,8 @@ export async function prepareReviewableApiCalls(
     bindingPlan,
     reviewMaterials,
     diagnostics,
+    pendingArguments,
+    requirements,
     trace: [...state.trace, 'bindings', 'arguments'],
   };
 }

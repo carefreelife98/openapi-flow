@@ -2,6 +2,7 @@ import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   createApiArgumentGenerationContract,
   validateApiArguments,
+  applyConfirmedApiInputs,
 } from '@openapi-flow/core';
 import type { ApiArgumentProposal, ApiCallArguments } from '@openapi-flow/core';
 import type { GenerateApiArgumentsInput } from '../types/argument-generation.js';
@@ -46,10 +47,11 @@ export async function generateApiArguments(
     proposed,
     `model arguments for ${input.callId}`,
   );
-  const validation = validateApiArguments({ ...input, values: parsed.values });
+  const values = applyConfirmedApiInputs({ ...input, values: parsed.values });
+  const validation = validateApiArguments({ ...input, values });
   return {
     callId: input.callId,
-    values: parsed.values,
+    values,
     bindings: structuredClone(input.bindings),
     unresolvedInputs: validation.missingInputs,
     ...(input.requestMediaType === undefined

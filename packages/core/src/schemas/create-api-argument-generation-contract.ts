@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import type {
-  ApiArgumentsSchemaInput,
-  ApiArgumentValues,
-} from '../types/api-arguments.js';
+import type { ApiArgumentValues } from '../types/api-arguments.js';
 import type { ApiArgumentGenerationContract } from '../types/api-argument-generation.js';
 import type { JsonObject } from '../types/openapi.js';
 import { object } from '../openapi/common/parse-spec-utils.js';
@@ -16,16 +13,22 @@ import { pointerTokens } from '../bindings/json-pointer.js';
 import { requestBindingSchemas } from '../bindings/request-binding-schema.js';
 import { projectLiteralInputSchema } from './project-literal-input-schema.js';
 import { createOasValueSchema } from './create-oas-value-schema.js';
+import type { ApiArgumentGenerationInput } from '../types/api-clarification.js';
+import { readConfirmedApiInputs } from '../arguments/clarification/read-confirmed-api-inputs.js';
 
 /** The OAS-derived schema decides whether the model has any values to propose. */
-export function createApiArgumentGenerationContract({
-  operation,
-  bindings,
-  requestMediaType,
-}: ApiArgumentsSchemaInput): ApiArgumentGenerationContract {
+export function createApiArgumentGenerationContract(
+  input: ApiArgumentGenerationInput,
+): ApiArgumentGenerationContract {
+  const { operation, bindings, requestMediaType } = input;
   if (!Array.isArray(bindings))
     throw new Error('arguments.bindings must be an array');
   validateApiArguments({ operation, bindings, requestMediaType, values: {} });
+  const confirmed = readConfirmedApiInputs(input);
+  const ownedPointers = [
+    ...bindings.map((binding) => binding.targetPointer),
+    ...confirmed.map((item) => item.targetPointer),
+  ];
   for (const binding of bindings)
     if (
       !requestBindingSchemas(
@@ -51,13 +54,13 @@ export function createApiArgumentGenerationContract({
       continue;
     const pointer =
       '/' + location + '/' + name.replaceAll('~', '~0').replaceAll('/', '~1');
-    if (bindings.some((binding) => binding.targetPointer === pointer)) continue;
+    if (ownedPointers.includes(pointer)) continue;
     const projection = projectLiteralInputSchema(
       optionalRequestProperties(parameterSchema(parameter, pointer)) as
         JsonObject | boolean,
-      bindings
-        .filter((entry) => entry.targetPointer.startsWith(pointer + '/'))
-        .map((entry) => pointerTokens(entry.targetPointer).slice(2)),
+      ownedPointers
+        .filter((target) => target.startsWith(pointer + '/'))
+        .map((target) => pointerTokens(target).slice(2)),
       pointer,
     );
     if (!projection.hasLiteralValues) continue;
@@ -83,15 +86,12 @@ export function createApiArgumentGenerationContract({
     ]),
   );
   const body = bodyMediaSchema(operation, requestMediaType);
-  if (
-    body !== undefined &&
-    !bindings.some((binding) => binding.targetPointer === '/body')
-  ) {
+  if (body !== undefined && !ownedPointers.includes('/body')) {
     const projection = projectLiteralInputSchema(
       optionalRequestProperties(body) as JsonObject | boolean,
-      bindings
-        .filter((entry) => entry.targetPointer.startsWith('/body/'))
-        .map((entry) => pointerTokens(entry.targetPointer).slice(1)),
+      ownedPointers
+        .filter((target) => target.startsWith('/body/'))
+        .map((target) => pointerTokens(target).slice(1)),
       '/body',
     );
     if (projection.hasLiteralValues)

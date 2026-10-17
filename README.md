@@ -10,6 +10,10 @@ npm install @openapi-flow/core@0.2.0 @openapi-flow/langchain@0.2.0 @openapi-flow
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
 
+## Unreleased conversational additions
+
+Current source additionally exposes OAS-derived input questions, snapshot-scoped confirmed values, API-choice clarification and a host-owned multi-turn LangGraph example. These additions are **not in npm 0.2.0**. See the [conversation guide](docs/conversational-generation.md). No server, UI or publication is added. The interactive example requires confirmed request values; it does not silently expand the user's scope or invent business assertions.
+
 ## Current development scope
 
 Focus on workflows started by **Manual Trigger** that call OAS-defined outgoing REST APIs. This includes multi-API selection, OAS-typed request values, response bindings, and conditions/joins using explicitly supplied native capabilities. Item-wise iteration remains unfinished work within this scope.

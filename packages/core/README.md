@@ -1,5 +1,7 @@
 # @openapi-flow/core
 
+Unreleased source additions provide `inspectApiArgumentRequirements`, `validateApiInputAnswers`, `applyConfirmedApiInputs`, `resolveApiSelectionAnswers` and `createApiInputAnswersSchema`. Snapshot/call-scoped `confirmedInputs` are excluded from literal generation and applied by code. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
+
 Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived Zod request schemas and argument validation. Version `0.2.0` is published; `0.1.0` has a different API.
 
 `createWorkflowPlanningCapabilities({ capabilities, apiCallIds })` specializes only capabilities that explicitly provide `createPlanningParametersSchema(context)`. Existing runtime schemas and capability objects are not mutated; custom definitions without the hook retain their schema. `validateNativeApiResponseReferences({ nativeNodes, capabilities, apiCallIds })` checks the API identities declared by each implementation's `responseReferences` and per-port `inputReferences`. It does not inspect arbitrary JSON field names, validate native-output identities as API IDs, infer a missing producer or repair a reference. These functions establish early planning boundaries; execution order and response contract validation remain separate.

@@ -10,7 +10,9 @@ export function requestContainerKind(
   material: ApiBindingMaterial,
   pointer: string,
 ): RequestContainerKind {
-  if (['/path', '/query', '/header', '/cookie'].includes(pointer))
+  if (
+    ['/path', '/query', '/header', '/cookie', '/querystring'].includes(pointer)
+  )
     return 'object';
   const kinds = new Set<string>();
   for (const schema of requestBindingSchemas(material, pointer)) {

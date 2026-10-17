@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add OAS-derived input requirements, typed answer validation and snapshot/call-scoped confirmed inputs. Confirmed fields are excluded from model generation and applied without overwrites or coercion.
+- Add independent API-selection clarification and verbatim-source-checked answer extraction. Existing one-shot selection and generation contracts remain available.
+- Add a host-owned checkpointed LangGraph conversation example with API choice, required input questions, invalid-answer correction, cancellation and isolated threads. Interactive literals come from confirmed answers, not speculative scenario generation. These changes are not included in published 0.2.0 and are not automatically published.
+
 ## 0.2.0 — 2026-10-16
 
 ### Package/API changes

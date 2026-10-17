@@ -1,12 +1,10 @@
 import type { z } from 'zod';
-import type {
-  ApiArgumentProposal,
-  ApiArgumentsSchemaInput,
-} from '../types/api-arguments.js';
+import type { ApiArgumentProposal } from '../types/api-arguments.js';
 import { createApiArgumentGenerationContract } from './create-api-argument-generation-contract.js';
+import type { ApiArgumentGenerationInput } from '../types/api-clarification.js';
 
 export function createApiArgumentsSchema(
-  input: ApiArgumentsSchemaInput,
+  input: ApiArgumentGenerationInput,
 ): z.ZodType<ApiArgumentProposal> {
   return createApiArgumentGenerationContract(input).schema;
 }
