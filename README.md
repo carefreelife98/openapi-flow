@@ -2,10 +2,10 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.3.0** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.0.md) tracks verified public tarballs, deferred host installation and the explicitly accepted Ajv limitation.
+Version **0.3.1** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.1.md) tracks source-first publication, verified public tarballs and the retained Ajv limitation.
 
 ```sh
-npm install @openapi-flow/core@0.3.0 @openapi-flow/langchain@0.3.0 @openapi-flow/n8n@0.3.0 @langchain/core@^1
+npm install @openapi-flow/core@0.3.1 @openapi-flow/langchain@0.3.1 @openapi-flow/n8n@0.3.1 @langchain/core@^1
 ```
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
@@ -18,12 +18,12 @@ Core development now also provides explicit deferred API input slots and seriali
 
 Draft editing separates API literal values, producer bindings and [connection deltas](docs/workflow-draft-connection-edits.md) into bounded model stages with deterministic core validation. The optional source-only host reference uses these primitives; it is not a mandatory graph or published server.
 
-A [0.3.1 candidate connection-planning addition](docs/deferred-connection-planning.md)
+The [0.3.1 connection-planning addition](docs/deferred-connection-planning.md)
 allows exact OAS input slot IDs to be explicitly deferred while preserving the
 API/native DAG. It does not invent request values or bypass template preflight,
-and is not available in the published 0.3.0 packages.
-The owner approved source-first publication of this patch; its
-[release record](docs/releases/0.3.1.md) distinguishes verification from publication.
+and is not available in the earlier 0.3.0 packages.
+The [release record](docs/releases/0.3.1.md) distinguishes source synchronization,
+publication, host integration and execution evidence.
 
 [explicit capability gaps](docs/workflow-draft-conversation-host.md#explicit-capability-gaps)
 preserve unsupported requested roles as canonical `gapNodes`, with original-message

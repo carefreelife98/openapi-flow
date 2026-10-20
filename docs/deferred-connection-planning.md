@@ -1,6 +1,6 @@
 # Explicit input deferral during connection planning
 
-Status: verified source change prepared for 0.3.1; not in the published 0.3.0 packages.
+Status: published in all three 0.3.1 packages; not in the earlier 0.3.0 packages.
 
 ## Ownership and boundaries
 
