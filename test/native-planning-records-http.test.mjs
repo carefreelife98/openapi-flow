@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { ChatOpenAI } from '@langchain/openai';
 import { planNativeNodes } from '@openapi-flow/langchain';
+import { describeN8nManualTrigger } from '@openapi-flow/n8n';
 import { nativePlanningRecordFixture } from './fixtures/native-planning-record-fixture.mjs';
 
 const require = createRequire(
@@ -62,6 +63,7 @@ test('actual native tool wire keeps typed implementation schemas and distinguish
     });
     for (const mode of ['disabled', 'additions', 'no-additions', 'runtime']) {
       const { input, nodes, explained } = nativePlanningRecordFixture();
+      input.entrypoint = describeN8nManualTrigger();
       const includeExplanations = mode !== 'disabled';
       output =
         mode === 'disabled'
@@ -119,6 +121,11 @@ test('actual native tool wire keeps typed implementation schemas and distinguish
       );
       const payload = JSON.parse(request.messages[1].content);
       assert.equal(payload.scenario, input.scenario);
+      assert.deepEqual(payload.entrypoint, input.entrypoint);
+      assert.equal(
+        Object.hasOwn(wire.parameters.properties, 'entrypoint'),
+        false,
+      );
       assert.deepEqual(
         payload.capabilities[0].parameterSources,
         mode === 'runtime' ? ['literal', 'workflow-input'] : ['literal'],

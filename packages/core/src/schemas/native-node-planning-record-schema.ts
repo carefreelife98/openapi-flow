@@ -6,13 +6,17 @@ import type {
   NativePlanningResult,
   NativePlanningVerification,
 } from '../types/native-node-planning.js';
-import { planningEvidenceTextSchema } from './planning-evidence-schema.js';
+import {
+  planningEvidenceTextSchema,
+  workflowEntryPointContractSchema,
+} from './planning-evidence-schema.js';
 import { workflowDraftNativeNodeSchema } from './workflow-draft-schema.js';
 
 export const nativeNodePlanningOptionsSchema = z.strictObject({
   planId: planningEvidenceTextSchema,
   scenario: planningEvidenceTextSchema,
   allowRuntimeParameters: z.boolean().optional(),
+  entrypoint: workflowEntryPointContractSchema.optional(),
 });
 
 export const nativePlanningProposalSchema = z.strictObject({

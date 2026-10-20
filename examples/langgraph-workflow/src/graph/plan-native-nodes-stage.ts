@@ -1,4 +1,5 @@
 import { planNativeNodes } from '@openapi-flow/langchain';
+import { describeN8nManualTrigger } from '@openapi-flow/n8n';
 import { assembleNativeNodeMaterials } from '@openapi-flow/core';
 import type {
   PlannedGraphDependencies,
@@ -22,6 +23,7 @@ export function createNativeNodePlanningStage(
     const proposed = await planNativeNodes({
       planId: `${state.workflowId}-native`,
       scenario: state.scenario,
+      entrypoint: describeN8nManualTrigger(),
       model: dependencies.model,
       includeExplanations: dependencies.nativeOptions?.includeExplanations,
       capabilities: dependencies.capabilities,

@@ -15,6 +15,7 @@ import type { PreparedNativeNodeMaterial } from './native-node-planning.js';
 import type { WorkflowPlanningSourceEvidence } from './workflow-planning-materials.js';
 import type { WorkflowApiInputDeferral } from './workflow-api-input-readiness.js';
 import type { DeferredApiInputSlot } from './deferred-api-inputs.js';
+import type { WorkflowPlanningContext } from './planning-evidence.js';
 
 export interface WorkflowConnectionMaterialInput extends WorkflowApiInputDeferral {
   materials?: ReviewableWorkflowApiMaterial[];
@@ -24,7 +25,10 @@ export interface WorkflowConnectionMaterialInput extends WorkflowApiInputDeferra
   edges?: WorkflowPlanEdge[];
 }
 
-export interface WorkflowConnectionPlanningInput extends WorkflowConnectionMaterialInput {
+export interface WorkflowConnectionPlanningInput
+  extends
+    WorkflowConnectionMaterialInput,
+    Pick<WorkflowPlanningContext, 'entrypoint'> {
   scenario: string;
 }
 
@@ -50,7 +54,10 @@ export interface WorkflowNativeParameterReadiness {
   executionInputPointers: string[];
 }
 
-export interface WorkflowConnectionPlanningContext {
+export interface WorkflowConnectionPlanningContext extends Pick<
+  WorkflowPlanningContext,
+  'entrypoint'
+> {
   scenario: string;
   nodes: WorkflowPlanNodeContract[];
   nativeNodes?: PreparedNativeNodeMaterial[];
@@ -63,7 +70,10 @@ export interface WorkflowConnectionPlanningContext {
   deferredApiInputs?: DeferredApiInputSlot[];
 }
 
-export interface WorkflowConnectionPlanningSnapshot extends WorkflowConnectionMaterials {
+export interface WorkflowConnectionPlanningSnapshot
+  extends
+    WorkflowConnectionMaterials,
+    Pick<WorkflowPlanningContext, 'entrypoint'> {
   scenario: string;
 }
 

@@ -16,9 +16,11 @@ import { prepareWorkflowConnectionMaterials } from './prepare-workflow-connectio
 export function describeWorkflowConnectionPlanning(
   input: WorkflowConnectionPlanningInput,
 ): WorkflowConnectionPlanningDescription {
-  const { scenario } = workflowConnectionIdentitySchema.parse({
+  const identity = workflowConnectionIdentitySchema.parse({
     scenario: input.scenario,
+    ...(input.entrypoint === undefined ? {} : { entrypoint: input.entrypoint }),
   });
+  const { scenario } = identity;
   for (const field of [
     'materials',
     'capabilities',
@@ -53,7 +55,7 @@ export function describeWorkflowConnectionPlanning(
     ),
   });
   const context: WorkflowConnectionPlanningContext = {
-    scenario,
+    ...structuredClone(identity),
     nodes: structuredClone(prepared.contracts),
     ...(prepared.nativeNodes.length
       ? {
@@ -98,7 +100,7 @@ export function describeWorkflowConnectionPlanning(
       : { deferredApiInputs: structuredClone(prepared.deferredApiInputs) }),
   };
   return {
-    input: { ...prepared, scenario },
+    input: { ...prepared, ...identity },
     context,
     sources: structuredClone({
       materials,

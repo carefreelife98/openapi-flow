@@ -18,6 +18,7 @@ export function describeNativeNodePlanning(
     planId: input.planId,
     scenario: input.scenario,
     allowRuntimeParameters: input.allowRuntimeParameters,
+    ...(input.entrypoint === undefined ? {} : { entrypoint: input.entrypoint }),
   });
   const {
     capabilities,
@@ -40,6 +41,9 @@ export function describeNativeNodePlanning(
     planningCapabilities,
     context: {
       scenario: options.scenario,
+      ...(options.entrypoint === undefined
+        ? {}
+        : { entrypoint: structuredClone(options.entrypoint) }),
       apiMaterials: apiMaterials.map(({ callId, operation, purpose }) => ({
         callId,
         ...(purpose === undefined ? {} : { purpose }),

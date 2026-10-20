@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { ChatOpenAI } from '@langchain/openai';
 import { planWorkflowConnections } from '@openapi-flow/langchain';
+import { describeN8nManualTrigger } from '@openapi-flow/n8n';
 import {
   connectionPlanningFixture,
   explainConnections,
@@ -76,6 +77,7 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
         proposal = { edges: [], additionalGaps: [] };
       }
       const enabled = mode !== 'disabled';
+      input.entrypoint = describeN8nManualTrigger();
       output = enabled ? explainConnections(proposal) : proposal;
       const result = await planWorkflowConnections({
         ...input,
@@ -84,6 +86,14 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
       });
       const request = requests.at(-1),
         wire = request.tools[0].function;
+      assert.deepEqual(
+        JSON.parse(request.messages[1].content).entrypoint,
+        input.entrypoint,
+      );
+      assert.equal(
+        Object.hasOwn(wire.parameters.properties, 'entrypoint'),
+        false,
+      );
       assert.equal(wire.name, 'plan_workflow_connections');
       assert.equal(wire.strict, true);
       assert.equal(

@@ -2,7 +2,9 @@
 
 Zod `^4.6.5` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
 
-Version **0.3.1**, with matching `@openapi-flow/core@0.3.1`. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.1.md).
+Version **0.3.2**, with matching `@openapi-flow/core@0.3.2`. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.2.md).
+
+`describeN8nManualTrigger()` describes the Manual Trigger already supplied by this compiler. Pass that descriptor as `entrypoint` to native and connection planning so a model sees the actual compiler contract without selecting an extra trigger. The descriptor is not a data producer or a substitute for graph validation.
 
 `compileN8nWorkflowTemplate` supports canonical `gapNodes`. It preserves
 internal control edges, reuses Korean warning regions and stop-on-execution
@@ -28,7 +30,7 @@ Standalone strict, reviewable and finite-batch compilation also accepts explicit
 
 `resolveN8nNativeFeatures` and `N8nNativeFeature` expose one registry for eleven existing feature families. Omission inventories every family with explicit `ready`/`requires-context` status; an explicit enum list is strict and `[]` selects none. Ready capabilities retain the existing schemas, source declarations and SDK compilers. Material-dependent families require actual OAS/native contracts, not invented placeholders. The published four-feature factory keeps its original selection. See the [registration and extension contract](../../docs/native-feature-registry.md).
 
-Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.1` depends on matching core `0.3.1`.
+Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.2` depends on matching core `0.3.2`.
 
 ## Installed declaration dependencies
 

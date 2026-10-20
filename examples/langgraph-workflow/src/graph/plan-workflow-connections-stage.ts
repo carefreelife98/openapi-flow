@@ -1,4 +1,5 @@
 import { planWorkflowConnections } from '@openapi-flow/langchain';
+import { describeN8nManualTrigger } from '@openapi-flow/n8n';
 import type {
   PlannedGraphDependencies,
   WorkflowState,
@@ -17,6 +18,7 @@ export function createWorkflowConnectionPlanningStage(
       );
     const reviewPlan = await planWorkflowConnections({
       scenario: state.scenario,
+      entrypoint: describeN8nManualTrigger(),
       model: dependencies.model,
       includeExplanations: dependencies.connectionOptions?.includeExplanations,
       materials: state.reviewMaterials,

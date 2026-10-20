@@ -6,7 +6,10 @@ import type {
 } from '../types/workflow-connection-planning.js';
 import type { WorkflowPlanningSourceEvidence } from '../types/workflow-planning-materials.js';
 import type { WorkflowPlanNodeContract } from '../types/workflow-plan.js';
-import { planningEvidenceTextSchema } from './planning-evidence-schema.js';
+import {
+  planningEvidenceTextSchema,
+  workflowEntryPointContractSchema,
+} from './planning-evidence-schema.js';
 import {
   workflowDraftNativeNodeSchema,
   workflowDraftEdgeSchema,
@@ -18,6 +21,7 @@ import {
 
 export const workflowConnectionIdentitySchema = z.strictObject({
   scenario: planningEvidenceTextSchema,
+  entrypoint: workflowEntryPointContractSchema.optional(),
 });
 
 export const workflowConnectionProposalSchema = z.strictObject({

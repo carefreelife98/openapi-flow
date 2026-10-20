@@ -18,6 +18,7 @@ export async function orchestrateWorkflow(
   const nativePlan = await planNativeNodes({
     planId: `${input.workflowId}-native`,
     scenario: input.scenario,
+    ...(input.entrypoint === undefined ? {} : { entrypoint: input.entrypoint }),
     model: input.model,
     capabilities: input.capabilities,
     preparedNativeNodes: input.preparedNativeNodes,

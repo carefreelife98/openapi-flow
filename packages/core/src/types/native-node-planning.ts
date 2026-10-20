@@ -1,4 +1,5 @@
 import type { ApiBindingMaterial } from './api-bindings.js';
+import type { WorkflowPlanningContext } from './planning-evidence.js';
 import type { z } from 'zod';
 import type { JsonValueObject } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
@@ -22,7 +23,10 @@ import type {
   NativeRuntimeParameterSelection,
 } from './workflow-plan.js';
 
-export interface NativeNodePlanningInput {
+export interface NativeNodePlanningInput extends Pick<
+  WorkflowPlanningContext,
+  'entrypoint'
+> {
   planId: string;
   scenario: string;
   capabilities?: WorkflowCapability[];
@@ -56,7 +60,10 @@ export interface NativePlanningApiMaterial {
   effective: ApiBindingMaterial['operation']['effective'];
 }
 
-export interface NativeNodePlanningContext {
+export interface NativeNodePlanningContext extends Pick<
+  WorkflowPlanningContext,
+  'entrypoint'
+> {
   scenario: string;
   apiMaterials: NativePlanningApiMaterial[];
   preparedNativeNodes: PreparedNativeNodeMaterial[];

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 — 2026-10-20
+
+- Accept the existing optional `WorkflowEntryPointContract` in native and fixed-material connection planning. Validate and snapshot that host/compiler-owned contract before a model call, retain it in original planning evidence, and reject changed receipts. Omission does not infer a start contract.
+- Explain the supplied start as separate from selectable native capabilities. Models cannot generate or modify it through structured output. Keep normal capability-gap, binding, dependency and DAG checks; never suppress a gap because its text mentions a trigger.
+- Forward the same contract through `orchestrateWorkflow` and the Manual Trigger reference composition. The pinned n8n compiler still supplies its one SDK Manual Trigger; no additional trigger role is generated.
+- Keep all three packages and adapter core dependencies at 0.3.2. The previously accepted Ajv 8.20.0 `properties.__proto__` limitation remains unchanged and its regression stays enabled. This correction does not establish general model quality or production API correctness.
+
 ## 0.3.1 — 2026-10-20
 
 - Accept explicit, current OAS input slot IDs in fixed-material connection planning and reviewable graph validation. Code derives slot contracts, validates supplied values and retains DAG/source checks; missing values without permission, stale/duplicate IDs and invalid bindings still fail.
