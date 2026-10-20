@@ -7,6 +7,7 @@ import type {
 } from '../../types/native-capability.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
+import { prependNativeParameterGuard } from './inputs/prepend-native-parameter-guard.js';
 
 /** Explicit typed literals through Edit Fields JSON mode; no casts or mapping expressions. */
 export function createJsonOutputCapability(
@@ -16,16 +17,23 @@ export function createJsonOutputCapability(
     throw new Error('JSON output capability requires name and description');
   const capability: N8nNativeCapability = {
     ...input,
+    supportsRuntimeParameters: true,
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
     responseReferences: () => [],
+    parameterReferenceSources: [],
+    parameterReferenceBindings: () => [],
     waitsForAllInputs: false,
     exclusiveOutputPorts: false,
     outputSchema: () =>
       z.toJSONSchema(input.parametersSchema, { io: 'output' }),
-    compile: ({ planned, position }) => {
-      const parameters = parseNativeNodeParameters(planned, capability);
-      return createNativeFragment(
+    compile: (source) => {
+      const { planned, position } = source;
+      const jsonOutput =
+        planned.runtimeParameters !== undefined
+          ? '={{ JSON.stringify($json) }}'
+          : `={{ ${javascriptJsonLiteral(parseNativeNodeParameters(planned, capability))} }}`;
+      const fragment = createNativeFragment(
         node({
           type: 'n8n-nodes-base.set',
           version: 3.4,
@@ -35,7 +43,7 @@ export function createJsonOutputCapability(
             position,
             parameters: {
               mode: 'raw',
-              jsonOutput: `={{ ${javascriptJsonLiteral(parameters)} }}`,
+              jsonOutput,
               includeOtherFields: false,
               options: { dotNotation: false },
             },
@@ -44,6 +52,9 @@ export function createJsonOutputCapability(
         ['main'],
         ['main'],
       );
+      return planned.runtimeParameters !== undefined
+        ? prependNativeParameterGuard({ input: source, capability, fragment })
+        : fragment;
     },
   };
   return capability;

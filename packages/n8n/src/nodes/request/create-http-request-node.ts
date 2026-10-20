@@ -1,20 +1,17 @@
-import { validateApiArguments } from '@openapi-flow/core';
-import { mapHttpOperationContract } from '@openapi-flow/core/internal';
-import type { JsonObject } from '@openapi-flow/core/internal';
+import {
+  validateApiArguments,
+  inspectApiArgumentRequirements,
+} from '@openapi-flow/core';
 import type {
   CreateHttpRequestNodeInput,
   N8nNodeFragment,
 } from '../../types/node-fragment.js';
-import { originFrom } from '../../legacy/workflow/request/base-url.js';
 import { resolveCredentialBinding } from '../../legacy/workflow/request/credential-binding.js';
-import { absoluteOperationPath } from '../../legacy/workflow/request/request-url.js';
 import { createBoundRequestFragment } from './bindings/create-bound-request-fragment.js';
 import { serializeHttpRequest } from './serialization/serialize-http-request.js';
 import { createSerializedHttpRequestNode } from './serialization/create-serialized-http-request-node.js';
-import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
-import { createRequestDeploymentNotes } from './deployment/create-request-deployment-notes.js';
-import { resolveHttpRequestAuthentication } from './authentication/resolve-http-request-authentication.js';
-import { createHttpResponseDecoder } from './response/create-http-response-decoder.js';
+import { resolveHttpRequestNodeConfiguration } from './resolve-http-request-node-configuration.js';
+import { finalizeHttpRequestFragment } from './finalize-http-request-fragment.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -42,41 +39,28 @@ export function createHttpRequestNode(
     throw new Error(
       `arguments[${args.callId}] is missing ${validation.missingInputs.join(', ')}`,
     );
-  const operation = mapHttpOperationContract(
-    contract.path,
-    contract.method,
-    contract.key.operationRef,
-    contract.pathItem as unknown as JsonObject,
-    contract.operation,
-  );
-  const authentication = resolveHttpRequestAuthentication({
+  const inspected = inspectApiArgumentRequirements({
     operation: contract,
-    securityRequirementIndex: input.securityRequirementIndex,
+    callId: args.callId,
+    values: args.values,
+    bindings: args.bindings,
+    requestMediaType: args.requestMediaType,
+    requestedInputs: args.requestedInputs,
   });
-  const deployment = resolveHttpRequestDeployment({
-    documentId: contract.key.documentId,
-    authentication,
-    baseUrl: input.baseUrl,
-    credentialBindings: input.credentialBindings,
-    securityRequirementIndex: input.securityRequirementIndex,
-  });
-  const resolvedInput = { ...input, ...deployment };
+  if (inspected.status === 'needs-input')
+    throw new Error(
+      `arguments[${args.callId}] is missing scenario-requested inputs: ${inspected.requirements.map((requirement) => requirement.targetPointer).join(', ')}`,
+    );
+  const prepared = resolveHttpRequestNodeConfiguration(input);
+  const resolvedInput = prepared.input;
+  const operation = prepared.config.operation;
   let fragment: N8nNodeFragment;
   if (args.bindings.length) {
-    fragment = createBoundRequestFragment(resolvedInput, {
-      contract,
-      operation,
-      arguments: args,
-      templateUrl: new URL(
-        absoluteOperationPath(originFrom(deployment.baseUrl), operation.path),
-      ).href,
-    });
+    fragment = createBoundRequestFragment(resolvedInput, prepared.config);
   } else {
     const { url, body, headers } = serializeHttpRequest(
       operation,
-      new URL(
-        absoluteOperationPath(originFrom(deployment.baseUrl), operation.path),
-      ).href,
+      prepared.config.templateUrl,
       args.values,
       args.requestMediaType,
     );
@@ -90,8 +74,8 @@ export function createHttpRequestNode(
       body,
       headers,
       authentication: resolveCredentialBinding(
-        deployment,
-        deployment.credentialBindings,
+        resolvedInput,
+        resolvedInput.credentialBindings,
       ),
       shouldAssert: false,
     });
@@ -105,23 +89,10 @@ export function createHttpRequestNode(
       outputPorts: { main: 0 },
     };
   }
-  fragment = createHttpResponseDecoder({ fragment, method: contract.method });
-  if (
-    deployment.pendingFields.length ||
-    authentication?.credentialRequirements
-  ) {
-    const notes = [
-      ...(deployment.pendingFields.length
-        ? [createRequestDeploymentNotes(contract.key.documentId, deployment)]
-        : []),
-      ...(authentication?.credentialRequirements
-        ? [authentication.credentialRequirements]
-        : []),
-    ].join('\n');
-    for (const requestNode of fragment.nodes) {
-      requestNode.config.notes = notes;
-      requestNode.config.notesInFlow = true;
-    }
-  }
-  return fragment;
+  return finalizeHttpRequestFragment({
+    fragment,
+    method: contract.method,
+    documentId: contract.key.documentId,
+    deployment: resolvedInput,
+  });
 }

@@ -1,3 +1,4 @@
+import { defineMaterialBoundCapability } from './common/define-material-bound-capability.js';
 import { node } from '@n8n/workflow-sdk';
 import { readFileSync } from 'node:fs';
 import { createResponseValueSchema } from '@openapi-flow/core';
@@ -8,6 +9,7 @@ import type {
   ResponseCollectionParameters,
 } from '../../types/response-collection.js';
 import { createResponseCollectionParametersSchema } from '../../schemas/response-collection-schema.js';
+import { responseCollectionDefinition } from './response-collection-definition.js';
 import { createOutputReaderCode } from '../request/bindings/create-output-reader-code.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
 
@@ -39,13 +41,15 @@ export function createResponseCollectionCapability(
     createResponseValueSchema(material.operation, parameters.pointer);
     return material;
   }
-  return {
-    name: 'collect-api-responses',
-    description:
-      'Collect unchanged item-linked API response values from one incoming stream into {items: values} using n8n Aggregate. Validates each full OAS response first. Preserves null, nested arrays, duplicates and received order. Not a branch join. Empty streams do not trigger this node or create an artificial result.',
+  return defineMaterialBoundCapability({
+    ...responseCollectionDefinition,
     parametersSchema,
-    inputPorts: () => ['main'],
-    outputPorts: () => ['main'],
+    materialSources: {
+      apiMaterials: structuredClone(input.materials),
+      nativeOutputs: [],
+    },
+    bindMaterialContracts: (sources) =>
+      createResponseCollectionCapability({ materials: sources.apiMaterials }),
     responseReferences: (values) => {
       const parameters = parametersSchema.parse(values);
       source(parameters);
@@ -57,8 +61,6 @@ export function createResponseCollectionCapability(
         },
       ];
     },
-    waitsForAllInputs: false,
-    exclusiveOutputPorts: false,
     outputSchema: (values) => {
       const parameters = parametersSchema.parse(values);
       return {
@@ -162,5 +164,5 @@ export function createResponseCollectionCapability(
         ],
       };
     },
-  };
+  });
 }

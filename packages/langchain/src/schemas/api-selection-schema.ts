@@ -1,42 +1,52 @@
 import { z } from 'zod';
+import { withApiSelectionExplanation } from './with-api-selection-explanation.js';
 
-export function createApiSelectionSchema(candidateIds: string[]) {
+export function createApiSelectionSchema(
+  candidateIds: string[],
+  includeExplanations = false,
+) {
   if (candidateIds.length === 0)
     throw new Error('operations must contain candidates for model selection');
   return z
     .object({
       operations: z
         .array(
-          z
-            .object({
-              candidateId: z
-                .enum(candidateIds)
-                .describe(
-                  'Exact identifier from supplied candidates; the same candidate may be used by multiple required call instances.',
-                ),
-              purpose: z
-                .string()
-                .min(1)
-                .describe(
-                  'The scenario role of this one API call instance. Describe separate required calls separately; this is not an execution order.',
-                ),
-            })
-            .strict(),
+          withApiSelectionExplanation(
+            z
+              .object({
+                candidateId: z
+                  .enum(candidateIds)
+                  .describe(
+                    'Exact identifier from supplied candidates; the same candidate may be used by multiple required call instances.',
+                  ),
+                purpose: z
+                  .string()
+                  .min(1)
+                  .describe(
+                    'The scenario role of this one API call instance. Describe separate required calls separately; this is not an execution order.',
+                  ),
+              })
+              .strict(),
+            includeExplanations,
+          ),
         )
         .describe(
           'One entry per required API call instance, not a deduplicated API catalog. Repeat a candidateId only when the scenario requires separate calls to that API.',
         ),
       gaps: z.array(
-        z
-          .object({
-            description: z
-              .string()
-              .min(1)
-              .describe(
-                'Required API capability that no supplied discovery candidate matches. Do not judge missing parameters, response fields or security without a full contract.',
-              ),
-          })
-          .strict(),
+        withApiSelectionExplanation(
+          z
+            .object({
+              description: z
+                .string()
+                .min(1)
+                .describe(
+                  'Required API capability that no supplied discovery candidate matches. Do not judge missing parameters, response fields or security without a full contract.',
+                ),
+            })
+            .strict(),
+          includeExplanations,
+        ),
       ),
     })
     .strict();

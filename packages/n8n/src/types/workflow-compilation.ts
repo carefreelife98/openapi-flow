@@ -3,6 +3,7 @@ import type { N8nNodeFragment } from './node-fragment.js';
 import type { N8nSdkNode } from './node-fragment.js';
 import type { WorkflowReviewGap } from '@openapi-flow/core';
 import type { N8nBatchExecutionScope } from './batch-execution.js';
+import type { N8nNativeInputTemplate } from './native-runtime-parameters.js';
 
 export interface N8nGraphEdge {
   from: string;
@@ -20,6 +21,7 @@ export interface AssembleN8nWorkflowInput {
 export interface N8nCompileResult {
   status: 'complete';
   workflow: WorkflowJSON;
+  nativeInputTemplate?: N8nNativeInputTemplate;
 }
 
 export interface BuildN8nWorkflowInput extends AssembleN8nWorkflowInput {
@@ -36,6 +38,7 @@ export interface N8nNeedsReviewResult {
   status: 'needs-review';
   workflow: N8nWorkflowJSON;
   diagnostics: WorkflowReviewGap[];
+  nativeInputTemplate?: N8nNativeInputTemplate;
 }
 
 export type N8nWorkflowResult = N8nCompileResult | N8nNeedsReviewResult;

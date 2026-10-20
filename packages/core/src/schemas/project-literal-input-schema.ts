@@ -115,6 +115,15 @@ export function projectLiteralInputSchema(
       availability.set(name, projected.hasLiteralValues);
     }
     schema.properties = properties;
+    // A required field supplied by another owner is not required in this partial value.
+    // Keep every unrelated required field; a partial native value must not hide it.
+    if (Array.isArray(schema.required))
+      schema.required = schema.required.filter(
+        (name) =>
+          typeof name !== 'string' ||
+          !names.has(name) ||
+          availability.get(name) !== false,
+      );
     // Counts describe the completed request; preceding nodes contribute keys too.
     if (typeof schema.minProperties === 'number')
       schema.minProperties = Math.max(0, schema.minProperties - names.size);

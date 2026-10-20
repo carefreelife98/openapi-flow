@@ -264,3 +264,76 @@ test('invalid operation choice is displayed for correction rather than mapped to
   );
   assert.equal(cancelled.conversationStatus, 'cancelled');
 });
+
+test('each malformed operation reply persists its error in a new checkpoint without growing one task interrupt history', async () => {
+  const { graph, config, model } = setup({ ambiguous: true });
+  let result = await graph.invoke(initial, config);
+  const choice = result.__interrupt__[0].value.questions[0];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    result = await graph.invoke(
+      new Command({
+        resume: {
+          action: 'choose',
+          answers: [
+            {
+              questionId: choice.id,
+              operation: { ...choice.candidates[0].key, snapshotId: 'stale' },
+            },
+          ],
+        },
+      }),
+      config,
+    );
+    const checkpoint = await graph.getState(config);
+    assert.ok(checkpoint.values.operationAnswerErrors.length);
+    assert.equal(checkpoint.tasks.length, 1);
+    assert.equal(checkpoint.tasks[0].interrupts.length, 1);
+    assert.ok(result.__interrupt__[0].response_schema);
+    assert.equal(model.calls.length, 1);
+  }
+  const next = await graph.invoke(
+    new Command({
+      resume: {
+        action: 'choose',
+        answers: [
+          { questionId: choice.id, operation: choice.candidates[0].key },
+        ],
+      },
+    }),
+    config,
+  );
+  assert.equal(next.__interrupt__[0].value.kind, 'request-input');
+  assert.deepEqual(next.operationAnswerErrors, []);
+});
+
+test('malformed request replies are checkpointed once and cannot replay an earlier pending answer', async () => {
+  const { graph, config, model } = setup();
+  let result = await graph.invoke(initial, config);
+  const question = result.__interrupt__[0].value.questions[0];
+  const calls = model.calls.length;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    result = await graph.invoke(
+      new Command({ resume: { action: 'answer', answers: 'invalid-array' } }),
+      config,
+    );
+    const checkpoint = await graph.getState(config);
+    assert.ok(checkpoint.values.inputAnswerIssues.length);
+    assert.equal(checkpoint.values.pendingInputResponse, undefined);
+    assert.equal(checkpoint.tasks.length, 1);
+    assert.equal(checkpoint.tasks[0].interrupts.length, 1);
+    assert.ok(result.__interrupt__[0].response_schema);
+    assert.equal(model.calls.length, calls);
+  }
+  const complete = await graph.invoke(
+    new Command({
+      resume: {
+        action: 'answer',
+        answers: [{ requirementId: question.id, value: 'member-valid' }],
+      },
+    }),
+    config,
+  );
+  assert.equal(complete.conversationStatus, 'complete');
+  assert.equal(complete.pendingInputResponse, undefined);
+  assert.equal(model.calls.length, calls + 1);
+});

@@ -23,8 +23,11 @@ export function createBoundRequestFragment(
   );
   const validator = compileRequestValidator(config);
   const linked = input.itemMode === 'linked';
-  const materialize = `OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator)`;
-  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\n${linked ? `return $input.all().map((_,inputIndex)=>{${createOutputReaderCode(sources, true)}\nreturn {json:${materialize},pairedItem:{item:inputIndex}};});` : `${createOutputReaderCode(sources)}\nreturn [{json:${materialize}}];`}`;
+  const materialize = `OpenApiFlowRequestRuntime.materializeHttpRequest(config,responses,OpenApiFlowRequestValidator${config.deferredInputs ? ',inputValues' : ''})`;
+  const inputReader = config.deferredInputs
+    ? `const inputItems=$(${javascriptJsonLiteral(config.deferredInputs.inputNodeName)}).all(0,0);if(inputItems.length!==1||inputItems[0].json.revision!==${config.deferredInputs.revision})throw new Error('Missing or stale validated workflow inputs: expected revision ${config.deferredInputs.revision}');const inputValues=inputItems[0].json.values;`
+    : '';
+  const code = `${runtime}\n${validator}\nconst config=${javascriptJsonLiteral(config)};\n${inputReader}\n${linked ? `return $input.all().map((_,inputIndex)=>{${createOutputReaderCode(sources, true)}\nreturn {json:${materialize},pairedItem:{item:inputIndex}};});` : `${createOutputReaderCode(sources)}\nreturn [{json:${materialize}}];`}`;
   const materializer = node({
     type: 'n8n-nodes-base.code',
     version: 2,
@@ -41,7 +44,12 @@ export function createBoundRequestFragment(
       (binding) =>
         binding.targetPointer === '/body' ||
         binding.targetPointer.startsWith('/body/'),
-    );
+    ) ||
+    config.deferredInputs?.slots.some(
+      (slot) =>
+        slot.targetPointer === '/body' ||
+        slot.targetPointer.startsWith('/body/'),
+    ) === true;
   const mediaTypes = config.operation.body
     ? Object.keys(config.operation.body.mediaTypes)
     : [];

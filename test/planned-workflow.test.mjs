@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 import { deserialize, serialize } from 'node:v8';
+import { createRequire } from 'node:module';
+import { URL } from 'node:url';
 import { z } from 'zod';
 import { node } from '@n8n/workflow-sdk';
 import { createApiCatalog, resolveApiOperations } from '@openapi-flow/core';
@@ -12,6 +14,11 @@ import {
   createHttpRequestNode,
 } from '@openapi-flow/n8n';
 import { createPlannedWorkflowGenerationGraph } from '@openapi-flow/example-langgraph-workflow';
+
+const require = createRequire(
+  new URL('../packages/core/package.json', import.meta.url),
+);
+const { Ajv2020 } = require('ajv/dist/2020.js');
 
 const spec = {
   openapi: '3.1.0',
@@ -311,15 +318,13 @@ test('planner sends OAS response contracts and described native schemas, derivin
             payload.capabilities[0].parametersSchema.properties.conditions
               .description,
           );
-          assert.equal(
-            JSON.stringify(z.toJSONSchema(schema)).includes('"oneOf"'),
-            false,
-          );
+          assert.equal(JSON.stringify(schema).includes('"oneOf"'), false);
           const { starts, nativeNodes, ...rest } = expected;
           const proposal = { ...rest, additionalNativeNodes: nativeNodes };
-          assert.equal(z.toJSONSchema(schema).properties.starts, undefined);
-          assert.ok(schema.safeParse(proposal).success);
-          assert.equal(schema.safeParse(expected).success, false);
+          assert.equal(schema.properties.starts, undefined);
+          const validate = new Ajv2020({ strict: false }).compile(schema);
+          assert.ok(validate(proposal), JSON.stringify(validate.errors));
+          assert.equal(validate(expected), false);
           assert.deepEqual(starts, ['core']);
           return proposal;
         },

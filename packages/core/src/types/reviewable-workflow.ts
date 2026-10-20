@@ -1,6 +1,7 @@
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiOperationKey } from './api-catalog.js';
 import type { OutputBinding } from './api-arguments.js';
+import type { WorkflowConnectionPlanningRecord } from './workflow-connection-planning.js';
 import type {
   WorkflowApiMaterial,
   WorkflowCapability,
@@ -26,6 +27,7 @@ export interface BlockedWorkflowApiMaterial {
   status: 'blocked';
   callId: string;
   operation: ApiOperationContract;
+  purpose?: string;
   requestMediaType?: string;
   bindings: OutputBinding[];
   gapIds: string[];
@@ -54,6 +56,8 @@ export interface ReviewableWorkflowGraphProposal {
 export interface ReviewableWorkflowGraphPlan extends WorkflowGraphPlan {
   gaps: WorkflowReviewGap[];
   blockedCalls: BlockedWorkflowCall[];
+  /** Optional original connection-only decision and supplied-material evidence. */
+  connectionPlanning?: WorkflowConnectionPlanningRecord;
 }
 
 export interface ReviewableWorkflowPlanningContext {

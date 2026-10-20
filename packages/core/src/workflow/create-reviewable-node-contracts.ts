@@ -1,6 +1,7 @@
 import type { ValidateReviewableWorkflowGraphPlanInput } from '../types/reviewable-workflow.js';
 import type { WorkflowPlanNodeContract } from '../types/workflow-plan.js';
 import { createWorkflowNodeContracts } from './create-workflow-node-contracts.js';
+import { createUnresolvedNodeContracts } from './create-unresolved-node-contracts.js';
 
 export function createReviewableNodeContracts({
   plan,
@@ -33,15 +34,6 @@ export function createReviewableNodeContracts({
       waitsForAllInputs: false,
       exclusiveOutputPorts: false,
     });
-  for (const gap of plan.gaps)
-    contracts.push({
-      id: gap.id,
-      inputs: ['main'],
-      outputs: ['main'],
-      references: [],
-      dependencyNodeIds: [],
-      waitsForAllInputs: false,
-      exclusiveOutputPorts: false,
-    });
+  contracts.push(...createUnresolvedNodeContracts(plan.gaps));
   return contracts;
 }

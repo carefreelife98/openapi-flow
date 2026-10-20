@@ -10,9 +10,11 @@ export function createPassThroughCapability(): N8nNativeCapability {
     description:
       'n8n No Operation: forward all input items unchanged with their original links. Main input/output, no configuration or new data. Can provide a common entry before a fan-out. This does not merge branches, collect results or replace a missing API.',
     parametersSchema: passThroughParametersSchema,
+    parameterReferenceSources: [],
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
     responseReferences: () => [],
+    parameterReferenceBindings: () => [],
     waitsForAllInputs: false,
     exclusiveOutputPorts: false,
     compile: ({ planned, position }) => {

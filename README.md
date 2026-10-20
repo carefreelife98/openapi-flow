@@ -2,25 +2,85 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.2.0** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Core 0.1.0 has a different API; do not mix it with the 0.2.0 adapters. Use Node.js 24 or later and supply a compatible LangChain host dependency.
+Version **0.3.0** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.0.md) tracks verified public tarballs, deferred host installation and the explicitly accepted Ajv limitation.
 
 ```sh
-npm install @openapi-flow/core@0.2.0 @openapi-flow/langchain@0.2.0 @openapi-flow/n8n@0.2.0 @langchain/core@^1
+npm install @openapi-flow/core@0.3.0 @openapi-flow/langchain@0.3.0 @openapi-flow/n8n@0.3.0 @langchain/core@^1
 ```
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
 
-## Unreleased conversational additions
+## Conversational additions in 0.3.0
 
-Current source additionally exposes OAS-derived input questions, snapshot-scoped confirmed values, API-choice clarification and a host-owned multi-turn LangGraph example. These additions are **not in npm 0.2.0**. See the [conversation guide](docs/conversational-generation.md). No server, UI or publication is added. The interactive example requires confirmed request values; it does not silently expand the user's scope or invent business assertions.
+This release additionally exposes OAS-derived input questions, snapshot-scoped confirmed values, API-choice clarification and a host-owned multi-turn LangGraph example. These additions are **not in npm 0.2.0**. See the [conversation guide](docs/conversational-generation.md). No server or UI is added. The interactive example requires confirmed request values; it does not silently expand the user's scope or invent business assertions.
+
+Core development now also provides explicit deferred API input slots and serializable, revision-checked workflow drafts with scoped readiness, atomic edits, structural impact analysis and review invalidation. The new `compileN8nWorkflowTemplate` source API compiles drafts into central-input/preflight templates, a Korean guide and slot mappings. A private [canonical LangGraph reference](docs/workflow-draft-conversation-host.md) composes completed-plan editing and explicit review/resume. Full lifecycle coverage, late registry prerequisites and a special JSON-key validator regression remain open. See the [implementation and evidence ledger](docs/conversational-oss-implementation.md) for exact boundaries.
+
+Draft editing separates API literal values, producer bindings and [connection deltas](docs/workflow-draft-connection-edits.md) into bounded model stages with deterministic core validation. The optional source-only host reference uses these primitives; it is not a mandatory graph or published server.
+
+[explicit capability gaps](docs/workflow-draft-conversation-host.md#explicit-capability-gaps)
+preserve unsupported requested roles as canonical `gapNodes`, with original-message
+evidence and the supplied contract inventory. Independent work continues; gaps have
+control ports but no fabricated data output. Template export reuses Korean warning
+regions and a detached Start. This is a scoped model judgment, not proof that an API
+does not exist or that the requested scenario can execute.
+
+[native consumer repairs](docs/workflow-draft-native-reference-repairs.md) constrain the model to source choices at implementation-declared reference locations. Code preserves comparison values and settings, validates actual sources and assembles the patches. Actual material snapshot refresh is implemented; late registry prerequisites and broader conversational composition remain unfinished.
+
+`clarifyWorkflowRequirements` adds bounded categorized questions, optional explanations/suggestions and code-owned identities. Core's `resolveWorkflowClarificationReplies` preserves typed partial answers and rejects stale/modified state; structured facts remain authoritative over the derived readable prompt. See the [requirements clarification contract](docs/workflow-requirements-clarification.md). Full conversational editing remains unfinished.
+
+`N8nNativeFeature` and `resolveN8nNativeFeatures` provide enum selection and explicit availability for eleven existing native feature families. Omitted feature lists inventory all families; missing material contracts remain visible, and explicitly requesting an unavailable family fails. Existing planners and SDK compilers consume the resolved capabilities without a second implementation. See the [native registry contract](docs/native-feature-registry.md); automatic stage-by-stage integration into the conversational example remains pending.
+
+[review follow-ups](docs/workflow-review-suggestions.md) add optional fresh suggestions at every actual HITL boundary. Core binds identities and original evidence, and explicit user adoption creates a distinct receipt rather than an automatic graph patch. The canonical reference preserves known clarification answers during the resulting revision and repeats normal planning/validation. Suggestions, approval and intent remain separate.
 
 ## Current development scope
+
+The [current conversation graph](docs/current-conversation-graph.md) is generated
+from the actual LangGraph registration, with Korean stage labels and the current
+work focus. `npm run graph:update` refreshes it; regression checks reject a stale
+diagram. This is the design-conversation graph, not a generated n8n runtime DAG.
+
+The [short multi-turn evaluation](docs/short-conversation-evaluation.md)
+records a 188-candidate schema transmission fix and a code-owned source-choice
+fix for quoted input answers. Later checkpoints retain implementation-declared
+native reference roles and verify independent-response reading in isolated n8n.
+The canonical host now distinguishes an actual `workflow-exported` result from
+an empty `no-workflow` result; export and execution readiness are separate.
+General question necessity, first-choice relevance and broader multi-turn quality
+remain open. Explicit gap handling has bounded model/runtime evidence, not a
+universal absence guarantee. Failed or partial runs are retained, not repaired
+or reported as complete.
+
+[typed API binding questions](docs/workflow-draft-api-binding-questions.md)
+are constrained to the selected OAS input and actual source contracts. Code renders
+questions and resolves explicit human source choices in the same plan, without
+another binding-model call. This does not guarantee that every model question is necessary.
+
+Optional request-input intent first selects the inputs requested from
+preceding results. A supplied `inputIntent` then constrains binding/question targets
+and skips binding-model calls when empty, without changing OAS literal generation.
+The canonical host enables it with `planApiBindingInputs: true`; omission preserves
+the earlier unscoped call path. See the same [input-intent guide](docs/workflow-draft-api-binding-questions.md#요청-의도를-먼저-고정하는-선택-단계).
+
+`trackRequestedInputs: true` adds scenario-requested OAS pointers to the
+existing argument call. Core preserves unknown optional literals as typed
+questions/slots, separately from OAS requiredness, and n8n checks their presence
+after actual bindings before HTTP. The canonical host option is
+`trackRequestedApiInputs: true`. See [requested literal inputs](docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
+
+[clarification answer revisions](docs/workflow-clarification-answer-revisions.md)
+replace a currently confirmed answer or reopen its original question through code,
+without model-generated state changes. The canonical host preserves transition
+history while excluding retired answer submissions from current model evidence.
+This is current-round answer lifecycle, not complete general requirement supersession.
 
 Focus on workflows started by **Manual Trigger** that call OAS-defined outgoing REST APIs. This includes multi-API selection, OAS-typed request values, response bindings, and conditions/joins using explicitly supplied native capabilities. Item-wise iteration remains unfinished work within this scope.
 
 Further webhook/callback implementation is deferred, including inbound authentication/schema checks and callback registration/correlation. Existing inbound extraction and legacy compilation are retained, not removed or expanded. This development priority does not restrict acceptance of standards-valid OAS documents.
 
 ## TODO and roadmap
+
+- [ ] Unreleased canonical editing: move incident-edge cleanup after explicit node removal into code-owned changes, and obtain explicit valid decisions for affected native joins. The latest short-turn run passed 10/12 turns; planning/runtime contract separation fixes one recorded failure, while branch/Merge removal remains open. See the [bounded evaluation record](docs/short-conversation-evaluation.md).
 
 The agreed order is **item-wise execution → contract/response validation → multi-API quality evaluation → release preparation**. Request-format and authentication extensions are deferred; they are not prerequisites for this iteration.
 
@@ -171,6 +231,10 @@ Core has no LangChain or n8n dependency. The adapters each depend on core, not o
 `orchestrateWorkflow({ workflowId, scenario, model, materials?, capabilities?, preparedNativeNodes?, gaps?, edges? })` plans native instances and then connections from only the supplied material groups. Omission means an empty group, not a default registry or inferred API. `materials` contains selected OAS contracts and immutable ready/blocked request arguments. API-only and native-only plans are supported. Prepared nodes and fixed edges are preserved; unknown IDs/ports, repeated edges, invalid required values, cycles and unavailable producers are errors, not repaired proposals. A prepared native node still needs its registered implementation in `capabilities`; optional groups do not weaken required contracts.
 
 For independent stages, use `planNativeNodes` and `planWorkflowConnections`. The native model returns only new instance identities, supplied capability choices, schema-typed parameters and unmet requirement descriptions. Code derives ports, native outputs and gap IDs. The connection model returns only new edges and unmet requirements/blocked calls; it cannot regenerate API values, native parameters, ports, schemas, starts or SDK JSON. Supplied edges are not echoed. Core derives roots and checks dependency availability on every incoming route. No native capabilities means no native-selection model call. Fully bound APIs still skip literal argument generation.
+
+standalone hosts needing separate checkpoints or mixed literal/runtime native fields can instead use `selectNativeNodeInstances` followed by `generateNativeNodeParameters`. The first model selects only capability, role and input ownership; Core allocates IDs and derives the remaining typed schema. The second generates only those literal settings, or makes zero calls when none remain. Explicitly completed nodes may be supplied as sources, but unfinished selections never gain invented outputs. The compact `planNativeNodes` API retains its single-call contract. See [independent native role/value planning](docs/native-runtime-inputs.md#independent-role-selection-and-typed-values).
+
+An unspecified plan-time literal does not prevent selecting a supported native role. The value stage can ask a scoped question and resume through ordered `replies: [{ question, text }]` with the same original selection/scenario. Code validates question identities, source fingerprints and answer order before another value call. See [native setting replies](docs/native-runtime-inputs.md#answering-a-selected-instances-questions); the host owns interrupts, trusted persistence and final graph adoption.
 
 Connection planning receives validated native instance parameters and implementation-owned ports alongside node dependency contracts. It reads an IF condition/operator before choosing true/false routes; node names alone do not define polarity. These parameters are immutable input context, never part of the connection output schema.
 

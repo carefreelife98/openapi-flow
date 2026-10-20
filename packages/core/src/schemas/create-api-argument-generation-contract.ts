@@ -105,13 +105,17 @@ export function createApiArgumentGenerationContract(
         )
         .optional();
   }
+  const valuesSchema = z
+    .object(fields)
+    .strict() as z.ZodType<ApiArgumentValues>;
   const schema = z
     .object({
-      values: z.object(fields).strict() as z.ZodType<ApiArgumentValues>,
+      values: valuesSchema,
     })
     .strict();
   return {
     schema,
+    valuesSchema,
     literalInputSchema: z.toJSONSchema(schema) as JsonObject,
     hasLiteralInputs: Object.keys(fields).length > 0,
   };

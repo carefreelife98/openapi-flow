@@ -152,6 +152,7 @@ export async function createItemJoinFixture(
     nativeNodes: [scope],
     capabilities: [array],
     apiNodeNames: names,
+    apiResponseContracts: contracts,
   });
   const join = createItemJoinCapability({
     materials: selected.filter((material) => callIds.includes(material.callId)),
@@ -237,6 +238,7 @@ export async function createItemJoinFixture(
     nativeNodes,
     capabilities,
     apiNodeNames: names,
+    apiResponseContracts: contracts,
   });
   const materials = selected.map((material) => ({
     operation: material.operation,

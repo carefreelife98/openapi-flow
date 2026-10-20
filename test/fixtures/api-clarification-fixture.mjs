@@ -1,4 +1,5 @@
 import { createApiCatalog, resolveApiOperations } from '@openapi-flow/core';
+import { textInputSource } from './api-input-source-selection-fixture.mjs';
 
 export const clarificationSpec = {
   openapi: '3.1.0',
@@ -104,11 +105,24 @@ export function clarificationModel(options = {}) {
               answers: [
                 {
                   requirementId: payload.questions[0].id,
-                  value: options.replyValue ?? 'member-01',
-                  sourceFormat: 'text',
-                  sourceText: options.replyValue ?? 'member-01',
+                  source: textInputSource(
+                    payload,
+                    options.replyValue ?? 'member-01',
+                  ),
+                  ...(schema.properties?.reason
+                    ? {
+                        reason:
+                          'The reply explicitly provides the pending member identifier.',
+                      }
+                    : {}),
                 },
               ],
+              ...(schema.properties?.reason
+                ? {
+                    reason:
+                      'The pending input is explicitly supplied in this reply.',
+                  }
+                : {}),
             };
           if (config.name === 'plan_api_bindings')
             return {

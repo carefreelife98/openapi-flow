@@ -8,7 +8,7 @@ import { createReviewableWorkflowGraphSchema } from '../packages/langchain/dist/
 import { completeReviewableWorkflowGraphProposal } from '../packages/langchain/dist/workflow/complete-reviewable-workflow-graph-proposal.js';
 import { createApiSelectionSchema } from '../packages/langchain/dist/schemas/api-selection-schema.js';
 import { createApiBindingPlanSchema } from '../packages/langchain/dist/schemas/api-binding-plan-schema.js';
-import { createNativeNodePlanSchema } from '../packages/langchain/dist/schemas/native-node-plan-schema.js';
+import { createNativeNodePlanningContract } from '../packages/langchain/dist/schemas/native-node-planning-contract.js';
 import { materials, bindingPlan } from './fixtures/request-binding-fixture.mjs';
 
 const require = createRequire(
@@ -144,7 +144,9 @@ test('binding wire schema describes dependency failures separately from literal 
 });
 
 test('native wire schema excludes later API implementation tasks from gap ownership', () => {
-  const schema = createNativeNodePlanSchema(createN8nNativeCapabilities());
+  const { schema } = createNativeNodePlanningContract(
+    createN8nNativeCapabilities(),
+  );
   const wire = toJsonSchema(schema);
   assert.equal(validator.validateSchema(wire), true);
   assert.match(

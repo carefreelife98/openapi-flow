@@ -1,6 +1,6 @@
 import type { ValidateNativeApiResponseReferencesInput } from '../types/workflow-capability-planning.js';
 import { assertApiCallIdentities } from './assert-api-call-identities.js';
-import { parseNativeNodeParameters } from './parse-native-node-parameters.js';
+import { resolveNativeStructureParameters } from './resolve-native-structure-parameters.js';
 
 export function validateNativeApiResponseReferences({
   nativeNodes,
@@ -20,7 +20,7 @@ export function validateNativeApiResponseReferences({
       throw new Error(
         `node ${native.id}: unknown capability ${native.capability}`,
       );
-    const parameters = parseNativeNodeParameters(native, capability);
+    const parameters = resolveNativeStructureParameters(native, capability);
     const references = [
       ...capability.responseReferences(parameters),
       ...Object.values(

@@ -2,6 +2,7 @@ import type { NativeOutputContract } from '@openapi-flow/core';
 import type { PlannedNativeNode } from '@openapi-flow/core';
 import type { N8nNativeCapability } from './native-capability.js';
 import type { ApiOperationContract } from '@openapi-flow/core';
+import type { N8nNativeInputConfiguration } from './native-runtime-parameters.js';
 
 export interface N8nNativeOutputSource extends NativeOutputContract {
   nodeName: string;
@@ -24,4 +25,8 @@ export interface CreateN8nNativeOutputSourcesInput {
   nativeNodes: PlannedNativeNode[];
   capabilities: N8nNativeCapability[];
   apiNodeNames: Record<string, string>;
+  apiResponseContracts?: Record<string, ApiOperationContract>;
+  /** Actual SDK output sources outside this explicitly supplied native subset. */
+  externalNativeOutputSources?: N8nNativeOutputSource[];
+  nativeInputs?: N8nNativeInputConfiguration;
 }

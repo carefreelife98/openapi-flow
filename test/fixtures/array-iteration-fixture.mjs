@@ -161,6 +161,9 @@ export const sources = createN8nNativeOutputSources({
   nativeNodes,
   capabilities,
   apiNodeNames: names,
+  apiResponseContracts: Object.fromEntries(
+    materials.map((material) => [material.callId, material.operation]),
+  ),
 });
 export function requestNode(callId, baseUrl = 'https://fixture.test') {
   const material = graphMaterials.find(
@@ -311,6 +314,12 @@ function compileScenario(baseUrl, conditional, collected = false) {
           nativeNodes: graphPlan.nativeNodes,
           capabilities: registered,
           apiNodeNames: names,
+          apiResponseContracts: Object.fromEntries(
+            selected.map((material) => [
+              material.arguments.callId,
+              material.operation,
+            ]),
+          ),
         }),
       }),
     );

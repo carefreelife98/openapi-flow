@@ -65,6 +65,12 @@ const spec = {
 };
 
 test('package runtime dependencies enforce core and independent adapter boundaries', async () => {
+  const core = JSON.parse(
+    await readFile(
+      new URL('../packages/core/package.json', import.meta.url),
+      'utf8',
+    ),
+  );
   for (const name of ['core', 'langchain', 'n8n']) {
     const manifest = JSON.parse(
       await readFile(
@@ -76,6 +82,7 @@ test('package runtime dependencies enforce core and independent adapter boundari
       ...manifest.dependencies,
       ...manifest.peerDependencies,
     };
+    assert.equal(manifest.version, core.version);
     if (name === 'core') {
       assert.equal(
         Object.keys(dependencies).some(
@@ -86,7 +93,7 @@ test('package runtime dependencies enforce core and independent adapter boundari
         false,
       );
     } else {
-      assert.equal(dependencies['@openapi-flow/core'], '0.2.0');
+      assert.equal(dependencies['@openapi-flow/core'], core.version);
       assert.equal(
         dependencies[`@openapi-flow/${name === 'n8n' ? 'langchain' : 'n8n'}`],
         undefined,

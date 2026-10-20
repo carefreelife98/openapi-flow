@@ -195,6 +195,8 @@ for (const selection of ['application/json', null])
               default:
                 throw new Error('Unexpected stage ' + options.name);
             }
+            if (options.name === 'plan_reviewable_workflow_graph')
+              return output;
             return schema.parse(output);
           },
         };

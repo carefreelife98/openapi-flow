@@ -1,21 +1,17 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type {
-  ReviewableWorkflowApiMaterial,
   PlannedNativeNode,
-  WorkflowCapability,
-  WorkflowPlanEdge,
-  WorkflowReviewGap,
-  WorkflowPlanNodeContract,
+  WorkflowConnectionPlanningInput,
+  WorkflowConnectionDecision,
+  WorkflowConnectionProposal,
+  ExplainedWorkflowBlockedCall,
+  ExplainedWorkflowConnection,
 } from '@openapi-flow/core';
+import type { ReviewableWorkflowGraphOutput } from './reviewable-workflow-planning.js';
 
-export interface PlanWorkflowConnectionsInput {
-  scenario: string;
+export interface PlanWorkflowConnectionsInput extends WorkflowConnectionPlanningInput {
   model: BaseChatModel;
-  materials?: ReviewableWorkflowApiMaterial[];
-  capabilities?: WorkflowCapability[];
-  nativeNodes?: PlannedNativeNode[];
-  gaps?: WorkflowReviewGap[];
-  edges?: WorkflowPlanEdge[];
+  includeExplanations?: boolean;
 }
 
 export interface OrchestrateWorkflowInput extends Omit<
@@ -26,11 +22,16 @@ export interface OrchestrateWorkflowInput extends Omit<
   preparedNativeNodes?: PlannedNativeNode[];
 }
 
-export interface WorkflowConnectionMaterials {
-  materials: ReviewableWorkflowApiMaterial[];
-  capabilities: WorkflowCapability[];
-  nativeNodes: PlannedNativeNode[];
-  gaps: WorkflowReviewGap[];
-  edges: WorkflowPlanEdge[];
-  contracts: WorkflowPlanNodeContract[];
+export interface WorkflowConnectionModelDecision extends ReviewableWorkflowGraphOutput {
+  reason: string;
+  edges: ExplainedWorkflowConnection[];
+  blockedCalls?: ExplainedWorkflowBlockedCall[];
+}
+
+export type WorkflowConnectionPlanningOutput =
+  ReviewableWorkflowGraphOutput | WorkflowConnectionModelDecision;
+
+export interface ResolvedWorkflowConnectionOutput {
+  proposal: WorkflowConnectionProposal;
+  decision?: WorkflowConnectionDecision;
 }

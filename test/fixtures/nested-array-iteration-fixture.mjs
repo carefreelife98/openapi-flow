@@ -245,6 +245,9 @@ export function compileNestedIteration(
     nativeNodes: graphPlan.nativeNodes,
     capabilities,
     apiNodeNames: names,
+    apiResponseContracts: Object.fromEntries(
+      materials.map((material) => [material.callId, material.operation]),
+    ),
   });
   return compilePlannedN8nWorkflow({
     id: filtered ? 'nested-filtered-array-iteration' : 'nested-array-iteration',

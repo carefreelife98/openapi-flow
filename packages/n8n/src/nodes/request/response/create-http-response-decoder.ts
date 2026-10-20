@@ -4,6 +4,7 @@ import { isObject } from '@openapi-flow/core/internal';
 import type { N8nNodeFragment } from '../../../types/node-fragment.js';
 import type { CreateHttpResponseDecoderInput } from '../../../types/http-response-decoding.js';
 import { javascriptJsonLiteral } from '../../../utils/javascript-json-literal.js';
+import { httpResponseNodeName } from './http-response-node-name.js';
 
 /** Keep transport metadata and item ancestry while exposing the decoded API exit. */
 export function createHttpResponseDecoder({
@@ -50,7 +51,7 @@ export function createHttpResponseDecoder({
     version: 2,
     config: {
       id: fragment.nodeId,
-      name: `Request ${fragment.nodeId}`,
+      name: httpResponseNodeName(fragment.nodeId),
       position: [position[0] + 220, position[1]],
       notes:
         'Decode the raw HTTP response once. Preserve status, headers, body types and item ancestry. Invalid JSON fails without repair.',

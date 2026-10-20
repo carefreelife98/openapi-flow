@@ -16,6 +16,7 @@ import {
 } from './prepare-api-workflow.js';
 import { createApiBindingsStage } from './plan-api-bindings-stage.js';
 import { createApiRequestMediaTypesStage } from './select-api-request-media-types-stage.js';
+import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 
 /** Automatic graph design; consumers may instead compose the package functions themselves. */
 export function buildPlannedWorkflowGraph(
@@ -32,12 +33,16 @@ export function buildPlannedWorkflowGraph(
     const graphPlan = await planWorkflowGraph({
       scenario: state.scenario,
       model: dependencies.model,
+      includeExplanations: dependencies.graphOptions?.includeExplanations,
       capabilities: dependencies.capabilities,
       preparedNativeNodes: dependencies.preparedNativeNodes,
-      materials: state.contracts.map((operation, index) => ({
-        operation,
-        arguments: state.arguments![index],
-      })),
+      materials: createApiBindingMaterials(state).map(
+        ({ operation, purpose }, index) => ({
+          operation,
+          purpose,
+          arguments: state.arguments![index],
+        }),
+      ),
     });
     // This host example stops on gaps. Standalone planWorkflowGraph returns them for HITL.
     if (graphPlan.gaps.length)
@@ -48,7 +53,15 @@ export function buildPlannedWorkflowGraph(
     return { graphPlan, trace: [...state.trace, 'graph-plan'] };
   }
   function compileWorkflow(state: WorkflowState): WorkflowUpdate {
-    if (!state.graphPlan) throw new Error('compileWorkflow requires graphPlan');
+    if (
+      !state.graphPlan ||
+      !state.contracts ||
+      !state.arguments ||
+      state.contracts.length !== state.arguments.length
+    )
+      throw new Error(
+        'compileWorkflow requires graphPlan and matching actual contracts/arguments',
+      );
     const names = Object.fromEntries(
       state.arguments!.map((call) => [call.callId, 'Request ' + call.callId]),
     );
@@ -56,6 +69,12 @@ export function buildPlannedWorkflowGraph(
       nativeNodes: state.graphPlan.nativeNodes,
       capabilities: dependencies.capabilities,
       apiNodeNames: names,
+      apiResponseContracts: Object.fromEntries(
+        state.contracts.map((operation, index) => [
+          state.arguments![index].callId,
+          operation,
+        ]),
+      ),
     });
     const requests = createRequestMaterials(
       state,
@@ -67,8 +86,9 @@ export function buildPlannedWorkflowGraph(
       name: state.workflowName,
       plan: state.graphPlan,
       capabilities: dependencies.capabilities,
-      materials: requests.map(({ operation, arguments: args }) => ({
+      materials: requests.map(({ operation, arguments: args, purpose }) => ({
         operation,
+        purpose,
         arguments: args,
       })),
       apiNodes: requests.map((item) => item.fragment),

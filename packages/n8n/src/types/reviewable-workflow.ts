@@ -6,6 +6,7 @@ import type {
 } from '@openapi-flow/core';
 import type { N8nNativeCapability } from './native-capability.js';
 import type { N8nNodeFragment, N8nSdkNode } from './node-fragment.js';
+import type { N8nNativeInputConfiguration } from './native-runtime-parameters.js';
 
 export interface CompileReviewableN8nWorkflowInput {
   id: string;
@@ -14,6 +15,7 @@ export interface CompileReviewableN8nWorkflowInput {
   materials: ReviewableWorkflowApiMaterial[];
   apiNodes: N8nNodeFragment[];
   capabilities: N8nNativeCapability[];
+  nativeInputs?: N8nNativeInputConfiguration;
 }
 
 export interface CreateGapNodeInput {

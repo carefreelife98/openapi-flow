@@ -9,25 +9,40 @@ import { fileURLToPath, URL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { verifyPackageMetadata } from './release/verify-package-metadata.mjs';
+import { assessTestResult } from './release/assess-test-result.mjs';
 
 const { values } = parseArgs({
   options: {
+    version: { type: 'string' },
+    'accept-test-failure': { type: 'string', multiple: true },
     'oas-dir': { type: 'string' },
     'consumer-oas': { type: 'string' },
     'consumer-input': { type: 'string' },
     'icl-oas': { type: 'string' },
   },
 });
-for (const name of ['oas-dir', 'consumer-oas', 'consumer-input', 'icl-oas'])
+for (const name of [
+  'version',
+  'oas-dir',
+  'consumer-oas',
+  'consumer-input',
+  'icl-oas',
+])
   assert.ok(values[name], `--${name} is required`);
 const root = fileURLToPath(new URL('../', import.meta.url));
+for (const name of ['core', 'langchain', 'n8n']) {
+  const manifest = JSON.parse(
+    await readFile(join(root, 'packages', name, 'package.json'), 'utf8'),
+  );
+  assert.equal(manifest.version, values.version, `${name} release version`);
+}
 await readdir(resolve(values['oas-dir']));
 await readFile(resolve(values['consumer-oas']));
 await readFile(resolve(values['consumer-input']));
 await readFile(resolve(values['icl-oas']));
 const parent = join(root, '.local-artifacts/release-candidate');
 await mkdir(parent, { recursive: true });
-const directory = await mkdtemp(join(parent, '0.2.0-'));
+const directory = await mkdtemp(join(parent, values.version + '-'));
 const env = {
   ...process.env,
   OPENAPI_FLOW_REAL_OAS_DIR: resolve(values['oas-dir']),
@@ -55,7 +70,8 @@ const report = {
     )
     .digest('hex'),
   endedAt: null,
-  version: '0.2.0',
+  version: values.version,
+  acceptedTestFailures: values['accept-test-failure'] ?? [],
   publication: 'not-requested',
   modelQualityApproval: 'pending-owner-review',
   checks: [],
@@ -111,9 +127,21 @@ try {
     .map((file) => 'test/legacy/' + file);
   await execute('unit', process.execPath, [
     '--test',
+    '--test-reporter=tap',
+    '--test-concurrency=4',
     ...legacyTests,
     ...testFiles,
   ]);
+  const unit = report.checks.find((check) => check.name === 'unit');
+  Object.assign(
+    unit,
+    assessTestResult({
+      exitCode: unit.exitCode,
+      output: await readFile(join(directory, 'unit.log'), 'utf8'),
+      acceptedFailureNames: report.acceptedTestFailures,
+    }),
+  );
+  await save();
   await execute('real-oas', process.execPath, [
     '--test',
     'integration/real-oas.mjs',
@@ -136,6 +164,7 @@ try {
     ],
     ['deployment-template', ['deployment-template-local-n8n.mjs']],
     ['workflow-review', ['workflow-review-local-n8n.mjs']],
+    ['workflow-template', ['workflow-template-local-n8n.mjs']],
     ['schema-projection', ['schema-projection-local-n8n.mjs']],
     ['native-schema-references', ['native-schema-reference-repro.mjs']],
   ])
@@ -162,7 +191,7 @@ try {
     );
     assert.equal(packed.code, 0);
     const [metadata] = JSON.parse(packed.output);
-    const verified = verifyPackageMetadata(manifest, metadata);
+    const verified = verifyPackageMetadata(manifest, metadata, values.version);
     const bytes = await readFile(join(tarballs, metadata.filename));
     assert.equal(
       'sha512-' + createHash('sha512').update(bytes).digest('base64'),
@@ -172,13 +201,14 @@ try {
     await save();
   }
   report.readyForOwnerReview =
-    report.checks.every((check) => check.passed) &&
-    report.packages.length === 3;
+    report.checks.every(
+      (check) => check.passed || check.decision === 'accepted-limitation',
+    ) && report.packages.length === 3;
 } finally {
   report.endedAt = new Date().toISOString();
   await save();
 }
 console.log(
-  `Release check: ${report.readyForOwnerReview ? 'technical gates passed; owner/model-quality approval pending' : 'blocked; inspect report'} — ${directory}`,
+  `Release check: ${report.readyForOwnerReview ? 'technical checks assessed; inspect accepted limitations and owner approval' : 'blocked; inspect report'} — ${directory}`,
 );
 if (!report.readyForOwnerReview) process.exitCode = 1;

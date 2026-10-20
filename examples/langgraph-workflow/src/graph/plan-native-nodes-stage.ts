@@ -1,4 +1,5 @@
 import { planNativeNodes } from '@openapi-flow/langchain';
+import { assembleNativeNodeMaterials } from '@openapi-flow/core';
 import type {
   PlannedGraphDependencies,
   WorkflowState,
@@ -14,23 +15,29 @@ export function createNativeNodePlanningStage(
   ): Promise<WorkflowUpdate> {
     if (!state.contracts)
       throw new Error('native planning requires resolved API contracts');
+    const prepared =
+      dependencies.preparedNativeNodes === undefined
+        ? []
+        : structuredClone(dependencies.preparedNativeNodes);
     const proposed = await planNativeNodes({
       planId: `${state.workflowId}-native`,
       scenario: state.scenario,
       model: dependencies.model,
+      includeExplanations: dependencies.nativeOptions?.includeExplanations,
       capabilities: dependencies.capabilities,
-      preparedNativeNodes: dependencies.preparedNativeNodes,
+      preparedNativeNodes: prepared,
       apiMaterials: state.contracts.length
         ? createApiBindingMaterials(state)
         : [],
     });
     return {
       nativePlan: {
-        ...proposed,
-        nativeNodes: [
-          ...(dependencies.preparedNativeNodes ?? []),
-          ...proposed.nativeNodes,
-        ],
+        proposal: proposed,
+        nativeNodes: assembleNativeNodeMaterials(
+          prepared,
+          structuredClone(proposed.nativeNodes),
+        ),
+        gaps: structuredClone(proposed.gaps),
       },
       trace: [...state.trace, 'native-plan'],
     };

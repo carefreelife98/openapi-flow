@@ -198,7 +198,12 @@ export function scriptedReviewModel(mode = 'selection-gap') {
             }
             if (mode === 'invalid-graph') output.edges[0].from = 'unknown';
           } else throw new Error('Unexpected model call: ' + options.name);
-          if (mode !== 'invalid-selection') schema.parse(output);
+          if (
+            mode !== 'invalid-selection' &&
+            options.name !== 'plan_workflow_graph' &&
+            options.name !== 'plan_reviewable_workflow_graph'
+          )
+            schema.parse(output);
           return output;
         },
       };

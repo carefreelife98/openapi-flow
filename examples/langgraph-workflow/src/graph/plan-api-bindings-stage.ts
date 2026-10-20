@@ -14,6 +14,7 @@ export function createApiBindingsStage(dependencies: PlannedGraphDependencies) {
     const bindingPlan = await planApiBindings({
       scenario: state.scenario,
       model: dependencies.model,
+      includeExplanations: dependencies.bindingOptions?.includeExplanations,
       materials: createApiBindingMaterials(state),
       nativeOutputs: createNativeOutputContracts({
         nativeNodes: dependencies.preparedNativeNodes ?? [],

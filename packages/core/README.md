@@ -1,6 +1,142 @@
 # @openapi-flow/core
 
-Unreleased source additions provide `inspectApiArgumentRequirements`, `validateApiInputAnswers`, `applyConfirmedApiInputs`, `resolveApiSelectionAnswers` and `createApiInputAnswersSchema`. Snapshot/call-scoped `confirmedInputs` are excluded from literal generation and applied by code. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
+Zod `^4.6.5` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests use 4.6.5; the strict installed-consumer check also uses the host's 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
+
+Version **0.3.0**. Canonical draft, clarification and runtime-input APIs described below are included in this release. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This known limitation was explicitly accepted for release, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.0.md).
+
+canonical `gapNodes` and the separate `createWorkflowDraftCapabilityGap`,
+`inspectWorkflowDraftCapabilityGap`, `describeWorkflowDraftCapabilityGap` functions
+preserve explicit unsupported roles, original evidence and supplied contract
+identities without inventing data outputs. See the
+[gap contract](../../docs/workflow-draft-conversation-host.md#explicit-capability-gaps).
+
+`requestedInputs` metadata tracks scenario-required presence separately
+from OAS requiredness. Questions, answers, canonical calls and execution slots
+retain the same pointers; `listMissingRequestedApiInputs` shares deterministic
+presence checks with compiled runtimes. Original schemas and actual values remain
+unchanged. See [requested inputs](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
+
+request-dependency intent has its own description, Zod schema and
+`resolveWorkflowDraftApiBindingIntent` receipt. Supplying that `inputIntent` to
+API binding planning restricts mappings/questions to validated selected targets
+and requires complete coverage. OAS literal generation and missing-required-value
+checks remain unchanged. See [input intent](../../docs/workflow-draft-api-binding-questions.md#요청-의도를-먼저-고정하는-선택-단계).
+
+semantic edits support explicit restoration of currently removed
+requirements, without copying historical replacement values. See
+[requirement restoration](../../docs/workflow-draft-requirement-restoration.md).
+
+answer-source resolution and replayable input-answer evidence are
+documented in the [answer extraction guide](../../docs/api-input-answer-extraction.md).
+
+combined graph planning adds captured source contexts, explicit
+prepared/additional instance assembly and verifiable planning records under
+`workflow/graphs`. Shared API/native data capture has its own schema/type modules.
+See the [combined graph guide](../../docs/graph-planning-records.md). A legacy
+executable gap report is explicitly marked unvalidated, not certified as a DAG.
+
+connection planning has deterministic source capture, plan assembly
+and provenance creation/verification in `workflow/connections`. See the
+[connection planning guide](../../docs/connection-planning-records.md). These APIs
+do not call a model, modify fixed materials or replace full DAG validation.
+
+native-plan contracts preserve additional instances separately from
+prepared materials, derive gap identities/implementation receipts, and validate
+optional model/code-only provenance. Empty explicit OAS inventories form real empty
+catalogs; supplied invalid documents still fail. See
+[native planning ownership and records](../../docs/native-planning-records.md).
+
+binding-planning records preserve actual proposed pointer mappings,
+per-call reasons and original supplied OAS/native context. Core snapshots only
+declared source data and verifies records against the original input and plan.
+See [binding decisions and provenance](../../docs/binding-planning-records.md).
+
+literal-generation records distinguish original proposed literals from
+confirmed/bound inputs. Core snapshots data, owns the projected-contract evidence
+and verifies persisted records against the original generation input. No values or
+reasons are fabricated when no literal fields remain. See
+[literal attribution and call roles](../../docs/literal-generation-records.md).
+
+request-format decisions distinguish no body, a sole declared format,
+explicit model choice and the approved explicit-null default policy. Core owns
+resolution and exact optional scenario/requestBody evidence; model reasoning does
+not impersonate code's default choice. Format logic is grouped in `arguments/media`.
+See [request media decisions](../../docs/request-media-decisions.md).
+
+discovery explanation APIs snapshot and validate the actual scenario,
+candidate metadata and original operation identities. Code derives evidence from
+the selected API, offered alternatives or entire supplied inventory; models never
+write source quotes or contract claims here. See
+[API selection explanations](../../docs/api-selection-explanations.md).
+
+semantic edit questions declare an explicit owner. Independent semantic
+questions still block their actual scope; concerns owned by selected API/native,
+requirement or connection stages retain exact provenance and route only to that
+verified stage. They do not create duplicate workflow blockers or fabricate answers.
+`describeWorkflowDraftClarificationOwnership` describes those code-resolved owners.
+The wire schema also makes whole-request `no-change` exclusive with real edits.
+See [question ownership](../../docs/workflow-draft-clarification-ownership.md).
+
+canonical drafts require code-owned `requirementHistory`. Explicit
+revisions/withdrawals preserve prior snapshots and exact evidence, while active
+planning messages remain separate from the audit transcript. Typed requirement
+answers use a candidate context without rebasing the original plan. See
+[requirement history and current evidence](../../docs/workflow-draft-requirement-history.md).
+
+`describeWorkflowDraftSelectedNodes` and
+`describeWorkflowDraftRequirementEdit` expose selected API/native identities before
+request values or producer contracts are ready. The derived
+`createWorkflowDraftRequirementAnswerSchema` bounds typed human scope answers;
+Core re-derives that authority during staging and assembly. Missing materials still
+block final assembly. See [requirement edits and selected scopes](../../docs/workflow-draft-requirement-edits.md).
+
+[typed API binding questions](../../docs/workflow-draft-api-binding-questions.md)
+use the selected OAS input/source contracts. Code owns question wording, identities,
+schemas and validated source choices. Explicit human `answers` resolve the same
+proposal without inventing values, repairing outputs or exposing partial bindings.
+
+`describeWorkflowClarificationAnswerRevision`,
+`reviseWorkflowClarificationAnswers` and `validateWorkflowClarificationAnswerRevision`
+provide atomic typed answer replacement and question reopening without a model.
+Original snapshots and explicit transition receipts remain auditable; current
+answer evidence is separated from superseded receipts. See [answer revisions](../../docs/workflow-clarification-answer-revisions.md).
+
+review suggestion contracts validate the current read-only review projection,
+original evidence and configured budgets, then allocate stable suggestion identities.
+`adoptWorkflowReviewSuggestion` creates an explicit user-adoption receipt, never an
+edit or executable workflow. See [review follow-ups and adoption](../../docs/workflow-review-suggestions.md).
+
+[selected API addition/replacement primitives](../../docs/workflow-draft-api-call-planning.md)
+derive the new request from its full original OAS key, validate actual source mappings,
+exclude bound/confirmed fields from literal schemas and return typed missing-input
+questions or explicitly enabled runtime slots. Identities, graph metadata, evidence
+text and validation remain code-owned; existing sibling settings are preserved.
+
+native additions expose the actual selected implementation schema while code retains the instance ID/capability. `describeWorkflowDraftNativeNodeAddition`, `createWorkflowDraftNativeNodeAdditionSchema` and `resolveWorkflowDraftNativeNodeAddition` validate configuration/ownership or return questions, without automatic connections or adoption. `resolveWorkflowDraftNativeNodeParameterOwnership` separately derives an immutable ownership/remaining-literal contract for staged mixed-field generation. See [native instance additions](../../docs/workflow-draft-native-node-addition.md).
+
+Independent native configuration accepts ordered `replies` containing the original code-identified question and exact user text. Core validates target/material fingerprints, original proposals and answer order without rewriting the scenario or selection. Missing plan-time literal values are handled by the value stage, not treated as missing capabilities during role selection. These receipts check consistency, not caller authenticity; see [native setting replies](../../docs/native-runtime-inputs.md#answering-a-selected-instances-questions).
+
+`resolveNativeMaterialSnapshot` and draft-facing `resolveWorkflowDraftNativeSnapshot` bind actual producer contracts independently for each content revision. Pending references expose no previous output schema; edit staging discovers cascading consumer repairs after explicit upstream decisions. Original definitions, full schema checks and atomic DAG validation remain intact. See [material snapshots](../../docs/native-material-snapshots.md).
+
+`describeWorkflowDraftNativeReferenceRepair`/`resolveWorkflowDraftNativeReferenceRepair` derive one actual consumer task, validate implementation-owned parameter locations and construct only reference patches. Questions produce no partial repair; original settings and complete-graph validation remain authoritative. See the [repair boundary and remaining composition work](../../docs/workflow-draft-native-reference-repairs.md).
+
+native parameter editing derives selected field types from the registered implementation, preserves unpatched settings and validates original Zod refinements and actual response/native sources. Runtime ownership is explicitly opt-in; missing choices yield scoped questions, not dummy values or partial resolutions. See the [native parameter-edit contract](../../docs/workflow-draft-native-parameter-edits.md).
+
+`describeWorkflowDraftConnectionEdit`/`resolveWorkflowDraftConnectionEdit` derive actual staged ports/reference constraints and validate explicit connection deltas through atomic assembly. Unrelated edges are retained; incomplete contracts/repairs return visible prerequisites, not fake readiness. See the [connection-edit contract](../../docs/workflow-draft-connection-edits.md).
+
+`stageWorkflowDraftEdit` exposes explicit pending edit results and unavailable source contracts without pretending incomplete content is canonical. `describeWorkflowDraftApiBindingEdit`/`resolveWorkflowDraftApiBindingEdit` support source-grounded changes for an existing API or actual consumer repair; `validateApiBindingAssignment` shares the complete validator's declaration checks without fabricating unrelated binding lists. See the [staged binding-edit boundary](../../docs/workflow-draft-api-binding-edits.md).
+
+scoped API input-edit contracts derive target schemas from the selected original OAS and validate source-grounded typed values before generating precise patches. `createWorkflowDraftApiInputEditContract`, `createWorkflowDraftApiInputEditValuesSchema` and `resolveWorkflowDraftApiInputEdits` are usable without a model; the LangChain adapter adds separate target/value calls. See [ownership, validation and pending-input semantics](../../docs/workflow-draft-api-input-edits.md).
+
+`prepareWorkflowDraftEdit` and `assembleWorkflowDraftEdit` accept explicit step results, preserve unpatched request/native values and derive consumer repair work from declared references. Final assembly returns a checked candidate revision with structural impact; it never mutates the original draft or repairs missing mappings/edges silently. These are deterministic host-to-core contracts, not generic schemas for model generation. See the [scoped assembly guide](../../docs/workflow-draft-edit-assembly.md).
+
+`createWorkflowDraftEditPlan`, `validateWorkflowDraftEditPlan` and `describeWorkflowDraftEditContext` bind explicit semantic edits to the current draft, contracts and request messages. Code owns version fingerprints, new instance IDs and direct stage metadata; no draft mutation or implicit repair occurs. This is the analysis boundary, not a complete edit assembler. See the [edit analysis contract](../../docs/workflow-draft-edit-analysis.md).
+
+native input contracts add `collectNativeRuntimeInputSlots`, `inspectNativeRuntimeInputs` and `createWorkflowRuntimeInputsSchema`. Capabilities declaring runtime-independent ports, references and output contracts can defer whole objects or explicitly selected field pointers while preserving other literals. Code derives identities and validates the full combined object without changing actual values; canonical drafts and API/native readiness remain separate. Export individual slot schemas to preserve independent resource scopes. Scoped edits, staged new draft-native additions and independent role/value planning support explicit field ownership. `resolveNativeInstanceSelection`, `describeNativeNodeConfiguration` and `resolveNativeNodeParameters` derive/validate the standalone contracts without model calls or fabricated drafts/edges. See the [native runtime input contract](../../docs/native-runtime-inputs.md).
+
+requirements APIs add `createWorkflowClarificationRound`, `resolveWorkflowClarificationReplies`, explicit question-budget configuration and source checks. Questions have code-owned identities; partial/deferred answers preserve confirmed facts without automatically adopting suggestions. See the [clarification contract](https://github.com/carefreelife98/openapi-flow/blob/main/docs/workflow-requirements-clarification.md). These additions are not in npm 0.2.0.
+
+source additions provide `inspectApiArgumentRequirements`, `validateApiInputAnswers`, `applyConfirmedApiInputs`, `resolveApiSelectionAnswers` and `createApiInputAnswersSchema`. Snapshot/call-scoped `confirmedInputs` are excluded from literal generation and applied by code. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
 
 Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived Zod request schemas and argument validation. Version `0.2.0` is published; `0.1.0` has a different API.
 

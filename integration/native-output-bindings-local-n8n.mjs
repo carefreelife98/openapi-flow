@@ -102,7 +102,7 @@ export function createScriptedNativeBindingModel() {
             };
           }
           if (options.name === 'plan_workflow_connections')
-            return schema.parse({
+            return {
               edges: [
                 {
                   from: 'scenario-context',
@@ -113,9 +113,9 @@ export function createScriptedNativeBindingModel() {
               ],
               blockedCalls: [],
               additionalGaps: [],
-            });
+            };
           if (options.name === 'plan_reviewable_workflow_graph')
-            return schema.parse({
+            return {
               additionalNativeNodes: [],
               edges: [
                 {
@@ -127,7 +127,7 @@ export function createScriptedNativeBindingModel() {
               ],
               blockedCalls: [],
               additionalGaps: [],
-            });
+            };
           throw new Error(`Unexpected model call: ${options.name}`);
         },
       };

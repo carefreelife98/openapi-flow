@@ -1,106 +1,62 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { isDeepStrictEqual } from 'node:util';
-import { z } from 'zod';
 import {
-  createReviewableWorkflowGraphPlan,
-  createNativeOutputContracts,
-  createWorkflowPlanningCapabilities,
-  validateNativeApiResponseReferences,
+  describeWorkflowGraphPlanning,
+  createWorkflowGraphPlanningResult,
+  createWorkflowGraphPlanningRecord,
 } from '@openapi-flow/core';
-import type {
-  ReviewableWorkflowGraphPlan,
-  ReviewableWorkflowGraphProposal,
-} from '@openapi-flow/core';
+import type { ReviewableWorkflowGraphPlan } from '@openapi-flow/core';
 import type {
   PlanReviewableWorkflowGraphInput,
-  ReviewableWorkflowGraphOutput,
+  ReviewableWorkflowGraphModelOutput,
 } from '../types/reviewable-workflow-planning.js';
-import { completeReviewableWorkflowGraphProposal } from './complete-reviewable-workflow-graph-proposal.js';
+import type { ResolvedWorkflowGraphOutput } from '../types/workflow-planning.js';
 import { createReviewableWorkflowGraphSchema } from '../schemas/reviewable-workflow-graph-schema.js';
+import { workflowGraphExplanationOptionsSchema } from '../schemas/workflow-graph-explanation-schema.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
+import { resolveReviewableWorkflowGraphOutput } from './resolve-workflow-graph-output.js';
 import { reviewableWorkflowGraphPrompt } from '../prompts/reviewable-workflow-graph-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { ReviewableWorkflowGraphPlanningError } from './reviewable-workflow-graph-planning-error.js';
-import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
-import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
 
 export async function planReviewableWorkflowGraph(
   input: PlanReviewableWorkflowGraphInput,
 ): Promise<ReviewableWorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
-  const preparedNativeNodes = input.preparedNativeNodes ?? [];
-  const apiCallIds = input.materials.map((material) =>
-    material.status === 'ready' ? material.arguments.callId : material.callId,
+  const options = workflowGraphExplanationOptionsSchema.parse({
+    includeExplanations: input.includeExplanations,
+  });
+  const {
+    input: snapshot,
+    context,
+    sources,
+    planningCapabilities,
+  } = describeWorkflowGraphPlanning({ ...input, mode: 'reviewable' });
+  const readyIds = snapshot.materials.flatMap((material) =>
+    material.status === 'ready' ? [material.arguments.callId] : [],
   );
-  const planningCapabilities = createWorkflowPlanningCapabilities({
-    capabilities: input.capabilities,
-    apiCallIds,
-  });
-  validateNativeApiResponseReferences({
-    nativeNodes: preparedNativeNodes,
-    capabilities: input.capabilities,
-    apiCallIds,
-  });
-  const nativeOutputs = createNativeOutputContracts({
-    nativeNodes: preparedNativeNodes,
-    capabilities: input.capabilities,
-  });
-  const readyIds = input.materials
-    .filter((item) => item.status === 'ready')
-    .map((item) => item.arguments.callId);
   const schema = createReviewableWorkflowGraphSchema(
     planningCapabilities,
     readyIds,
+    options.includeExplanations === true ? 'graph' : 'none',
   );
-  const output: ReviewableWorkflowGraphOutput = await input.model
-    .withStructuredOutput<ReviewableWorkflowGraphOutput>(schema, {
-      name: 'plan_reviewable_workflow_graph',
-      method: 'functionCalling',
-      strict: true,
-    })
+  const output: ReviewableWorkflowGraphModelOutput = await input.model
+    .withStructuredOutput<ReviewableWorkflowGraphModelOutput>(
+      serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+      {
+        name: 'plan_reviewable_workflow_graph',
+        method: 'functionCalling',
+        strict: true,
+      },
+    )
     .invoke([
       new SystemMessage(reviewableWorkflowGraphPrompt),
-      new HumanMessage(
-        JSON.stringify({
-          scenario: input.scenario,
-          preparedNativeNodes: createPreparedNativeNodeMaterials(
-            preparedNativeNodes,
-            input.capabilities,
-          ),
-          nativeOutputs,
-          materials: input.materials.map(({ operation, ...material }) => ({
-            ...material,
-            operation: {
-              key: operation.key,
-              method: operation.method,
-              path: operation.path,
-              operation: {
-                summary: operation.operation.summary,
-                description: operation.operation.description,
-                responses: operation.operation.responses,
-              },
-            },
-            inputPorts: ['main'],
-            outputPorts: ['main'],
-          })),
-          gaps: input.gaps.map((gap) => ({
-            ...gap,
-            inputPorts: ['main'],
-            outputPorts: ['main'],
-          })),
-          capabilities: planningCapabilities.map((capability) => ({
-            name: capability.name,
-            description: capability.description,
-            parametersSchema: z.toJSONSchema(capability.parametersSchema),
-            waitsForAllInputs: capability.waitsForAllInputs,
-            exclusiveOutputPorts: capability.exclusiveOutputPorts,
-          })),
-        }),
-      ),
+      new HumanMessage(JSON.stringify(context)),
     ]);
-  let proposal: ReviewableWorkflowGraphProposal;
+  let resolved: ResolvedWorkflowGraphOutput;
   try {
-    const parsed = parseStructuredOutput(
+    const parsed = parseStructuredOutput<ReviewableWorkflowGraphModelOutput>(
       schema,
       output,
       'model reviewable workflow graph',
@@ -109,9 +65,9 @@ export async function planReviewableWorkflowGraph(
       throw new Error(
         'native model schema must validate without defaults, coercion or transformation',
       );
-    proposal = completeReviewableWorkflowGraphProposal(
+    resolved = resolveReviewableWorkflowGraphOutput(
       parsed,
-      input.capabilities.length,
+      snapshot.capabilities.length,
       readyIds.length,
     );
   } catch (error) {
@@ -122,16 +78,33 @@ export async function planReviewableWorkflowGraph(
     );
   }
   try {
-    return createReviewableWorkflowGraphPlan({
-      ...input,
-      proposal: {
-        ...proposal,
-        nativeNodes: assembleNativeNodeMaterials(
-          preparedNativeNodes,
-          proposal.nativeNodes,
-        ),
-      },
+    const current = describeWorkflowGraphPlanning(snapshot);
+    if (
+      !isDeepStrictEqual(current.context, context) ||
+      !isDeepStrictEqual(current.sources, sources)
+    )
+      throw new Error(
+        'reviewable workflow graph source contracts changed during the model invocation',
+      );
+    const plan = createWorkflowGraphPlanningResult({
+      ...snapshot,
+      proposal: resolved.proposal,
     });
+    if (!('blockedCalls' in plan))
+      throw new Error('reviewable graph result is missing blockedCalls');
+    if (options.includeExplanations === true) {
+      if (!resolved.assessment)
+        throw new Error(
+          'model reviewable workflow graph is missing its explanation assessment',
+        );
+      plan.graphPlanning = createWorkflowGraphPlanningRecord({
+        ...snapshot,
+        proposal: resolved.proposal,
+        plan,
+        assessment: resolved.assessment,
+      });
+    }
+    return plan;
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new ReviewableWorkflowGraphPlanningError(

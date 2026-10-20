@@ -1,6 +1,7 @@
 import type { NativeCheck } from '../../types/native-capability.js';
 import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
 import { responseReferences } from './common/response-references.js';
+import { createOutputItemReaderCode } from '../request/bindings/create-output-item-reader-code.js';
 
 /** Library-owned runtime, shared by IF expressions and assertion Code nodes. */
 function responseCheckRuntime(): string {
@@ -51,18 +52,22 @@ export function conditionExpression(
   check: NativeCheck,
   names: Record<string, string>,
   linked = false,
+  singletonApiResponseIds: string[] = [],
 ): string {
-  const declaredNames = Object.fromEntries(
-    responseReferences([check]).map((ref) => [ref.nodeId, names[ref.nodeId]]),
-  );
+  const sources = responseReferences([check]).map((ref) => ({
+    nodeId: ref.nodeId,
+    nodeName: names[ref.nodeId],
+    singleton: singletonApiResponseIds.includes(ref.nodeId),
+  }));
   // The preceding Code guard validates full responses. Keep IF expressions small.
-  const reader = `const names=${javascriptJsonLiteral(declaredNames)};
+  const reader = `const sources=${javascriptJsonLiteral(sources)};
 const responses=Object.create(null);
-for (const id of Object.keys(names)) {
-  ${linked ? 'const envelope=$(names[id]).itemMatching(inputIndex);' : "const items=$(names[id]).all();if(items.length!==1)throw new Error('Response '+id+' requires an unambiguous single JSON item');const envelope=items[0];"}
+for (const source of sources) {
+  ${createOutputItemReaderCode(linked)}
+  const envelope=item;
   if (!envelope || !envelope.json || !Object.hasOwn(envelope.json, 'body'))
-    throw new Error('Missing response body: '+id);
-  responses[id]=envelope.json.body;
+    throw new Error('Missing response body: '+source.nodeId);
+  responses[source.nodeId]=envelope.json.body;
 }
 `;
   return `={{ (() => { ${linked ? 'const inputIndex=$itemIndex;' : ''}${responseCheckCode(reader)}; return compare(${javascriptJsonLiteral(check)}); })() }}`;

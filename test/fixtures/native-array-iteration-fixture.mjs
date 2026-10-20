@@ -137,6 +137,7 @@ export function createNativeIterationInput(
     nativeNodes: [parents],
     capabilities: [firstArray],
     apiNodeNames: {},
+    externalNativeOutputSources: contextSources,
   });
   const array = createNativeArrayCapability({
     sources: [...contextSources, ...parentSources],
@@ -180,6 +181,9 @@ export function createNativeIterationInput(
     nativeNodes,
     capabilities,
     apiNodeNames: names,
+    apiResponseContracts: Object.fromEntries(
+      selected.map((material) => [material.callId, material.operation]),
+    ),
   });
   const materials = selected.map((material) => ({
     operation: material.operation,

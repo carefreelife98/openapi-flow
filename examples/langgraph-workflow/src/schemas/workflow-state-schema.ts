@@ -11,10 +11,18 @@ import type {
   WorkflowReviewGap,
   ReviewableWorkflowApiMaterial,
   ReviewableWorkflowGraphPlan,
+  NativeInstanceSelection,
+  NativeInstanceDependencyPlan,
 } from '@openapi-flow/core';
-import type { N8nWorkflowResult } from '@openapi-flow/n8n';
-import type { ResolvedApiRequestMediaType } from '../types/workflow-graph.js';
-import type { NativeNodePlan } from '@openapi-flow/langchain';
+import type {
+  N8nWorkflowResult,
+  N8nNativeInputTemplate,
+} from '@openapi-flow/n8n';
+import type { HostNativeConfigurationTask } from '../types/native-planning.js';
+import type {
+  ResolvedApiRequestMediaType,
+  NativeWorkflowMaterialPlan,
+} from '../types/workflow-graph.js';
 
 // These channels carry host/library objects, not model structured-output schemas.
 // createApiCatalog validates the source OAS; adapter calls validate proposals.
@@ -22,7 +30,7 @@ export const workflowStateSchema = new StateSchema({
   workflowId: z.string().min(1),
   workflowName: z.string().min(1),
   scenario: z.string().min(1),
-  sources: z.array(z.custom<ApiSource>()).min(1),
+  sources: z.array(z.custom<ApiSource>()),
   catalog: z.custom<ApiCatalog>().optional(),
   selection: z.custom<ApiSelection>().optional(),
   contracts: z.custom<ApiOperationContract[]>().optional(),
@@ -35,6 +43,15 @@ export const workflowStateSchema = new StateSchema({
   diagnostics: z.custom<WorkflowReviewGap[]>().optional(),
   reviewMaterials: z.custom<ReviewableWorkflowApiMaterial[]>().optional(),
   reviewPlan: z.custom<ReviewableWorkflowGraphPlan>().optional(),
-  nativePlan: z.custom<NativeNodePlan>().optional(),
+  nativePlan: z.custom<NativeWorkflowMaterialPlan>().optional(),
+  nativeSelection: z.custom<NativeInstanceSelection>().optional(),
+  nativeDependencies: z.custom<NativeInstanceDependencyPlan>().optional(),
+  nativeConfigurations: z.custom<HostNativeConfigurationTask[]>().optional(),
+  activeNativeNodeId: z.string().optional(),
+  nativePlanningStatus: z
+    .enum(['working', 'awaiting-input', 'ready', 'cancelled'])
+    .optional(),
+  nativeReplyIssues: z.array(z.string()).optional(),
+  nativeInputTemplate: z.custom<N8nNativeInputTemplate>().optional(),
   trace: z.array(z.string()),
 });

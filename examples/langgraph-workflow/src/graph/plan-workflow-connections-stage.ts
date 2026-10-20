@@ -18,6 +18,7 @@ export function createWorkflowConnectionPlanningStage(
     const reviewPlan = await planWorkflowConnections({
       scenario: state.scenario,
       model: dependencies.model,
+      includeExplanations: dependencies.connectionOptions?.includeExplanations,
       materials: state.reviewMaterials,
       nativeNodes: state.nativePlan.nativeNodes,
       capabilities: dependencies.capabilities,

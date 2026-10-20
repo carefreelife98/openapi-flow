@@ -5,6 +5,7 @@ import { compileStandaloneValidator } from '../../common/validation/compile-stan
 /** Compile OAS schemas on the host; n8n receives no schema compiler/eval. */
 export function compileRequestValidator(
   config: RequestMaterializationConfig,
+  globalName = 'OpenApiFlowRequestValidator',
 ): string {
   const schema = createApiRequestSchema({
     operation: config.contract,
@@ -12,6 +13,6 @@ export function compileRequestValidator(
   });
   return compileStandaloneValidator({
     schema,
-    globalName: 'OpenApiFlowRequestValidator',
+    globalName,
   });
 }

@@ -1,61 +1,93 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
-  createApiArgumentGenerationContract,
+  describeApiLiteralGeneration,
+  createApiLiteralGenerationRecord,
   validateApiArguments,
   applyConfirmedApiInputs,
 } from '@openapi-flow/core';
-import type { ApiArgumentProposal, ApiCallArguments } from '@openapi-flow/core';
-import type { GenerateApiArgumentsInput } from '../types/argument-generation.js';
+import type { ApiCallArguments } from '@openapi-flow/core';
+import type {
+  GenerateApiArgumentsInput,
+  ApiLiteralGenerationOutput,
+} from '../types/argument-generation.js';
+import {
+  apiLiteralGenerationOptionsSchema,
+  createApiLiteralGenerationOutputSchema,
+} from '../schemas/api-literal-generation-output-schema.js';
 import { apiArgumentsPrompt } from '../prompts/api-arguments-prompt.js';
-import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
 ): Promise<ApiCallArguments> {
-  assertSelectionInput(input.scenario, input.model);
+  if (
+    input.model !== undefined &&
+    (!input.model || typeof input.model.withStructuredOutput !== 'function')
+  )
+    throw new Error(
+      'generateApiArguments.model must support structured output when supplied',
+    );
   if (typeof input.callId !== 'string' || !input.callId.trim())
     throw new Error('callId must be non-empty');
-  const contract = createApiArgumentGenerationContract(input);
-  const schema = contract.schema;
-  const proposed: ApiArgumentProposal = contract.hasLiteralInputs
-    ? await input.model
-        .withStructuredOutput<ApiArgumentProposal>(schema, {
-          name: 'generate_api_arguments',
-          method: 'functionCalling',
-        })
-        .invoke([
-          new SystemMessage(apiArgumentsPrompt),
-          new HumanMessage(
-            JSON.stringify({
-              scenario: input.scenario,
-              operation: {
-                key: input.operation.key,
-                method: input.operation.method,
-                path: input.operation.path,
-                summary: input.operation.operation.summary,
-                description: input.operation.operation.description,
-              },
-              literalInputSchema: contract.literalInputSchema,
-              requestMediaType: input.requestMediaType,
-            }),
-          ),
-        ])
-    : { values: {} };
-  const parsed = parseStructuredOutput(
+  const options = apiLiteralGenerationOptionsSchema.parse({
+    includeExplanations: input.includeExplanations,
+  });
+  const {
+    input: snapshot,
+    contract,
+    context,
+  } = describeApiLiteralGeneration(input);
+  const schema = createApiLiteralGenerationOutputSchema(
+    contract,
+    options.includeExplanations === true,
+  );
+  let proposed: ApiLiteralGenerationOutput = { values: {} };
+  if (contract.hasLiteralInputs) {
+    const model = input.model;
+    if (!model || typeof model.withStructuredOutput !== 'function')
+      throw new Error(
+        'generateApiArguments.model must support structured output when literal inputs remain',
+      );
+    proposed = await model
+      .withStructuredOutput<ApiLiteralGenerationOutput>(schema, {
+        name: 'generate_api_arguments',
+        method: 'functionCalling',
+      })
+      .invoke([
+        new SystemMessage(apiArgumentsPrompt),
+        new HumanMessage(JSON.stringify(context)),
+      ]);
+  }
+  const parsed = parseStructuredOutput<ApiLiteralGenerationOutput>(
     schema,
     proposed,
-    `model arguments for ${input.callId}`,
+    `model arguments for ${snapshot.callId}`,
   );
-  const values = applyConfirmedApiInputs({ ...input, values: parsed.values });
-  const validation = validateApiArguments({ ...input, values });
+  const values = applyConfirmedApiInputs({
+    ...snapshot,
+    values: parsed.values,
+  });
+  const validation = validateApiArguments({ ...snapshot, values });
   return {
-    callId: input.callId,
+    callId: snapshot.callId,
     values,
-    bindings: structuredClone(input.bindings),
+    bindings: structuredClone(snapshot.bindings),
     unresolvedInputs: validation.missingInputs,
-    ...(input.requestMediaType === undefined
+    ...(snapshot.requestMediaType === undefined
       ? {}
-      : { requestMediaType: input.requestMediaType }),
+      : { requestMediaType: snapshot.requestMediaType }),
+    ...(options.includeExplanations === true
+      ? {
+          literalGeneration: createApiLiteralGenerationRecord({
+            ...snapshot,
+            ...('explanation' in parsed
+              ? {
+                  proposal: { values: parsed.values },
+                  reason: parsed.explanation.reason,
+                }
+              : {}),
+          }),
+        }
+      : {}),
   };
 }

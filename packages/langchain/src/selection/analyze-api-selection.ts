@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import type { ApiSelectionAnalysis } from '@openapi-flow/core';
+import {
+  describeApiSelectionContext,
+  createApiSelectionExplanation,
+} from '@openapi-flow/core';
 import type { SelectApiOperationsInput } from '../types/operation-selection.js';
 import type { ApiSelectionAnalysisOutput } from '../types/api-selection-analysis.js';
 import { createApiSelectionAnalysisSchema } from '../schemas/api-selection-analysis-schema.js';
@@ -8,6 +12,8 @@ import { apiSelectionAnalysisPrompt } from '../prompts/api-selection-analysis-pr
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { selectApiOperations } from './select-api-operations.js';
+import { resolveApiSelectionOptions } from './resolve-api-selection-options.js';
+import { apiSelectionExplanationPrompt } from '../prompts/api-selection-explanation-prompt.js';
 
 /** Additive clarification boundary; the existing selector keeps its output contract. */
 export async function analyzeApiSelection(
@@ -16,14 +22,22 @@ export async function analyzeApiSelection(
   assertSelectionInput(input.scenario, input.model);
   if (!Array.isArray(input.operations))
     throw new Error('operations must be an array');
+  const includeExplanations = resolveApiSelectionOptions({
+    includeExplanations: input.includeExplanations,
+  });
+  const context = describeApiSelectionContext({
+    scenario: input.scenario,
+    operations: input.operations,
+  });
   if (!input.operations.length)
     return { selection: await selectApiOperations(input), questions: [] };
-  const candidates = input.operations.map((operation, index) => ({
+  const candidates = context.operations.map((operation, index) => ({
     ...operation,
     candidateId: `candidate-${index + 1}`,
   }));
   const schema = createApiSelectionAnalysisSchema(
     candidates.map((item) => item.candidateId),
+    includeExplanations,
   );
   const proposed = await input.model
     .withStructuredOutput<ApiSelectionAnalysisOutput>(schema, {
@@ -32,9 +46,11 @@ export async function analyzeApiSelection(
       strict: true,
     })
     .invoke([
-      new SystemMessage(apiSelectionAnalysisPrompt),
+      new SystemMessage(
+        `${apiSelectionAnalysisPrompt}\n${apiSelectionExplanationPrompt}`,
+      ),
       new HumanMessage(
-        JSON.stringify({ scenario: input.scenario, candidates }),
+        JSON.stringify({ scenario: context.scenario, candidates }),
       ),
     ]);
   const parsed = parseStructuredOutput(
@@ -47,7 +63,19 @@ export async function analyzeApiSelection(
     const candidate = byId.get(item.candidateId);
     if (!candidate)
       throw new Error(`Unknown API candidate ${item.candidateId}`);
-    return { key: structuredClone(candidate.key), purpose: item.purpose };
+    return {
+      key: structuredClone(candidate.key),
+      purpose: item.purpose,
+      ...('explanation' in item
+        ? {
+            explanation: createApiSelectionExplanation({
+              context,
+              basis: { kind: 'candidates', operations: [candidate.key] },
+              reason: item.explanation.reason,
+            }),
+          }
+        : {}),
+    };
   });
   const questions = parsed.questions.map((question, index) => {
     if (new Set(question.candidateIds).size !== question.candidateIds.length)
@@ -55,14 +83,14 @@ export async function analyzeApiSelection(
     const alternatives = question.candidateIds.map((id) => {
       const candidate = byId.get(id);
       if (!candidate) throw new Error(`Unknown API alternative ${id}`);
-      return structuredClone(input.operations[candidates.indexOf(candidate)]);
+      return structuredClone(context.operations[candidates.indexOf(candidate)]);
     });
     return {
       kind: 'operation-choice' as const,
       id: createHash('sha256')
         .update(
           JSON.stringify([
-            input.scenario,
+            context.scenario,
             index,
             question.purpose,
             alternatives.map((item) => item.key),
@@ -72,6 +100,18 @@ export async function analyzeApiSelection(
       message: question.message,
       purpose: question.purpose,
       candidates: alternatives,
+      ...('explanation' in question
+        ? {
+            explanation: createApiSelectionExplanation({
+              context,
+              basis: {
+                kind: 'candidates',
+                operations: alternatives.map((candidate) => candidate.key),
+              },
+              reason: question.explanation.reason,
+            }),
+          }
+        : {}),
     };
   });
   if (!selected.length && !questions.length && !parsed.gaps.length)
@@ -82,6 +122,15 @@ export async function analyzeApiSelection(
       gaps: parsed.gaps.map((gap) => ({
         kind: 'missing_operation',
         description: gap.description,
+        ...('explanation' in gap
+          ? {
+              explanation: createApiSelectionExplanation({
+                context,
+                basis: { kind: 'catalog' },
+                reason: gap.explanation.reason,
+              }),
+            }
+          : {}),
       })),
     },
     questions,

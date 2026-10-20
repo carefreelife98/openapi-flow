@@ -1,13 +1,28 @@
 import { z } from 'zod';
 import type { WorkflowCapability } from '@openapi-flow/core';
-import type { ReviewableWorkflowGraphOutput } from '../types/reviewable-workflow-planning.js';
+import type { WorkflowConnectionPlanningOutput } from '../types/workflow-orchestration.js';
+import type { ReviewableWorkflowGraphModelOutput } from '../types/reviewable-workflow-planning.js';
+import type { WorkflowGraphExplanationMode } from '../types/workflow-planning.js';
+import { workflowConnectionReasonSchema } from './workflow-connection-explanation-schema.js';
+import { workflowGraphReasonSchema } from './workflow-graph-explanation-schema.js';
 
 export function createReviewableWorkflowGraphSchema(
   capabilities: WorkflowCapability[],
   readyCallIds: string[],
-): z.ZodType<ReviewableWorkflowGraphOutput> {
+  explanationMode: WorkflowGraphExplanationMode = 'none',
+): z.ZodType<
+  WorkflowConnectionPlanningOutput | ReviewableWorkflowGraphModelOutput
+> {
+  const includeExplanations = explanationMode !== 'none';
+  const reasonSchema =
+    explanationMode === 'graph'
+      ? workflowGraphReasonSchema
+      : workflowConnectionReasonSchema;
   const natives = capabilities.map((capability) =>
     z.strictObject({
+      ...(explanationMode === 'graph'
+        ? { reason: workflowGraphReasonSchema }
+        : {}),
       id: z
         .string()
         .min(1)
@@ -31,6 +46,7 @@ export function createReviewableWorkflowGraphSchema(
       ? undefined
       : z.array(
           z.strictObject({
+            ...(includeExplanations ? { reason: reasonSchema } : {}),
             callId: z
               .enum(readyCallIds)
               .describe(
@@ -45,9 +61,11 @@ export function createReviewableWorkflowGraphSchema(
           }),
         );
   const base = z.strictObject({
+    ...(includeExplanations ? { reason: reasonSchema } : {}),
     edges: z
       .array(
         z.strictObject({
+          ...(includeExplanations ? { reason: reasonSchema } : {}),
           from: z
             .string()
             .min(1)

@@ -723,7 +723,7 @@ test('a confirmed binding dependency inherits the gap and never invokes argument
             throw new Error(
               'Argument generation must not run for a blocked call',
             );
-          return schema.parse(output);
+          return output;
         },
       };
     },

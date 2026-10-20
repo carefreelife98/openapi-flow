@@ -3,6 +3,7 @@ import {
   createHttpRequestNode,
   createN8nNativeOutputSources,
 } from '@openapi-flow/n8n';
+import type { N8nNativeInputConfiguration } from '@openapi-flow/n8n';
 import type { ReadyWorkflowApiMaterial } from '@openapi-flow/core';
 import type {
   WorkflowState,
@@ -13,6 +14,7 @@ import type {
 export function compileReviewableWorkflowStage(
   state: WorkflowState,
   dependencies: PlannedGraphDependencies,
+  nativeInputs?: N8nNativeInputConfiguration,
 ): WorkflowUpdate {
   if (!state.reviewPlan || !state.reviewMaterials)
     throw new Error('review compilation requires plan and materials');
@@ -30,9 +32,13 @@ export function compileReviewableWorkflowStage(
     ]),
   );
   const nativeOutputSources = createN8nNativeOutputSources({
+    nativeInputs,
     nativeNodes: state.reviewPlan.nativeNodes,
     capabilities: dependencies.capabilities,
     apiNodeNames: names,
+    apiResponseContracts: Object.fromEntries(
+      ready.map((source) => [source.arguments.callId, source.operation]),
+    ),
   });
   const apiNodes = ready.map((item, index) => {
     const deployment = dependencies.deployments?.find(
@@ -56,6 +62,7 @@ export function compileReviewableWorkflowStage(
     });
   });
   const result = compileReviewableN8nWorkflow({
+    nativeInputs,
     id: state.workflowId,
     name: state.workflowName,
     plan: state.reviewPlan,

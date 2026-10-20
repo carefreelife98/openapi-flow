@@ -5,8 +5,14 @@ import type {
   WorkflowGraphPlan,
   WorkflowApiMaterial,
   ApiOperationContract,
+  WorkflowNativeMaterialSources,
 } from '@openapi-flow/core';
 import type { N8nNodeFragment } from './node-fragment.js';
+import type {
+  N8nNativeRuntimeInput,
+  N8nNativeInputConfiguration,
+} from './native-runtime-parameters.js';
+import type { N8nNativeOutputSource } from './output-binding-source.js';
 import type {
   nativeOperandSchema,
   nativeCheckSchema,
@@ -33,9 +39,17 @@ export interface CompileNativeNodeInput {
   position: [number, number];
   /** Original OAS contracts are required by compilers that read API responses. */
   apiResponseContracts?: Record<string, ApiOperationContract>;
+  /** Compiler proof from a single Manual Trigger item and item-preserving API paths. Missing/unknown proofs retain ancestry reads. */
+  singletonApiResponseIds?: string[];
+  runtimeInput?: N8nNativeRuntimeInput;
+  /** Names/schemas of actual already-compiled native producers, never guessed from IDs. */
+  nativeOutputSources?: N8nNativeOutputSource[];
 }
 
 export interface N8nNativeCapability extends WorkflowCapability {
+  bindMaterialContracts?: (
+    sources: WorkflowNativeMaterialSources,
+  ) => N8nNativeCapability;
   compile: (input: CompileNativeNodeInput) => N8nNodeFragment;
 }
 
@@ -52,6 +66,7 @@ export interface CompilePlannedN8nWorkflowInput {
   materials: WorkflowApiMaterial[];
   apiNodes: N8nNodeFragment[];
   capabilities: N8nNativeCapability[];
+  nativeInputs?: N8nNativeInputConfiguration;
 }
 
 export type CompileNativeWorkflowNodesInput = Pick<

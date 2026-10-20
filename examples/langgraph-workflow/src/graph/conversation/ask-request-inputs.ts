@@ -1,5 +1,5 @@
 import { interrupt } from '@langchain/langgraph';
-import type { ApiAnswerIssue } from '@openapi-flow/core';
+import { z } from 'zod';
 import type {
   ConversationState,
   ConversationUpdate,
@@ -13,29 +13,34 @@ export function askRequestInputs(state: ConversationState): ConversationUpdate {
     !state.pendingArguments ||
     !state.requirements?.length ||
     !state.reviewMaterials ||
-    !state.confirmedInputs
+    !state.confirmedInputs ||
+    !state.inputAnswerIssues
   )
     throw new Error(
       'request clarification requires contracts, pending arguments, requirements and confirmed inputs',
     );
-  let issues: ApiAnswerIssue[] = state.inputAnswerIssues ?? [];
-  while (true) {
-    const response = inputAnswersResponseSchema.safeParse(
-      interrupt({
+  // One interrupt per invocation; invalid replies are persisted before the graph asks again.
+  const response = inputAnswersResponseSchema.safeParse(
+    interrupt(
+      {
         kind: 'request-input',
         questions: state.requirements,
-        issues,
-      }),
-    );
-    if (!response.success) {
-      issues = response.error.issues.map((issue) => ({
+        issues: state.inputAnswerIssues,
+      },
+      { responseSchema: z.toJSONSchema(inputAnswersResponseSchema) },
+    ),
+  );
+  if (!response.success) {
+    return {
+      pendingInputResponse: undefined,
+      conversationStatus: 'awaiting-input',
+      inputAnswerIssues: response.error.issues.map((issue) => ({
         requirementId: '',
         message: issue.message,
-      }));
-      continue;
-    }
-    if (response.data.action === 'cancel')
-      return { conversationStatus: 'cancelled' };
-    return { pendingInputResponse: response.data, inputAnswerIssues: [] };
+      })),
+    };
   }
+  if (response.data.action === 'cancel')
+    return { conversationStatus: 'cancelled', pendingInputResponse: undefined };
+  return { pendingInputResponse: response.data, inputAnswerIssues: [] };
 }

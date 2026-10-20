@@ -56,6 +56,7 @@ export function createReviewableWorkflowGenerationGraph(
             ...context,
             scenario: state.scenario,
             model: dependencies.model,
+            includeExplanations: dependencies.graphOptions?.includeExplanations,
             preparedNativeNodes: dependencies.preparedNativeNodes,
           });
     await dependencies.reviewPlan?.(reviewPlan);

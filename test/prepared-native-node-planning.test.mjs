@@ -70,10 +70,10 @@ test('both model contracts request only additional nodes and preserve existing i
               input.nativeOutputs[0].schema.properties.id.type,
               'string',
             );
-            return schema.parse({
+            return {
               ...output(reviewable),
               edges: [{ ...plan.edges[0], output: 'send' }],
-            });
+            };
           },
         };
       },

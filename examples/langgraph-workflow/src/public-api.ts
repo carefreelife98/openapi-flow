@@ -4,7 +4,11 @@ export { createPlannedWorkflowGenerationGraph } from './graph/create-planned-wor
 export { createReviewableWorkflowGenerationGraph } from './graph/create-reviewable-workflow-generation-graph.js';
 export { createOrchestratedWorkflowGenerationGraph } from './graph/create-orchestrated-workflow-generation-graph.js';
 export { createConversationalWorkflowGenerationGraph } from './graph/create-conversational-workflow-generation-graph.js';
+export { createWorkflowDraftConversationGraph } from './graph/create-workflow-draft-conversation-graph.js';
+export { draftConversationOutcomeSchema } from './schemas/workflow-draft-conversation-outcome-schema.js';
+export type * from './types/workflow-draft-conversation.js';
 export type * from './types/workflow-conversation.js';
+export type * from './types/native-planning.js';
 export type {
   GraphDependencies,
   ServiceDeployment,

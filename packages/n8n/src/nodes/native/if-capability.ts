@@ -7,6 +7,7 @@ import { ifParametersSchema } from '../../schemas/native-capability-schemas.js';
 import { createIfPlanningParametersSchema } from '../../schemas/create-native-comparison-planning-schema.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
+import { responseReferenceBindings } from './common/response-reference-bindings.js';
 import { conditionExpression } from './response-check-code.js';
 import { createResponseCheckReader } from './response-checks/create-response-check-reader.js';
 import { createResponseCheckGuard } from './response-checks/create-response-check-guard.js';
@@ -19,20 +20,33 @@ export function createIfCapability(
     description:
       'n8n IF: main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions.',
     parametersSchema: ifParametersSchema,
+    parameterReferenceSources: ['response'],
     createPlanningParametersSchema: createIfPlanningParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['true', 'false'],
     responseReferences: (parameters) =>
       responseReferences(ifParametersSchema.parse(parameters).conditions),
+    parameterReferenceBindings: (parameters) =>
+      responseReferenceBindings(
+        ifParametersSchema.parse(parameters).conditions,
+        '/conditions',
+      ),
     waitsForAllInputs: false,
     exclusiveOutputPorts: true,
-    compile: ({ planned, apiNodeNames, apiResponseContracts, position }) => {
+    compile: ({
+      planned,
+      apiNodeNames,
+      apiResponseContracts,
+      singletonApiResponseIds,
+      position,
+    }) => {
       const parameters = ifParametersSchema.parse(planned.parameters);
       const reader = createResponseCheckReader({
         nodeId: planned.id,
         checks: parameters.conditions,
         apiNodeNames,
         apiResponseContracts,
+        singletonApiResponseIds,
         linked: input.itemMode === 'linked',
       });
       const fragment = createNativeFragment(
@@ -57,6 +71,7 @@ export function createIfCapability(
                     check,
                     apiNodeNames,
                     input.itemMode === 'linked',
+                    singletonApiResponseIds,
                   ),
                   rightValue: true,
                   operator: { type: 'boolean', operation: 'equals' },

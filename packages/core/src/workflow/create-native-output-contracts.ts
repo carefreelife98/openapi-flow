@@ -2,7 +2,7 @@ import type {
   CreateNativeOutputContractsInput,
   NativeOutputContract,
 } from '../types/node-output.js';
-import { parseNativeNodeParameters } from './parse-native-node-parameters.js';
+import { resolveNativeStructureParameters } from './resolve-native-structure-parameters.js';
 import { validateNativeOutputContracts } from '../bindings/validate-native-output-contracts.js';
 
 /** Derive contracts from actual capabilities/parameters, never model guesses. */
@@ -23,7 +23,7 @@ export function createNativeOutputContracts({
       throw new Error(
         `node ${planned.id}: unknown capability ${planned.capability}`,
       );
-    const parameters = parseNativeNodeParameters(planned, capability);
+    const parameters = resolveNativeStructureParameters(planned, capability);
     return capability.outputSchema
       ? [{ nodeId: planned.id, schema: capability.outputSchema(parameters) }]
       : [];

@@ -7,6 +7,7 @@ import { assertionParametersSchema } from '../../schemas/native-capability-schem
 import { createAssertionPlanningParametersSchema } from '../../schemas/create-native-comparison-planning-schema.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
+import { responseReferenceBindings } from './common/response-reference-bindings.js';
 import { responseCheckCode } from './response-check-code.js';
 import { createResponseCheckReader } from './response-checks/create-response-check-reader.js';
 
@@ -18,20 +19,33 @@ export function createResponseAssertionCapability(
     description:
       'n8n Code: library-generated JSON comparisons. main input/output. Returns pass/assertionCount on success and can be the final node; no separate success/end node is needed. Failed checks throw their message and fail the workflow, without a failure output port. Join branches before comparing their responses.',
     parametersSchema: assertionParametersSchema,
+    parameterReferenceSources: ['response'],
     createPlanningParametersSchema: createAssertionPlanningParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
     responseReferences: (parameters) =>
       responseReferences(assertionParametersSchema.parse(parameters).checks),
+    parameterReferenceBindings: (parameters) =>
+      responseReferenceBindings(
+        assertionParametersSchema.parse(parameters).checks,
+        '/checks',
+      ),
     waitsForAllInputs: false,
     exclusiveOutputPorts: false,
-    compile: ({ planned, apiNodeNames, apiResponseContracts, position }) => {
+    compile: ({
+      planned,
+      apiNodeNames,
+      apiResponseContracts,
+      singletonApiResponseIds,
+      position,
+    }) => {
       const parameters = assertionParametersSchema.parse(planned.parameters);
       const reader = createResponseCheckReader({
         nodeId: planned.id,
         checks: parameters.checks,
         apiNodeNames,
         apiResponseContracts,
+        singletonApiResponseIds,
         linked: input.itemMode === 'linked',
       });
       const checkCode = `${responseCheckCode(reader.code)}\nconst checks = ${JSON.stringify(parameters.checks)};\nfor (const check of checks) if (!compare(check)) throw new Error(check.message);`;

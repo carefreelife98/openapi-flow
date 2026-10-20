@@ -1,14 +1,15 @@
 import { z } from 'zod';
 import type { WorkflowCapability } from '@openapi-flow/core';
-import type { WorkflowGraphOutput } from '../types/workflow-planning.js';
+import type { WorkflowGraphModelOutput } from '../types/workflow-planning.js';
+import { workflowGraphReasonSchema } from './workflow-graph-explanation-schema.js';
 
 export function createWorkflowGraphProposalSchema(
   capabilities: WorkflowCapability[],
-): z.ZodType<WorkflowGraphOutput> {
-  if (!capabilities.length)
-    throw new Error('capabilities must contain a native node definition');
+  includeExplanations = false,
+): z.ZodType<WorkflowGraphModelOutput> {
   const nativeSchemas = capabilities.map((capability) =>
     z.strictObject({
+      ...(includeExplanations ? { reason: workflowGraphReasonSchema } : {}),
       id: z
         .string()
         .min(1)
@@ -17,15 +18,12 @@ export function createWorkflowGraphProposalSchema(
       parameters: capability.parametersSchema,
     }),
   );
-  return z.strictObject({
-    additionalNativeNodes: z
-      .array(z.union([nativeSchemas[0], ...nativeSchemas.slice(1)]))
-      .describe(
-        'NEW native nodes only. Existing preparedNativeNodes and API materials are already present. Never repeat their IDs or parameters. Return [] when no new native node is needed.',
-      ),
+  const base = z.strictObject({
+    ...(includeExplanations ? { reason: workflowGraphReasonSchema } : {}),
     edges: z
       .array(
         z.strictObject({
+          ...(includeExplanations ? { reason: workflowGraphReasonSchema } : {}),
           from: z
             .string()
             .min(1)
@@ -49,5 +47,14 @@ export function createWorkflowGraphProposalSchema(
       .describe(
         'Only explicitly requested requirements that cannot be met. Do not invent a success/end/display requirement; a terminal node completes normally. Never invent a capability, API, or executable code.',
       ),
+  });
+  if (!nativeSchemas.length) return base;
+  return z.strictObject({
+    additionalNativeNodes: z
+      .array(z.union([nativeSchemas[0], ...nativeSchemas.slice(1)]))
+      .describe(
+        'NEW native nodes only. Existing preparedNativeNodes and API materials are already present. Never repeat their IDs or parameters. Return [] when no new native node is needed.',
+      ),
+    ...base.shape,
   });
 }

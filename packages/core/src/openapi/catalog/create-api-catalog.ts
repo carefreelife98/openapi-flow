@@ -9,8 +9,7 @@ import { operationsFromDocument } from '../request/parse-request-operations.js';
 export async function createApiCatalog(
   sources: ApiSource[],
 ): Promise<ApiCatalog> {
-  if (!Array.isArray(sources) || sources.length === 0)
-    throw new Error('sources must contain at least one OpenAPI document');
+  if (!Array.isArray(sources)) throw new Error('sources must be an array');
   const catalog: ApiCatalog = { documents: [], operations: [] };
   for (const [index, source] of sources.entries()) {
     if (!source || typeof source.id !== 'string' || !source.id.trim())

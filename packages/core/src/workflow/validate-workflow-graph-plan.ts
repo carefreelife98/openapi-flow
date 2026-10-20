@@ -2,18 +2,30 @@ import type { ValidateWorkflowGraphPlanInput } from '../types/workflow-plan.js';
 import { validateApiBindingPlan } from '../bindings/validate-api-binding-plan.js';
 import { createWorkflowNodeContracts } from './create-workflow-node-contracts.js';
 import { validateWorkflowTopology } from './validate-workflow-topology.js';
-import { createNativeOutputContracts } from './create-native-output-contracts.js';
+import { resolveNativeMaterialSnapshot } from './resolve-native-material-snapshot.js';
+import { NativeMaterialResolutionError } from './native-material-resolution-error.js';
 
 /** Reject invalid graph proposals; never repair or infer edges. */
 export function validateWorkflowGraphPlan({
   plan,
   materials,
   capabilities,
+  unresolvedNodes,
 }: ValidateWorkflowGraphPlanInput): void {
-  const nativeOutputs = createNativeOutputContracts({
+  const snapshot = resolveNativeMaterialSnapshot({
+    apiMaterials: materials.map((material) => ({
+      callId: material.arguments.callId,
+      operation: material.operation,
+      requestMediaType: material.arguments.requestMediaType,
+    })),
+    nativeOutputs: [],
+    deferredNodeIds: [],
     nativeNodes: plan.nativeNodes,
     capabilities,
   });
+  if (snapshot.status !== 'ready')
+    throw new NativeMaterialResolutionError(snapshot.pending);
+  const nativeOutputs = snapshot.outputs;
   if (materials.length)
     validateApiBindingPlan({
       nativeOutputs,
@@ -36,7 +48,8 @@ export function validateWorkflowGraphPlan({
   const contracts = createWorkflowNodeContracts({
     materials,
     nativeNodes: plan.nativeNodes,
-    capabilities,
+    capabilities: snapshot.capabilities,
+    unresolvedNodes,
   });
   validateWorkflowTopology({
     contracts,

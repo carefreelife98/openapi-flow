@@ -11,6 +11,7 @@ import {
 import {
   createNativeOutputContracts,
   validateWorkflowEdges,
+  describeWorkflowConnectionPlanning,
 } from '@openapi-flow/core';
 import { compileReviewableN8nWorkflow } from '@openapi-flow/n8n';
 import {
@@ -21,6 +22,50 @@ import {
   plan as boundPlan,
 } from './fixtures/native-output-binding-fixture.mjs';
 import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
+import { createJsonOutputCapability } from '@openapi-flow/n8n';
+
+test('connection readiness is code-derived from validated literals and explicit runtime ownership', () => {
+  const capability = createJsonOutputCapability({
+    name: 'readiness',
+    description: 'Original typed settings',
+    parametersSchema: z.strictObject({
+      message: z.string(),
+      count: z.number().int(),
+    }),
+  });
+  const native = {
+    id: 'ready',
+    capability: capability.name,
+    parameters: { message: 'Answered already' },
+    runtimeParameters: { pointers: ['/count'] },
+  };
+  const input = {
+    scenario:
+      'The original request asked for the message; actual settings are now supplied.',
+    capabilities: [capability],
+    nativeNodes: [native],
+  };
+  const description = describeWorkflowConnectionPlanning(input);
+  assert.deepEqual(description.context.nativeParameterReadiness, [
+    {
+      nodeId: native.id,
+      planTimeStatus: 'validated',
+      executionInputPointers: ['/count'],
+    },
+  ]);
+  assert.deepEqual(
+    description.context.nativeNodes[0].parameters,
+    native.parameters,
+  );
+  assert.throws(
+    () =>
+      describeWorkflowConnectionPlanning({
+        ...input,
+        nativeNodes: [{ ...native, parameters: {} }],
+      }),
+    /schema|parameter|properties/,
+  );
+});
 
 function model(outputs, inspect = () => {}) {
   const calls = [];

@@ -1,5 +1,9 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import type { ApiSelection } from '@openapi-flow/core';
+import {
+  describeApiSelectionContext,
+  createApiSelectionExplanation,
+} from '@openapi-flow/core';
 import type {
   ApiSelectionOutput,
   SelectApiOperationsInput,
@@ -8,15 +12,24 @@ import { createApiSelectionSchema } from '../schemas/api-selection-schema.js';
 import { operationSelectionPrompt } from '../prompts/operation-selection-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
+import { resolveApiSelectionOptions } from './resolve-api-selection-options.js';
+import { apiSelectionExplanationPrompt } from '../prompts/api-selection-explanation-prompt.js';
 
-export async function selectApiOperations({
-  operations,
-  scenario,
-  model,
-}: SelectApiOperationsInput): Promise<ApiSelection> {
+export async function selectApiOperations(
+  input: SelectApiOperationsInput,
+): Promise<ApiSelection> {
+  const { scenario, model } = input;
   assertSelectionInput(scenario, model);
-  if (!Array.isArray(operations))
+  if (!Array.isArray(input.operations))
     throw new Error('operations must be an array');
+  const includeExplanations = resolveApiSelectionOptions({
+    includeExplanations: input.includeExplanations,
+  });
+  const context = describeApiSelectionContext({
+    scenario,
+    operations: input.operations,
+  });
+  const { operations } = context;
   if (operations.length === 0)
     return {
       operations: [],
@@ -29,11 +42,12 @@ export async function selectApiOperations({
       ],
     };
   const candidates = operations.map((operation, index) => ({
-    candidateId: `candidate-${index + 1}`,
     ...operation,
+    candidateId: `candidate-${index + 1}`,
   }));
   const schema = createApiSelectionSchema(
     candidates.map((candidate) => candidate.candidateId),
+    includeExplanations,
   );
   const proposed: ApiSelectionOutput = await model
     .withStructuredOutput<ApiSelectionOutput>(schema, {
@@ -42,7 +56,9 @@ export async function selectApiOperations({
       strict: true,
     })
     .invoke([
-      new SystemMessage(operationSelectionPrompt),
+      new SystemMessage(
+        `${operationSelectionPrompt}\n${apiSelectionExplanationPrompt}`,
+      ),
       new HumanMessage(JSON.stringify({ scenario, candidates })),
     ]);
   const selection = parseStructuredOutput(
@@ -62,11 +78,32 @@ export async function selectApiOperations({
         throw new Error(
           `model API selection references unknown ${item.candidateId}`,
         );
-      return { key: { ...candidate.key }, purpose: item.purpose };
+      return {
+        key: { ...candidate.key },
+        purpose: item.purpose,
+        ...('explanation' in item
+          ? {
+              explanation: createApiSelectionExplanation({
+                context,
+                basis: { kind: 'candidates', operations: [candidate.key] },
+                reason: item.explanation.reason,
+              }),
+            }
+          : {}),
+      };
     }),
     gaps: selection.gaps.map((gap) => ({
       kind: 'missing_operation',
       description: gap.description,
+      ...('explanation' in gap
+        ? {
+            explanation: createApiSelectionExplanation({
+              context,
+              basis: { kind: 'catalog' },
+              reason: gap.explanation.reason,
+            }),
+          }
+        : {}),
     })),
   };
 }

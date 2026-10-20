@@ -16,6 +16,7 @@ import {
   compileCollectedIteration,
   graphMaterials,
 } from './fixtures/array-iteration-fixture.mjs';
+import { extendMaterialCompiler } from './fixtures/material-compiler-extension.mjs';
 
 const catalog = await createApiCatalog([
   {
@@ -194,35 +195,47 @@ test('collected API bodies feed a single OAS array request after item-wise asser
     );
   }
 });
-test('native collectors cannot compile a different source contract than the workflow material', () => {
+test('native collectors bind current materials and reject mismatched compiled source contracts', () => {
   const registry = createResponseCollectionCapability({
     materials: [{ callId: 'records', operation: graphMaterials[2].operation }],
   });
-  assert.throws(
-    () =>
-      compilePlannedN8nWorkflow({
-        id: 'wrong-source',
-        name: 'Wrong source',
-        materials: [graphMaterials[0]],
-        capabilities: [registry],
-        plan: {
-          nativeNodes: [
-            {
-              id: 'collect',
-              capability: registry.name,
-              parameters: { sourceNodeId: 'records', pointer: '' },
-            },
-          ],
-          edges: [
-            { from: 'records', output: 'main', to: 'collect', input: 'main' },
-          ],
-          starts: ['records'],
-          gaps: [],
+  const input = {
+    id: 'wrong-source',
+    name: 'Wrong source',
+    materials: [graphMaterials[0]],
+    capabilities: [registry],
+    plan: {
+      nativeNodes: [
+        {
+          id: 'collect',
+          capability: registry.name,
+          parameters: { sourceNodeId: 'records', pointer: '' },
         },
-        apiNodes: [
-          createHttpRequestNode({ ...graphMaterials[0], position: [0, 0] }),
-        ],
-      }),
+      ],
+      edges: [
+        { from: 'records', output: 'main', to: 'collect', input: 'main' },
+      ],
+      starts: ['records'],
+      gaps: [],
+    },
+    apiNodes: [
+      createHttpRequestNode({ ...graphMaterials[0], position: [0, 0] }),
+    ],
+  };
+  assert.doesNotThrow(() => compilePlannedN8nWorkflow(input));
+  assert.deepEqual(
+    registry.materialSources.apiMaterials[0].operation,
+    graphMaterials[2].operation,
+  );
+  const mismatched = extendMaterialCompiler(registry, (fragment) => ({
+    ...fragment,
+    bindingSources: fragment.bindingSources.map((source) => ({
+      ...source,
+      operation: graphMaterials[2].operation,
+    })),
+  }));
+  assert.throws(
+    () => compilePlannedN8nWorkflow({ ...input, capabilities: [mismatched] }),
     /original OAS response contract/,
   );
 });

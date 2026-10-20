@@ -2,8 +2,8 @@ import type { ReviewableWorkflowGraphPlan } from '@openapi-flow/core';
 import type { OrchestrateWorkflowInput } from '../types/workflow-orchestration.js';
 import { planNativeNodes } from './plan-native-nodes.js';
 import { planWorkflowConnections } from './plan-workflow-connections.js';
-import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
-import { prepareWorkflowConnectionMaterials } from './prepare-workflow-connection-materials.js';
+import { assembleNativeNodeMaterials } from '@openapi-flow/core';
+import { prepareWorkflowConnectionMaterials } from '@openapi-flow/core';
 
 /** Optional material groups mean absence, never an implicit capability registry. */
 export async function orchestrateWorkflow(

@@ -106,6 +106,7 @@ export async function createSchemaProjectionFixture(baseUrl, kind) {
     nativeNodes: [native],
     capabilities: [capability],
     apiNodeNames,
+    apiResponseContracts,
   });
   const materials = selected.map((material) => ({
     operation: material.operation,

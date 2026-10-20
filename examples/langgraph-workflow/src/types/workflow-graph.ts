@@ -1,4 +1,15 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import type {
+  ApiSelectionModelOptions,
+  AnalyzeApiRequestMediaTypeInput,
+  GenerateApiArgumentsInput,
+  PlanApiBindingsInput,
+  PlanNativeNodesInput,
+  NativeNodePlan,
+  PlanWorkflowConnectionsInput,
+  PlanWorkflowGraphInput,
+  AnalyzeApiInputAnswersInput,
+} from '@openapi-flow/langchain';
 import type { HttpRequestDeploymentOptions } from '@openapi-flow/n8n';
 import type {
   ApiSelection,
@@ -6,18 +17,31 @@ import type {
   ApiCallArguments,
   ApiBindingPlan,
   PlannedNativeNode,
+  ApiRequestMediaTypeDecision,
+  WorkflowReviewGap,
+  ReviewableWorkflowGraphPlan,
 } from '@openapi-flow/core';
 import type { N8nNodeFragment, N8nGraphEdge } from '@openapi-flow/n8n';
 import type { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 import type { WorkflowGraphPlan } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '@openapi-flow/n8n';
+import type { NativePlanningGraphDependencies } from './native-planning.js';
 
 export type WorkflowState = typeof workflowStateSchema.State;
 export type WorkflowUpdate = typeof workflowStateSchema.Update;
 
+export interface NativeWorkflowMaterialPlan {
+  /** All supplied prepared instances plus actual additions, for later compilation. */
+  nativeNodes: PlannedNativeNode[];
+  gaps: WorkflowReviewGap[];
+  /** Validated additions; compact plans may also retain their single-call provenance record. */
+  proposal: NativeNodePlan;
+}
+
 export interface ResolvedApiRequestMediaType {
   callId: string;
   requestMediaType?: string;
+  decision: ApiRequestMediaTypeDecision;
 }
 
 export interface ServiceDeployment extends HttpRequestDeploymentOptions {
@@ -27,6 +51,19 @@ export interface ServiceDeployment extends HttpRequestDeploymentOptions {
 export interface GraphDependencies {
   model: BaseChatModel;
   deployments?: ServiceDeployment[];
+  /** Applies only to discovery selection, not all later planning stages. */
+  selectionOptions?: ApiSelectionModelOptions;
+  /** Applies only to request-body format assessment, not value or graph planning. */
+  requestMediaOptions?: Pick<
+    AnalyzeApiRequestMediaTypeInput,
+    'includeExplanations'
+  >;
+  argumentOptions?: Pick<GenerateApiArgumentsInput, 'includeExplanations'>;
+  bindingOptions?: Pick<PlanApiBindingsInput, 'includeExplanations'>;
+  nativeOptions?: Pick<PlanNativeNodesInput, 'includeExplanations'>;
+  connectionOptions?: Pick<PlanWorkflowConnectionsInput, 'includeExplanations'>;
+  graphOptions?: Pick<PlanWorkflowGraphInput, 'includeExplanations'>;
+  answerOptions?: Pick<AnalyzeApiInputAnswersInput, 'includeExplanations'>;
 }
 
 export interface ApiPreparationDependencies extends GraphDependencies {
@@ -38,12 +75,15 @@ export interface ApiPreparationDependencies extends GraphDependencies {
 
 export interface PlannedGraphDependencies extends ApiPreparationDependencies {
   capabilities: N8nNativeCapability[];
-  reviewPlan?: (plan: WorkflowGraphPlan) => void | Promise<void>;
+  reviewPlan?: (plan: ReviewedWorkflowPlan) => void | Promise<void>;
   preparedNativeNodes?: PlannedNativeNode[];
 }
 
+export type ReviewedWorkflowPlan = WorkflowGraphPlan &
+  Pick<ReviewableWorkflowGraphPlan, 'connectionPlanning'>;
+
 export interface OrchestratedGraphDependencies extends Omit<
-  PlannedGraphDependencies,
+  NativePlanningGraphDependencies,
   'capabilities'
 > {
   capabilities?: N8nNativeCapability[];
@@ -53,6 +93,7 @@ export interface ResolvedRequestNode {
   operation: ApiOperationContract;
   arguments: ApiCallArguments;
   fragment: N8nNodeFragment;
+  purpose?: string;
 }
 
 export interface HostDagTopology {

@@ -44,10 +44,16 @@ export function createApiPreparationStages(
     },
     async selectOperations(state: WorkflowState): Promise<WorkflowUpdate> {
       if (!state.catalog) throw new Error('selectOperations requires catalog');
+      if (state.catalog.documents.length === 0)
+        return {
+          selection: { operations: [], gaps: [] },
+          trace: [...state.trace, 'select'],
+        };
       const selection = await selectApiOperations({
         operations: listApiOperations(state.catalog),
         scenario: state.scenario,
         model: dependencies.model,
+        includeExplanations: dependencies.selectionOptions?.includeExplanations,
       });
       if (selection.gaps.length && onSelectionGaps)
         return onSelectionGaps(state, selection);
@@ -77,6 +83,7 @@ export function createApiPreparationStages(
         callId,
         operation,
         requestMediaType,
+        purpose,
       } of createApiBindingMaterials(state)) {
         const boundCall = state.bindingPlan?.calls.find(
           (call) => call.callId === callId,
@@ -86,10 +93,13 @@ export function createApiPreparationStages(
         const args = await generateApiArguments({
           callId,
           operation,
+          purpose,
           requestMediaType,
           scenario: state.scenario,
           model: dependencies.model,
           bindings: boundCall ? boundCall.bindings : [],
+          includeExplanations:
+            dependencies.argumentOptions?.includeExplanations,
         });
         if (args.unresolvedInputs.length)
           throw new Error(
@@ -113,38 +123,45 @@ export function createRequestMaterials(
     state.contracts.length !== state.arguments.length
   )
     throw new Error('compileWorkflow requires contract and arguments');
-  return state.contracts.map((operation, index) => {
-    const args = state.arguments![index];
-    const deployment = dependencies.deployments?.find(
-      (item) => item.documentId === operation.key.documentId,
-    );
-    return {
-      operation,
-      arguments: args,
-      fragment: createHttpRequestNode({
+  return createApiBindingMaterials(state).map(
+    ({ operation, callId, purpose }, index) => {
+      const args = state.arguments![index];
+      if (args.callId !== callId)
+        throw new Error(
+          `Request arguments do not match selected call role ${callId}`,
+        );
+      const deployment = dependencies.deployments?.find(
+        (item) => item.documentId === operation.key.documentId,
+      );
+      return {
         operation,
+        purpose,
         arguments: args,
-        nativeOutputSources,
-        ...(dependencies.linkedItemCallIds?.includes(args.callId)
-          ? { itemMode: 'linked' as const }
-          : {}),
-        apiResponseContracts: Object.fromEntries(
-          state.arguments!.map((call, sourceIndex) => [
-            call.callId,
-            state.contracts![sourceIndex],
-          ]),
-        ),
-        baseUrl: deployment?.baseUrl,
-        credentialBindings: deployment?.credentialBindings,
-        securityRequirementIndex: deployment?.securityRequirementIndex,
-        apiNodeNames: Object.fromEntries(
-          state.arguments!.map((call) => [
-            call.callId,
-            'Request ' + call.callId,
-          ]),
-        ),
-        position: [300, index * 200],
-      }),
-    };
-  });
+        fragment: createHttpRequestNode({
+          operation,
+          arguments: args,
+          nativeOutputSources,
+          ...(dependencies.linkedItemCallIds?.includes(args.callId)
+            ? { itemMode: 'linked' as const }
+            : {}),
+          apiResponseContracts: Object.fromEntries(
+            state.arguments!.map((call, sourceIndex) => [
+              call.callId,
+              state.contracts![sourceIndex],
+            ]),
+          ),
+          baseUrl: deployment?.baseUrl,
+          credentialBindings: deployment?.credentialBindings,
+          securityRequirementIndex: deployment?.securityRequirementIndex,
+          apiNodeNames: Object.fromEntries(
+            state.arguments!.map((call) => [
+              call.callId,
+              'Request ' + call.callId,
+            ]),
+          ),
+          position: [300, index * 200],
+        }),
+      };
+    },
+  );
 }

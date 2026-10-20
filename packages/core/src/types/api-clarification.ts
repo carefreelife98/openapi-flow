@@ -11,6 +11,7 @@ import type {
   ValidateApiArgumentsInput,
 } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
+import type { ApiSelectionExplanation } from './api-selection-evidence.js';
 
 export interface ConfirmedApiInput {
   callId: string;
@@ -29,7 +30,7 @@ export interface ApplyConfirmedApiInputsInput extends ApiArgumentGenerationInput
 }
 
 export interface ApiInputRequirement {
-  kind: 'missing-input';
+  kind: 'missing-input' | 'requested-input';
   id: string;
   callId: string;
   operation: ApiOperationKey;
@@ -39,10 +40,13 @@ export interface ApiInputRequirement {
   operationSummary?: string;
   parameterDescription?: string;
   message: string;
+  /** Actual user-requested paths covered by this question, not additions to the OAS schema. */
+  requestedInputs?: string[];
 }
 
 export interface InspectApiArgumentRequirementsInput extends ValidateApiArgumentsInput {
   callId: string;
+  requestedInputs?: string[];
 }
 
 export interface ApiArgumentRequirements {
@@ -76,6 +80,7 @@ export interface ApiOperationChoice {
   message: string;
   purpose: string;
   candidates: ApiOperationCandidate[];
+  explanation?: ApiSelectionExplanation;
 }
 
 export interface ApiSelectionAnalysis {

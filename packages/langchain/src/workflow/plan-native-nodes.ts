@@ -1,88 +1,99 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { isDeepStrictEqual } from 'node:util';
-import { z } from 'zod';
 import {
-  createNativeOutputContracts,
-  createWorkflowPlanningCapabilities,
-  validateNativeApiResponseReferences,
+  describeNativeNodePlanning,
+  createNativeNodePlan,
+  createNativeNodePlanningRecord,
 } from '@openapi-flow/core';
 import type {
   NativeNodePlan,
-  NativeNodeProposal,
+  NativeNodePlanningOutput,
   PlanNativeNodesInput,
 } from '../types/native-node-planning.js';
-import { createNativeNodePlanSchema } from '../schemas/native-node-plan-schema.js';
+import { createNativeNodePlanningContract } from '../schemas/native-node-planning-contract.js';
+import { nativeNodeExplanationOptionsSchema } from '../schemas/native-node-explanation-schema.js';
 import { nativeNodePlanningPrompt } from '../prompts/native-node-planning-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
-import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
-import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
+import { resolveNativeNodePlanningOutput } from './resolve-native-node-planning-output.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 import { NativeNodePlanningError } from './native-node-planning-error.js';
 
 export async function planNativeNodes(
   input: PlanNativeNodesInput,
 ): Promise<NativeNodePlan> {
-  assertSelectionInput(input.scenario, input.model);
   if (!input.planId?.trim())
     throw new Error('planNativeNodes.planId is required');
-  const capabilities = input.capabilities ?? [];
-  const apiMaterials = input.apiMaterials ?? [];
-  const prepared = input.preparedNativeNodes ?? [];
-  createNativeOutputContracts({ nativeNodes: prepared, capabilities });
-  const apiIds = apiMaterials.map((material) => material.callId);
-  const existingIds = [...apiIds, ...prepared.map((node) => node.id)];
   if (
-    existingIds.some((id) => !id.trim()) ||
-    new Set(existingIds).size !== existingIds.length
+    input.model !== undefined &&
+    (!input.model || typeof input.model.withStructuredOutput !== 'function')
   )
-    throw new Error('native planning materials require unique non-empty IDs');
-  validateNativeApiResponseReferences({
-    nativeNodes: prepared,
-    capabilities,
-    apiCallIds: apiIds,
+    throw new Error(
+      'planNativeNodes.model must support structured output when supplied',
+    );
+  const options = nativeNodeExplanationOptionsSchema.parse({
+    includeExplanations: input.includeExplanations,
   });
+  const {
+    input: snapshot,
+    context,
+    planningCapabilities,
+  } = describeNativeNodePlanning(input);
   // No registered choice means no native-selection model call, not an inferred registry.
-  if (!capabilities.length) return { nativeNodes: [], gaps: [] };
-  const planningCapabilities = createWorkflowPlanningCapabilities({
-    capabilities,
-    apiCallIds: apiIds,
-  });
-  const schema = createNativeNodePlanSchema(planningCapabilities);
-  const output: NativeNodeProposal = await input.model
-    .withStructuredOutput<NativeNodeProposal>(z.toJSONSchema(schema), {
-      name: 'plan_native_nodes',
-      method: 'functionCalling',
-      strict: true,
-    })
+  if (!snapshot.capabilities.length) {
+    const plan = createNativeNodePlan({
+      ...snapshot,
+      proposal: { nativeNodes: [], gaps: [] },
+    });
+    return {
+      ...plan,
+      ...(options.includeExplanations === true
+        ? {
+            nativePlanning: createNativeNodePlanningRecord({
+              ...snapshot,
+              plan,
+            }),
+          }
+        : {}),
+    };
+  }
+  const model = input.model;
+  if (!model)
+    throw new Error(
+      'planNativeNodes.model is required when supplied capabilities need a planning decision',
+    );
+  assertSelectionInput(snapshot.scenario, model);
+  const contract = createNativeNodePlanningContract(
+    planningCapabilities,
+    snapshot.allowRuntimeParameters === true,
+    options.includeExplanations === true,
+  );
+  if (!isDeepStrictEqual(contract.capabilities, context.capabilities))
+    throw new Error(
+      'native planning schema differs from its supplied capability material',
+    );
+  const { schema } = contract;
+  const output: NativeNodePlanningOutput = await model
+    .withStructuredOutput<NativeNodePlanningOutput>(
+      serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+      {
+        name: 'plan_native_nodes',
+        method: 'functionCalling',
+        strict: true,
+      },
+    )
     .invoke([
       new SystemMessage(nativeNodePlanningPrompt),
-      new HumanMessage(
-        JSON.stringify({
-          scenario: input.scenario,
-          apiMaterials: apiMaterials.map(({ callId, operation }) => ({
-            callId,
-            key: operation.key,
-            method: operation.method,
-            path: operation.path,
-            operation: operation.operation,
-            effective: operation.effective,
-          })),
-          preparedNativeNodes: createPreparedNativeNodeMaterials(
-            prepared,
-            capabilities,
-          ),
-          capabilities: planningCapabilities.map((capability) => ({
-            name: capability.name,
-            description: capability.description,
-            parametersSchema: z.toJSONSchema(capability.parametersSchema),
-          })),
-        }),
-      ),
+      new HumanMessage(JSON.stringify(context)),
     ]);
-  let proposal: NativeNodeProposal;
+  let parsed: NativeNodePlanningOutput;
   try {
-    proposal = parseStructuredOutput(schema, output, 'model native node plan');
-    if (!isDeepStrictEqual(proposal, output))
+    parsed = parseStructuredOutput<NativeNodePlanningOutput>(
+      schema,
+      output,
+      'model native node plan',
+    );
+    if (!isDeepStrictEqual(parsed, output))
       throw new Error(
         'native model schema must validate without defaults, coercion or transformation',
       );
@@ -93,32 +104,35 @@ export async function planNativeNodes(
       error,
     );
   }
+  const { proposal, assessment } = resolveNativeNodePlanningOutput(parsed);
   try {
-    const nodes = assembleNativeNodeMaterials(prepared, proposal.nativeNodes);
-    if (proposal.nativeNodes.some((node) => apiIds.includes(node.id)))
-      throw new Error('native node plan contains an API callId');
-    createNativeOutputContracts({ nativeNodes: nodes, capabilities });
-    validateNativeApiResponseReferences({
-      nativeNodes: nodes,
-      capabilities,
-      apiCallIds: apiIds,
-    });
-    const gaps = proposal.gaps.map((gap, index) => ({
-      id: `${input.planId}-gap-${index + 1}`,
-      stage: 'workflow-graph' as const,
-      description: gap.description,
-    }));
     if (
-      gaps.some((gap) =>
-        [...existingIds, ...nodes.map((node) => node.id)].includes(gap.id),
-      )
+      !isDeepStrictEqual(describeNativeNodePlanning(snapshot).context, context)
     )
-      throw new Error('native planning gap ID collides with a declared node');
-    return { nativeNodes: proposal.nativeNodes, gaps };
+      throw new Error(
+        'native planning source contracts changed during the model invocation',
+      );
+    const plan = createNativeNodePlan({ ...snapshot, proposal });
+    return {
+      ...plan,
+      ...(options.includeExplanations === true
+        ? {
+            nativePlanning: createNativeNodePlanningRecord({
+              ...snapshot,
+              plan,
+              assessment,
+            }),
+          }
+        : {}),
+    };
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new NativeNodePlanningError(
-      { stage: 'node-validation', output: proposal },
+      {
+        stage: 'node-validation',
+        output: proposal,
+        sourceOutput: parsed,
+      },
       error,
     );
   }

@@ -5,6 +5,7 @@ import type {
   ApiInputRequirement,
   ConfirmedApiInput,
   ApiAnswerIssue,
+  ApiInputAnswerExtractionRecord,
 } from '@openapi-flow/core';
 import type { ConversationInputResponse } from '../types/workflow-conversation.js';
 import type { PendingApiArguments } from '../types/api-preparation.js';
@@ -18,6 +19,10 @@ export const conversationStateSchema = new StateSchema({
   confirmedInputs: z.custom<ConfirmedApiInput[]>().optional(),
   pendingInputResponse: z.custom<ConversationInputResponse>().optional(),
   inputAnswerIssues: z.custom<ApiAnswerIssue[]>().optional(),
+  apiInputAnswerExtractions: z
+    .custom<ApiInputAnswerExtractionRecord[]>()
+    .optional(),
+  operationAnswerErrors: z.array(z.string()).optional(),
   conversationStatus: z
     .enum([
       'working',

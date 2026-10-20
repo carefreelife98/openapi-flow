@@ -78,6 +78,9 @@ const sources = createN8nNativeOutputSources({
   nativeNodes,
   capabilities,
   apiNodeNames: names,
+  apiResponseContracts: Object.fromEntries(
+    materials.map((material) => [material.callId, material.operation]),
+  ),
 });
 const graphMaterials = materials.map((material) => ({
   operation: material.operation,

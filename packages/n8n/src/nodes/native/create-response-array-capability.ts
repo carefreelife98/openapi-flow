@@ -1,3 +1,4 @@
+import { defineMaterialBoundCapability } from './common/define-material-bound-capability.js';
 import { createResponseArrayItemSchema } from '@openapi-flow/core';
 import type { ApiBindingMaterial } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '../../types/native-capability.js';
@@ -7,6 +8,7 @@ import type {
 } from '../../types/array-iteration.js';
 import { createResponseArrayParametersSchema } from '../../schemas/response-array-schema.js';
 import { createArrayNodeFragment } from './arrays/create-array-node-fragment.js';
+import { responseArrayDefinition } from './response-array-definition.js';
 
 export function createResponseArrayCapability(
   input: CreateResponseArrayCapabilityInput,
@@ -37,13 +39,18 @@ export function createResponseArrayCapability(
     createResponseArrayItemSchema(material.operation, parameters.pointer);
     return material;
   }
-  return {
-    name: 'split-api-response-array',
-    description:
-      'Split a declared OAS response array into one unchanged JSON item per element using n8n Split Out. Output is {item: element}. Downstream bound requests must use linked item mode. An empty array creates no downstream items.',
+  return defineMaterialBoundCapability({
+    ...responseArrayDefinition,
     parametersSchema,
-    inputPorts: () => ['main'],
-    outputPorts: () => ['main'],
+    materialSources: {
+      apiMaterials: structuredClone(input.materials),
+      nativeOutputs: [],
+    },
+    bindMaterialContracts: (sources) =>
+      createResponseArrayCapability({
+        materials: sources.apiMaterials,
+        itemMode: input.itemMode,
+      }),
     responseReferences: (values) => {
       const parameters = parametersSchema.parse(values);
       source(parameters);
@@ -55,8 +62,6 @@ export function createResponseArrayCapability(
         },
       ];
     },
-    waitsForAllInputs: false,
-    exclusiveOutputPorts: false,
     outputSchema: (values) => {
       const parameters = parametersSchema.parse(values);
       return {
@@ -92,5 +97,5 @@ export function createResponseArrayCapability(
         },
       });
     },
-  };
+  });
 }

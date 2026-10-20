@@ -23,17 +23,6 @@ export function createApiInputAnswersSchema(
       ).describe(
         'Only the value explicitly supplied by the current user reply for this requested input.',
       ),
-      sourceFormat: z
-        .enum(['text', 'json'])
-        .describe(
-          'text only for a verbatim string value; json for a complete JSON literal copied from the reply.',
-        ),
-      sourceText: z
-        .string()
-        .min(1)
-        .describe(
-          'Exact contiguous substring from the current user reply that represents this entire value. No paraphrase, examples or defaults.',
-        ),
     }),
   );
   return z.strictObject({

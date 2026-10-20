@@ -10,6 +10,17 @@ export function createExclusiveBranchMergeCapability(): N8nNativeCapability {
     description:
       'Rejoin both alternative paths of one supplied IF instance using official Merge append. input1 and input2 each cover a distinct true/false path. Preserves existing items and ancestry; never creates an empty completion item. Both paths must return, including a skip path when no business call is required.',
     parametersSchema: exclusiveBranchMergeParametersSchema,
+    parameterReferenceSources: ['exclusive-output'],
+    parameterReferenceBindings: (parameters) => [
+      {
+        nodeIdPointer: '/sourceNodeId',
+        reference: {
+          source: 'exclusive-output',
+          nodeId:
+            exclusiveBranchMergeParametersSchema.parse(parameters).sourceNodeId,
+        },
+      },
+    ],
     inputPorts: () => ['input1', 'input2'],
     outputPorts: () => ['main'],
     responseReferences: () => [],

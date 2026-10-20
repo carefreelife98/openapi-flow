@@ -71,6 +71,7 @@ export async function prepareReviewableApiMaterials(
   const bindingPlan: ApiBindingPlan = await planApiBindings({
     scenario: state.scenario,
     model: dependencies.model,
+    includeExplanations: dependencies.bindingOptions?.includeExplanations,
     materials,
     nativeOutputs: createNativeOutputContracts({
       nativeNodes: dependencies.preparedNativeNodes ?? [],
@@ -105,6 +106,9 @@ export async function prepareReviewableApiMaterials(
         status: 'blocked',
         callId: material.callId,
         operation: material.operation,
+        ...(material.purpose === undefined
+          ? {}
+          : { purpose: material.purpose }),
         requestMediaType: material.requestMediaType,
         bindings: call.bindings,
         gapIds: [...gaps],
@@ -118,6 +122,8 @@ export async function prepareReviewableApiMaterials(
             bindings: call.bindings,
             scenario: state.scenario,
             model: dependencies.model,
+            includeExplanations:
+              dependencies.argumentOptions?.includeExplanations,
           })
         : {
             callId: material.callId,
@@ -138,13 +144,20 @@ export async function prepareReviewableApiMaterials(
     );
     if (inspection.status === 'needs-input') {
       requirements.push(...inspection.requirements);
-      pendingArguments.push({ operation: material.operation, arguments: args });
+      pendingArguments.push({
+        operation: material.operation,
+        arguments: args,
+        ...(material.purpose === undefined
+          ? {}
+          : { purpose: material.purpose }),
+      });
       continue;
     }
     reviewMaterials.push({
       status: 'ready',
       operation: material.operation,
       arguments: args,
+      ...(material.purpose === undefined ? {} : { purpose: material.purpose }),
     });
   }
   return {

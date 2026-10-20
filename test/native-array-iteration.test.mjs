@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { extendMaterialCompiler } from './fixtures/material-compiler-extension.mjs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { URL } from 'node:url';
@@ -237,13 +238,14 @@ test('public assembly checks native source identity, original schema and graph p
     const native = input.capabilities.find(
       (capability) => capability.name === 'split-native-output-array',
     );
-    const original = native.compile;
-    native.compile = (args) => {
-      const result = original(args);
+    const extended = extendMaterialCompiler(native, (result) => {
       result.bindingSources[0][field] =
         field === 'nodeName' ? 'Wrong producer' : false;
       return result;
-    };
+    });
+    input.capabilities = input.capabilities.map((capability) =>
+      capability === native ? extended : capability,
+    );
     assert.throws(
       () => compilePlannedN8nWorkflow(input),
       /compiled producer|declared native output schema/,

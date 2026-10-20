@@ -9,6 +9,7 @@ export function createMergeAppendCapability(): N8nNativeCapability {
     description:
       'n8n Merge append: input1..inputN; main output. Waits for all independent incoming branches.',
     parametersSchema: mergeParametersSchema,
+    parameterReferenceSources: [],
     inputPorts: (parameters) =>
       Array.from(
         { length: mergeParametersSchema.parse(parameters).numberInputs },
@@ -16,6 +17,7 @@ export function createMergeAppendCapability(): N8nNativeCapability {
       ),
     outputPorts: () => ['main'],
     responseReferences: () => [],
+    parameterReferenceBindings: () => [],
     waitsForAllInputs: true,
     exclusiveOutputPorts: false,
     compile: ({ planned, position }) => {

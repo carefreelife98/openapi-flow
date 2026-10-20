@@ -1,10 +1,154 @@
 # LangGraph 워크플로 생성 예제
 
-`openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API에는 모델이 조건·연결까지 계획하는 factory와 호스트가 연결을 명시하는 factory를 제공한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 아직 배포하지 않은 `0.2.0` 소스를 대상으로 한다.
+정본 대화는 구현할 수 없는 요청을 `report-capability-gap`으로 선택해 초안의 `gapNodes`에 보존합니다. 독립적인 API·native 계획은 이어가고, 최종 JSON에는 한글 경고 영역과 실행 시 중단하는 대역 노드를 둡니다. 결손이 남으면 Start를 분리합니다. 이는 제공된 계약으로 충족하지 못했다는 판단이며 전체 서비스에 API가 없다는 증명은 아닙니다. [결손 계약](../../docs/workflow-draft-conversation-host.md#explicit-capability-gaps)을 참고하세요. 별도 모델 호출이나 새 그래프 노드를 추가하지 않습니다.
+
+`trackRequestedApiInputs: true`를 지정하면 사용자가 요청했지만 값은 아직 없는 선택 입력도 질문이나 실행 입력 슬롯으로 보존합니다. 기존 값 생성 호출에 포인터 선택을 포함하며 모델 호출이나 그래프 노드를 추가하지 않습니다. OAS 필수 여부와 구분하고 답변·초안·전송 전 검사까지 전달합니다. [선택 입력 요청 추적](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적)을 참고하세요.
+
+`planApiBindingInputs: true`를 지정하면 선행 결과에서 받을 API 입력을 먼저 선택하고, 코드가 고정한 범위 안에서만 바인딩·질문을 계획합니다. 선택 대상이 없으면 바인딩 모델을 호출하지 않으며 OAS 필수값 질문은 유지합니다. 실제로 요청한 선택 파라미터도 사용할 수 있습니다. [입력 의도 선택과 범위 계약](../../docs/workflow-draft-api-binding-questions.md#요청-의도를-먼저-고정하는-선택-단계)을 참고하세요. 옵션을 생략한 기존 호출에는 이 추가 제한이 적용되지 않습니다.
+
+자연어 멀티턴 앱을 만들 때는 [정본 대화 사용 예시](../../docs/workflow-draft-conversation-host.md)의 `createWorkflowDraftConversationGraph`부터 확인하세요. 질문·후보 검토·추가 요청·계획 수정·최종 JSON 반환을 같은 세션에서 연결하는 참조 예시입니다. 질문 수는 기존 `readClarificationQuestionLimits(process.env)`로 호스트 환경에서 설정하며, 이 기능을 끄면 해당 설정도 필요하지 않습니다. 아래의 단일 API CLI와 다른 factory들은 각각의 조합 방식을 보여주는 별도 예시입니다.
+
+정본 대화의 API 입력 질문에는 `reply-inputs`로 자연어 답변을 제출할 수 있습니다. 기존 계획을 유지하고 원문 선택을 재검사한 뒤 구조화된 입력과 같은 경로로 적용합니다. [정본 자연어 입력 가이드](../../docs/canonical-natural-input-replies.md)를 참고하세요.
+
+정본 초안 대화는 철회한 요구사항의 명시적 복원과 새 필드 확인·검토·재개를 지원합니다. [복원 계약](../../docs/workflow-draft-requirement-restoration.md)을 참고하세요.
+
+정본 대화의 최종 결과는 `outcome`으로 구분합니다. 실제 JSON이 생성되면 `workflow-exported`, API·native·결손 인스턴스가 모두 없는 초안이면 `no-workflow`를 반환합니다. 후자는 현재 요청의 종료이며, 추가 대화는 새 요청으로 보냅니다. JSON 출력 성공도 실행 준비 완료를 뜻하지 않으므로 실제 artifact의 입력 슬롯·배포 설정·Trigger 연결 상태를 함께 확인해야 합니다. [반환 계약](../../docs/workflow-draft-conversation-host.md#output-outcomes)에 상세한 사용법이 있습니다.
+
+자연어 필수 입력 답변은 `answerOptions.includeExplanations`로 같은 호출의 이유와 원문·OAS 근거 기록을 선택할 수 있습니다. [입력 답변 추출 가이드](../../docs/api-input-answer-extraction.md)를 참고하세요.
+
+새 native 노드와 연결을 함께 계획하는 두 factory는 미배포 옵션
+`graphOptions: { includeExplanations: true }`를 받습니다. 검토 콜백과 계획 상태에서
+`graphPlanning`을 확인하며 실행 JSON에는 포함하지 않습니다.
+[전체 그래프 가이드](../../docs/graph-planning-records.md)에서 적용 범위를 확인하세요.
+
+연결 전용 단계를 사용하는 두 공식 factory는 미배포 옵션
+`connectionOptions: { includeExplanations: true }`로 새 연결의 이유와 원본 근거를
+제공합니다. `reviewPlan`과 `state.reviewPlan.connectionPlanning`에서 확인하며
+실행 JSON에는 기록을 넣지 않습니다. 적용 범위는
+[연결 계획 가이드](../../docs/connection-planning-records.md)를 참고하세요.
+
+`openapi-flow`의 현재 공개 API를 사용하는 공식 예제 패키지다. CLI는 자연어 시나리오에서 API 하나를 고르고, 원본 OAS 타입에 맞는 요청값을 생성한 뒤 n8n import용 JSON을 저장한다. 다중 API에는 모델이 조건·연결까지 계획하는 factory와 호스트가 연결을 명시하는 factory를 제공한다. HTTP 서버나 API 실행기는 제공하지 않는다. 이 workspace는 `private: true`이며 npm에 배포하지 않는다. 미배포 개발 소스를 대상으로 하며 npm `0.2.0`과 구분한다.
 
 ## 현재 개발 범위
 
+기존 orchestrated·conversational factory는 `nativeOptions.includeExplanations`를 받는다. `nativePlan.proposal`은 새 인스턴스와 원래 근거 기록이고 `nativePlan.nativeNodes`는 준비 노드까지 합친 실행 재료다. OAS 없이 `sources: []`로 native-only 계획을 만들 수 있으며 적용 대상이 아닌 API 선택은 건너뛴다. [native 계획의 이유와 입력 출처](../../docs/native-planning-records.md)를 참고한다.
+
+기존 생성·대화 factory의 `bindingOptions.includeExplanations`는 같은 연결 계획 호출에서 호출별 짧은 이유를 받고 `bindingPlan.bindingPlanning`에 원래 OAS·native 계약을 보존한다. 실행용 연결에는 설명을 섞지 않으며 기존 연결 불가 사유도 그대로 유지한다. [바인딩 계획의 이유와 근거](../../docs/binding-planning-records.md)를 참고한다.
+
+기존 생성 factory는 `argumentOptions.includeExplanations`로 최초 리터럴 제안과 확정 입력을 구분한 생성 기록을 제공한다. 선택된 API의 역할은 원래 계약과 함께 검사해 형식·바인딩·값·그래프 계획까지 전달하며, 같은 API의 여러 호출을 하나로 합치지 않는다. [입력 생성 근거와 호출 역할](../../docs/literal-generation-records.md)을 참고한다.
+
+정본 대화의 본문 형식 단계는 코드 전용 결정·모델 선택·모델의 미지정 판단과 코드 기본값을 구분해 `stageResults`에 남긴다. 해당 계획의 설명 설정을 따르며 추가 설명 호출은 없다. 기존 factory는 별도 `requestMediaOptions.includeExplanations`를 받는다. [선택 경위와 원본 근거](../../docs/request-media-decisions.md)를 참고한다.
+
+기존 생성·대화 factory에 `selectionOptions: { includeExplanations: true }`를 주면 최초 API 선택과 후보 질문에도 이유·원본 근거를 제공한다. 설명은 같은 모델 호출에서 받고 코드는 실제 원문·후보 스냅샷을 붙인다. 이 옵션은 탐색용 선택에만 적용된다. [사용법과 보장 범위](../../docs/api-selection-explanations.md)를 참고한다.
+
+정본 대화 factory는 선택 옵션 `nativeFeatures`로 OSS enum 기능을 사용할 수 있다. `{}`는 전체 등록 기능, `features: []`는 선택 없음이다. 소스 의존 기능은 원래 정의를 고정한 채 생산자 준비 뒤 실제 계약을 결합한다. 소스가 없으면 독립 작업을 계속 계획하고 구조화된 질문을 반환한다. 옵션 생략 시 기존의 명시적 `context.capabilities` 계약을 유지한다. [정의·준비 상태·재개 설명](../../docs/native-feature-planning.md)을 참고한다.
+
+정본 대화에는 `planNativeDependencies: true`로 새 native 노드의 생산자 선택을
+별도 저장 단계로 둘 수 있다. 값 생성에는 선택한 실제 소스 계약만 전달하고,
+Core 최종 조립도 같은 참조를 검사한다. 선택한 생산자가 아직 준비되지 않았으면
+소비자를 보류하며 무관한 출력으로 대체하지 않는다. 이 옵션은 새 노드 추가에
+적용하며 기존 노드의 설정 수정·참조 수선은 별도 API를 유지한다.
+[사용법과 검증 경계](../../docs/workflow-draft-conversation-host.md#optional-producer-choices-for-new-native-roles)를 참고한다.
+
+### 기존 생성 factory의 단계별 native 계획
+
+미배포 소스의 `createOrchestratedWorkflowGenerationGraph`와
+`createConversationalWorkflowGenerationGraph`는 선택 옵션
+`nativePlanning: { mode: 'staged' }`를 받는다. 옵션을 생략하면 기존 compact
+호출을 유지한다. 명시적으로 제공한 `capabilities`만 사용하며, 이 옵션이
+전체 n8n 기능을 자동 등록하거나 정본 대화의 편집 기능을 대신하지는 않는다.
+
+출력 계약에 의존하는 기능은 실제 계약이 준비된 뒤 값을 생성한다. 예를 들어
+native 배열 분리 기능을 생산자보다 먼저 선택해도, 생성에 필요한 출력 계약이
+없으면 보류하고 독립 생산자를 먼저 설정한다. 소비자의 출력 스키마와 참조 ID
+목록은 실제 완료한 생산자에서 코드로 도출한다. 제공한 OAS 계약을 사용하는
+응답 수집 기능도 같은 경계를 거친다. 필요한 계약도 질문도 없으면 값을
+추측하지 않고 부족한 자료를 오류로 알린다.
+
+기본 동작은 구현이 선언한 생성 전제조건 검사다. 필요한 생산자를 먼저 고르려면
+`planDependencies: true`를 함께 지정한다. 모델은 선택된 실제 인스턴스 ID 중에서
+각 노드가 참조할 생산자만 고른다. 코드는 없는 ID·자기 참조·순환을 거절하고,
+선택한 생산자가 준비될 때까지 해당 소비자의 값 생성을 보류한다. 무관한 출력이
+이미 있어도 대체하지 않는다. 실제 생성된 참조가 앞선 선택과 다르면 거절한다.
+선행 노드를 완료된 설정으로 전달하는 경우에도 같은 검사를 한다.
+
+질문 이후 완료된 생산자를 이전 질문의 근거에 자동 추가하지 않는다. 생산자
+선택의 의미가 사용자 의도에 맞는지는 별도 검토·품질 평가 대상이다. 최종 실행
+순서는 이 계획에서 만들지 않고 별도의 연결 계획과 DAG 검사로 정한다.
+
+```ts
+const graph = createOrchestratedWorkflowGenerationGraph({
+  model,
+  capabilities,
+  checkpointer: new MemorySaver(),
+  nativePlanning: {
+    mode: 'staged',
+    planDependencies: true,
+    allowRuntimeParameters: true,
+  },
+  nativeInputs: { revision: 7 },
+  nativeOptions: { includeExplanations: true },
+});
+```
+
+각 단계는 `selectNativeInstances` → `scheduleNativeConfiguration` →
+`generateNativeParameters`로 체크포인트에 저장된다. 값이 필요 없는 인스턴스는
+모델을 호출하지 않는다. 질문이 생기면 다른 인스턴스의 설정을 먼저 계속 계획한
+뒤 `askNativeConfiguration`에서 멈춘다. 이 작업 목록의 순서는 실행 순서가
+아니다. API 바인딩과 실제 DAG 연결은 모든 native 설정을 확정한 뒤 별도 단계에서
+계획한다.
+
+`planDependencies: true`이면 선택과 스케줄링 사이에 `planNativeDependencies`가
+추가된다. 결과는 `nativeDependencies`에 보존하며, 값 생성 재개 시 선택을
+반복하지 않는다. 선택 가능한 생산자가 전혀 없으면 이 단계는 모델을 호출하지
+않는다. 순환·잘못된 선택이나 전송 오류에 대한 숨은 재시도는 없다. 호스트가
+명시적으로 재시도하면 실패한 단계만 재개한다. 옵션을 생략하면 이 호출과
+새로운 생산자 선택 제약을 추가하지 않는다.
+
+단계별 선택·질문·답변·값 제안 기록은 `nativeSelection`과
+`nativeConfigurations`에서 확인한다. 최종 `nativePlan.proposal`은 이 결과를
+검증해 모은 새 인스턴스 목록이며, compact 방식의 단일 호출 기록을 임의로
+만들어 붙이지 않는다.
+
+중단 응답의 `kind`는 `native-configuration`이다. `questions`에 표시된 질문을
+골라 `Command({ resume: { action: 'reply', questionId, text } })`로 답한다.
+`action: 'cancel'`은 생성 없이 종료한다. 다른 질문의 ID나 공백뿐인 답변은
+오류를 기록하고 다시 질문하며 모델을 재호출하지 않는다. 답변은 원래 질문과
+그 당시의 자료에만 붙고 시나리오를 다시 쓰지 않는다. 여러 질문에는 순서를 바꿔
+답할 수 있으며 이미 완료한 선택과 설정을 반복하지 않는다.
+
+값 생성이 실패하면 원래 오류와 체크포인트를 보존한다. 호스트가 명시적으로
+재시도할 때 해당 값 단계만 재개한다. 시나리오·OAS·구현 계약이 바뀐 답변은
+이전 계획에 자동 적용하지 않는다. `MemorySaver`는 프로세스 재시작 후 복구를
+보장하지 않으며, 저장 수명·대화별 `thread_id`·동시 요청 관리는 호스트 책임이다.
+많은 인스턴스나 질문에는 호출 설정의 `recursionLimit`도 호스트가 지정한다.
+
+실행 입력을 허용하면 `nativeInputs.revision`을 명시해야 한다. 코드가 빈 값을
+임의 값으로 채우지 않으며, 결과의 `nativeInputTemplate`에 슬롯·한글 안내·입력
+준비 상태를 반환한다. API 노드도 이 생산자의 실제 SDK 출력 이름을 사용한다.
+상세 계약은 [실행 입력 가이드](../../docs/native-runtime-inputs.md#staged-native-planning-in-existing-hosts)를 참고한다.
+
+### 완성된 초안의 수정·검토·재개
+
+미배포 소스의 `createWorkflowDraftConversationGraph`는 빈 초안과 기존 초안에서 같은 대화 경로를 사용한다. API·native 수정 단계를 따로 체크포인트에 저장하고, 계획 선택 검토와 최종 변경 검토를 거쳐 승인된 결과만 적용한다. 검토 모드와 자동 모드를 선택할 수 있으며, 자동 모드도 미확정 입력·구조는 질문한다.
+
+UI는 질문 스키마, 변경 영향과 읽기 전용 SDK 미리보기를 받아 표시한다. `MemorySaver`로 DB 없이 재개할 수 있지만 프로세스 재시작 복구와 같은 thread의 동시 요청 제어는 호스트 책임이다. 새 단계의 출력·설명·근거는 `stageResults`에 남고, 최종 JSON·한글 안내·입력 슬롯은 같은 리비전으로 반환한다. 이 factory는 서버나 n8n 실행기가 아니며 npm 0.2.0에는 없다. [사용법과 아직 남은 범위](../../docs/workflow-draft-conversation-host.md)를 확인한다.
+
+`clarification` 옵션에 명시적인 질문 예산을 전달하면 초기 요구사항 구체화도 같은 대화에서 진행한다. 실제 질문·선택지 ID로 답변하거나 보류할 수 있고, 독립적인 API는 먼저 준비한다. 답변을 확정하면 원래 사실·답변 출처와 준비 이력을 보존해 재분석하며, 모든 미확정 질문이 해결되기 전에는 실행용 결과로 채택하지 않는다. [질문·답변·범위 계약](../../docs/workflow-requirements-clarification.md)을 참고한다.
+
+`reviewSuggestions` 옵션은 각 실제 검토·질문 경계에 후속 메시지를 제안한다. 사용자가 제안 ID를 명시적으로 채택해야 요구사항 수정으로 전달하며, 승인만으로 확장 제안을 추가하지 않는다. 잘못된 답변을 재개할 때 제안 모델을 다시 호출하지 않는다. [후속 제안과 채택 계약](../../docs/workflow-review-suggestions.md)을 참고한다.
+
 ### 미배포 멀티턴 예시
+
+선행 응답의 출처가 모호한 API 입력은 `api-binding` 질문으로 반환한다.
+사용자는 `answer-api-bindings`로 실제 질문·선택지 ID를 지정하고, 호스트는
+같은 계획에 답을 적용한다. 이때 의미 분석·바인딩 모델을 다시 호출하지 않는다.
+[현재 입력에 한정한 연결 질문](../../docs/workflow-draft-api-binding-questions.md)을 참고한다.
+
+현재 라운드의 확정 답을 바꾸거나 질문을 다시 열 때는 `revise-clarification`을
+사용한다. 변경 전후 기록은 유지하고 이전 답·제출 기록은 현재 모델 입력에서
+제외한다. 상태 변경에는 LLM을 호출하지 않으며 변경된 계획은 기존 검사를
+다시 거친다. [답변 변경과 질문 재개](../../docs/workflow-clarification-answer-revisions.md)를 참고한다.
 
 현재 소스에는 `createConversationalWorkflowGenerationGraph`가 추가되어 있다. API 선택이 모호하면 후보를 묻고, 선택한 OAS의 필수 입력이 없으면 질문·답변 검증·재개를 수행한다. 질문에 답하기 전에는 workflow를 컴파일하지 않는다. 폼 답변은 모델 없이 검증하고 자연어 답변은 값 추출·원문 대조를 거친다. 질문 node에는 모델 호출이 없어 재개 시 앞선 계획을 다시 실행하지 않는다.
 
@@ -128,6 +272,8 @@ const result = await graph.invoke({
 native IF·응답 검사 계획은 이번에 선택된 API 호출 ID만 참조하도록 동적 enum을 전달한다. API 종류가 같아도 호출 인스턴스가 다르면 각각 선택할 수 있다. API 재료가 없으면 응답 참조는 제공하지 않되 literal 비교와 다른 native 기능은 유지한다. 코드도 capability가 선언한 응답 참조를 검사하므로 잘못된 ID는 바인딩·연결 계획 전에 거절한다. 사용자 정의 capability는 `createPlanningParametersSchema({ apiCallIds })` hook으로 자기 출력 계약을 구체화할 수 있으며, hook이 없으면 기존 스키마를 바꾸지 않는다. 준비된 노드의 잘못된 응답 참조는 모델 호출 전에 오류다. ID 허용 목록은 응답 필드 존재·비교 의미·선행 실행을 보장하지 않으며 기존 OAS·DAG·실행 경로 검사는 유지한다.
 
 각 OSS 함수도 따로 사용할 수 있다. `planNativeNodes`는 선택된 API 계약과 등록된 native 스키마에서 인스턴스·설정만 제안한다. 포트·출력 계약·결손 ID는 코드가 도출한다. `planWorkflowConnections`는 확정된 재료의 연결·결손만 제안하고 API 값이나 native 설정을 다시 생성하지 않는다. `orchestrateWorkflow`는 준비된 API 입력을 대상으로 이 두 함수를 조합하며 `materials`, `capabilities`, `preparedNativeNodes`, `gaps`, `edges`를 각각 생략할 수 있다. 주지 않은 기능·API를 선택하지 않고 기본 registry도 넣지 않는다. 준비된 native 노드가 있으면 그 구현 registry는 필요하다.
+
+미배포 소스의 `selectNativeNodeInstances`와 `generateNativeNodeParameters`는 기능·역할 선택과 값 생성을 나누는 별도 경로다. 값 생성이 질문을 반환하면 원래 질문과 사용자 답변을 `replies`로 전달해 같은 선택 결과에서 재개할 수 있다. [질문·답변 계약](../../docs/native-runtime-inputs.md#answering-a-selected-instances-questions)의 LangGraph 체크포인트·실제 모델 검증을 참고한다. 위 기존 factory들은 아직 이 경로를 연결하지 않았으며 `nativeOptions`도 설명 옵션만 전달한다. 실행 시 native 입력을 함께 제공하려면 단계별 상태와 템플릿 입력 컴파일 경로를 연결하는 작업이 더 필요하다.
 
 연결 단계에는 확정된 native 노드의 실제 조건·연산자·설정과 구현이 정의한 포트를 함께 전달한다. IF가 `code != 0`을 검사하면 true는 오류 경로이며, `code == 0`을 검사하면 true가 성공 경로다. 노드 이름이나 포트 이름만 보고 성공 분기를 추측하지 않는다. 이 설정은 읽기 전용 입력 문맥이며 연결 응답 스키마에는 native 파라미터가 없다. LLM이 만든 native 노드도 다음 단계에서는 확정된 재료로 다루며, 사용자가 미리 준비한 노드가 있어야 한다는 뜻은 아니다.
 

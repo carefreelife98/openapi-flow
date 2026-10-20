@@ -13,6 +13,7 @@ export function createResponseCheckReader({
   checks,
   apiNodeNames,
   apiResponseContracts,
+  singletonApiResponseIds,
   linked,
 }: CreateResponseCheckReaderInput): CompiledResponseCheckReader {
   const ids = [...new Set(responseReferences(checks).map((ref) => ref.nodeId))];
@@ -34,7 +35,7 @@ export function createResponseCheckReader({
     'utf8',
   );
   return {
-    code: `${runtime}\n${createOutputReaderCode(bindingSources, linked)}`,
+    code: `${runtime}\n${createOutputReaderCode(bindingSources, linked, singletonApiResponseIds)}`,
     bindingSources,
   };
 }

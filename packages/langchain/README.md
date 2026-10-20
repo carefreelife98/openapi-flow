@@ -1,8 +1,126 @@
 # @openapi-flow/langchain
 
-Unreleased source additions provide `analyzeApiSelection` and `extractApiInputAnswers`. The former separates consequential API-role choices from absent capabilities; the latter extracts only pending, OAS-typed answers and checks their complete value spans against the user's actual reply. Existing selectors remain available. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
+Zod `^4.6.5` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 
-Independent model calls for OpenAPI workflows. Version `0.2.0` is published and depends on matching core `0.2.0`.
+Version **0.3.0**, with matching `@openapi-flow/core@0.3.0`. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation is documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.0.md); this release does not rewrite OAS or values to hide it.
+
+`analyzeWorkflowDraftEdit` offers `report-capability-gap` in its existing
+bounded semantic call. The model selects a role, scoped finding and mandatory
+reason; Core owns IDs, original messages and inventory capture. No separate gap
+agent, parameter-generation call, retry or synthesized contract is introduced.
+See the [gap contract](../../docs/workflow-draft-conversation-host.md#explicit-capability-gaps).
+
+`generateWorkflowDraftApiCallArguments({ trackRequestedInputs: true })`
+asks for requested input pointers in the existing OAS-typed value call, including
+optional literals whose actual value is not known. Core checks declaration and
+presence; no extra model call, invented value or changed OAS required list is used.
+See [requested inputs](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
+
+`selectWorkflowDraftApiBindingInputs` selects only requested
+response-to-request target pointers before producer mapping. Passing its
+`inputIntent` to `planWorkflowDraftApiCallBindings` narrows both the model-visible
+target contracts and the output schema. An empty selection makes no binding-model
+call; required literals remain the argument stage responsibility. These primitives
+remain independently callable. See [input intent](../../docs/workflow-draft-api-binding-questions.md#요청-의도를-먼저-고정하는-선택-단계).
+
+`analyzeApiInputAnswers` always returns code-checked `sources` for
+revalidation; model reasons remain optional. The canonical example supports
+[natural input replies](../../docs/canonical-natural-input-replies.md).
+
+`analyzeWorkflowDraftEdit` offers `restore-requirement` only for
+code-derived removed IDs. See
+[requirement restoration](../../docs/workflow-draft-requirement-restoration.md).
+
+`analyzeApiInputAnswers` selects code-owned JSON candidate IDs or
+unquoted text-boundary IDs. The model writes neither values nor `sourceText`;
+Core resolves original spans and validates them without coercion. See the
+[answer extraction guide](../../docs/api-input-answer-extraction.md).
+
+`planWorkflowGraph` and `planReviewableWorkflowGraph` accept
+`includeExplanations: true` for same-call strategy, native-instance and edge reasons,
+with separate code-owned source/verification records. Explicitly empty native
+registries support API-only plans without requesting impossible node fields.
+See the [combined graph guide](../../docs/graph-planning-records.md).
+
+`planWorkflowConnections({ includeExplanations: true })` returns the
+original execution plan plus separate per-new-edge/blocked-call reasons and
+code-owned source receipts. No explanation-only call is added. The two combined
+node-and-graph planners have their own explanation contract. See the
+[connection planning guide](../../docs/connection-planning-records.md).
+
+`planNativeNodes({ includeExplanations: true })` records same-call reasons
+for each new instance or an explicit no-additions decision. Code attaches the source
+context and implementation receipts. Runtime-enabled model contracts choose an
+explicit `parameterSource`; code derives empty runtime parameters/flags, never from
+placeholder text. See [native planning records](../../docs/native-planning-records.md).
+
+`planApiBindings({ includeExplanations: true })` asks for a short reason
+per call in the existing strict function call. Original gap descriptions remain
+their reasons; code owns the supplied-contract evidence in `bindingPlanning`.
+Executable `calls[].bindings` contain no audit metadata. See
+[binding planning records](../../docs/binding-planning-records.md).
+
+`generateApiArguments({ includeExplanations: true })` adds a same-call
+short reason and a code-owned `literalGeneration` record for the original proposal,
+not the final values after confirmed-input merge. Optional `purpose` scopes repeated
+API roles. No remaining literals means zero calls and no required model; otherwise
+a supplied structured-output model is required. See
+[literal records and source boundaries](../../docs/literal-generation-records.md).
+
+`analyzeApiRequestMediaType` returns the typed origin/resolution record,
+with optional same-call reasons and code-attached original scenario/requestBody
+evidence. Zero/one format needs no model; explicit null alone uses the existing
+documented default. `selectApiRequestMediaType` remains the string-only projection
+of the same implementation. Choose one API, not both in sequence. See
+[request format decisions](../../docs/request-media-decisions.md).
+
+`selectApiOperations` and `analyzeApiSelection` accept optional
+`includeExplanations: true`. The same call returns only a short reason per decision;
+core attaches the exact scenario and chosen/alternative/full discovery inventory.
+Omission preserves the standalone selector's existing non-explanation output.
+This is discovery provenance, not full OAS contract or semantic correctness proof.
+See [API selection explanations](../../docs/api-selection-explanations.md).
+
+selected-API binding questions now emit typed current-input pointers and
+actual source alternatives, not free-form questions or claims about missing OAS.
+Core renders/validates the question and resolves explicit human choices without
+another model call. See [scoped binding questions](../../docs/workflow-draft-api-binding-questions.md).
+
+`suggestWorkflowReviewFollowUps` makes one bounded structured-output call
+for the actual current HITL boundary. The model proposes optional messages and source
+references; core owns identities, evidence text and explicit adoption. No suggestion
+becomes intent or a graph patch without a human action. See [the contract](../../docs/workflow-review-suggestions.md).
+
+`planWorkflowDraftApiCallBindings` and `generateWorkflowDraftApiCallArguments`
+separate one selected API instance's source choices from OAS-typed literal extraction.
+Code-known mappings and fully owned inputs require no model-generated constants.
+Optional literal extraction uses function calling with unchanged local validation,
+not strict output that would force absent OAS values. See the
+[API addition/replacement guide](../../docs/workflow-draft-api-call-planning.md).
+
+`generateWorkflowDraftNativeNodeAddition` configures one code-identified `add-native-node` step with the actual registered schema. Optional `selectWorkflowDraftNativeNodeParameterOwnership` separates explicit field ownership from typed remaining values, so hosts can checkpoint/review between calls. Entirely deferred or fixed strict-empty settings need no value model. Evidence selects actual IDs instead of generated quotations. Connection planning and host review remain separate. See [native additions](../../docs/workflow-draft-native-node-addition.md).
+
+`planWorkflowDraftNativeReferenceRepair` uses one bounded call for an actual native consumer task. Model output contains only code-keyed source decisions or questions; core owns reference locations, patches and validation. See the [native repair contract](../../docs/workflow-draft-native-reference-repairs.md). Material-dependent registry refresh and complete conversational composition remain unfinished.
+
+`selectWorkflowDraftNativeParameterEditTargets` and `generateWorkflowDraftNativeParameterEdits` split an existing native revision into target choice and typed parameter values. Core owns schemas, identity and deterministic patches; removal/explicit field-deferral work needs no value call. Opted-in field deferral preserves unrelated literals/owners, and set transfers only the selected owner back to a literal. See the [native parameter-edit contract](../../docs/workflow-draft-native-parameter-edits.md). New draft-native instances use their separate ownership/value stages. Independent hosts can use `selectNativeNodeInstances` followed by `generateNativeNodeParameters` for mixed-field planning without constructing a fake draft. Each invocation is separately checkpointable; no nested planning calls are hidden in the compact planner.
+
+`planWorkflowDraftConnectionEdit` makes one bounded connection-delta call only after actual material results and consumer repairs resolve. Its schema constrains real endpoint/port pairs and editable existing edges; code validates the full candidate DAG. Retained edges and parameter values are not regenerated. See the [connection-edit contract](../../docs/workflow-draft-connection-edits.md); material-dependent native repairs, new-instance models and full conversational host integration remain unfinished.
+
+`planWorkflowDraftApiBindingEdit` makes one bounded source/ownership decision call for a pending reference-edit step or a code-derived consumer repair. Core re-derives staged authority, preserves unrelated mappings and values, and rejects stale/unknown sources or incompatible declarations without transforming data. Unknown producer choices return scoped questions, not a partial applied edit. Literal displacement is an explicit `replace-literal-with-binding` decision. See the [binding edit/staging contract](../../docs/workflow-draft-api-binding-edits.md); connection/native edits use separate stages. Material-dependent native repair, new-instance composition and host review/resume remain unfinished.
+
+`selectWorkflowDraftApiInputEditTargets` and `generateWorkflowDraftApiInputEdits` split an existing literal edit into target selection and OAS-typed actual-value extraction. Core owns field schemas/IDs, exact source checks and deterministic patches; unchanged values are preserved. Missing actual values return `needs-input` without a partial resolution; removals need no value call. Hosts can review between the two calls or supply structured targets/values directly through core. See the [scoped input-edit contract](../../docs/workflow-draft-api-input-edits.md). Binding, connection and native edits use separate stages; registry refresh, new-instance models and complete LangGraph composition remain unfinished.
+
+`analyzeWorkflowDraftEdit` makes one bounded call for semantic change decisions, supplied candidates and existing targets. Core resolves original OAS identities and validates exact current-request provenance, stale state and code-owned IDs. Values, settings, bindings, connections and atomic application remain separate stages. No whole-workflow regeneration or automatic retry is added. See the [edit analysis boundary and remaining composition](../../docs/workflow-draft-edit-analysis.md).
+
+`planNativeNodes({ ..., allowRuntimeParameters: true })` offers explicit runtime parameter ownership only for implementing capabilities. One schema/material factory supplies both the output alternatives and HumanMessage `parameterSources`, so the model receives the same contract it may return. Omission stays literal-only; the model never supplies runtime slot IDs or schemas. Older combined planning compositions do not automatically forward this option. See the [native runtime input contract](../../docs/native-runtime-inputs.md).
+
+`generateNativeNodeParameters` can resume a `needs-clarification` result with `replies: [{ question, text }]`, retaining the same selected role, original scenario and source snapshot. Append another pair for each actual follow-up; stale or out-of-order questions fail before invocation. The model receives validated question/reply data separately and still returns only the same typed setting decision. It does not repeat capability selection or acquire graph/ownership authority. The [native setting reply guide](../../docs/native-runtime-inputs.md#answering-a-selected-instances-questions) shows the host boundary.
+
+`clarifyWorkflowRequirements({ model, context, limits, options? })` makes one described structured-output call for user-grounded requirements and necessary categorized questions. Optional explanations/suggestions are removed from the output schema when disabled. Core validates exact source references and allocates identities; the output has no runtime argument values and does not automatically adopt suggestions. Official Zod inline serialization owns the wire schema while the original Zod schema validates the response. See the [clarification contract](https://github.com/carefreelife98/openapi-flow/blob/main/docs/workflow-requirements-clarification.md). This does not add a host graph or guarantee model semantic accuracy.
+
+source additions provide `analyzeApiSelection` and `extractApiInputAnswers`. The former separates consequential API-role choices from absent capabilities; the latter extracts only pending, OAS-typed answers and checks their complete value spans against the user's actual reply. Existing selectors remain available. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
+
+Independent model calls for OpenAPI workflows. Version `0.3.0` depends on matching core `0.3.0`.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
 - `planApiBindings`: selected OAS contracts and optional declared `nativeOutputs` → output-to-request pointer bindings and request-data gaps, independently of native control-flow planning. API pointers read response bodies; native pointers read the declared JSON output. Neither changes value types or semantics.

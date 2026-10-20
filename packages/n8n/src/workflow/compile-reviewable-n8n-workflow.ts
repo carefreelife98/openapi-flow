@@ -15,6 +15,10 @@ import { compilePlannedN8nWorkflow } from './compile-planned-n8n-workflow.js';
 import { compileNativeWorkflowNodes } from './compile-native-workflow-nodes.js';
 import { buildN8nWorkflow } from './build-n8n-workflow.js';
 import { validateCompiledBindingSources } from './validate-compiled-binding-sources.js';
+import {
+  prepareNativeRuntimeInputs,
+  assembleNativeRuntimeInputs,
+} from './inputs/compile-native-runtime-inputs.js';
 
 export function compileReviewableN8nWorkflow(
   input: CompileReviewableN8nWorkflowInput,
@@ -31,9 +35,24 @@ export function compileReviewableN8nWorkflow(
     throw new Error('review apiNodes must exactly match unblocked ready calls');
   if (!input.plan.gaps.length)
     return compilePlannedN8nWorkflow({ ...input, materials: ready });
+  const nativeInputs = prepareNativeRuntimeInputs({
+    nativeInputs: input.nativeInputs,
+    nativeNodes: input.plan.nativeNodes,
+    capabilities: input.capabilities,
+    apiMaterials: ready.map((item) => ({
+      callId: item.arguments.callId,
+      operation: item.operation,
+      requestMediaType: item.arguments.requestMediaType,
+    })),
+    nativeOutputs: [],
+  });
   const nativeNodes = compileNativeWorkflowNodes({
     ...input,
     materials: ready,
+    capabilities:
+      nativeInputs === undefined
+        ? input.capabilities
+        : nativeInputs.capabilities,
   });
   validateCompiledBindingSources(
     input.apiNodes,
@@ -79,7 +98,7 @@ export function compileReviewableN8nWorkflow(
     });
   }
   const regions = placeholders.map(createGapReviewRegion);
-  const result = buildN8nWorkflow({
+  const graph = {
     id: input.id,
     name: input.name,
     nodes: [
@@ -89,13 +108,22 @@ export function compileReviewableN8nWorkflow(
     ],
     edges: input.plan.edges,
     starts: input.plan.starts,
-    triggerConnections: 'detached',
+    triggerConnections: 'detached' as const,
     annotations: regions.map((region) => region.annotation),
-  });
+  };
+  const compiled =
+    nativeInputs === undefined
+      ? undefined
+      : assembleNativeRuntimeInputs({ ...graph, nativeInputs });
+  const result =
+    compiled === undefined ? buildN8nWorkflow(graph) : compiled.workflow;
   result.settings = { ...result.settings, executionOrder: 'v1' };
   return {
     status: 'needs-review',
     workflow: result,
     diagnostics: input.plan.gaps,
+    ...(compiled === undefined
+      ? {}
+      : { nativeInputTemplate: compiled.nativeInputTemplate }),
   };
 }

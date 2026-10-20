@@ -1,14 +1,28 @@
 import { z } from 'zod';
 import type {
   ApiBindingMaterial,
-  ApiBindingPlan,
   NativeOutputContract,
 } from '@openapi-flow/core';
+import type { ApiBindingPlanOutput } from '../types/binding-planning.js';
+
+export const apiBindingPlanningOptionsSchema = z.strictObject({
+  includeExplanations: z.boolean().optional(),
+});
+
+export const apiBindingCallReasonSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0)
+  .describe(
+    "Brief user-facing reason in the scenario language for this call's selected data bindings or decision that no binding is requested. Acknowledge any declared binding gaps for this call. This is not a value-generation, status-expectation or control-flow decision. Code attaches the exact supplied scenario, roles, OAS and native source contracts. Do not generate evidence, quotes, schemas or private chain-of-thought.",
+  );
 
 export function createApiBindingPlanSchema(
   materials: ApiBindingMaterial[],
   nativeOutputs: NativeOutputContract[] = [],
-): z.ZodType<ApiBindingPlan> {
+  includeExplanations = false,
+): z.ZodType<ApiBindingPlanOutput> {
+  z.boolean().parse(includeExplanations);
   if (!materials.length) throw new Error('binding materials must not be empty');
   const ids = materials.map((item) => item.callId);
   const sourceIds = [...ids, ...nativeOutputs.map((item) => item.nodeId)];
@@ -22,6 +36,7 @@ export function createApiBindingPlanSchema(
   return z.strictObject({
     calls: z.array(
       z.strictObject({
+        ...(includeExplanations ? { reason: apiBindingCallReasonSchema } : {}),
         callId: z
           .enum(ids)
           .describe(

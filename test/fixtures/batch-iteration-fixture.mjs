@@ -121,6 +121,9 @@ export function createBatchIterationInput(
     nativeNodes,
     capabilities,
     apiNodeNames: names,
+    apiResponseContracts: Object.fromEntries(
+      materials.map((material) => [material.callId, material.operation]),
+    ),
   });
   return {
     id: 'batch-iteration-' + batchSize,

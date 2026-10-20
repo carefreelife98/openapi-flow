@@ -8,9 +8,11 @@ import type {
   SchemaResourceContext,
   SchemaResourceLocation,
   SchemaDeclaredType,
+  StaticSchemaProjectionBundle,
 } from '../../types/schema-resource.js';
 import { isObject } from '../../utils/is-object.js';
 import { cloneSchemaResource } from './clone-schema-resource.js';
+import { jsonValuesEqual } from '../../utils/json-values-equal.js';
 
 /** Keep original resources; projected values reference their original locations. */
 export function createSchemaResourceContext(
@@ -22,6 +24,10 @@ export function createSchemaResourceContext(
       reference: (value) => value,
       resolve: (value) => value,
       bundle: (value) => value,
+      bundleStaticProjections: (projections) => ({
+        projections,
+        definitions: {},
+      }),
     };
   const document = cloneSchemaResource(schema);
   if (typeof document === 'boolean')
@@ -135,6 +141,120 @@ export function createSchemaResourceContext(
       ? declaredType(resolveReference(current), visited)
       : undefined;
   }
+  function bundleStaticProjections(
+    projections: Record<string, BindingSchema>,
+  ): StaticSchemaProjectionBundle {
+    const definitions: Record<string, BindingSchema> = {};
+    const names = new WeakMap<JsonObject, string>();
+    function rewrite(current: BindingSchema): BindingSchema {
+      if (typeof current === 'boolean') return current;
+      if (
+        current.$dynamicRef !== undefined ||
+        current.$dynamicAnchor !== undefined ||
+        current.$recursiveRef !== undefined ||
+        current.$recursiveAnchor !== undefined
+      )
+        throw new Error(
+          'Static schema relocation cannot change dynamic or recursive schema scope; an explicit dialect-aware bundle is required',
+        );
+      const result = cloneSchemaResource(current);
+      if (typeof result === 'boolean')
+        throw new Error('Expected a schema object');
+      // Resolution annotations are replaced by canonical locations, not validation rules.
+      delete result.$id;
+      delete result.$anchor;
+      delete result.$defs;
+      delete result.definitions;
+      // Only schema-valued positions are visited: const/enum/default/example data stay verbatim.
+      for (const key of [
+        'properties',
+        'patternProperties',
+        'dependentSchemas',
+        'dependencies',
+      ]) {
+        const children = current[key];
+        if (isObject(children))
+          result[key] = Object.fromEntries(
+            Object.entries(children).map(([name, child]) => [
+              name,
+              typeof child === 'boolean' || isObject(child)
+                ? rewrite(child)
+                : child,
+            ]),
+          );
+      }
+      for (const key of [
+        'items',
+        'contains',
+        'additionalProperties',
+        'unevaluatedProperties',
+        'unevaluatedItems',
+        'propertyNames',
+        'not',
+        'if',
+        'then',
+        'else',
+      ]) {
+        const child = current[key];
+        if (typeof child === 'boolean' || isObject(child))
+          result[key] = rewrite(child);
+      }
+      for (const key of ['allOf', 'anyOf', 'oneOf', 'prefixItems']) {
+        const children = current[key];
+        if (Array.isArray(children))
+          result[key] = children.map((child) =>
+            typeof child === 'boolean' || isObject(child)
+              ? rewrite(child)
+              : child,
+          );
+      }
+      if (typeof current.$ref === 'string') {
+        const target = resolveReference(current);
+        if (typeof target === 'boolean') {
+          delete result.$ref;
+          if (!target)
+            result.allOf = [
+              false,
+              ...(Array.isArray(result.allOf) ? result.allOf : []),
+            ];
+        } else {
+          const location = locations.get(target);
+          if (!location)
+            throw new Error(
+              'Local schema reference target has no original resource location',
+            );
+          let name = names.get(target);
+          if (name === undefined) {
+            name =
+              'schema-' +
+              createHash('sha256').update(location.reference).digest('hex');
+            names.set(target, name);
+            definitions[name] = rewrite(target);
+          }
+          result.$ref = '#/$defs/' + name;
+          // Projection-owned type metadata repeats the referenced declaration exactly.
+          // Original schema siblings are assertions and must never be discarded.
+          if (
+            !locations.has(current) &&
+            Object.keys(current).every(
+              (key) => key === '$ref' || key === 'type',
+            ) &&
+            current.type !== undefined &&
+            jsonValuesEqual(current.type, declaredType(target))
+          )
+            delete result.type;
+        }
+      }
+      return result;
+    }
+    const relocated = Object.fromEntries(
+      Object.entries(projections).map(([name, projection]) => [
+        name,
+        rewrite(projection),
+      ]),
+    );
+    return { projections: relocated, definitions };
+  }
   return {
     root,
     reference: (current) => {
@@ -151,6 +271,7 @@ export function createSchemaResourceContext(
       };
     },
     resolve: resolveReference,
+    bundleStaticProjections,
     bundle: (projection) =>
       typeof projection === 'boolean'
         ? { $defs: { resource: root }, allOf: [projection] }

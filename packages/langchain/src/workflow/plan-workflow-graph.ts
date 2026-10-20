@@ -1,102 +1,86 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import { isDeepStrictEqual } from 'node:util';
 import {
-  createWorkflowGraphPlan,
-  createNativeOutputContracts,
-  createWorkflowPlanningCapabilities,
-  validateNativeApiResponseReferences,
+  describeWorkflowGraphPlanning,
+  createWorkflowGraphPlanningResult,
+  createWorkflowGraphPlanningRecord,
 } from '@openapi-flow/core';
-import type { WorkflowGraphPlan } from '@openapi-flow/core';
-import { z } from 'zod';
+import type {
+  WorkflowGraphPlan,
+  WorkflowGraphPlanningInput,
+} from '@openapi-flow/core';
 import type {
   PlanWorkflowGraphInput,
-  WorkflowGraphOutput,
+  WorkflowGraphModelOutput,
+  ResolvedWorkflowGraphOutput,
 } from '../types/workflow-planning.js';
 import { createWorkflowGraphProposalSchema } from '../schemas/workflow-graph-proposal-schema.js';
+import { workflowGraphExplanationOptionsSchema } from '../schemas/workflow-graph-explanation-schema.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
+import { resolveExecutableWorkflowGraphOutput } from './resolve-workflow-graph-output.js';
 import { WorkflowGraphPlanningError } from './workflow-graph-planning-error.js';
 import { workflowGraphPrompt } from '../prompts/workflow-graph-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
-import { createPreparedNativeNodeMaterials } from './create-prepared-native-node-materials.js';
-import { assembleNativeNodeMaterials } from './assemble-native-node-materials.js';
 
 export async function planWorkflowGraph(
   input: PlanWorkflowGraphInput,
 ): Promise<WorkflowGraphPlan> {
   assertSelectionInput(input.scenario, input.model);
-  const preparedNativeNodes = input.preparedNativeNodes ?? [];
-  const apiCallIds = input.materials.map(
-    (material) => material.arguments.callId,
+  const options = workflowGraphExplanationOptionsSchema.parse({
+    includeExplanations: input.includeExplanations,
+  });
+  if (!Array.isArray(input.materials))
+    throw new Error('planWorkflowGraph.materials must be an array');
+  const source: WorkflowGraphPlanningInput = {
+    mode: 'executable',
+    scenario: input.scenario,
+    materials: input.materials.map((material) => ({
+      ...material,
+      status: 'ready',
+    })),
+    capabilities: input.capabilities,
+    preparedNativeNodes: input.preparedNativeNodes,
+    gaps: [],
+  };
+  const {
+    input: snapshot,
+    context,
+    sources,
+    planningCapabilities,
+  } = describeWorkflowGraphPlanning(source);
+  const schema = createWorkflowGraphProposalSchema(
+    planningCapabilities,
+    options.includeExplanations === true,
   );
-  const planningCapabilities = createWorkflowPlanningCapabilities({
-    capabilities: input.capabilities,
-    apiCallIds,
-  });
-  const schema = createWorkflowGraphProposalSchema(planningCapabilities);
-  validateNativeApiResponseReferences({
-    nativeNodes: preparedNativeNodes,
-    capabilities: input.capabilities,
-    apiCallIds,
-  });
-  const nativeOutputs = createNativeOutputContracts({
-    nativeNodes: preparedNativeNodes,
-    capabilities: input.capabilities,
-  });
-  const output: WorkflowGraphOutput = await input.model
-    .withStructuredOutput<WorkflowGraphOutput>(schema, {
-      name: 'plan_workflow_graph',
-      method: 'functionCalling',
-      strict: true,
-    })
+  const output: WorkflowGraphModelOutput = await input.model
+    .withStructuredOutput<WorkflowGraphModelOutput>(
+      serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+      {
+        name: 'plan_workflow_graph',
+        method: 'functionCalling',
+        strict: true,
+      },
+    )
     .invoke([
       new SystemMessage(workflowGraphPrompt),
-      new HumanMessage(
-        JSON.stringify({
-          scenario: input.scenario,
-          preparedNativeNodes: createPreparedNativeNodeMaterials(
-            preparedNativeNodes,
-            input.capabilities,
-          ),
-          nativeOutputs,
-          // Request values are already generated. Avoid duplicating the resolved
-          // response schemas through both operation and pathItem in this stage.
-          materials: input.materials.map(({ operation, arguments: args }) => ({
-            operation: {
-              key: operation.key,
-              method: operation.method,
-              path: operation.path,
-              operation: {
-                summary: operation.operation.summary,
-                description: operation.operation.description,
-                tags: operation.operation.tags,
-                responses: operation.operation.responses,
-              },
-            },
-            arguments: {
-              callId: args.callId,
-              values: args.values,
-              bindings: args.bindings,
-            },
-            inputPorts: ['main'],
-            outputPorts: ['main'],
-          })),
-          capabilities: planningCapabilities.map((capability) => ({
-            name: capability.name,
-            description: capability.description,
-            parametersSchema: z.toJSONSchema(capability.parametersSchema),
-            waitsForAllInputs: capability.waitsForAllInputs,
-            exclusiveOutputPorts: capability.exclusiveOutputPorts,
-          })),
-        }),
-      ),
+      new HumanMessage(JSON.stringify(context)),
     ]);
-  let proposal: WorkflowGraphOutput;
+  let resolved: ResolvedWorkflowGraphOutput;
   try {
-    proposal = parseStructuredOutput(schema, output, 'model workflow graph');
-    if (!isDeepStrictEqual(proposal, output))
+    const parsed = parseStructuredOutput<WorkflowGraphModelOutput>(
+      schema,
+      output,
+      'model workflow graph',
+    );
+    if (!isDeepStrictEqual(parsed, output))
       throw new Error(
         'native model schema must validate without defaults, coercion or transformation',
       );
+    resolved = resolveExecutableWorkflowGraphOutput(
+      parsed,
+      snapshot.capabilities.length,
+    );
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new WorkflowGraphPlanningError(
@@ -105,21 +89,35 @@ export async function planWorkflowGraph(
     );
   }
   try {
-    return createWorkflowGraphPlan({
-      ...input,
-      proposal: {
-        edges: proposal.edges,
-        gaps: proposal.gaps,
-        nativeNodes: assembleNativeNodeMaterials(
-          preparedNativeNodes,
-          proposal.additionalNativeNodes,
-        ),
-      },
+    const current = describeWorkflowGraphPlanning(snapshot);
+    if (
+      !isDeepStrictEqual(current.context, context) ||
+      !isDeepStrictEqual(current.sources, sources)
+    )
+      throw new Error(
+        'workflow graph source contracts changed during the model invocation',
+      );
+    const plan = createWorkflowGraphPlanningResult({
+      ...snapshot,
+      proposal: resolved.proposal,
     });
+    if (options.includeExplanations === true) {
+      if (!resolved.assessment)
+        throw new Error(
+          'model workflow graph is missing its explanation assessment',
+        );
+      plan.graphPlanning = createWorkflowGraphPlanningRecord({
+        ...snapshot,
+        proposal: resolved.proposal,
+        plan,
+        assessment: resolved.assessment,
+      });
+    }
+    return plan;
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new WorkflowGraphPlanningError(
-      { stage: 'graph-validation', output: proposal },
+      { stage: 'graph-validation', output },
       error,
     );
   }

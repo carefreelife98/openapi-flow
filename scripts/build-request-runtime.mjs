@@ -12,7 +12,7 @@ const license = readFileSync(
 await build({
   stdin: {
     contents:
-      "import { materializeHttpRequest } from './materialize-http-request.ts'; import { apiResponseValidationValue, pointerValue } from '@openapi-flow/core/runtime'; OpenApiFlowRequestRuntime = { materializeHttpRequest, apiResponseValidationValue, pointerValue };",
+      "import { materializeHttpRequest } from './materialize-http-request.ts'; import { apiResponseValidationValue, pointerValue, listMissingRequestedApiInputs } from '@openapi-flow/core/runtime'; OpenApiFlowRequestRuntime = { materializeHttpRequest, apiResponseValidationValue, pointerValue, listMissingRequestedApiInputs };",
     resolveDir: fileURLToPath(
       new URL('../packages/n8n/src/nodes/request/runtime/', import.meta.url),
     ),

@@ -3,7 +3,7 @@ import {
   inspectApiArgumentRequirements,
   validateApiInputAnswers,
 } from '@openapi-flow/core';
-import { extractApiInputAnswers } from '@openapi-flow/langchain';
+import { analyzeApiInputAnswers } from '@openapi-flow/langchain';
 import type {
   ApiInputRequirement,
   ReviewableWorkflowApiMaterial,
@@ -36,14 +36,33 @@ export async function applyRequestAnswers(
     throw new Error('Cancelled input must not reach answer application');
   const answers =
     response.action === 'reply'
-      ? await extractApiInputAnswers({
+      ? await analyzeApiInputAnswers({
           reply: response.text,
           requirements: state.requirements,
           model: dependencies.model,
+          ...dependencies.answerOptions,
         })
-      : response.answers;
-  if (!answers.length)
+      : undefined;
+  const extracted = answers?.extraction;
+  const history =
+    extracted === undefined
+      ? {}
+      : {
+          apiInputAnswerExtractions: [
+            ...(state.apiInputAnswerExtractions ?? []),
+            extracted,
+          ],
+        };
+  const values =
+    response.action === 'answer' ? response.answers : answers?.answers;
+  if (!values)
+    throw new Error(
+      'answer application requires typed or source-resolved answers',
+    );
+  if (!values.length)
     return {
+      ...history,
+      pendingInputResponse: undefined,
       inputAnswerIssues: [
         {
           requirementId: '',
@@ -55,11 +74,13 @@ export async function applyRequestAnswers(
     };
   const checked = validateApiInputAnswers({
     requirements: state.requirements,
-    answers,
+    answers: values,
     operations: state.contracts.map((operation) => operation.key),
   });
   if (checked.status === 'invalid-answer')
     return {
+      ...history,
+      pendingInputResponse: undefined,
       inputAnswerIssues: checked.issues,
       conversationStatus: 'awaiting-input',
     };
@@ -99,6 +120,7 @@ export async function applyRequestAnswers(
       pendingArguments.push({
         operation: pending.operation,
         arguments: updated,
+        ...(pending.purpose === undefined ? {} : { purpose: pending.purpose }),
       });
       requirements.push(...inspection.requirements);
     } else
@@ -106,9 +128,12 @@ export async function applyRequestAnswers(
         status: 'ready',
         operation: pending.operation,
         arguments: updated,
+        ...(pending.purpose === undefined ? {} : { purpose: pending.purpose }),
       });
   }
   return {
+    ...history,
+    pendingInputResponse: undefined,
     pendingArguments,
     requirements,
     reviewMaterials,

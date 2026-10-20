@@ -10,6 +10,7 @@ import type {
 export interface PendingApiArguments {
   operation: ApiOperationContract;
   arguments: ApiCallArguments;
+  purpose?: string;
 }
 
 export type ApiLiteralInputMode = 'scenario' | 'confirmed-only';

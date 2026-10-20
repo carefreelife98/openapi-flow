@@ -1,6 +1,34 @@
 # @openapi-flow/n8n
 
-Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.2.0` is published and depends on matching core `0.2.0`.
+Zod `^4.6.5` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
+
+Version **0.3.0**, with matching `@openapi-flow/core@0.3.0`. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The owner accepted this limitation for release while the original failing regression stays enabled. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.0.md).
+
+`compileN8nWorkflowTemplate` supports canonical `gapNodes`. It preserves
+internal control edges, reuses Korean warning regions and stop-on-execution
+surrogates, and leaves Start detached. Full Core topology validation remains in
+place; the strict compiler still rejects unresolved plans. See the
+[gap contract](../../docs/workflow-draft-conversation-host.md#explicit-capability-gaps).
+
+templates retain API `requestedInputs` metadata and report requested
+optional values in their slots and Korean guide. Preflight and the final request
+materializer check presence separately from the unchanged OAS, including missing
+optional descendants of a response-bound object. Strict HTTP node creation also
+rejects missing requested literals. See [requested inputs](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
+
+`resolveN8nNativePlanningFeatures` separates selectable implementation definitions from material readiness. Four source-dependent families can be selected before producers exist, then bind the original contracts through existing snapshots and SDK compilation. No guessed source schema or runtime name is used. See [planning and host integration](../../docs/native-feature-planning.md).
+
+material-dependent array/collection/item-join compilation rebinds current data contracts and resolves runtime names from actual SDK producer exits. `createN8nNativeOutputSources` requires actual `apiResponseContracts` for referenced APIs; partial subsets can declare external native outputs explicitly. Template requests accept `itemMode: 'linked'` for ancestry-preserving item streams. No old-contract/name fallback is used; custom compiler extensions must retain a coherent material binder. See [material snapshots and runtime proof](../../docs/native-material-snapshots.md).
+
+templates accept whole-object or explicit field-pointer runtime parameters for `createJsonOutputCapability` and StopAndError. A central editable input map, per-slot checks, full combined-object preflight and immediate native guards preserve original literals, schemas and revision. The compiler still uses official SDK Set/StopAndError nodes; structural settings are not guessed at execution time. Slots and the Korean guide identify where actual values belong. Staged planning/editing contracts are available, but older combined host factories do not automatically acquire them. See the [supported scope and checks](../../docs/native-runtime-inputs.md). These additions are not in npm 0.2.0.
+
+Standalone strict, reviewable and finite-batch compilation also accepts explicit `nativeInputs: { revision, inputValues? }`. A runtime-owned plan requires that configuration; there is no invented revision or template draft. Results with slots include `nativeInputTemplate` with original schemas, readiness, edit locations and a Korean guide. Missing actual values remain absent and fail at preflight before external calls. Review gaps retain internal wiring and warning regions with Start detached. Omission on literal-only plans preserves their existing result shape. See the [standalone compiler protocol](../../docs/native-runtime-inputs.md#standalone-compiler-input-protocol).
+
+`describeN8nManualTrigger()` exposes the compiler-owned start contract for requirement planning. Its description and actual SDK trigger creation share one module, so hosts can declare the existing start separately from selectable native instances. It is explicit planning metadata, not a registry default, deployment check or extra trigger node.
+
+`resolveN8nNativeFeatures` and `N8nNativeFeature` expose one registry for eleven existing feature families. Omission inventories every family with explicit `ready`/`requires-context` status; an explicit enum list is strict and `[]` selects none. Ready capabilities retain the existing schemas, source declarations and SDK compilers. Material-dependent families require actual OAS/native contracts, not invented placeholders. The published four-feature factory keeps its original selection. See the [registration and extension contract](../../docs/native-feature-registry.md).
+
+Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.0` depends on matching core `0.3.0`.
 
 ## Installed declaration dependencies
 

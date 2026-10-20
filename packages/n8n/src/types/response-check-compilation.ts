@@ -6,7 +6,7 @@ import type { N8nApiResponseSource } from './output-binding-source.js';
 
 export interface CreateResponseCheckReaderInput extends Pick<
   CompileNativeNodeInput,
-  'apiNodeNames' | 'apiResponseContracts'
+  'apiNodeNames' | 'apiResponseContracts' | 'singletonApiResponseIds'
 > {
   nodeId: string;
   checks: NativeCheck[];

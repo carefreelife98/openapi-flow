@@ -1,6 +1,5 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
 import type {
-  PlannedGraphDependencies,
   OrchestratedGraphDependencies,
   WorkflowState,
   WorkflowUpdate,
@@ -12,15 +11,24 @@ import { prepareReviewableApiCalls } from './review/prepare-reviewable-api-calls
 import { compileReviewableWorkflowStage } from './review/compile-reviewable-workflow-stage.js';
 import { createNativeNodePlanningStage } from './plan-native-nodes-stage.js';
 import { createWorkflowConnectionPlanningStage } from './plan-workflow-connections-stage.js';
+import type { NativePlanningGraphDependencies } from '../types/native-planning.js';
+import { validateNativePlanningConfiguration } from './native-planning/native-planning-input.js';
+import {
+  createStagedNativePlanningStages,
+  routeNativeConfiguration,
+} from './native-planning/create-staged-native-planning-stages.js';
+import { askNativeConfiguration } from './native-planning/ask-native-configuration.js';
+import { resolveWorkflowNativeDependencies } from './native-planning/resolve-workflow-native-dependencies.js';
 
 /** Host-owned composition. Native contracts exist before API bindings are planned. */
 export function createOrchestratedWorkflowGenerationGraph(
   input: OrchestratedGraphDependencies,
 ) {
-  const dependencies: PlannedGraphDependencies = {
+  const dependencies: NativePlanningGraphDependencies = {
     ...input,
     capabilities: input.capabilities ?? [],
   };
+  validateNativePlanningConfiguration(dependencies);
   const stages = createApiPreparationStages(
     dependencies,
     async (state, selection) => {
@@ -32,7 +40,12 @@ export function createOrchestratedWorkflowGenerationGraph(
     if (
       state.nativePlan !== undefined ||
       state.workflow !== undefined ||
-      state.reviewPlan !== undefined
+      state.reviewPlan !== undefined ||
+      state.nativeSelection !== undefined ||
+      state.nativeDependencies !== undefined ||
+      state.nativeConfigurations !== undefined ||
+      state.nativePlanningStatus !== undefined ||
+      state.nativeInputTemplate !== undefined
     )
       throw new Error(
         'orchestrated generation input must not contain generated output; compose standalone functions for resume',
@@ -40,14 +53,23 @@ export function createOrchestratedWorkflowGenerationGraph(
     return stages.buildCatalog(state);
   }
   const planNatives = createNativeNodePlanningStage(dependencies);
+  const nativeStages = createStagedNativePlanningStages(dependencies);
   async function prepareCalls(state: WorkflowState): Promise<WorkflowUpdate> {
     if (!state.nativePlan) throw new Error('API binding requires native plan');
     return prepareReviewableApiCalls(state, {
-      ...dependencies,
+      ...(dependencies.nativePlanning?.mode === 'staged'
+        ? resolveWorkflowNativeDependencies(state, dependencies)
+        : dependencies),
       preparedNativeNodes: state.nativePlan.nativeNodes,
     });
   }
-  const connectNodes = createWorkflowConnectionPlanningStage(dependencies);
+  async function connectNodes(state: WorkflowState): Promise<WorkflowUpdate> {
+    return createWorkflowConnectionPlanningStage(
+      dependencies.nativePlanning?.mode === 'staged'
+        ? resolveWorkflowNativeDependencies(state, dependencies)
+        : dependencies,
+    )(state);
+  }
   return new StateGraph(workflowStateSchema)
     .addNode('buildCatalog', buildCatalog)
     .addNode('selectOperations', stages.selectOperations)
@@ -57,19 +79,52 @@ export function createOrchestratedWorkflowGenerationGraph(
       createApiRequestMediaTypesStage(dependencies),
     )
     .addNode('planNativeNodes', planNatives)
+    .addNode('selectNativeInstances', nativeStages.select)
+    .addNode('planNativeDependencies', nativeStages.planDependencies)
+    .addNode('scheduleNativeConfiguration', nativeStages.schedule)
+    .addNode('generateNativeParameters', nativeStages.generate)
+    .addNode('askNativeConfiguration', askNativeConfiguration)
+    .addNode('finalizeNativePlan', nativeStages.finalize)
     .addNode('prepareCalls', prepareCalls)
     .addNode('connectNodes', connectNodes)
     .addNode('compileWorkflow', (state) =>
-      compileReviewableWorkflowStage(state, dependencies),
+      compileReviewableWorkflowStage(
+        state,
+        dependencies.nativePlanning?.mode === 'staged'
+          ? resolveWorkflowNativeDependencies(state, dependencies)
+          : dependencies,
+        dependencies.nativeInputs,
+      ),
     )
     .addEdge(START, 'buildCatalog')
     .addEdge('buildCatalog', 'selectOperations')
     .addEdge('selectOperations', 'resolveContracts')
     .addEdge('resolveContracts', 'selectRequestMediaTypes')
-    .addEdge('selectRequestMediaTypes', 'planNativeNodes')
+    .addConditionalEdges('selectRequestMediaTypes', () =>
+      dependencies.nativePlanning?.mode === 'staged'
+        ? 'selectNativeInstances'
+        : 'planNativeNodes',
+    )
     .addEdge('planNativeNodes', 'prepareCalls')
+    .addConditionalEdges('selectNativeInstances', () =>
+      dependencies.nativePlanning?.planDependencies === true
+        ? 'planNativeDependencies'
+        : 'scheduleNativeConfiguration',
+    )
+    .addEdge('planNativeDependencies', 'scheduleNativeConfiguration')
+    .addConditionalEdges(
+      'scheduleNativeConfiguration',
+      routeNativeConfiguration,
+    )
+    .addEdge('generateNativeParameters', 'scheduleNativeConfiguration')
+    .addConditionalEdges('askNativeConfiguration', (state) =>
+      state.nativePlanningStatus === 'cancelled'
+        ? END
+        : 'scheduleNativeConfiguration',
+    )
+    .addEdge('finalizeNativePlan', 'prepareCalls')
     .addEdge('prepareCalls', 'connectNodes')
     .addEdge('connectNodes', 'compileWorkflow')
     .addEdge('compileWorkflow', END)
-    .compile();
+    .compile({ checkpointer: input.checkpointer });
 }

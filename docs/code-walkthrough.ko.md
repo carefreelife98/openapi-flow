@@ -19,7 +19,7 @@
 
 하나의 문서도 같은 배열 입력을 쓴다. 선택 결과의 순서가 API 실행 순서는 아니다. 실제 연결은 `edges`, 시작점은 `starts`로 지정한다. 같은 Operation을 여러 번 호출하려면 서로 다른 `callId`를 준다.
 
-본문이 없거나 형식이 하나면 본문 형식 단계는 모델을 호출하지 않는다. 여러 형식이면 OAS `requestBody.content`의 키를 enum으로 전달한다. 모델이 형식을 지정하지 못해 명시적인 `null`을 반환하면 [select-default-api-request-media-type.ts](../packages/core/src/arguments/select-default-api-request-media-type.ts)가 OAS 안에서 JSON → URL-encoded → 나머지 구체적인 키 → wildcard 키 순서로 선택한다. 같은 순위는 문자 코드 순서다. 잘못된 값이나 필드 누락은 기본값으로 보정하지 않는다. 공식 그래프의 등록 지점은 [select-api-request-media-types-stage.ts](../examples/langgraph-workflow/src/graph/select-api-request-media-types-stage.ts)다.
+본문이 없거나 형식이 하나면 본문 형식 단계는 모델을 호출하지 않는다. 여러 형식이면 OAS `requestBody.content`의 키를 enum으로 전달한다. 모델이 형식을 지정하지 못해 명시적인 `null`을 반환하면 [select-default-api-request-media-type.ts](../packages/core/src/arguments/media/select-default-api-request-media-type.ts)가 OAS 안에서 JSON → URL-encoded → 나머지 구체적인 키 → wildcard 키 순서로 선택한다. 같은 순위는 문자 코드 순서다. 잘못된 값이나 필드 누락은 기본값으로 보정하지 않는다. 공식 그래프의 등록 지점은 [select-api-request-media-types-stage.ts](../examples/langgraph-workflow/src/graph/select-api-request-media-types-stage.ts)다.
 
 | 단계        | 직접 열어 볼 파일                                                                                        | 확인할 내용                                                                                            |
 | ----------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |

@@ -7,6 +7,7 @@ import type {
 import { apiInputAnswersSchema } from '../../schemas/confirmed-api-input-schema.js';
 import { apiOperationKeyEquals } from '../../openapi/catalog/api-operation-key-equals.js';
 import { createOasValueValidator } from '../../openapi/common/create-oas-value-validator.js';
+import { listMissingRequestedApiInputs } from './list-missing-requested-api-inputs.js';
 
 export function validateApiInputAnswers(
   input: ValidateApiInputAnswersInput,
@@ -58,6 +59,19 @@ export function validateApiInputAnswers(
       issues.push({
         requirementId: requirement.id,
         message: checked.errors.map((error) => error.message).join('; '),
+      });
+      continue;
+    }
+    const missing = listMissingRequestedApiInputs({
+      source: `Answer ${requirement.id}`,
+      rootPointer: requirement.targetPointer,
+      value: answer.value,
+      requestedInputs: requirement.requestedInputs,
+    });
+    if (missing.length) {
+      issues.push({
+        requirementId: requirement.id,
+        message: `Answer omits scenario-requested inputs: ${missing.join(', ')}`,
       });
       continue;
     }

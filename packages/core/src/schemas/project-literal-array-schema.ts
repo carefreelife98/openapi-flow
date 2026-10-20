@@ -35,6 +35,7 @@ export function projectLiteralArraySchema(
   const rest: LiteralInputSchema = rawRest === undefined ? true : rawRest;
   const availability = prefix.map((child) => child !== false);
   let limit = typeof schema.maxItems === 'number' ? schema.maxItems : Infinity;
+  let ownedLimit = Infinity;
   for (const token of new Set(targets.map(([index]) => index))) {
     if (
       !/^(0|[1-9][0-9]*)$/.test(token) ||
@@ -54,13 +55,19 @@ export function projectLiteralArraySchema(
     prefix[index] = projected.schema;
     availability[index] = projected.hasLiteralValues;
     // JSON literals cannot leave a hole for a fully bound element.
-    if (projected.schema === false) limit = Math.min(limit, index);
+    if (projected.schema === false) {
+      limit = Math.min(limit, index);
+      ownedLimit = Math.min(ownedLimit, index);
+    }
   }
   schema.prefixItems = prefix;
   schema.items = rest;
   delete schema.additionalItems;
   if (Number.isFinite(limit)) schema.maxItems = limit;
-  if (
+  if (Number.isFinite(ownedLimit))
+    // Runtime assignment cannot invent the literal prefix before its first owned index.
+    schema.minItems = ownedLimit;
+  else if (
     typeof schema.minItems === 'number' &&
     targets.some(([index]) => Number(index) + 1 >= Number(schema.minItems))
   )

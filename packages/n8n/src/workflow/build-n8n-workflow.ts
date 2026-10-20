@@ -1,4 +1,5 @@
-import { trigger, workflow, validateWorkflow } from '@n8n/workflow-sdk';
+import { workflow, validateWorkflow } from '@n8n/workflow-sdk';
+import { createN8nManualTrigger } from './entrypoint/manual-trigger.js';
 import type {
   BuildN8nWorkflowInput,
   N8nWorkflowJSON,
@@ -145,11 +146,7 @@ export function buildN8nWorkflow({
     }
   }
   if (visited !== nodes.length) throw new Error('workflow DAG has a cycle');
-  const start = trigger({
-    type: 'n8n-nodes-base.manualTrigger',
-    version: 1,
-    config: { id: 'openapi-flow-start', name: 'Start', position: [0, 0] },
-  });
+  const start = createN8nManualTrigger();
   let built = workflow(id, name).add(start);
   for (const fragment of nodes)
     for (const node of fragment.nodes) built = built.add(node);

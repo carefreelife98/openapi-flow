@@ -482,18 +482,18 @@ test('official LangGraph examples use OSS native binding and keep typed data inc
               },
             ];
             if (options.name === 'plan_workflow_graph')
-              return schema.parse({
+              return {
                 additionalNativeNodes: [],
                 edges,
                 gaps: [],
-              });
+              };
             if (options.name === 'plan_reviewable_workflow_graph')
-              return schema.parse({
+              return {
                 additionalNativeNodes: [],
                 edges,
                 additionalGaps: [],
                 blockedCalls: [],
-              });
+              };
             throw new Error(`Unexpected model call ${options.name}`);
           },
         };

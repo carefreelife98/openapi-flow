@@ -1,4 +1,5 @@
 import type { OpenApiDocument, OperationCandidate } from './openapi.js';
+import type { ApiSelectionExplanation } from './api-selection-evidence.js';
 
 export interface ApiSource {
   id: string;
@@ -28,12 +29,14 @@ export interface ApiCatalog {
 export interface SelectedApiOperation {
   key: ApiOperationKey;
   purpose: string;
+  explanation?: ApiSelectionExplanation;
 }
 
 export interface ApiCapabilityGap {
   kind: 'missing_operation' | 'insufficient_contract';
   description: string;
   operation?: ApiOperationKey;
+  explanation?: ApiSelectionExplanation;
 }
 
 export interface ApiSelection {

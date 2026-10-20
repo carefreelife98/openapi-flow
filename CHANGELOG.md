@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-20
+
+### Conversational library contracts
+
+- Add structured requirement clarification, typed partial answers, bounded optional explanations and review suggestions, without making a server or LangGraph agent mandatory.
+- Add serializable canonical drafts, revision-checked atomic edits, scoped readiness, approval invalidation, source-grounded input/binding/native/connection changes and explicit capability gaps.
+- Add an extensible eleven-family native feature registry, separate planning definitions and actual material binding, runtime input slots and SDK workflow templates with Korean guides.
+- Expose public types and code-owned source/evidence records for independent host composition. The private LangGraph example remains source-only and is not an npm dependency.
+
+### Compatibility and known limits
+
+- Share Zod `^4.6.5` as a peer across all three libraries, with a separate development pin. A separately pinned 4.6.5 copy conflicted with the host's 4.6.7 public schema types; the installed-consumer check now uses the actual Qoopilot TypeScript/LangChain/Node-types/Zod versions and verifies one shared peer resolution, without overrides, casts or skipped declarations.
+- Keep all three packages and adapter core dependencies at 0.3.0. Do not mix 0.2.x adapters with 0.3.x core; review the [release and migration notes](docs/releases/0.3.0.md).
+- The owner explicitly accepted the known Ajv 8.20.0 `properties.__proto__` limitation for this release. The original regression remains enabled and failing; it is not counted as a pass. OAS documents and values are not renamed or rewritten. See the release note before using that property in generated validation.
+- Model-quality limits, incomplete advanced batch/authentication/body mappings, and host-owned review/session/UI responsibilities remain explicit. No numeric quality threshold or universal workflow reliability is claimed.
+
+### Earlier conversational foundation
 
 - Add OAS-derived input requirements, typed answer validation and snapshot/call-scoped confirmed inputs. Confirmed fields are excluded from model generation and applied without overwrites or coercion.
 - Add independent API-selection clarification and verbatim-source-checked answer extraction. Existing one-shot selection and generation contracts remain available.

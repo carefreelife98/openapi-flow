@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { extendMaterialCompiler } from './fixtures/material-compiler-extension.mjs';
 import vm from 'node:vm';
 import { validateWorkflowGraphPlan } from '@openapi-flow/core';
 import {
@@ -265,20 +266,16 @@ test('compiled scope names and schemas must be the actual native producer contra
   const registry = fixture.capabilities.map((capability) =>
     capability !== fixture.join
       ? capability
-      : {
-          ...capability,
-          compile: (input) => {
-            const fragment = capability.compile(input);
-            return {
-              ...fragment,
-              bindingSources: fragment.bindingSources.map((source) =>
-                source.kind === 'native-json'
-                  ? { ...source, schema: { type: 'string' } }
-                  : source,
-              ),
-            };
-          },
-        },
+      : extendMaterialCompiler(capability, (fragment) => {
+          return {
+            ...fragment,
+            bindingSources: fragment.bindingSources.map((source) =>
+              source.kind === 'native-json'
+                ? { ...source, schema: { type: 'string' } }
+                : source,
+            ),
+          };
+        }),
   );
   assert.throws(
     () =>

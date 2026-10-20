@@ -5,6 +5,7 @@ import {
   createPassThroughCapability,
 } from '@openapi-flow/n8n';
 import { createBatchItemJoinInput } from './fixtures/batch-item-join-fixture.mjs';
+import { extendMaterialCompiler } from './fixtures/material-compiler-extension.mjs';
 
 const input = () =>
   createBatchItemJoinInput('https://fixture.test', 'reordered', 3, 2);
@@ -80,14 +81,10 @@ test('filters, duplicates, ambiguous links and joins without ancestry contracts 
   );
   data.capabilities = data.capabilities.map((capability) =>
     capability === original
-      ? {
-          ...capability,
-          compile: (args) => {
-            const compiled = original.compile(args);
-            delete compiled.joinsInputItemsByAncestry;
-            return compiled;
-          },
-        }
+      ? extendMaterialCompiler(capability, (compiled) => {
+          delete compiled.joinsInputItemsByAncestry;
+          return compiled;
+        })
       : capability,
   );
   assert.throws(
@@ -108,12 +105,14 @@ test('only complete branches sharing a one-to-one entry ancestor may be reduced'
       const join = data.capabilities.find(
         (capability) => capability.name === 'join-api-items',
       );
-      const compile = join.compile;
-      join.compile = (args) => {
-        const fragment = compile(args);
-        fragment.joinsInputItemsByAncestry.scopeNodeId = 'order-alpha';
-        return fragment;
-      };
+      data.capabilities = data.capabilities.map((capability) =>
+        capability === join
+          ? extendMaterialCompiler(capability, (fragment) => {
+              fragment.joinsInputItemsByAncestry.scopeNodeId = 'order-alpha';
+              return fragment;
+            })
+          : capability,
+      );
     },
     (data) => data.batchScopes[0].nodeIds.push('each-record'),
   ]) {
@@ -159,11 +158,14 @@ test('a bypassed return, an ordinary multi-source stream or mutually exclusive p
   const capability = ambiguous.capabilities.find(
     (capability) => capability.name === 'join-api-items',
   );
-  const compile = capability.compile;
-  capability.compile = (args) => ({
-    ...compile(args),
-    preservesInputItems: true,
-  });
+  ambiguous.capabilities = ambiguous.capabilities.map((definition) =>
+    definition === capability
+      ? extendMaterialCompiler(definition, (fragment) => ({
+          ...fragment,
+          preservesInputItems: true,
+        }))
+      : definition,
+  );
   assert.throws(
     () => compileBatchedN8nWorkflow(ambiguous),
     /item-preserving main path contract/,

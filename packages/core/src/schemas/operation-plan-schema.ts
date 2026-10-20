@@ -56,8 +56,6 @@ export function optionalRequestProperties(schema: unknown): unknown {
   for (const key of [
     'items',
     'additionalProperties',
-    'not',
-    'if',
     'then',
     'else',
     'contains',
@@ -67,6 +65,10 @@ export function optionalRequestProperties(schema: unknown): unknown {
     if (result[key] !== undefined)
       result[key] = optionalRequestProperties(result[key]);
   }
+  // Predicates are not produced partial request values. Removing a required
+  // assertion from a negated predicate strengthens `not` and can reject a
+  // valid incomplete object; changing `if` can select a different branch.
+  // Keep both predicates unchanged. Complete values still use the original OAS.
   for (const key of ['allOf', 'anyOf', 'oneOf', 'prefixItems']) {
     if (Array.isArray(result[key]))
       result[key] = result[key].map(optionalRequestProperties);

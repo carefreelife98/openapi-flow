@@ -1,46 +1,14 @@
-import type {
-  BindingSchema,
-  ValidateApiBindingAssignmentsInput,
-} from '../types/api-bindings.js';
-import { pointerTokens } from './json-pointer.js';
-import { requestBindingSchemas } from './request-binding-schema.js';
-import { responseBindingSchemas } from './response-binding-schema.js';
-import { nativeBindingSchemas } from './native-binding-schema.js';
-import { validateNativeOutputContracts } from './validate-native-output-contracts.js';
-
-function declaredTypes(schemas: BindingSchema[]): Set<string> {
-  const types = new Set<string>();
-  for (const schema of schemas) {
-    if (typeof schema === 'boolean' || schema.type === undefined)
-      return new Set();
-    for (const type of Array.isArray(schema.type) ? schema.type : [schema.type])
-      if (typeof type === 'string') types.add(type);
-    if (schema.nullable === true) types.add('null');
-  }
-  return types;
-}
+import type { ValidateApiBindingAssignmentsInput } from '../types/api-bindings.js';
+import { createApiBindingSourceRegistry } from './create-api-binding-source-registry.js';
+import { validateRegisteredApiBinding } from './validate-registered-api-binding.js';
 
 export function validateApiBindingAssignments({
   calls,
   materials,
   nativeOutputs = [],
 }: ValidateApiBindingAssignmentsInput): void {
-  const byId = new Map(
-    materials.map((material) => [material.callId, material]),
-  );
-  if (
-    !materials.length ||
-    byId.size !== materials.length ||
-    materials.some((item) => !item.callId.trim())
-  )
-    throw new Error('binding materials require unique non-empty callIds');
-  validateNativeOutputContracts(nativeOutputs);
-  const nativeById = new Map(nativeOutputs.map((item) => [item.nodeId, item]));
-  for (const output of nativeOutputs)
-    if (byId.has(output.nodeId))
-      throw new Error(
-        `native output ${output.nodeId} duplicates an API callId`,
-      );
+  const registry = createApiBindingSourceRegistry({ materials, nativeOutputs });
+  const byId = registry.api;
   if (
     calls.length !== materials.length ||
     new Set(calls.map((call) => call.callId)).size !== materials.length
@@ -56,18 +24,7 @@ export function validateApiBindingAssignments({
     const pointers: string[] = [];
     dependencies.set(call.callId, []);
     for (const binding of call.bindings) {
-      if (binding.kind !== 'node-output')
-        throw new Error('bindings.kind must be node-output');
-      pointerTokens(binding.targetPointer);
-      pointerTokens(binding.sourcePointer);
-      const source = byId.get(binding.sourceNodeId);
-      const native = nativeById.get(binding.sourceNodeId);
-      if (!source && !native)
-        throw new Error(
-          `bindings: unknown sourceNodeId ${binding.sourceNodeId}`,
-        );
-      if (binding.sourceNodeId === call.callId)
-        throw new Error(`bindings: self-reference ${call.callId}`);
+      validateRegisteredApiBinding({ callId: call.callId, binding, registry });
       if (
         pointers.some(
           (pointer) =>
@@ -80,30 +37,6 @@ export function validateApiBindingAssignments({
           `bindings overlap at ${call.callId}${binding.targetPointer}`,
         );
       pointers.push(binding.targetPointer);
-      const targets = requestBindingSchemas(target, binding.targetPointer);
-      const sources = native
-        ? nativeBindingSchemas(native, binding.sourcePointer)
-        : responseBindingSchemas(source!.operation, binding.sourcePointer);
-      if (!targets.length)
-        throw new Error(
-          `bindings: ${call.callId}${binding.targetPointer} is not declared by the request OAS`,
-        );
-      if (!sources.length)
-        throw new Error(
-          `bindings: ${binding.sourceNodeId}${binding.sourcePointer} is not declared by the ${native ? 'native output contract' : 'response OAS'}`,
-        );
-      const from = declaredTypes(sources);
-      const to = declaredTypes(targets);
-      if (
-        from.size &&
-        to.size &&
-        ![...from].some(
-          (type) => to.has(type) || (type === 'integer' && to.has('number')),
-        )
-      )
-        throw new Error(
-          `bindings: incompatible OAS types ${binding.sourceNodeId}${binding.sourcePointer} -> ${call.callId}${binding.targetPointer}`,
-        );
       dependencies.get(call.callId)!.push(binding.sourceNodeId);
     }
   }

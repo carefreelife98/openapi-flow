@@ -22,6 +22,7 @@ import {
   clarificationModel,
   clarificationSpec,
 } from './fixtures/api-clarification-fixture.mjs';
+import { jsonInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
 test('OAS determines required input questions with stable snapshot-scoped IDs and unchanged schemas', async () => {
   const { operation } = await clarificationOperation();
@@ -88,14 +89,13 @@ test('JSON source spans preserve numbers, arrays, objects, null and empty string
     const model = {
       withStructuredOutput() {
         return {
-          async invoke() {
+          async invoke(messages) {
+            const payload = JSON.parse(messages[1].content);
             return {
               answers: [
                 {
                   requirementId: original.id,
-                  value,
-                  sourceFormat: 'json',
-                  sourceText,
+                  source: jsonInputSource(payload, sourceText),
                 },
               ],
             };
@@ -504,7 +504,7 @@ test('schema-valid invented values and fabricated source spans are rejected, nev
         reply: '회원번호는 "member-01"이야.',
         model,
       }),
-      /sourceText|verbatim/,
+      /sourceText|verbatim|Unrecognized key/,
     );
   }
 });

@@ -1,10 +1,11 @@
-import { selectApiRequestMediaType } from '@openapi-flow/langchain';
+import { analyzeApiRequestMediaType } from '@openapi-flow/langchain';
 import type {
   ApiPreparationDependencies,
   ResolvedApiRequestMediaType,
   WorkflowState,
   WorkflowUpdate,
 } from '../types/workflow-graph.js';
+import { createSelectedApiCallMaterials } from './create-selected-api-call-materials.js';
 
 export function createApiRequestMediaTypesStage(
   dependencies: ApiPreparationDependencies,
@@ -15,14 +16,21 @@ export function createApiRequestMediaTypesStage(
     if (!state.contracts)
       throw new Error('selectRequestMediaTypes requires resolved contracts');
     const requestMediaTypes: ResolvedApiRequestMediaType[] = [];
-    for (const [index, operation] of state.contracts.entries()) {
-      const requestMediaType = await selectApiRequestMediaType({
+    for (const { callId, operation, purpose } of createSelectedApiCallMaterials(
+      state,
+    )) {
+      const decision = await analyzeApiRequestMediaType({
         operation,
         scenario: state.scenario,
+        purpose,
         model: dependencies.model,
+        includeExplanations:
+          dependencies.requestMediaOptions?.includeExplanations,
       });
+      const { requestMediaType } = decision;
       requestMediaTypes.push({
-        callId: `${state.workflowId}-request-${index + 1}`,
+        callId,
+        decision,
         ...(requestMediaType === undefined ? {} : { requestMediaType }),
       });
     }

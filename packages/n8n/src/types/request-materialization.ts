@@ -4,6 +4,7 @@ import type {
   JsonValue,
 } from '@openapi-flow/core';
 import type { Operation } from '@openapi-flow/core/internal';
+import type { DeferredApiInputSlot } from '@openapi-flow/core';
 import type {
   PreparedRequestBody,
   RequestHeader,
@@ -12,8 +13,23 @@ import type {
 export interface RequestMaterializationConfig {
   contract: ApiOperationContract;
   operation: Operation;
-  arguments: ApiCallArguments;
+  arguments: RequestMaterializationArguments;
   templateUrl: string;
+  deferredInputs?: DeferredRequestRuntimeInputs;
+}
+export type RequestMaterializationArguments = Pick<
+  ApiCallArguments,
+  | 'callId'
+  | 'values'
+  | 'bindings'
+  | 'unresolvedInputs'
+  | 'requestMediaType'
+  | 'requestedInputs'
+>;
+export interface DeferredRequestRuntimeInputs {
+  revision: number;
+  inputNodeName: string;
+  slots: DeferredApiInputSlot[];
 }
 export interface MaterializedHttpRequest {
   url: string;

@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "description": "Engine-independent OpenAPI catalogs, operation contracts and typed request schemas",
   "keywords": [
@@ -57,6 +57,12 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "fast-uri": "3.1.8",
+    "jsonc-parser": "3.3.1"
+  },
+  "peerDependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
     "zod": "4.6.5"
   }
 }
