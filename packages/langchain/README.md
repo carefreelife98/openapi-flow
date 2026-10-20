@@ -2,7 +2,9 @@
 
 Zod `^4.6.5` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 
-Version **0.3.0**, with matching `@openapi-flow/core@0.3.0`. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation is documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.0.md); this release does not rewrite OAS or values to hide it.
+Version **0.3.1**, with matching `@openapi-flow/core@0.3.1`. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation is documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.1.md); this release does not rewrite OAS or values to hide it.
+
+`planWorkflowConnections` forwards explicit current `deferredApiInputIds`. Code derives their original slot contracts, validates existing request values and checks the complete graph; the model chooses connections, not replacement values. See [input deferral](https://github.com/carefreelife98/openapi-flow/blob/main/docs/deferred-connection-planning.md).
 
 `analyzeWorkflowDraftEdit` offers `report-capability-gap` in its existing
 bounded semantic call. The model selects a role, scoped finding and mandatory
@@ -120,7 +122,7 @@ not strict output that would force absent OAS values. See the
 
 source additions provide `analyzeApiSelection` and `extractApiInputAnswers`. The former separates consequential API-role choices from absent capabilities; the latter extracts only pending, OAS-typed answers and checks their complete value spans against the user's actual reply. Existing selectors remain available. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
 
-Independent model calls for OpenAPI workflows. Version `0.3.0` depends on matching core `0.3.0`.
+Independent model calls for OpenAPI workflows. Version `0.3.1` depends on matching core `0.3.1`.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
 - `planApiBindings`: selected OAS contracts and optional declared `nativeOutputs` → output-to-request pointer bindings and request-data gaps, independently of native control-flow planning. API pointers read response bodies; native pointers read the declared JSON output. Neither changes value types or semantics.

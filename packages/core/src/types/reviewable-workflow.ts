@@ -2,6 +2,7 @@ import type { ApiOperationContract } from './api-operation.js';
 import type { ApiOperationKey } from './api-catalog.js';
 import type { OutputBinding } from './api-arguments.js';
 import type { WorkflowConnectionPlanningRecord } from './workflow-connection-planning.js';
+import type { WorkflowApiInputDeferral } from './workflow-api-input-readiness.js';
 import type {
   WorkflowApiMaterial,
   WorkflowCapability,
@@ -60,7 +61,7 @@ export interface ReviewableWorkflowGraphPlan extends WorkflowGraphPlan {
   connectionPlanning?: WorkflowConnectionPlanningRecord;
 }
 
-export interface ReviewableWorkflowPlanningContext {
+export interface ReviewableWorkflowPlanningContext extends WorkflowApiInputDeferral {
   materials: ReviewableWorkflowApiMaterial[];
   capabilities: WorkflowCapability[];
 }

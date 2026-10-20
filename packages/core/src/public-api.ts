@@ -196,6 +196,7 @@ export type * from './types/api-bindings.js';
 export type * from './types/api-binding-planning.js';
 export type * from './types/native-node-planning.js';
 export type * from './types/workflow-connection-planning.js';
+export type * from './types/workflow-api-input-readiness.js';
 export type * from './types/workflow-planning-materials.js';
 export type * from './types/workflow-graph-planning.js';
 export { describeWorkflowGraphPlanning } from './workflow/graphs/describe-workflow-graph-planning.js';

@@ -13,8 +13,10 @@ import type {
 } from './workflow-plan.js';
 import type { PreparedNativeNodeMaterial } from './native-node-planning.js';
 import type { WorkflowPlanningSourceEvidence } from './workflow-planning-materials.js';
+import type { WorkflowApiInputDeferral } from './workflow-api-input-readiness.js';
+import type { DeferredApiInputSlot } from './deferred-api-inputs.js';
 
-export interface WorkflowConnectionMaterialInput {
+export interface WorkflowConnectionMaterialInput extends WorkflowApiInputDeferral {
   materials?: ReviewableWorkflowApiMaterial[];
   capabilities?: WorkflowCapability[];
   nativeNodes?: PlannedNativeNode[];
@@ -26,13 +28,14 @@ export interface WorkflowConnectionPlanningInput extends WorkflowConnectionMater
   scenario: string;
 }
 
-export interface WorkflowConnectionMaterials {
+export interface WorkflowConnectionMaterials extends WorkflowApiInputDeferral {
   materials: ReviewableWorkflowApiMaterial[];
   capabilities: WorkflowCapability[];
   nativeNodes: PlannedNativeNode[];
   gaps: WorkflowReviewGap[];
   edges: WorkflowPlanEdge[];
   contracts: WorkflowPlanNodeContract[];
+  deferredApiInputs?: DeferredApiInputSlot[];
 }
 
 export interface WorkflowConnectionApiRole {
@@ -56,6 +59,8 @@ export interface WorkflowConnectionPlanningContext {
   gaps: WorkflowReviewGap[];
   readyCallIds: string[];
   apiRoles: WorkflowConnectionApiRole[];
+  /** Code-derived missing values, never missing API capabilities or generated literals. */
+  deferredApiInputs?: DeferredApiInputSlot[];
 }
 
 export interface WorkflowConnectionPlanningSnapshot extends WorkflowConnectionMaterials {

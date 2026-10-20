@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Accept explicit, current OAS input slot IDs in fixed-material connection planning and reviewable graph validation. Code derives slot contracts, validates supplied values and retains DAG/source checks; missing values without permission, stale/duplicate IDs and invalid bindings still fail.
+- Keep canonical template preflight responsible for runtime input materialization. The legacy executable-fragment compiler cannot inherit deferral through extra caller properties. No host UI integration or new npm version is implied by these source changes.
+
 ## 0.3.0 — 2026-10-20
 
 ### Conversational library contracts

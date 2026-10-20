@@ -635,6 +635,79 @@ test('connection source receipts preserve original multi-document OAS and blocke
   assert.equal(record.plan.blockedCalls.length, files.length);
 });
 
+test('explicit OAS input deferral reaches connection planning without reclassifying APIs as capability gaps', async () => {
+  let totalSlots = 0;
+  for (const file of files) {
+    const spec = JSON.parse(await readFile(join(directory, file), 'utf8'));
+    const original = globalThis.structuredClone(spec);
+    const catalog = await createApiCatalog([{ id: file, spec }]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.slice(0, 3).map((entry) => entry.key),
+    );
+    assert.ok(operations.length, `operation cohort required for ${file}`);
+    const materials = operations.map((operation, index) => ({
+      status: 'ready',
+      operation,
+      arguments: {
+        callId: `deferred-${index}`,
+        values: {},
+        bindings: [],
+        requestMediaType: selectDefaultApiRequestMediaType(operation),
+        unresolvedInputs: inspectApiArgumentRequirements({
+          operation,
+          callId: `deferred-${index}`,
+          values: {},
+          bindings: [],
+          requestMediaType: selectDefaultApiRequestMediaType(operation),
+        }).requirements.map((requirement) => requirement.targetPointer),
+      },
+    }));
+    const slots = collectDeferredApiInputSlots({
+      materials: materials.map((material) => ({
+        operation: material.operation,
+        ...material.arguments,
+      })),
+    });
+    totalSlots += slots.length;
+    const before = globalThis.structuredClone(materials);
+    const input = {
+      scenario:
+        '알 수 없는 입력은 명시적으로 보류하고 원본 OAS의 독립 조회를 설계합니다.',
+      materials,
+      deferredApiInputIds: slots.map((slot) => slot.id),
+    };
+    const description = describeWorkflowConnectionPlanning(input);
+    assert.deepEqual(description.context.deferredApiInputs ?? [], slots);
+    const plan = createWorkflowConnectionPlan({
+      ...input,
+      proposal: { edges: [], additionalGaps: [], blockedCalls: [] },
+    });
+    assert.deepEqual(
+      plan.starts,
+      materials.map((item) => item.arguments.callId),
+    );
+    assert.deepEqual(plan.gaps, []);
+    assert.deepEqual(plan.blockedCalls, []);
+    assert.deepEqual(materials, before);
+    assert.deepEqual(spec, original);
+    if (slots.length)
+      assert.throws(
+        () =>
+          createWorkflowConnectionPlan({
+            ...input,
+            deferredApiInputIds: [],
+            proposal: { edges: [], additionalGaps: [], blockedCalls: [] },
+          }),
+        /unresolved OAS request inputs/,
+      );
+  }
+  assert.ok(
+    totalSlots > 0,
+    'real OAS cohort must exercise actual missing inputs',
+  );
+});
+
 test('native planning evidence preserves selected original OAS roles and implementation contracts without fabricating API values', async () => {
   const apiMaterials = [];
   for (const file of files) {

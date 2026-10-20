@@ -7,6 +7,9 @@ import { URL } from 'node:url';
 import {
   createWorkflowDraft,
   createApiArgumentsSchema,
+  collectDeferredApiInputSlots,
+  createWorkflowConnectionPlan,
+  inspectApiArgumentRequirements,
 } from '@openapi-flow/core';
 import { compileN8nWorkflowTemplate } from '@openapi-flow/n8n';
 import { requestedApiInputFixture } from '../test/fixtures/requested-api-inputs-fixture.mjs';
@@ -96,7 +99,7 @@ try {
   await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
   const context = { ...fixture.input.context, messages: [] };
   const workflows = cases.map((scenario) => {
-    const draft = createWorkflowDraft({
+    const originalDraft = createWorkflowDraft({
       context,
       content: {
         id: scenario.id,
@@ -135,6 +138,60 @@ try {
         edges: scenario.bound
           ? [{ from: 'seed', output: 'main', to: 'search', input: 'main' }]
           : [],
+      },
+    });
+    const materials = originalDraft.apiCalls.map((call) => {
+      const operation = context.operations.find(
+        (item) =>
+          item.key.documentId === call.operation.documentId &&
+          item.key.operationRef === call.operation.operationRef,
+      );
+      assert.ok(operation);
+      const requirements = inspectApiArgumentRequirements({
+        ...call,
+        callId: call.id,
+        operation,
+      });
+      return {
+        status: 'ready',
+        operation,
+        arguments: {
+          callId: call.id,
+          values: call.values,
+          bindings: call.bindings,
+          requestMediaType: call.requestMediaType,
+          requestedInputs: call.requestedInputs,
+          unresolvedInputs: requirements.requirements.map(
+            (requirement) => requirement.targetPointer,
+          ),
+        },
+      };
+    });
+    const slots = collectDeferredApiInputSlots({
+      materials: materials.map((material) => ({
+        operation: material.operation,
+        ...material.arguments,
+      })),
+    });
+    const connections = createWorkflowConnectionPlan({
+      scenario:
+        '입력값은 사용자가 실행 전에 지정하고 기존 선행 결과의 의존성은 유지합니다.',
+      materials,
+      deferredApiInputIds: slots.map((slot) => slot.id),
+      proposal: {
+        edges: originalDraft.edges,
+        blockedCalls: [],
+        additionalGaps: [],
+      },
+    });
+    const draft = createWorkflowDraft({
+      context,
+      content: {
+        id: originalDraft.id,
+        requirements: originalDraft.requirements,
+        apiCalls: originalDraft.apiCalls,
+        nativeNodes: connections.nativeNodes,
+        edges: connections.edges,
       },
     });
     const compiled = compileN8nWorkflowTemplate({
@@ -211,6 +268,7 @@ try {
           modelCalls: 0,
           businessApiCalls: 0,
           target: 'isolated-local-contract-server',
+          explicitDeferredConnectionPlanning: true,
         },
         null,
         2,

@@ -1,5 +1,5 @@
 import type { ValidateReviewableWorkflowGraphPlanInput } from '../types/reviewable-workflow.js';
-import { inspectApiArgumentRequirements } from '../arguments/clarification/inspect-api-argument-requirements.js';
+import { validateWorkflowApiInputReadiness } from './validate-workflow-api-input-readiness.js';
 import { validateApiBindingAssignments } from '../bindings/validate-api-binding-assignments.js';
 import { validateApiBindingGaps } from '../bindings/validate-api-binding-gaps.js';
 import { createReviewableNodeContracts } from './create-reviewable-node-contracts.js';
@@ -53,22 +53,9 @@ export function validateReviewableWorkflowGraphPlan(
         throw new Error(
           `review plan omitted blocked requirement for ${item.callId}`,
         );
-    } else {
-      const args = item.arguments;
-      const result = inspectApiArgumentRequirements({
-        operation: item.operation,
-        callId: args.callId,
-        requestedInputs: args.requestedInputs,
-        values: args.values,
-        bindings: args.bindings,
-        requestMediaType: args.requestMediaType,
-      });
-      if (args.unresolvedInputs.length || result.status !== 'ready')
-        throw new Error(
-          `review ready material ${args.callId} has unresolved request inputs`,
-        );
     }
   }
+  validateWorkflowApiInputReadiness(input);
   if (materials.length)
     validateApiBindingAssignments({
       nativeOutputs: createNativeOutputContracts({

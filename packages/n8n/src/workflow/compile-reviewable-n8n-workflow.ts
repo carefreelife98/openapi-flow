@@ -23,7 +23,13 @@ import {
 export function compileReviewableN8nWorkflow(
   input: CompileReviewableN8nWorkflowInput,
 ): N8nWorkflowResult {
-  validateReviewableWorkflowGraphPlan(input);
+  // This legacy executable-fragment path does not own deferred API input slots.
+  // Only the canonical template compiler may install their preflight/materialization nodes.
+  validateReviewableWorkflowGraphPlan({
+    materials: input.materials,
+    capabilities: input.capabilities,
+    plan: input.plan,
+  });
   const blocked = new Set(input.plan.blockedCalls.map((item) => item.callId));
   const ready = input.materials.filter(
     (item): item is ReadyWorkflowApiMaterial =>

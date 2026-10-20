@@ -100,7 +100,7 @@ test('standalone orchestration preserves requested input metadata and rejects a 
           blockedCalls: [],
         },
       }),
-    /unresolved request inputs/,
+    /unresolved OAS request inputs/,
   );
 });
 

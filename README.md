@@ -18,6 +18,13 @@ Core development now also provides explicit deferred API input slots and seriali
 
 Draft editing separates API literal values, producer bindings and [connection deltas](docs/workflow-draft-connection-edits.md) into bounded model stages with deterministic core validation. The optional source-only host reference uses these primitives; it is not a mandatory graph or published server.
 
+A [0.3.1 candidate connection-planning addition](docs/deferred-connection-planning.md)
+allows exact OAS input slot IDs to be explicitly deferred while preserving the
+API/native DAG. It does not invent request values or bypass template preflight,
+and is not available in the published 0.3.0 packages.
+The owner approved source-first publication of this patch; its
+[release record](docs/releases/0.3.1.md) distinguishes verification from publication.
+
 [explicit capability gaps](docs/workflow-draft-conversation-host.md#explicit-capability-gaps)
 preserve unsupported requested roles as canonical `gapNodes`, with original-message
 evidence and the supplied contract inventory. Independent work continues; gaps have

@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/langchain",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "type": "module",
   "description": "Composable LangChain planning for OpenAPI workflows",
@@ -28,7 +28,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@openapi-flow/core": "0.3.0"
+    "@openapi-flow/core": "0.3.1"
   },
   "peerDependencies": {
     "@langchain/core": "^1.0.0",

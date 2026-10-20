@@ -1,7 +1,7 @@
 import { createReviewableNodeContracts } from '../create-reviewable-node-contracts.js';
 import { createNativeOutputContracts } from '../create-native-output-contracts.js';
 import { validateWorkflowEdges } from '../validate-workflow-edges.js';
-import { inspectApiArgumentRequirements } from '../../arguments/clarification/inspect-api-argument-requirements.js';
+import { validateWorkflowApiInputReadiness } from '../validate-workflow-api-input-readiness.js';
 import { validateApiBindingAssignments } from '../../bindings/validate-api-binding-assignments.js';
 import { validateNativeApiResponseReferences } from '../validate-native-api-response-references.js';
 import { createNativeParameterGenerationContract } from '../../schemas/create-native-parameter-generation-contract.js';
@@ -78,18 +78,10 @@ export function prepareWorkflowConnectionMaterials(
     nativeNodes,
     capabilities,
   });
-  for (const material of materials) {
-    if (material.status !== 'ready') continue;
-    const args = material.arguments;
-    const validation = inspectApiArgumentRequirements({
-      operation: material.operation,
-      ...args,
-    });
-    if (args.unresolvedInputs.length || validation.status !== 'ready')
-      throw new Error(
-        `materials[${args.callId}] has unresolved OAS request inputs or scenario-requested inputs`,
-      );
-  }
+  const deferredApiInputs = validateWorkflowApiInputReadiness({
+    materials,
+    deferredApiInputIds: input.deferredApiInputIds,
+  });
   if (materials.length)
     validateApiBindingAssignments({
       nativeOutputs,
@@ -132,5 +124,16 @@ export function prepareWorkflowConnectionMaterials(
     plan,
   });
   validateWorkflowEdges({ contracts, edges });
-  return { materials, capabilities, nativeNodes, gaps, edges, contracts };
+  return {
+    materials,
+    capabilities,
+    nativeNodes,
+    gaps,
+    edges,
+    contracts,
+    ...(input.deferredApiInputIds === undefined
+      ? {}
+      : { deferredApiInputIds: [...input.deferredApiInputIds] }),
+    ...(deferredApiInputs.length ? { deferredApiInputs } : {}),
+  };
 }

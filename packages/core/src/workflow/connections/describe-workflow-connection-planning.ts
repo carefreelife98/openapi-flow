@@ -38,6 +38,7 @@ export function describeWorkflowConnectionPlanning(
   const materials = captured.materials;
   const prepared = prepareWorkflowConnectionMaterials({
     materials,
+    deferredApiInputIds: input.deferredApiInputIds,
     capabilities: captured.capabilities,
     nativeNodes: captured.preparedNativeNodes,
     gaps: structuredClone(
@@ -92,6 +93,9 @@ export function describeWorkflowConnectionPlanning(
             },
           ],
     ),
+    ...(prepared.deferredApiInputs === undefined
+      ? {}
+      : { deferredApiInputs: structuredClone(prepared.deferredApiInputs) }),
   };
   return {
     input: { ...prepared, scenario },

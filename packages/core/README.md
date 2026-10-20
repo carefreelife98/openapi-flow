@@ -2,7 +2,9 @@
 
 Zod `^4.6.5` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests use 4.6.5; the strict installed-consumer check also uses the host's 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
 
-Version **0.3.0**. Canonical draft, clarification and runtime-input APIs described below are included in this release. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This known limitation was explicitly accepted for release, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.0.md).
+Version **0.3.1**. Canonical draft, clarification and runtime-input APIs described below are included in this release. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This previously accepted limitation remains unchanged, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.1.md).
+
+Connection planning accepts explicit current `deferredApiInputIds` derived with `collectDeferredApiInputSlots`. Missing inputs remain absent and require canonical template preflight before execution; supplied values and the full DAG are still validated. See [input deferral](https://github.com/carefreelife98/openapi-flow/blob/main/docs/deferred-connection-planning.md).
 
 canonical `gapNodes` and the separate `createWorkflowDraftCapabilityGap`,
 `inspectWorkflowDraftCapabilityGap`, `describeWorkflowDraftCapabilityGap` functions

@@ -99,6 +99,7 @@ import {
   createWorkflowGraphPlanningRecord,
   validateWorkflowGraphPlanningRecord,
   listMissingRequestedApiInputs,
+  collectDeferredApiInputSlots,
 } from '@openapi-flow/core';
 import type {
   ApiCallArguments,
@@ -129,6 +130,7 @@ import type {
   WorkflowConnectionPlanningRecord,
   WorkflowGraphPlanningRecord,
   WorkflowDraftCapabilityGap,
+  WorkflowConnectionPlanningInput,
 } from '@openapi-flow/core';
 import {
   clarifyWorkflowRequirements,
@@ -1239,6 +1241,58 @@ validateWorkflowConnectionPlanningRecord({
 assert.deepEqual(
   connectionAudit.evidence.context,
   describeWorkflowConnectionPlanning(connectionAuditInput).context,
+);
+const deferredConnectionSlots = collectDeferredApiInputSlots({
+  materials: [
+    {
+      operation,
+      callId: 'installed-deferred-connection',
+      values: {},
+      bindings: [],
+      requestMediaType: args.requestMediaType,
+    },
+  ],
+});
+assert.ok(deferredConnectionSlots.length);
+const deferredConnectionInput: WorkflowConnectionPlanningInput = {
+  scenario: 'Keep original API inputs as explicitly deferred slots.',
+  materials: [
+    {
+      status: 'ready',
+      operation,
+      arguments: {
+        callId: 'installed-deferred-connection',
+        values: {},
+        bindings: [],
+        requestMediaType: args.requestMediaType,
+        unresolvedInputs: deferredConnectionSlots.map(
+          (slot) => slot.targetPointer,
+        ),
+      },
+    },
+  ],
+  deferredApiInputIds: deferredConnectionSlots.map((slot) => slot.id),
+};
+const deferredConnectionPlan = createWorkflowConnectionPlan({
+  ...deferredConnectionInput,
+  proposal: connectionAuditProposal,
+});
+assert.deepEqual(deferredConnectionPlan.starts, [
+  'installed-deferred-connection',
+]);
+assert.deepEqual(
+  describeWorkflowConnectionPlanning(deferredConnectionInput).context
+    .deferredApiInputs,
+  deferredConnectionSlots,
+);
+assert.throws(
+  () =>
+    createWorkflowConnectionPlan({
+      ...deferredConnectionInput,
+      deferredApiInputIds: [],
+      proposal: connectionAuditProposal,
+    }),
+  /unresolved OAS request inputs/,
 );
 const graphAuditInput = {
   ...connectionAuditInput,
@@ -2765,6 +2819,7 @@ console.log(
     deterministicIncidentEdgeRemoval: 'passed',
     nativeConfigurationReplies: 'passed',
     connectionPlanningRecord: 'passed',
+    explicitDeferredConnectionPlanning: 'passed',
     graphPlanningRecord: 'passed',
     operationCount: catalog.operations.length,
     workflowNodes: result.workflow.nodes.length,
