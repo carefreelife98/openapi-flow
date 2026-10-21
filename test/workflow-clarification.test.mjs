@@ -342,7 +342,13 @@ test('wrong answer kinds, unknown IDs, duplicate answers and edited derived fact
     choiceId: single.answer.choices[0].id,
   };
   for (const replies of [
-    [{ kind: 'text', questionId: single.id, text: '오류로 중단' }],
+    [
+      {
+        kind: 'multiple-choice',
+        questionId: single.id,
+        choiceIds: [single.answer.choices[0].id],
+      },
+    ],
     [{ ...answer, choiceId: multiple.answer.choices[0].id }],
     [{ ...answer, questionId: 'unknown' }],
     [answer, answer],

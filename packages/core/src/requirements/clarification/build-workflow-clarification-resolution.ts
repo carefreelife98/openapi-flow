@@ -32,7 +32,8 @@ export function buildWorkflowClarificationResolution(
     const reply = byReply.get(question.id);
     if (!reply) continue;
     if (reply.kind === 'defer') continue;
-    if (reply.kind !== question.answer.kind)
+    // Offered controls constrain choice IDs, not an explicitly authored human text answer.
+    if (reply.kind !== 'text' && reply.kind !== question.answer.kind)
       throw new Error(
         `Clarification reply ${reply.questionId} must use ${question.answer.kind}`,
       );

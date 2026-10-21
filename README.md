@@ -42,6 +42,8 @@ does not exist or that the requested scenario can execute.
 
 [review follow-ups](docs/workflow-review-suggestions.md) add optional fresh suggestions at every actual HITL boundary. Core binds identities and original evidence, and explicit user adoption creates a distinct receipt rather than an automatic graph patch. The canonical reference preserves known clarification answers during the resulting revision and repeats normal planning/validation. Suggestions, approval and intent remain separate.
 
+[Human-authored review feedback](docs/workflow-review-feedback.md) preserves direct text answers to choice-backed clarification questions and adds exact review/question-scoped feedback schemas and receipts. Deterministic choices, OAS values and approvals keep their existing paths. The host owns semantic re-selection/edit planning and must not interpret feedback as approval or a fabricated choice. This source work is preparing 0.3.6; publication and host integration are separate gates.
+
 The published 0.3.5 packages add original-choice contracts for follow-ups: the model selects declared choice IDs, and Core derives display text and a typed reply from the original question. This was not included in 0.3.4 and does not guarantee semantic API selection or implement a host recovery loop. See the same guide for the exact scope and verification.
 
 ## Current development scope

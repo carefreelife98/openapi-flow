@@ -123,6 +123,7 @@ export interface WorkflowClarificationRoundInput {
 export type WorkflowClarificationReply =
   | { kind: 'single-choice'; questionId: string; choiceId: string }
   | { kind: 'multiple-choice'; questionId: string; choiceIds: string[] }
+  /** Explicit human text may answer any question; it is never converted to a choice ID. */
   | { kind: 'text'; questionId: string; text: string }
   | { kind: 'defer'; questionId: string };
 export interface WorkflowAnswerEvidence {

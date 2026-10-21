@@ -270,6 +270,13 @@ export { createResponseValueSchema } from './openapi/response/create-response-va
 export { listApiResponsePointers } from './openapi/response/list-api-response-pointers.js';
 export type * from './types/api-response-pointers.js';
 export type * from './types/workflow-review-suggestions.js';
+export type * from './types/workflow-review-feedback.js';
+export {
+  workflowReviewFeedbackSchema,
+  createWorkflowReviewFeedbackSchema,
+} from './schemas/workflow-review-feedback-schema.js';
+export { createWorkflowReviewFeedback } from './review/feedback/create-workflow-review-feedback.js';
+export { isWorkflowReviewFeedback } from './review/feedback/is-workflow-review-feedback.js';
 export { describeWorkflowReviewSuggestions } from './review/suggestions/describe-workflow-review-suggestions.js';
 export { createWorkflowReviewSuggestions } from './review/suggestions/create-workflow-review-suggestions.js';
 export { createWorkflowReviewChoiceSuggestion } from './review/suggestions/create-workflow-review-choice-suggestion.js';

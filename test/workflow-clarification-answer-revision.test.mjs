@@ -206,9 +206,9 @@ test('revision rejects stale sources, malformed changes, unknown choices, duplic
         {
           kind: 'replace-answer',
           reply: {
-            kind: 'text',
+            kind: 'multiple-choice',
             questionId: fixture.question.id,
-            text: 'wrong kind',
+            choiceIds: [fixture.question.answer.choices[0].id],
           },
         },
       ],

@@ -232,7 +232,11 @@ test('repeated malformed/stale/unknown replies keep the original question and ne
       action: 'answer-clarification',
       messageId: 'wrong',
       replies: [
-        { kind: 'text', questionId: question.id, text: 'Wrong answer kind' },
+        {
+          kind: 'multiple-choice',
+          questionId: question.id,
+          choiceIds: [question.answer.choices[0].id],
+        },
       ],
     },
   ]) {
@@ -265,6 +269,30 @@ test('repeated malformed/stale/unknown replies keep the original question and ne
     ).length,
     1,
   );
+});
+
+test('the reference conversation preserves a custom answer to its original choice question without repeating clarification', async () => {
+  const fixture = await hostFixture();
+  const initial = await fixture.start();
+  const question = initial.clarification.round.categories[0].questions[0];
+  const text = '  제시한 보기 밖의 조회를 원해. "0007"은 그대로 둬.  ';
+  const next = await fixture.resume(initial, {
+    action: 'answer-clarification',
+    messageId: 'custom-human-answer',
+    replies: [{ kind: 'text', questionId: question.id, text }],
+  });
+  assert.equal(next.__interrupt__[0].value.phase, 'selection');
+  assert.deepEqual(next.clarification.resolution.replies, [
+    { kind: 'text', questionId: question.id, text },
+  ]);
+  assert.equal(
+    fixture.model.calls.filter(
+      (call) => call.options.name === 'clarify_workflow_requirements',
+    ).length,
+    1,
+  );
+  assert.deepEqual(initial.clarification.resolution.replies, []);
+  assert.deepEqual(next.draft.apiCalls, []);
 });
 
 test('deferral designs independent work, then an explicit answer supersedes the plan without losing its prepared evidence or changing canonical state', async () => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './review-feedback-consumer.js';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, sep } from 'node:path';
