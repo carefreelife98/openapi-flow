@@ -44,7 +44,7 @@ does not exist or that the requested scenario can execute.
 
 [Human-authored review feedback](docs/workflow-review-feedback.md), published in 0.3.6, preserves direct text answers to choice-backed clarification questions and adds exact review/question-scoped feedback schemas and receipts. Deterministic choices, OAS values and approvals keep their existing paths. The host owns semantic re-selection/edit planning and must not interpret feedback as approval or a fabricated choice. See the [release record](docs/releases/0.3.6.md) for separate library, public-download and actual-host verification boundaries.
 
-The 0.3.7 release candidate adds explicit multiple-API selection questions with source-owned minimum/maximum counts. Single-choice questions remain single-choice; neither hosts nor Core infer selection counts from model prose. See [the conversation contract](docs/conversational-generation.md#복수-api-선택-계약) and [release status](docs/releases/0.3.7.md).
+Published 0.3.7 adds explicit multiple-API selection questions with source-owned minimum/maximum counts. Single-choice questions remain single-choice; neither hosts nor Core infer selection counts from model prose. See [the conversation contract](docs/conversational-generation.md#복수-api-선택-계약) and [release status](docs/releases/0.3.7.md).
 
 The published 0.3.5 packages add original-choice contracts for follow-ups: the model selects declared choice IDs, and Core derives display text and a typed reply from the original question. This was not included in 0.3.4 and does not guarantee semantic API selection or implement a host recovery loop. See the same guide for the exact scope and verification.
 
