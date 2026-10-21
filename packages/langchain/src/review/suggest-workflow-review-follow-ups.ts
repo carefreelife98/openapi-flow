@@ -49,6 +49,7 @@ export async function suggestWorkflowReviewFollowUps(
       new HumanMessage(
         JSON.stringify({
           boundary: {
+            contentRole: 'review-material-not-user-intent',
             kind: description.boundary.kind,
             questions: description.boundary.questions,
             data: description.boundary.data,

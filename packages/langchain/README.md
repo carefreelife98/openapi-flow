@@ -2,7 +2,9 @@
 
 Zod `^4.6.5` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 
-Version **0.3.3**, with matching `@openapi-flow/core@0.3.3`. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation is documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.3.md); this release does not rewrite OAS or values to hide it.
+Version **0.3.4**, with matching `@openapi-flow/core@0.3.4`. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation is documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.4.md); this release does not rewrite OAS or values to hide it.
+
+Optional review follow-ups distinguish unapproved review material from actual user intent and request user-facing text without internal bookkeeping IDs. These are source instructions, not a semantic correctness guarantee or output sanitization. See the [follow-up contract](https://github.com/carefreelife98/openapi-flow/blob/main/docs/workflow-review-suggestions.md).
 
 `planNativeNodes` and `planWorkflowConnections` accept optional `entrypoint`, using core's existing owner type. When the host compiles a Manual Trigger workflow, pass `entrypoint: describeN8nManualTrigger()` from `@openapi-flow/n8n` to both stages. The same contract reaches the model input and original planning evidence, never its output schema. It describes an already supplied start, not a missing selectable capability. `orchestrateWorkflow` forwards it; omission does not invent one.
 

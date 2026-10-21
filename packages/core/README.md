@@ -2,7 +2,7 @@
 
 Zod `^4.6.5` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests use 4.6.5; the strict installed-consumer check also uses the host's 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
 
-Version **0.3.3**. Canonical draft, clarification and runtime-input APIs described below are included in this release. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This previously accepted limitation remains unchanged, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.3.md).
+Version **0.3.4**. Canonical draft, clarification and runtime-input APIs described below are included in this release. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This previously accepted limitation remains unchanged, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.4.md).
 
 Native and fixed-material connection planning accept the optional, existing `WorkflowEntryPointContract` as `entrypoint`. Core validates and snapshots this owner-provided start alongside the other inputs; it does not infer one when absent, add a selectable trigger or let model output modify it.
 

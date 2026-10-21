@@ -23,7 +23,7 @@ export function createWorkflowReviewSuggestionsProposalSchema<Evidence>(
       .string()
       .refine((text) => text.trim().length > 0)
       .describe(
-        'A concrete message the user may explicitly adopt. Not a confirmed instruction, a workflow, a value default or a credential.',
+        "A concrete optional message in the user's language. Not a confirmed instruction, a workflow, a value default or a credential. Do not expose internal candidate IDs or bookkeeping references here; use structured sources. Do not present unapproved review assumptions as existing user intent.",
       ),
     sources: z.array(evidenceSchema).min(1),
     ...(description.options.includeExplanations
@@ -32,7 +32,7 @@ export function createWorkflowReviewSuggestionsProposalSchema<Evidence>(
             .string()
             .min(1)
             .describe(
-              'Concise user-facing reason and relevance, not private chain-of-thought.',
+              "Concise relevance in the user's language, not private chain-of-thought. Distinguish actual message evidence from unapproved review material; do not claim the user requested a candidate's assumptions. Keep internal candidate IDs and source bookkeeping in structured sources only.",
             ),
         }
       : {}),

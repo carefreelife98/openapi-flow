@@ -4,6 +4,8 @@ Composable Node.js libraries for selecting APIs from OpenAPI documents, generati
 
 Version **0.3.3** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.3.md) distinguishes source synchronization, publication and the retained Ajv limitation.
 
+Source candidate **0.3.4** improves optional follow-up evidence attribution and user-facing instructions. It is not yet published. See its [release preparation record](docs/releases/0.3.4.md) for verification status; instruction changes do not guarantee model accuracy.
+
 ```sh
 npm install @openapi-flow/core@0.3.3 @openapi-flow/langchain@0.3.3 @openapi-flow/n8n@0.3.3 @langchain/core@^1
 ```

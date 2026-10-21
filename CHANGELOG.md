@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.4 — 2026-10-21
+
+- Mark follow-up review material as unapproved context, separate from actual user messages and confirmed answers. Ask the model not to attribute a proposed API's assumptions to the user.
+- Describe user-facing follow-up text and reasons in the user's language, keeping internal candidate/question/message bookkeeping in structured evidence. Preserve real API identifiers, original quotations and actual values.
+- Add HTTP-wire regression checks for the code-owned context role, transported instructions and Zod field descriptions. No text sanitization, model-output rewriting, new OAS restriction, translation call or hidden retry is added. These instructions do not guarantee semantic accuracy.
+- Align all three packages and adapter core dependencies at 0.3.4. Retain the accepted Ajv `properties.__proto__` limitation and its failing regression. See the [release record](docs/releases/0.3.4.md) for actual verification and publication status.
+
 ## 0.3.3 — 2026-10-21
 
 - Derive existing API input edits from the explicitly staged replacement and completed materials in the same atomic plan. Bind input contracts to that stage fingerprint, wait for unresolved source contracts, and preserve the original draft until approval.

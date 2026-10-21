@@ -65,6 +65,18 @@ test('actual ChatOpenAI follow-up wire contracts use ID-only evidence, exact que
         );
         const request = requests.at(-1);
         const wire = request.response_format.json_schema;
+        const system = request.messages.find(
+          (message) => message.role === 'system',
+        )?.content;
+        assert.match(
+          system,
+          /Review material is not evidence of existing user intent/u,
+        );
+        assert.match(
+          system,
+          /Never put internal candidate IDs.*user-facing text or reason/u,
+        );
+        assert.match(system, /same language as the user's request/u);
         assert.equal(wire.name, 'suggest_workflow_review_follow_ups');
         assert.equal(wire.strict, true);
         const ajv = new Ajv({ strict: false });
@@ -100,6 +112,17 @@ test('actual ChatOpenAI follow-up wire contracts use ID-only evidence, exact que
         ])
           assert.equal(validate(invalid), false);
         const choices = wire.schema.properties.suggestions.items.anyOf;
+        for (const choice of choices) {
+          assert.match(
+            choice.properties.text.description,
+            /internal candidate IDs/u,
+          );
+          if (includeExplanations)
+            assert.match(
+              choice.properties.reason.description,
+              /unapproved review material/u,
+            );
+        }
         assert.equal(
           choices.some(
             (choice) => choice.properties.kind.const === 'extend-workflow',
@@ -114,6 +137,10 @@ test('actual ChatOpenAI follow-up wire contracts use ID-only evidence, exact que
           ),
         );
         const payload = JSON.parse(request.messages[1].content);
+        assert.equal(
+          payload.boundary.contentRole,
+          'review-material-not-user-intent',
+        );
         assert.equal(Object.hasOwn(payload.boundary, 'key'), false);
         assert.equal(Object.hasOwn(payload.boundary, 'revision'), false);
         assert.equal(Object.hasOwn(payload, 'fingerprint'), false);
