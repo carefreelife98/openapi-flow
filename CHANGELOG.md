@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.3.6 — preparation in progress
+## 0.3.6 — 2026-10-21
 
 - Preserve human-authored text answers to original choice-backed requirement questions.
 - Add source-bound review feedback schemas/types/receipts without implicit choice, approval, graph mutation or model invocation. Hosts own explicit semantic replanning.
-- Keep original deterministic choice/value/approval validators and the documented Ajv `properties.__proto__` limitation. Source and publication verification remain pending.
+- Keep original deterministic choice/value/approval validators and the documented Ajv `properties.__proto__` limitation. Source was pushed before publication; all three public 0.3.6/latest downloads match tested archives. See the [release record](docs/releases/0.3.6.md) for verification boundaries.
 
 ## 0.3.4 — 2026-10-21
 
