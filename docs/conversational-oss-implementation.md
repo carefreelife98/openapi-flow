@@ -4247,3 +4247,12 @@ adapter core dependencies and source example dependencies are aligned. No broad
 policy exception, source import or local tarball substitution is authorized or
 used for product integration. See the [release record](releases/0.3.3.md) for
 verified source, package and host states; publication is not source synchronization.
+
+The reviewed 0.3.3 source was pushed before publication. All three public versions,
+latest tags and downloaded SHA-512 values now match the tested post-commit archives.
+The private host installed the public versions with exact-version-only exceptions;
+its 250 tests, strict checks, production build and frozen install passed. No source
+or local tarball was substituted into that host. See the release receipt for exact
+source identity and publication times. Direct existing-value edit forms, fresh
+post-install real-model/browser validation and broader quality/stream-load work
+remain separate; the complete product goal is not declared finished.
