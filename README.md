@@ -2,9 +2,9 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.3.5** is being prepared for `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`; the latest verified public version is still **0.3.4**. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.5.md) distinguishes source synchronization, publication and the retained Ajv limitation.
+Version **0.3.5** is published and public archive integrity is verified for `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.5.md) distinguishes source synchronization, publication and the retained Ajv limitation.
 
-Patch **0.3.5** adds original-choice follow-up contracts. The model selects declared IDs and Core derives their display and typed replies. API selection accuracy and a host recovery loop remain separate concerns. Installation below requires verified public publication of 0.3.5.
+Patch **0.3.5** adds original-choice follow-up contracts. The model selects declared IDs and Core derives their display and typed replies. API selection accuracy and a host recovery loop remain separate concerns.
 
 ```sh
 npm install @openapi-flow/core@0.3.5 @openapi-flow/langchain@0.3.5 @openapi-flow/n8n@0.3.5 @langchain/core@^1
@@ -42,7 +42,7 @@ does not exist or that the requested scenario can execute.
 
 [review follow-ups](docs/workflow-review-suggestions.md) add optional fresh suggestions at every actual HITL boundary. Core binds identities and original evidence, and explicit user adoption creates a distinct receipt rather than an automatic graph patch. The canonical reference preserves known clarification answers during the resulting revision and repeats normal planning/validation. Suggestions, approval and intent remain separate.
 
-The 0.3.5 source adds original-choice contracts for follow-ups: the model selects declared choice IDs, and Core derives display text and a typed reply from the original question. This is not included in the published 0.3.4 packages and does not guarantee semantic API selection or implement a host recovery loop. See the same guide for the exact scope and verification.
+The published 0.3.5 packages add original-choice contracts for follow-ups: the model selects declared choice IDs, and Core derives display text and a typed reply from the original question. This was not included in 0.3.4 and does not guarantee semantic API selection or implement a host recovery loop. See the same guide for the exact scope and verification.
 
 ## Current development scope
 
