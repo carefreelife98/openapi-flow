@@ -2,12 +2,12 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.3.3** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.3.md) distinguishes source synchronization, publication and the retained Ajv limitation.
+Version **0.3.4** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.4.md) distinguishes source synchronization, publication and the retained Ajv limitation.
 
-Source candidate **0.3.4** improves optional follow-up evidence attribution and user-facing instructions. It is not yet published. See its [release preparation record](docs/releases/0.3.4.md) for verification status; instruction changes do not guarantee model accuracy.
+Patch **0.3.4** improves optional follow-up evidence attribution and user-facing instructions. Public archive integrity and matching latest tags are verified. Instruction changes do not guarantee model accuracy; host installation and actual-model checks are recorded separately.
 
 ```sh
-npm install @openapi-flow/core@0.3.3 @openapi-flow/langchain@0.3.3 @openapi-flow/n8n@0.3.3 @langchain/core@^1
+npm install @openapi-flow/core@0.3.4 @openapi-flow/langchain@0.3.4 @openapi-flow/n8n@0.3.4 @langchain/core@^1
 ```
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
