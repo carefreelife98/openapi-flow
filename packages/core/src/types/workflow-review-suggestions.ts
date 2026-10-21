@@ -5,10 +5,30 @@ import type {
   WorkflowPlanningEvidence,
 } from './planning-evidence.js';
 import type { WorkflowSourceMessage } from './workflow-draft.js';
+import type {
+  WorkflowClarificationAnswer,
+  WorkflowClarificationChoice,
+  WorkflowClarificationReply,
+} from './workflow-clarification.js';
+
+export type WorkflowReviewChoice = Pick<
+  WorkflowClarificationChoice,
+  'id' | 'label'
+>;
+export interface WorkflowReviewChoiceAnswer {
+  kind: Exclude<WorkflowClarificationAnswer['kind'], 'text'>;
+  choices: WorkflowReviewChoice[];
+}
+export type WorkflowReviewChoiceReply = Extract<
+  WorkflowClarificationReply,
+  { kind: 'single-choice' | 'multiple-choice' }
+>;
 
 export interface WorkflowReviewQuestion {
   id: string;
   message: string;
+  /** Exact original choices supplied by the host. Omission does not infer a choice contract. */
+  answer?: WorkflowReviewChoiceAnswer;
 }
 /** The host owns this read-only review projection, not an executable plan or a new OAS contract. */
 export interface WorkflowReviewBoundary {
@@ -50,7 +70,12 @@ export type ProposedWorkflowReviewSuggestion<
   sources: Evidence[];
   reason?: string;
 } & (
-  | { kind: 'answer-question'; questionIds: string[] }
+  | {
+      kind: 'answer-question';
+      questionIds: string[];
+      /** Code-validated original choice, never inferred by parsing the display text. */
+      choiceReply?: WorkflowReviewChoiceReply;
+    }
   | { kind: 'change-request' | 'extend-workflow' }
 );
 export interface WorkflowReviewSuggestionsProposal<
@@ -86,6 +111,16 @@ export interface WorkflowReviewSuggestions {
 }
 export interface CreateWorkflowReviewSuggestionsInput extends WorkflowReviewSuggestionsInput {
   proposal: WorkflowReviewSuggestionsProposal;
+}
+/** A wire proposal chooses declared identities, not the derived sentence, sources or human receipt. */
+export interface ProposedWorkflowReviewChoiceSuggestion {
+  kind: 'answer-choice';
+  questionId: string;
+  choiceIds: string[];
+  reason?: string;
+}
+export interface CreateWorkflowReviewChoiceSuggestionInput extends WorkflowReviewSuggestionsInput {
+  proposal: ProposedWorkflowReviewChoiceSuggestion;
 }
 export interface WorkflowReviewSuggestionsValidationInput extends WorkflowReviewSuggestionsInput {
   review: WorkflowReviewSuggestions;

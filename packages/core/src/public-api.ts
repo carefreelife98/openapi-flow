@@ -272,10 +272,13 @@ export type * from './types/api-response-pointers.js';
 export type * from './types/workflow-review-suggestions.js';
 export { describeWorkflowReviewSuggestions } from './review/suggestions/describe-workflow-review-suggestions.js';
 export { createWorkflowReviewSuggestions } from './review/suggestions/create-workflow-review-suggestions.js';
+export { createWorkflowReviewChoiceSuggestion } from './review/suggestions/create-workflow-review-choice-suggestion.js';
 export { validateWorkflowReviewSuggestions } from './review/suggestions/validate-workflow-review-suggestions.js';
 export { adoptWorkflowReviewSuggestion } from './review/suggestions/adopt-workflow-review-suggestion.js';
 export { readWorkflowReviewSuggestionLimits } from './review/suggestions/read-workflow-review-suggestion-limits.js';
 export { createWorkflowReviewSuggestionsProposalSchema } from './schemas/create-workflow-review-suggestions-proposal-schema.js';
+export { createWorkflowReviewSuggestionFieldsSchema } from './schemas/workflow-review-suggestion-fields-schema.js';
+export { createWorkflowReviewChoiceSuggestionSchema } from './schemas/workflow-review-choice-suggestion-schema.js';
 export {
   workflowReviewSuggestionLimitsSchema,
   workflowReviewSuggestionOptionsSchema,

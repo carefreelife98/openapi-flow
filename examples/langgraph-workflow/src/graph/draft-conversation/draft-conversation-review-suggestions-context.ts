@@ -61,7 +61,25 @@ export function draftConversationReviewSuggestionsContext(
               question.id,
             ),
         )
-    : state.questions;
+        .map((question) => ({
+          id: question.id,
+          message: question.message,
+          ...(question.answer.kind === 'text'
+            ? {}
+            : {
+                answer: {
+                  kind: question.answer.kind,
+                  choices: question.answer.choices.map(({ id, label }) => ({
+                    id,
+                    label,
+                  })),
+                },
+              }),
+        }))
+    : state.questions.map((question) => ({
+        id: question.id,
+        message: question.message,
+      }));
   const kind: WorkflowReviewBoundary['kind'] = initial
     ? 'requirements-clarification'
     : state.phase === 'selecting'
@@ -75,10 +93,7 @@ export function draftConversationReviewSuggestionsContext(
       key: draftConversationReviewSourceToken(state),
       kind,
       revision: state.draft.revision,
-      questions: questions.map((question) => ({
-        id: question.id,
-        message: question.message,
-      })),
+      questions,
       data: JSON.parse(
         JSON.stringify({
           draft: {

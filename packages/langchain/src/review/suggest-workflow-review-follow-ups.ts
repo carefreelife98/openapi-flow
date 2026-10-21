@@ -3,14 +3,10 @@ import {
   createWorkflowReviewSuggestions,
   describeWorkflowReviewSuggestions,
 } from '@openapi-flow/core';
-import type {
-  WorkflowReviewSuggestions,
-  WorkflowReviewSuggestionEvidence,
-} from '@openapi-flow/core';
+import type { WorkflowReviewSuggestions } from '@openapi-flow/core';
 import type {
   SuggestWorkflowReviewFollowUpsInput,
   WorkflowReviewSuggestionsModelOutput,
-  ProposedWorkflowReviewSuggestionEvidence,
 } from '../types/workflow-review-suggestions.js';
 import type { WorkflowMessageSelectionOutput } from '../types/workflow-message-evidence-selection.js';
 import { workflowReviewSuggestionsPrompt } from '../prompts/workflow-review-suggestions-prompt.js';
@@ -18,6 +14,7 @@ import { createWorkflowReviewSuggestionsSchema } from '../schemas/workflow-revie
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { WorkflowReviewSuggestionPlanningError } from './workflow-review-suggestion-planning-error.js';
+import { resolveWorkflowReviewSuggestions } from './resolve-workflow-review-suggestions.js';
 
 /** One fresh bounded call. An unselected suggestion never becomes intent or an executable edit. */
 export async function suggestWorkflowReviewFollowUps(
@@ -92,29 +89,9 @@ export async function suggestWorkflowReviewFollowUps(
       throw new Error(
         'Review sources changed during model invocation; no automatic rebase',
       );
-    const resolve = (
-      source: ProposedWorkflowReviewSuggestionEvidence,
-    ): WorkflowReviewSuggestionEvidence => {
-      if (source.kind !== 'oas') return structuredClone(source);
-      const candidate = candidates.find(
-        (item) => item.candidateId === source.candidateId,
-      );
-      if (!candidate)
-        throw new Error(`Unknown review OAS candidate ${source.candidateId}`);
-      return {
-        kind: 'oas',
-        operation: structuredClone(candidate.operation.key),
-        pointer: '',
-      };
-    };
     return createWorkflowReviewSuggestions({
       ...input,
-      proposal: {
-        suggestions: proposal.suggestions.map((suggestion) => ({
-          ...suggestion,
-          sources: suggestion.sources.map(resolve),
-        })),
-      },
+      proposal: resolveWorkflowReviewSuggestions(input, proposal, candidates),
     });
   } catch (cause) {
     if (!(cause instanceof Error)) throw cause;

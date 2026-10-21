@@ -41,6 +41,10 @@ export function adoptWorkflowReviewSuggestion(
         ...(suggestion.kind === 'answer-question'
           ? { questionIds: suggestion.questionIds }
           : {}),
+        ...(suggestion.kind === 'answer-question' &&
+        suggestion.choiceReply !== undefined
+          ? { choiceReply: suggestion.choiceReply }
+          : {}),
         adoptedText: suggestion.text,
       }),
     },

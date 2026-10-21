@@ -235,6 +235,52 @@ test('automatic review still pauses for an unresolved producer choice and never 
   );
 });
 
+test('initial choice suggestions checkpoint original answer contracts without submitting or adopting them', async () => {
+  const f = await fixture();
+  let state = await f.start();
+  const question = state.clarification.round.categories[0].questions[0];
+  const review = state.reviewSuggestions;
+  const call = f.model.calls.find(
+    (item) => item.options.name === 'suggest_workflow_review_follow_ups',
+  );
+  assert.deepEqual(call.payload.boundary.questions[0].answer, {
+    kind: question.answer.kind,
+    choices: question.answer.choices.map(({ id, label }) => ({ id, label })),
+  });
+  assert.deepEqual(
+    review.suggestions.map((suggestion) => suggestion.choiceReply),
+    question.answer.choices.map((choice) => ({
+      kind: 'single-choice',
+      questionId: question.id,
+      choiceId: choice.id,
+    })),
+  );
+  assert.deepEqual(
+    review.suggestions.map((suggestion) => suggestion.text),
+    question.answer.choices.map(
+      (choice) => `${question.message}\n선택: ${choice.label}`,
+    ),
+  );
+  assert.deepEqual(state.suggestionAdoptions, []);
+  assert.deepEqual(
+    state.clarification.resolution.facts,
+    state.clarification.round.statements,
+  );
+  assert.deepEqual(state.clarification.confirmedAnswerMessageIds, []);
+  assert.ok(
+    state.clarification.resolution.pendingQuestionIds.includes(question.id),
+  );
+  assert.deepEqual(state.draft, f.draft);
+  const calls = f.model.calls.length;
+  const checkpoint = await f.graph.getState(f.config);
+  assert.deepEqual(checkpoint.values.reviewSuggestions, review);
+  state = await f.resume(state, { action: 'cancel' });
+  assert.equal(state.phase, 'cancelled');
+  assert.equal(f.model.calls.length, calls);
+  assert.deepEqual(state.suggestionAdoptions, []);
+  assert.deepEqual(state.draft, f.draft);
+});
+
 test('review suggestion settings fail before any model call and cancel leaves all suggestions unadopted', async () => {
   const f = await fixture();
   const count = f.model.calls.length;

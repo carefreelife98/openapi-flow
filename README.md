@@ -2,12 +2,12 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.3.4** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.4.md) distinguishes source synchronization, publication and the retained Ajv limitation.
+Version **0.3.5** is being prepared for `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`; the latest verified public version is still **0.3.4**. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.5.md) distinguishes source synchronization, publication and the retained Ajv limitation.
 
-Patch **0.3.4** improves optional follow-up evidence attribution and user-facing instructions. Public archive integrity and matching latest tags are verified. Instruction changes do not guarantee model accuracy; host installation and actual-model checks are recorded separately.
+Patch **0.3.5** adds original-choice follow-up contracts. The model selects declared IDs and Core derives their display and typed replies. API selection accuracy and a host recovery loop remain separate concerns. Installation below requires verified public publication of 0.3.5.
 
 ```sh
-npm install @openapi-flow/core@0.3.4 @openapi-flow/langchain@0.3.4 @openapi-flow/n8n@0.3.4 @langchain/core@^1
+npm install @openapi-flow/core@0.3.5 @openapi-flow/langchain@0.3.5 @openapi-flow/n8n@0.3.5 @langchain/core@^1
 ```
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.
@@ -41,6 +41,8 @@ does not exist or that the requested scenario can execute.
 `N8nNativeFeature` and `resolveN8nNativeFeatures` provide enum selection and explicit availability for eleven existing native feature families. Omitted feature lists inventory all families; missing material contracts remain visible, and explicitly requesting an unavailable family fails. Existing planners and SDK compilers consume the resolved capabilities without a second implementation. See the [native registry contract](docs/native-feature-registry.md); automatic stage-by-stage integration into the conversational example remains pending.
 
 [review follow-ups](docs/workflow-review-suggestions.md) add optional fresh suggestions at every actual HITL boundary. Core binds identities and original evidence, and explicit user adoption creates a distinct receipt rather than an automatic graph patch. The canonical reference preserves known clarification answers during the resulting revision and repeats normal planning/validation. Suggestions, approval and intent remain separate.
+
+The 0.3.5 source adds original-choice contracts for follow-ups: the model selects declared choice IDs, and Core derives display text and a typed reply from the original question. This is not included in the published 0.3.4 packages and does not guarantee semantic API selection or implement a host recovery loop. See the same guide for the exact scope and verification.
 
 ## Current development scope
 

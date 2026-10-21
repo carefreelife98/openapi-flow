@@ -67,6 +67,8 @@ import {
   describeWorkflowDraftClarificationScopes,
   resolveWorkflowDraftClarificationScopes,
   createWorkflowReviewSuggestions,
+  createWorkflowReviewChoiceSuggestion,
+  createWorkflowReviewChoiceSuggestionSchema,
   adoptWorkflowReviewSuggestion,
   describeWorkflowClarificationAnswerRevision,
   reviseWorkflowClarificationAnswers,
@@ -111,6 +113,8 @@ import type {
   WorkflowDraftApiResponseSource,
   WorkflowDraftClarification,
   WorkflowReviewSuggestions,
+  ProposedWorkflowReviewChoiceSuggestion,
+  WorkflowReviewChoiceReply,
   ReviseWorkflowClarificationAnswersInput,
   WorkflowClarificationAnswerRevisionResult,
   WorkflowDraftRequirementAnswer,
@@ -2901,6 +2905,75 @@ assert.equal(
   'user-adopted-workflow-review-suggestion',
 );
 assert.equal(Object.hasOwn(installedAdoption, 'workflow'), false);
+const installedChoiceInput = {
+  ...installedReviewInput,
+  boundary: {
+    ...installedReviewInput.boundary,
+    questions: [
+      {
+        id: 'installed-original-question',
+        message: 'Choose an original option.',
+        answer: {
+          kind: 'single-choice' as const,
+          choices: [
+            { id: 'installed-original-choice', label: '  0007 unchanged  ' },
+          ],
+        },
+      },
+    ],
+  },
+};
+const installedChoiceProposal: ProposedWorkflowReviewChoiceSuggestion = {
+  kind: 'answer-choice',
+  questionId: 'installed-original-question',
+  choiceIds: ['installed-original-choice'],
+  reason: 'This optional choice is from the supplied question.',
+};
+const installedChoiceSchema = createWorkflowReviewChoiceSuggestionSchema(
+  installedChoiceInput.boundary.questions[0],
+  true,
+);
+assert.deepEqual(
+  installedChoiceSchema.parse(installedChoiceProposal),
+  installedChoiceProposal,
+);
+assert.equal(
+  installedChoiceSchema.safeParse({ ...installedChoiceProposal, text: 'new' })
+    .success,
+  false,
+);
+const installedChoice = createWorkflowReviewChoiceSuggestion({
+  ...installedChoiceInput,
+  proposal: installedChoiceProposal,
+});
+assert.equal(installedChoice.kind, 'answer-question');
+if (installedChoice.kind !== 'answer-question')
+  throw new Error('Expected the original typed choice answer');
+const installedChoiceReply: WorkflowReviewChoiceReply | undefined =
+  installedChoice.choiceReply;
+assert.deepEqual(installedChoiceReply, {
+  kind: 'single-choice',
+  questionId: 'installed-original-question',
+  choiceId: 'installed-original-choice',
+});
+assert.equal(
+  installedChoice.text,
+  'Choose an original option.\n선택:   0007 unchanged  ',
+);
+const installedChoiceReview = createWorkflowReviewSuggestions({
+  ...installedChoiceInput,
+  proposal: { suggestions: [installedChoice] },
+});
+const installedChoiceAdoption = adoptWorkflowReviewSuggestion({
+  ...installedChoiceInput,
+  review: installedChoiceReview,
+  suggestionId: installedChoiceReview.suggestions[0].id,
+  messageId: 'installed-explicit-choice-adoption',
+});
+assert.deepEqual(
+  JSON.parse(installedChoiceAdoption.message.text).choiceReply,
+  installedChoiceReply,
+);
 await writeFile(
   new URL('../workflow.json', import.meta.url),
   JSON.stringify(result.workflow, null, 2),
@@ -2950,6 +3023,7 @@ console.log(
     selectedApiResponseContracts: 'passed',
     draftClarificationScopes: 'passed',
     reviewSuggestions: 'passed',
+    typedReviewChoices: 'passed',
     clarificationAnswerRevisions: 'passed',
     scopedApiBindingQuestions: 'passed',
     requestedApiInputPresence: 'passed',

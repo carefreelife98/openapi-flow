@@ -34,6 +34,18 @@ export function reviewSuggestionsConversationModel() {
                     'The user must explicitly confirm the unresolved source or related scope.',
                 }
               : {};
+            const choiceQuestion = payload.boundary.questions.find(
+              (item) => item.answer !== undefined,
+            );
+            if (choiceQuestion)
+              return {
+                suggestions: choiceQuestion.answer.choices.map((choice) => ({
+                  kind: 'answer-choice',
+                  questionId: choiceQuestion.id,
+                  choiceIds: [choice.id],
+                  ...reason,
+                })),
+              };
             if (question)
               return {
                 suggestions: [

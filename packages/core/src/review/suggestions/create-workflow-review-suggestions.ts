@@ -8,6 +8,7 @@ import { describeWorkflowReviewSuggestions } from './describe-workflow-review-su
 import { createWorkflowReviewSuggestionsProposalSchema } from '../../schemas/create-workflow-review-suggestions-proposal-schema.js';
 import { workflowReviewSuggestionEvidenceSchema } from '../../schemas/workflow-review-suggestion-evidence-schema.js';
 import { validateDescribedWorkflowPlanningEvidence } from '../../planning/evidence/validate-workflow-planning-evidence.js';
+import { createWorkflowReviewChoiceSuggestion } from './create-workflow-review-choice-suggestion.js';
 
 export function createWorkflowReviewSuggestions(
   input: CreateWorkflowReviewSuggestionsInput,
@@ -22,6 +23,40 @@ export function createWorkflowReviewSuggestions(
       'Review suggestions must validate without defaults, coercion or transformation',
     );
   for (const suggestion of proposal.suggestions) {
+    if (suggestion.kind === 'answer-question') {
+      if (suggestion.choiceReply !== undefined) {
+        const reply = suggestion.choiceReply;
+        const expected = createWorkflowReviewChoiceSuggestion({
+          ...input,
+          proposal: {
+            kind: 'answer-choice',
+            questionId: reply.questionId,
+            choiceIds:
+              reply.kind === 'single-choice'
+                ? [reply.choiceId]
+                : reply.choiceIds,
+            ...(suggestion.reason === undefined
+              ? {}
+              : { reason: suggestion.reason }),
+          },
+        });
+        if (!isDeepStrictEqual(suggestion, expected))
+          throw new Error(
+            'Typed review choice suggestion must keep its original derived text, reply and question sources',
+          );
+      } else if (
+        suggestion.questionIds.some(
+          (id) =>
+            description.boundary.questions.find(
+              (question) => question.id === id,
+            )?.answer !== undefined,
+        )
+      ) {
+        throw new Error(
+          'Choice-backed review questions require a typed choiceReply',
+        );
+      }
+    }
     const keys = suggestion.sources.map((source) => JSON.stringify(source));
     if (new Set(keys).size !== keys.length)
       throw new Error(
