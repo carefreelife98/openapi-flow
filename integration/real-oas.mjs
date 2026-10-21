@@ -24,6 +24,7 @@ import {
 import {
   operationsFromSpec,
   validateOpenApi,
+  resolveApiSelectionAnswers,
   createApiCatalog,
   listApiOperations,
   resolveApiOperations,
@@ -127,6 +128,47 @@ const files = entries
   .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
   .map((entry) => entry.name)
   .sort();
+
+test('original OAS candidates accept explicit three-of-four API answers without changing source contracts', async () => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+    })),
+  );
+  const original = JSON.stringify(sources);
+  const catalog = await createApiCatalog(sources);
+  const candidates = catalog.operations.slice(0, 4);
+  assert.equal(
+    candidates.length,
+    4,
+    'The real multi-OAS catalog needs four offered APIs',
+  );
+  const question = {
+    kind: 'operation-multiple-choice',
+    id: 'real-oas-subset',
+    message: 'Choose three or four sources.',
+    purpose: 'Verify the original API selection contract',
+    candidates,
+    minSelections: 3,
+    maxSelections: 4,
+  };
+  const keys = candidates.slice(0, 3).map((candidate) => candidate.key);
+  const result = await resolveApiSelectionAnswers({
+    catalog,
+    analysis: {
+      selection: { operations: [], gaps: [] },
+      questions: [question],
+    },
+    answers: [{ questionId: question.id, operations: keys }],
+  });
+  assert.deepEqual(
+    result.selection.operations.map((item) => item.key),
+    keys,
+  );
+  assert.deepEqual(result.questions, []);
+  assert.equal(JSON.stringify(sources), original);
+});
 
 test('original ICL OAS accepts explicit typed edit answers without rewriting the model proposal or original draft', async () => {
   const spec = JSON.parse(

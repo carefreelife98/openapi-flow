@@ -14,6 +14,7 @@ test('the reference host forwards the optional selector setting and exposes exac
     gaps: [],
     questions: [
       {
+        kind: 'single-choice',
         message: '간단 정보와 상세 정보 중 어떤 범위가 필요한가요?',
         purpose: '회원 조회',
         candidateIds: ['candidate-1', 'candidate-2'],

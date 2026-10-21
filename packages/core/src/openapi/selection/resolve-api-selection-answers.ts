@@ -3,7 +3,7 @@ import type {
   ApiSelectionAnalysis,
 } from '../../types/api-clarification.js';
 import { apiOperationAnswersSchema } from '../../schemas/api-operation-answers-schema.js';
-import { apiOperationKeyEquals } from '../catalog/api-operation-key-equals.js';
+import { resolveApiOperationChoiceAnswer } from './resolve-api-operation-choice-answer.js';
 import { resolveApiOperations } from '../resolve-api-operations.js';
 
 export async function resolveApiSelectionAnswers(
@@ -26,17 +26,7 @@ export async function resolveApiSelectionAnswers(
       throw new Error(
         `Unknown or duplicate operation question ${answer.questionId}`,
       );
-    const candidate = question.candidates.find((item) =>
-      apiOperationKeyEquals(item.key, answer.operation),
-    );
-    if (!candidate)
-      throw new Error(
-        `Operation answer ${answer.questionId} does not match a current offered candidate`,
-      );
-    operations.push({
-      key: structuredClone(candidate.key),
-      purpose: question.purpose,
-    });
+    operations.push(...resolveApiOperationChoiceAnswer({ question, answer }));
     answered.add(question.id);
   }
   return {

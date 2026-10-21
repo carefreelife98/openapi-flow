@@ -83,9 +83,21 @@ export interface ApiOperationChoice {
   explanation?: ApiSelectionExplanation;
 }
 
+export interface ApiOperationMultipleChoice extends Omit<
+  ApiOperationChoice,
+  'kind'
+> {
+  kind: 'operation-multiple-choice';
+  minSelections: number;
+  maxSelections: number;
+}
+
+export type ApiSelectionQuestion =
+  ApiOperationChoice | ApiOperationMultipleChoice;
+
 export interface ApiSelectionAnalysis {
   selection: ApiSelection;
-  questions: ApiOperationChoice[];
+  questions: ApiSelectionQuestion[];
 }
 
 export interface ApiOperationAnswer {
@@ -93,8 +105,23 @@ export interface ApiOperationAnswer {
   operation: ApiOperationKey;
 }
 
+export interface ApiOperationMultipleAnswer extends Omit<
+  ApiOperationAnswer,
+  'operation'
+> {
+  operations: ApiOperationKey[];
+}
+
+export type ApiSelectionAnswer =
+  ApiOperationAnswer | ApiOperationMultipleAnswer;
+
+export interface ResolveApiOperationChoiceAnswerInput {
+  question: ApiSelectionQuestion;
+  answer: ApiSelectionAnswer;
+}
+
 export interface ResolveApiSelectionAnswersInput {
   catalog: ApiCatalog;
   analysis: ApiSelectionAnalysis;
-  answers: ApiOperationAnswer[];
+  answers: ApiSelectionAnswer[];
 }

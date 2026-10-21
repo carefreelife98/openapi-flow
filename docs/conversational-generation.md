@@ -83,6 +83,18 @@ const resumed = await graph.invoke(
 
 질문 node에는 모델 호출이 없다. 자연어 추출은 별도 checkpoint node에서 실행한다. interrupt 재개로 앞선 API 선택·native 계획·답변 추출을 다시 호출하지 않는다. 질문과 무관한 새 업무 요청을 기존 프롬프트에 몰래 붙이지 않는다. 업무 범위 변경·완성된 계획 수정은 호스트의 명시적 새 계획 요청으로 처리한다.
 
+## 복수 API 선택 계약
+
+0.3.7 후보 소스에는 API 질문의 선택 방식과 개수 범위를 명시하는 계약이 있다. 배포 여부는 [릴리스 기록](releases/0.3.7.md)에서 별도로 확인한다.
+
+기존 `operation-choice`는 하나를 고르는 질문이다. 답변은 기존처럼 `{ questionId, operation }`이다. 새 `operation-multiple-choice`는 함께 사용할 API를 고르는 질문이며 `minSelections`와 `maxSelections`를 반드시 제공한다. 답변은 `{ questionId, operations: [...] }`이다. 각 operation은 질문에 제시된 원래 key를 사용한다.
+
+예를 들어 후보가 네 개이고 범위가 3~4개라면 세 개 또는 네 개만 제출할 수 있다. 중복 후보, 오래된 snapshot, 다른 질문의 후보, 범위 밖 개수와 잘못된 답변 형식은 거절한다. 빈 선택은 원래 질문의 최소 개수가 0인 경우에만 허용한다. 선택 배열의 순서는 워크플로우 실행 순서를 뜻하지 않는다.
+
+`resolveApiOperationChoiceAnswer({ question, answer })`는 해당 질문의 답변 형식·범위·중복·후보 일치를 동기적으로 검사한다. 호스트는 interrupt를 소비하기 전에 이 함수를 사용할 수 있다. 전체 카탈로그의 현재 snapshot 확인과 선택 적용은 `resolveApiSelectionAnswers`가 담당한다. 두 함수 모두 모델을 호출하지 않는다.
+
+질문을 생성하는 모델은 단일·복수 선택을 구조화된 필드로 구분한다. 코드가 질문 문구를 분석해 복수 선택으로 바꾸거나 개수를 추측하지 않는다. 호스트는 그 필드에서 조작 방식과 개수 안내를 만든다. 기존에 저장된 단일 질문을 자동 변환하지 않으며, 질문 문구의 의미까지 스키마가 증명하지는 않는다.
+
 ## 독립 OSS API
 
 - `analyzeApiSelection`: 기존 선택기와 별도로 선택 API·API 부재·역할 선택 질문을 반환한다.

@@ -54,7 +54,8 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
       const explanation = includeExplanations
         ? { explanation: { reason: '명시된 조회 범위와 후보가 일치합니다.' } }
         : {};
-      for (const analyze of [false, true]) {
+      for (const mode of ['selection', 'single-choice', 'multiple-choice']) {
+        const analyze = mode !== 'selection';
         output = {
           operations: [
             {
@@ -73,6 +74,10 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
             ? {
                 questions: [
                   {
+                    kind: mode,
+                    ...(mode === 'multiple-choice'
+                      ? { minSelections: 1, maxSelections: 2 }
+                      : {}),
                     message: '어느 조회 범위가 필요한가요?',
                     purpose: '다른 회원 조회',
                     candidateIds: ['candidate-1', 'candidate-2'],
@@ -107,16 +112,23 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
         ];
         for (const field of fields) {
           const item = wire.schema.properties[field].items;
-          assert.equal(
-            Object.hasOwn(item.properties, 'explanation'),
-            includeExplanations,
-          );
-          if (includeExplanations) {
-            assert.ok(item.required.includes('explanation'));
-            assert.deepEqual(
-              Object.keys(item.properties.explanation.properties),
-              ['reason'],
+          const variants = field === 'questions' ? item.anyOf : [item];
+          assert.equal(Object.hasOwn(item, 'oneOf'), false);
+          assert.ok(Array.isArray(variants));
+          for (const variant of variants) {
+            assert.equal(
+              Object.hasOwn(variant.properties, 'explanation'),
+              includeExplanations,
             );
+            if (includeExplanations) {
+              assert.ok(variant.required.includes('explanation'));
+              assert.deepEqual(
+                Object.keys(variant.properties.explanation.properties),
+                ['reason'],
+              );
+            }
+          }
+          if (includeExplanations) {
             const missing = globalThis.structuredClone(output);
             delete missing[field][0].explanation;
             assert.equal(validate(missing), false);
@@ -137,6 +149,11 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
           false,
         );
         const selection = analyze ? result.selection : result;
+        if (mode === 'multiple-choice') {
+          assert.equal(result.questions[0].kind, 'operation-multiple-choice');
+          assert.equal(result.questions[0].minSelections, 1);
+          assert.equal(result.questions[0].maxSelections, 2);
+        }
         assert.equal(
           Object.hasOwn(selection.operations[0], 'explanation'),
           includeExplanations,
@@ -148,7 +165,7 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
           );
       }
     }
-    assert.equal(requests.length, 4);
+    assert.equal(requests.length, 6);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

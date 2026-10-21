@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
+import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, sep } from 'node:path';
@@ -428,6 +429,7 @@ const fixture = packedConsumerFixtureSchema.parse(
 );
 const spec = validateOpenApi(JSON.parse(await readFile(specPath, 'utf8')));
 const catalog = await createApiCatalog([{ id: 'consumer-source', spec }]);
+await verifyConsumerApiChoices(catalog);
 const candidate = catalog.operations.find(
   (entry) => entry.operationRef === fixture.operationRef,
 );

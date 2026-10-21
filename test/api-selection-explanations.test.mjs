@@ -113,6 +113,7 @@ test('ambiguity explains the actual offered alternatives and exact multi-documen
     gaps: [],
     questions: [
       {
+        kind: 'single-choice',
         message: '간단 정보와 상세 정보 중 어떤 결과가 필요한가요?',
         purpose: '회원 정보 조회',
         candidateIds: ['candidate-2', 'candidate-1'],
@@ -235,6 +236,7 @@ test('question and gap explanations are also required when enabled', async () =>
       gaps: [],
       questions: [
         {
+          kind: 'single-choice',
           message: 'Which?',
           purpose: 'Read',
           candidateIds: ['candidate-1', 'candidate-2'],

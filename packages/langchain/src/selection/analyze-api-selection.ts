@@ -1,9 +1,13 @@
 import { createHash } from 'node:crypto';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import type { ApiSelectionAnalysis } from '@openapi-flow/core';
+import type {
+  ApiSelectionAnalysis,
+  ApiSelectionQuestion,
+} from '@openapi-flow/core';
 import {
   describeApiSelectionContext,
   createApiSelectionExplanation,
+  validateApiSelectionQuestion,
 } from '@openapi-flow/core';
 import type { SelectApiOperationsInput } from '../types/operation-selection.js';
 import type { ApiSelectionAnalysisOutput } from '../types/api-selection-analysis.js';
@@ -77,43 +81,64 @@ export async function analyzeApiSelection(
         : {}),
     };
   });
-  const questions = parsed.questions.map((question, index) => {
-    if (new Set(question.candidateIds).size !== question.candidateIds.length)
-      throw new Error('API alternatives must be distinct');
-    const alternatives = question.candidateIds.map((id) => {
-      const candidate = byId.get(id);
-      if (!candidate) throw new Error(`Unknown API alternative ${id}`);
-      return structuredClone(context.operations[candidates.indexOf(candidate)]);
-    });
-    return {
-      kind: 'operation-choice' as const,
-      id: createHash('sha256')
-        .update(
-          JSON.stringify([
-            context.scenario,
-            index,
-            question.purpose,
-            alternatives.map((item) => item.key),
-          ]),
-        )
-        .digest('hex'),
-      message: question.message,
-      purpose: question.purpose,
-      candidates: alternatives,
-      ...('explanation' in question
-        ? {
-            explanation: createApiSelectionExplanation({
-              context,
-              basis: {
-                kind: 'candidates',
-                operations: alternatives.map((candidate) => candidate.key),
-              },
-              reason: question.explanation.reason,
-            }),
-          }
-        : {}),
-    };
-  });
+  const questions = parsed.questions.map<ApiSelectionQuestion>(
+    (question, index) => {
+      if (new Set(question.candidateIds).size !== question.candidateIds.length)
+        throw new Error('API alternatives must be distinct');
+      const alternatives = question.candidateIds.map((id) => {
+        const candidate = byId.get(id);
+        if (!candidate) throw new Error(`Unknown API alternative ${id}`);
+        return structuredClone(
+          context.operations[candidates.indexOf(candidate)],
+        );
+      });
+      const common = {
+        id: createHash('sha256')
+          .update(
+            JSON.stringify([
+              context.scenario,
+              index,
+              question.purpose,
+              alternatives.map((item) => item.key),
+              ...(question.kind === 'multiple-choice'
+                ? [
+                    'multiple-choice',
+                    question.minSelections,
+                    question.maxSelections,
+                  ]
+                : []),
+            ]),
+          )
+          .digest('hex'),
+        message: question.message,
+        purpose: question.purpose,
+        candidates: alternatives,
+        ...('explanation' in question
+          ? {
+              explanation: createApiSelectionExplanation({
+                context,
+                basis: {
+                  kind: 'candidates',
+                  operations: alternatives.map((candidate) => candidate.key),
+                },
+                reason: question.explanation.reason,
+              }),
+            }
+          : {}),
+      };
+      const result: ApiSelectionQuestion =
+        question.kind === 'single-choice'
+          ? { ...common, kind: 'operation-choice' }
+          : {
+              ...common,
+              kind: 'operation-multiple-choice',
+              minSelections: question.minSelections,
+              maxSelections: question.maxSelections,
+            };
+      validateApiSelectionQuestion(result);
+      return result;
+    },
+  );
   if (!selected.length && !questions.length && !parsed.gaps.length)
     throw new Error('API analysis must contain operations, questions or gaps');
   return {

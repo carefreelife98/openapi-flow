@@ -39,6 +39,8 @@ export { inspectApiArgumentRequirements } from './arguments/clarification/inspec
 export { validateApiInputAnswers } from './arguments/clarification/validate-api-input-answers.js';
 export { createApiInputAnswersSchema } from './schemas/create-api-input-answers-schema.js';
 export { resolveApiSelectionAnswers } from './openapi/selection/resolve-api-selection-answers.js';
+export { resolveApiOperationChoiceAnswer } from './openapi/selection/resolve-api-operation-choice-answer.js';
+export { validateApiSelectionQuestion } from './openapi/selection/validate-api-selection-question.js';
 export type * from './types/deferred-api-inputs.js';
 export { collectDeferredApiInputSlots } from './inputs/collect-deferred-api-input-slots.js';
 export { createDeferredApiInputsSchema } from './schemas/create-deferred-api-inputs-schema.js';

@@ -74,6 +74,7 @@ export function clarificationModel(options = {}) {
                 gaps: [],
                 questions: [
                   {
+                    kind: 'single-choice',
                     message: 'Summary or full details?',
                     purpose: 'Read member',
                     candidateIds: payload.candidates.map(
