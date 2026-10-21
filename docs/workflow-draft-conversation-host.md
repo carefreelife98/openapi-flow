@@ -299,6 +299,51 @@ pointer; it applies decisions to the same planning bundle without semantic or
 binding-model replay. Unknown/stale/type-incompatible answers preserve the original
 plan and ask again. See [typed binding questions](workflow-draft-api-binding-questions.md).
 
+### Typed existing API input edits
+
+An existing `revise-api-inputs` step that lacks a value exposes an `api-input-edit`
+question, not a generic message. It includes the original Core
+`apiInputEditTarget` and `apiInputEditContractId` plus the host-owned `stepId`.
+The OAS schema and target identity are not redefined by the example. Reply to the
+current question boundary with actual JSON values:
+
+```json
+{
+  "action": "answer-api-input-edits",
+  "token": "<current boundary token>",
+  "messageId": "<new submission ID>",
+  "stepId": "<current edit step ID>",
+  "confirmedAnswers": {
+    "contractId": "<apiInputEditContractId>",
+    "answers": [{ "targetId": "<apiInputEditTarget.id>", "value": "0007" }]
+  }
+}
+```
+
+The response envelope composes Core's public transport schema; the original
+contextual resolver owns the current target, type, contract and complete-request
+validation. A structural packet parse alone cannot authorize a value. The host
+uses the original bundle's completed-material snapshot and unchanged model
+proposal. It explicitly accumulates accepted partial replies, publishes remaining
+questions and returns a complete resolution only after all fields validate. There
+is no semantic reanalysis or value-generation model call on this path. Other
+remaining planning work or explicitly enabled review suggestions can still have
+their own model stages.
+
+Typed submissions are retained in private `apiInputEditAnswerHistory`, keyed by
+their actual submission and step IDs. They are not converted into synthetic text
+messages or model source evidence. Review tokens bind the updated receipts; stale
+tokens, reused IDs, unknown/duplicate/already-answered targets and invalid values
+leave the canonical draft unchanged and return explicit issues. Approval at a
+question boundary and value answers at a final-review boundary are both rejected.
+Partial replies and cancellation do not adopt a partial edit. Review mode still
+requires final candidate approval; automatic mode follows its existing explicit
+policy. No API request or n8n execution occurs when the host applies this answer.
+
+See [the Core 0.3.3 value boundary](workflow-draft-api-input-edits.md#explicit-typed-human-answers).
+
+### Other input and requirement answers
+
 `answer-inputs` takes a new `messageId` and typed `answers` with requirement IDs and
 JSON values. Core validates them. For pending new API values, code reuses the
 unchanged original proposal plus explicit confirmed inputs; it does not call a

@@ -9,6 +9,8 @@ import type {
   WorkflowDraftEditResolution,
   WorkflowDraftEditRepair,
   WorkflowDraftApiInputEditContract,
+  WorkflowDraftApiInputEditTarget,
+  WorkflowDraftApiInputEditAnswers,
   WorkflowDraftNativeParameterEditContract,
   PrepareWorkflowDraftEditInput,
   AssembledWorkflowDraftEdit,
@@ -132,6 +134,12 @@ export interface WorkflowDraftConversationInputAnswerExtraction {
   context: ApiInputAnswerContext;
   analysis: ApiInputAnswerAnalysis;
 }
+/** Private typed submissions, not synthetic natural-language evidence. */
+export interface WorkflowDraftConversationApiInputEditAnswerSubmission {
+  messageId: string;
+  stepId: string;
+  confirmedAnswers: WorkflowDraftApiInputEditAnswers;
+}
 /** Read-only copies of the original planning records shown with an enabled explanation view. */
 export interface WorkflowDraftConversationPlanningResults {
   plan?: WorkflowDraftEditPlan;
@@ -179,6 +187,7 @@ export interface WorkflowDraftConversationQuestion {
   kind:
     | 'message'
     | 'api-input'
+    | 'api-input-edit'
     | 'api-binding'
     | 'requirement'
     | 'clarification'
@@ -187,6 +196,8 @@ export interface WorkflowDraftConversationQuestion {
   stepId?: string;
   taskId?: string;
   requirement?: ApiInputRequirement;
+  apiInputEditTarget?: WorkflowDraftApiInputEditTarget;
+  apiInputEditContractId?: WorkflowDraftApiInputEditContract['id'];
   requirementEdit?: WorkflowDraftRequirementEditDescription;
   clarificationQuestion?: WorkflowClarificationQuestion;
   bindingQuestion?: WorkflowDraftApiCallPlanningQuestion;
@@ -204,6 +215,7 @@ export interface WorkflowDraftConversationEvent {
     | 'plan'
     | 'planning-stage'
     | 'input-answer'
+    | 'api-input-edit-answer'
     | 'binding-answer'
     | 'requirement-answer'
     | 'review'

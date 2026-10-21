@@ -99,6 +99,7 @@ export function askDraftConversationReview(
     parsed.data.action === 'answer-inputs' ||
     parsed.data.action === 'reply-inputs' ||
     parsed.data.action === 'answer-api-bindings' ||
+    parsed.data.action === 'answer-api-input-edits' ||
     parsed.data.action === 'answer-requirement' ||
     parsed.data.action === 'answer-clarification'
   )

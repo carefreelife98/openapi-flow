@@ -18,6 +18,7 @@ export function draftConversationReviewSourceToken(
         connectionResult: state.connectionResult,
         structuralConnectionResult: state.structuralConnectionResult,
         inputAnswerHistory: state.inputAnswerHistory,
+        apiInputEditAnswerHistory: state.apiInputEditAnswerHistory,
         candidate: state.candidate?.result,
         questions: state.questions,
         resolutions: state.resolutions,

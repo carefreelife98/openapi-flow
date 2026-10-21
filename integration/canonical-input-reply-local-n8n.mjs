@@ -30,6 +30,8 @@ export async function verifyCanonicalInputReply({
   priceFollowUps = false,
   explicitInitialItem = false,
   itemInputEdits = false,
+  typedItemInputEdits = false,
+  readModelCallCount,
   responseGuard = false,
   runtimeStopMessage = false,
 }) {
@@ -41,6 +43,16 @@ export async function verifyCanonicalInputReply({
   );
   assert.ok(!responseGuard || priceFollowUps);
   assert.ok(!runtimeStopMessage || responseGuard);
+  assert.ok(
+    !typedItemInputEdits || itemInputEdits,
+    'Typed edit evaluation requires itemInputEdits',
+  );
+  if (typedItemInputEdits)
+    assert.equal(
+      typeof readModelCallCount,
+      'function',
+      'Typed edit evaluation requires an actual model-call observer',
+    );
   const runId = `${Date.now()}-${process.pid}`;
   const directory = new URL(
     `../.local-artifacts/canonical-input-reply/${runId}/`,
@@ -249,6 +261,8 @@ export async function verifyCanonicalInputReply({
           fixture,
           initial: result,
           directory,
+          typedPendingEdit: typedItemInputEdits,
+          readModelCallCount,
         })),
       );
     }
@@ -521,13 +535,14 @@ export async function verifyCanonicalInputReply({
           priceFollowUps,
           explicitInitialItem,
           itemInputEdits,
+          typedItemInputEdits,
           responseGuard,
           runtimeStopMessage,
           executions,
           requests,
           businessApiCalls: 0,
           scope:
-            'Short natural request over the entire supplied ICL catalog, actual semantic selection/bindings/arguments, explicit UI approval, initial literal or natural missing-value reply as declared by explicitInitialItem, same initial input plan, optional short add/remove price follow-ups, SDK template and isolated n8n execution. No model retry, repaired output, expected operation injection or business API calls. These are known-service cases, not a general quality score; responses are explicit OAS-valid synthetic data, not real business behavior.',
+            'Short natural request over the entire supplied ICL catalog, actual semantic selection/bindings/arguments, explicit UI approval, initial literal or natural missing-value reply as declared by explicitInitialItem, same initial input plan, optional short add/remove price follow-ups or existing-input edits and an explicit pending-value reply, SDK template and isolated n8n execution. No model retry, repaired output, expected operation injection or business API calls. These are known-service cases, not a general quality score; responses are explicit OAS-valid synthetic data, not real business behavior.',
         },
         null,
         2,

@@ -6,6 +6,36 @@ import {
 } from './fixtures/canonical-input-reply-fixture.mjs';
 import { resolveDraftConversationInputAnswerExtraction } from '../examples/langgraph-workflow/dist/graph/draft-conversation/resolve-draft-conversation-input-answer-extraction.js';
 import { extractDraftConversationInputAnswers } from '../examples/langgraph-workflow/dist/graph/draft-conversation/extract-draft-conversation-input-answers.js';
+import { verifyCanonicalInputReply } from '../integration/canonical-input-reply-local-n8n.mjs';
+
+test('typed live evaluation requires explicit edit scope and a real model-call observer before starting any external work', async () => {
+  const model = {
+    withStructuredOutput() {
+      throw new Error(
+        'Invalid evaluation settings must fail before model work',
+      );
+    },
+  };
+  await assert.rejects(
+    verifyCanonicalInputReply({
+      model,
+      spec: {},
+      label: 'invalid fixture',
+      typedItemInputEdits: true,
+    }),
+    /requires itemInputEdits/,
+  );
+  await assert.rejects(
+    verifyCanonicalInputReply({
+      model,
+      spec: {},
+      label: 'invalid fixture',
+      itemInputEdits: true,
+      typedItemInputEdits: true,
+    }),
+    /model-call observer/,
+  );
+});
 
 test('canonical natural reply preserves the selected plan and prior stages, records actual prose and uses one extraction call', async () => {
   for (const includeExplanations of [false, true]) {

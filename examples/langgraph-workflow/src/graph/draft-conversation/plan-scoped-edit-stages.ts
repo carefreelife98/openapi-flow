@@ -14,6 +14,7 @@ import {
   saveDraftConversationBundle,
   completeDraftConversationWork,
 } from './draft-conversation-context.js';
+import { describeDraftConversationApiInputEditQuestions } from './describe-draft-conversation-api-input-edit-questions.js';
 
 export async function selectDraftConversationApiInputTargets(
   state: WorkflowDraftConversationState,
@@ -52,12 +53,7 @@ export async function generateDraftConversationApiInputValues(
     return completeDraftConversationWork(
       state,
       result,
-      result.pendingTargets.map((target) => ({
-        id: `${result.contractId}:${target.id}`,
-        kind: 'message',
-        stepId: bundle.stepId,
-        message: `Provide the requested OAS input value at ${target.pointer}.`,
-      })),
+      describeDraftConversationApiInputEditQuestions(bundle.stepId, result),
     );
   return {
     ...completeDraftConversationWork(state, result),

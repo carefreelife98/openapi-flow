@@ -724,6 +724,66 @@ test('a stale request or changed canonical revision cannot be approved as the pr
   assert.deepEqual(rejected.draft, changed);
 });
 
+test('a same-plan API detail edit waits for the replacement argument question instead of reading its old contract', async () => {
+  const { graph, config, calls, draft } = await draftConversationFixture({
+    reviewPolicy: 'automatic',
+    respond(call) {
+      if (call.name === 'analyze_workflow_draft_edit') {
+        const candidate = call.payload.candidates.find(
+          (entry) => entry.operation.path === '/replacement/{id}',
+        );
+        return {
+          decisions: [
+            conversationSemantic(call, {
+              kind: 'replace-api-operation',
+              nodeId: 'independent',
+              operation: candidate.candidateId,
+            }),
+            conversationSemantic(call, {
+              kind: 'revise-api-inputs',
+              nodeId: 'independent',
+            }),
+          ],
+        };
+      }
+      if (call.name === 'plan_draft_api_call_bindings')
+        return {
+          decision: {
+            status: 'provided',
+            mappings: [],
+            sourceMessageIds: call.payload.messages.map(
+              (message) => message.id,
+            ),
+          },
+        };
+      if (call.name === 'generate_draft_api_call_arguments')
+        return {
+          values: {},
+          sourceMessageIds: call.payload.messages.map((message) => message.id),
+        };
+      throw new Error(`Unresolved replacement must not run ${call.name}`);
+    },
+  });
+  const pending = await graph.invoke(
+    conversationTurn(
+      draft,
+      'replace-and-edit',
+      'Replace independent and ask for its new input.',
+      true,
+    ),
+    config,
+  );
+  assert.deepEqual(pending.draft, draft);
+  assert.deepEqual(
+    conversationBoundary(pending).questions.map((question) => question.kind),
+    ['api-input'],
+  );
+  assert.equal(
+    calls.some((call) => call.name === 'select_draft_api_input_edit_targets'),
+    false,
+  );
+});
+
 test('API-only input edits use separate target and value stages without reselecting operations', async () => {
   const { graph, config, calls, draft } = await draftConversationFixture({
     reviewPolicy: 'automatic',

@@ -72,12 +72,15 @@ export function selectDraftConversationWork(
           : !bundle.bindingPlan
             ? 'api-bindings'
             : 'api-arguments';
-    else if (decision.kind === 'revise-api-inputs')
+    else if (decision.kind === 'revise-api-inputs') {
+      if (stage.blockedSourceNodeIds.includes(decision.nodeId)) continue;
       kind = bundle?.apiInputContract
         ? 'api-input-values'
         : 'api-input-targets';
-    else if (decision.kind === 'revise-api-bindings') kind = 'api-binding-edit';
-    else if (decision.kind === 'add-native-node') {
+    } else if (decision.kind === 'revise-api-bindings') {
+      if (stage.blockedSourceNodeIds.includes(decision.nodeId)) continue;
+      kind = 'api-binding-edit';
+    } else if (decision.kind === 'add-native-node') {
       const readiness = describeWorkflowDraftNativeNodeAdditionReadiness({
         ...input,
         stepId: step.id,

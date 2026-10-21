@@ -17,11 +17,14 @@ import { applyDraftConversationSuggestion } from './apply-draft-conversation-sug
 import { applyDraftConversationClarificationRevision } from './apply-draft-conversation-clarification-revision.js';
 import { applyDraftConversationApiBindingAnswers } from './apply-draft-conversation-api-binding-answers.js';
 import { applyDraftConversationApiInputAnswers } from './apply-draft-conversation-api-input-answers.js';
+import { applyDraftConversationApiInputEditAnswers } from './apply-draft-conversation-api-input-edit-answers.js';
 
 export function applyDraftConversationResponse(
   state: WorkflowDraftConversationState,
   dependencies: WorkflowDraftConversationDependencies,
 ): WorkflowDraftConversationUpdate {
+  if (state.response?.action === 'answer-api-input-edits')
+    return applyDraftConversationApiInputEditAnswers(state, dependencies);
   if (state.response?.action === 'answer-api-bindings')
     return applyDraftConversationApiBindingAnswers(state, dependencies);
   if (state.response?.action === 'revise-clarification')

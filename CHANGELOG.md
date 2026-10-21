@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3 — 2026-10-21
+
+- Derive existing API input edits from the explicitly staged replacement and completed materials in the same atomic plan. Bind input contracts to that stage fingerprint, wait for unresolved source contracts, and preserve the original draft until approval.
+- Add public OAS-validated typed answer contracts for pending API input edits. Keep human answers separate from the unchanged model proposal; reject stale contracts, duplicate targets and invalid types without coercion or invented text evidence.
+- Connect typed questions, partial answers and checkpoint resume in the source-only LangGraph reference example without repeating model calls for directly supplied values. Hosts still own their UI and review policy.
+- Request user-facing edit explanations in the current user's language while preserving identifiers, literal values and source quotations. No translation call, output repair, automatic retry or language-based runtime rejection is added.
+- Align the three packages and adapter core dependencies at 0.3.3. Retain the previously accepted Ajv `properties.__proto__` limitation and its failing regression. See the [release record](docs/releases/0.3.3.md) for verification scope and publication status.
+
 ## 0.3.2 — 2026-10-20
 
 - Accept the existing optional `WorkflowEntryPointContract` in native and fixed-material connection planning. Validate and snapshot that host/compiler-owned contract before a model call, retain it in original planning evidence, and reject changed receipts. Omission does not infer a start contract.

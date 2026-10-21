@@ -101,6 +101,8 @@ export { createWorkflowDraftApiInputEditContract } from './draft/edits/inputs/cr
 export { validateWorkflowDraftApiInputEditContract } from './draft/edits/inputs/validate-workflow-draft-api-input-edit-contract.js';
 export { createWorkflowDraftApiInputEditProposalSchema } from './schemas/workflow-draft-api-input-edit-proposal-schema.js';
 export { createWorkflowDraftApiInputEditValuesSchema } from './schemas/create-workflow-draft-api-input-edit-values-schema.js';
+export { createWorkflowDraftApiInputEditAnswersSchema } from './schemas/create-workflow-draft-api-input-edit-answers-schema.js';
+export { workflowDraftApiInputEditAnswersSchema } from './schemas/workflow-draft-api-input-edit-answers-schema.js';
 export { resolveWorkflowDraftApiInputEdits } from './draft/edits/inputs/resolve-workflow-draft-api-input-edits.js';
 export { prepareWorkflowDraftEdit } from './draft/edits/prepare-workflow-draft-edit.js';
 export { assembleWorkflowDraftEdit } from './draft/edits/assemble-workflow-draft-edit.js';

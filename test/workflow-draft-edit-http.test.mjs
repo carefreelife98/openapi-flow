@@ -118,6 +118,12 @@ test('real ChatOpenAI wire contracts bind candidate and instance choices while o
           operation: input.context.operations[0].key,
           pointer: '',
         });
+      assert.match(wire.messages[0].content, /current user's language/);
+      if (includeExplanations)
+        assert.match(
+          add.properties.explanation.properties.reason.description,
+          /current user's language/,
+        );
       const materials = JSON.parse(wire.messages[1].content);
       assert.deepEqual(materials.requestMessageIds, ['edit-1']);
       assert.deepEqual(materials.draft.apiCalls, input.draft.apiCalls);

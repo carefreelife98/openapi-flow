@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/n8n",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "license": "MIT",
   "type": "module",
   "description": "Deterministic OpenAPI request nodes and n8n workflow assembly",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@n8n/config": "2.41.2",
     "@n8n/workflow-sdk": "0.36.4",
-    "@openapi-flow/core": "0.3.2",
+    "@openapi-flow/core": "0.3.3",
     "@sentry/node": "10.70.0",
     "@types/estree": "1.0.8",
     "@types/express": "5.0.1",

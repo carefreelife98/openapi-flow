@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { URL } from 'node:url';
 import process from 'node:process';
 import test from 'node:test';
-import { MemorySaver } from '@langchain/langgraph';
+import { MemorySaver, Command } from '@langchain/langgraph';
 import { createWorkflowDraftConversationGraph } from '@openapi-flow/example-langgraph-workflow';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
@@ -104,6 +104,9 @@ import {
   validateApiInputAnswerExtractionRecord,
   createWorkflowDraftCapabilityGap,
   inspectWorkflowDraftCapabilityGap,
+  createWorkflowDraftApiInputEditContract,
+  createWorkflowDraftApiInputEditAnswersSchema,
+  resolveWorkflowDraftApiInputEdits,
 } from '@openapi-flow/core';
 import {
   selectApiOperations,
@@ -124,6 +127,221 @@ const files = entries
   .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
   .map((entry) => entry.name)
   .sort();
+
+test('original ICL OAS accepts explicit typed edit answers without rewriting the model proposal or original draft', async () => {
+  const spec = JSON.parse(
+    await readFile(join(directory, 'icl.openapi.json'), 'utf8'),
+  );
+  const originalSpec = JSON.stringify(spec);
+  const catalog = await createApiCatalog([
+    { id: 'private-icl-input-reply', spec },
+  ]);
+  const selected = catalog.operations.find(
+    (operation) =>
+      operation.path === '/item/core/getItemInfo' && operation.method === 'GET',
+  );
+  assert.ok(selected, 'Original ICL getItemInfo operation is required');
+  const [operation] = await resolveApiOperations(catalog, [selected.key]);
+  const message = {
+    id: 'private-typed-edit',
+    text: 'Change the product number. Ask for the actual new value; do not reuse the previous number.',
+  };
+  const context = {
+    operations: [operation],
+    capabilities: [],
+    messages: [message],
+  };
+  const draft = createWorkflowDraft({
+    context,
+    content: {
+      id: 'private-typed-edit',
+      apiCalls: [
+        {
+          id: 'source',
+          operation: operation.key,
+          values: { query: { gdNo: 'fixture-seed' } },
+          bindings: [],
+        },
+      ],
+      nativeNodes: [],
+      requirements: [],
+      edges: [],
+    },
+  });
+  const originalDraft = globalThis.structuredClone(draft);
+  const sources = [
+    { kind: 'message', messageId: message.id, quote: message.text },
+  ];
+  const base = { draft, context, requestMessageIds: [message.id] };
+  const plan = createWorkflowDraftEditPlan({
+    ...base,
+    options: { includeExplanations: false },
+    proposal: {
+      decisions: [
+        {
+          kind: 'revise-api-inputs',
+          nodeId: 'source',
+          instruction: message.text,
+          sources,
+        },
+      ],
+    },
+  });
+  const input = { ...base, plan, stepId: plan.steps[0].id };
+  const contract = createWorkflowDraftApiInputEditContract({
+    ...input,
+    proposal: { targets: [{ kind: 'set', pointer: '/query/gdNo', sources }] },
+  });
+  const output = {
+    values: { [contract.targets[0].id]: { status: 'needs-input' } },
+  };
+  const pending = resolveWorkflowDraftApiInputEdits({
+    ...input,
+    contract,
+    output,
+  });
+  assert.equal(pending.status, 'needs-input');
+  assert.equal(Object.hasOwn(pending, 'resolution'), false);
+  const confirmedAnswers = {
+    contractId: contract.id,
+    answers: [{ targetId: contract.targets[0].id, value: '0007' }],
+  };
+  const schema = createWorkflowDraftApiInputEditAnswersSchema({
+    ...input,
+    contract,
+    output,
+  });
+  assert.deepEqual(schema.parse(confirmedAnswers), confirmedAnswers);
+  assert.equal(
+    schema.safeParse({
+      ...confirmedAnswers,
+      answers: [{ ...confirmedAnswers.answers[0], value: 7 }],
+    }).success,
+    false,
+  );
+  const result = resolveWorkflowDraftApiInputEdits({
+    ...input,
+    contract,
+    output,
+    confirmedAnswers,
+  });
+  assert.equal(result.status, 'ready');
+  assert.deepEqual(result.values, output);
+  const candidate = assembleWorkflowDraftEdit({
+    ...input,
+    resolutions: [result.resolution],
+  });
+  assert.equal(candidate.draft.apiCalls[0].values.query.gdNo, '0007');
+  assert.deepEqual(candidate.draft.apiCalls[0].operation, operation.key);
+  assert.equal(
+    compileN8nWorkflowTemplate({
+      draft: candidate.draft,
+      context,
+      name: 'Private typed reply template',
+    }).revision,
+    candidate.draft.revision,
+  );
+  assert.deepEqual(draft, originalDraft);
+  assert.equal(JSON.stringify(spec), originalSpec);
+  const calls = [];
+  const graph = createWorkflowDraftConversationGraph({
+    context,
+    name: 'Private typed edit conversation',
+    checkpointer: new MemorySaver(),
+    reviewPolicy: 'automatic',
+    includeExplanations: false,
+    model: {
+      withStructuredOutput(_schema, options) {
+        return {
+          async invoke(messages) {
+            const payload = JSON.parse(messages[1].content);
+            const current = payload.messages.at(-1);
+            const sources = [{ kind: 'message', messageId: current.id }];
+            calls.push(options.name);
+            if (options.name === 'analyze_workflow_draft_edit')
+              return {
+                decisions: [
+                  {
+                    kind: 'revise-api-inputs',
+                    nodeId: 'source',
+                    instruction: current.text,
+                    sources,
+                  },
+                ],
+              };
+            if (options.name === 'select_draft_api_input_edit_targets')
+              return {
+                targets: [{ kind: 'set', pointer: '/query/gdNo', sources }],
+              };
+            if (options.name === 'generate_draft_api_input_edit_values')
+              return {
+                values: Object.fromEntries(
+                  payload.targets.map((target) => [
+                    target.id,
+                    { status: 'needs-input' },
+                  ]),
+                ),
+              };
+            throw new Error(
+              `Unexpected original ICL typed edit stage ${options.name}`,
+            );
+          },
+        };
+      },
+    },
+  });
+  const config = {
+    configurable: { thread_id: 'original-icl-typed-edit' },
+    recursionLimit: 100,
+  };
+  const waiting = await graph.invoke(
+    {
+      input: {
+        initialDraft: draft,
+        request: {
+          id: 'private-graph-typed-edit',
+          text: message.text,
+          expectedRevision: draft.revision,
+        },
+      },
+    },
+    config,
+  );
+  assert.ok(waiting.__interrupt__?.length);
+  const boundary = waiting.__interrupt__[0].value;
+  const [question] = boundary.questions;
+  assert.equal(question.kind, 'api-input-edit');
+  assert.equal(question.apiInputEditTarget.pointer, '/query/gdNo');
+  const finished = await graph.invoke(
+    new Command({
+      resume: {
+        action: 'answer-api-input-edits',
+        token: boundary.token,
+        messageId: 'private-graph-typed-answer',
+        stepId: question.stepId,
+        confirmedAnswers: {
+          contractId: question.apiInputEditContractId,
+          answers: [
+            { targetId: question.apiInputEditTarget.id, value: '0007' },
+          ],
+        },
+      },
+    }),
+    config,
+  );
+  assert.equal(finished.phase, 'complete');
+  assert.equal(finished.draft.apiCalls[0].values.query.gdNo, '0007');
+  assert.equal(finished.artifact.revision, finished.draft.revision);
+  assert.deepEqual(finished.messages, waiting.messages);
+  assert.equal(finished.apiInputEditAnswerHistory.length, 1);
+  assert.deepEqual(calls, [
+    'analyze_workflow_draft_edit',
+    'select_draft_api_input_edit_targets',
+    'generate_draft_api_input_edit_values',
+  ]);
+  assert.deepEqual(draft, originalDraft);
+  assert.equal(JSON.stringify(spec), originalSpec);
+});
 
 test('explicit native removal derives incident edges and planning contracts while preserving each original service OAS', async () => {
   for (const file of files) {

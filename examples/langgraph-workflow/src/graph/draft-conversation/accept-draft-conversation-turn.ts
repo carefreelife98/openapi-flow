@@ -107,6 +107,10 @@ export function acceptDraftConversationTurn(
     inputAnswerExtraction: undefined,
     inputAnswerHistory:
       state.inputAnswerHistory === undefined ? [] : state.inputAnswerHistory,
+    apiInputEditAnswerHistory:
+      state.apiInputEditAnswerHistory === undefined
+        ? []
+        : state.apiInputEditAnswerHistory,
     work: undefined,
     candidate: undefined,
     outcome: undefined,

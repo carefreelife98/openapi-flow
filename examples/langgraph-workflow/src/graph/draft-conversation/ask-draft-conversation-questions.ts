@@ -55,6 +55,11 @@ export function askDraftConversationQuestions(
         : { clarificationScopes: state.clarificationScopes }),
       actions: [
         'answer-inputs',
+        ...(state.questions.some(
+          (question) => question.kind === 'api-input-edit',
+        )
+          ? ['answer-api-input-edits']
+          : []),
         ...(state.questions.some((question) => question.kind === 'api-input')
           ? ['reply-inputs']
           : []),
@@ -91,6 +96,14 @@ export function askDraftConversationQuestions(
       issues: [
         '미확정 계획은 승인할 수 없습니다. 질문에 답하거나 요청을 수정해 주세요.',
       ],
+      response: undefined,
+    };
+  if (
+    parsed.data.action === 'answer-api-input-edits' &&
+    !state.questions.some((question) => question.kind === 'api-input-edit')
+  )
+    return {
+      issues: ['현재 답변할 API 입력 수정 질문이 없습니다.'],
       response: undefined,
     };
   if (

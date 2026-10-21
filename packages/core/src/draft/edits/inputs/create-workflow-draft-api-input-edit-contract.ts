@@ -97,7 +97,9 @@ export function createWorkflowDraftApiInputEditContract(
   return {
     id:
       'api-input-edit:' +
-      createHash('sha256').update(JSON.stringify(fields)).digest('hex'),
+      createHash('sha256')
+        .update(JSON.stringify([described.stageFingerprint, fields]))
+        .digest('hex'),
     ...fields,
   };
 }

@@ -2,7 +2,7 @@ import type {
   WorkflowDraftApiInputEditDescription,
   WorkflowDraftApiInputEditInput,
 } from '../../../types/workflow-draft-api-input-edit.js';
-import { validateWorkflowDraftEditPlan } from '../validate-workflow-draft-edit-plan.js';
+import { stageWorkflowDraftEdit } from '../stage-workflow-draft-edit.js';
 import { createApiRequestSchema } from '../../../schemas/create-api-request-schema.js';
 import { resolveWorkflowDraftApiMaterials } from '../../resolve-workflow-draft-api-materials.js';
 import { resolveWorkflowPlanningMessages } from '../../../planning/evidence/resolve-workflow-planning-messages.js';
@@ -10,38 +10,45 @@ import { resolveWorkflowPlanningMessages } from '../../../planning/evidence/reso
 export function describeWorkflowDraftApiInputEdit(
   input: WorkflowDraftApiInputEditInput,
 ): WorkflowDraftApiInputEditDescription {
-  validateWorkflowDraftEditPlan(input);
+  const stage = stageWorkflowDraftEdit({
+    ...input,
+    resolutions: input.resolutions === undefined ? [] : input.resolutions,
+  });
   const step = input.plan.steps.find((step) => step.id === input.stepId);
   if (!step || step.decision.kind !== 'revise-api-inputs')
     throw new Error(
       'API input edit stepId must identify a revise-api-inputs decision',
     );
   const nodeId = step.decision.nodeId;
-  if (
-    input.plan.steps.some(
-      (other) =>
-        other.decision.kind === 'replace-api-operation' &&
-        other.decision.nodeId === nodeId,
-    )
-  )
+  if (!stage.pendingResolutionStepIds.includes(step.id))
     throw new Error(
-      'API input edit must use a draft after its operation replacement is resolved',
+      'API input edit step already has a supplied result; remove that result explicitly before replanning',
     );
-  const original = input.draft.apiCalls.find((call) => call.id === nodeId)!;
+  if (stage.blockedSourceNodeIds.includes(nodeId))
+    throw new Error(
+      `API input edit target ${nodeId} is blocked by an unresolved contract or requirement`,
+    );
+  const stagedCall = stage.content.apiCalls.find((call) => call.id === nodeId);
+  if (stagedCall === undefined)
+    throw new Error(
+      `API input edit target ${nodeId} has no staged API instance`,
+    );
   const material = resolveWorkflowDraftApiMaterials({
-    content: input.draft,
+    content: stage.content,
     context: input.context,
-  }).find((item) => item.callId === original.id)!;
+  }).find((item) => item.callId === stagedCall.id)!;
   const call = structuredClone({
-    ...original,
+    ...stagedCall,
     ...(input.requestMediaType === undefined
       ? {}
       : { requestMediaType: input.requestMediaType }),
   });
   return {
+    stageFingerprint: stage.fingerprint,
     stepId: step.id,
     instruction: step.decision.instruction,
     call,
+    operation: structuredClone(material.operation),
     requestSchema: createApiRequestSchema({
       operation: material.operation,
       requestMediaType: call.requestMediaType,

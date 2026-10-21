@@ -18,7 +18,9 @@ export function createWorkflowDraftEditProposalSchema<Operation, Evidence>(
       reason: z
         .string()
         .min(1)
-        .describe('A short user-facing reason, not chain-of-thought.'),
+        .describe(
+          "A short user-facing reason in the current user's language, not chain-of-thought. Do not translate identifiers, literal values or source quotations.",
+        ),
       evidence: z.array(sources.evidenceSchema).min(1),
     });
   const fields = {

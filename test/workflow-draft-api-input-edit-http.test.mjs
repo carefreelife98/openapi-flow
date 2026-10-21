@@ -146,6 +146,14 @@ test('actual ChatOpenAI target/value requests preserve dialects, reachable OAS d
       assert.equal(valuesWire.name, 'generate_draft_api_input_edit_values');
       assert.equal(targetsWire.strict, true);
       assert.equal(valuesWire.strict, true);
+      for (const request of requests.slice(-2)) {
+        assert.match(request.messages[0].content, /current user's language/);
+        if (includeExplanations)
+          assert.match(
+            JSON.stringify(request.response_format.json_schema.schema),
+            /user-facing reason in the current user's language/,
+          );
+      }
       assert.equal(
         a7.validateSchema(targetsWire.schema),
         true,

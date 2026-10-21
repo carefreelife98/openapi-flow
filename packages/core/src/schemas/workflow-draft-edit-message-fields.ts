@@ -32,7 +32,9 @@ export function createWorkflowDraftEditMessageFields(
             reason: z
               .string()
               .min(1)
-              .describe('Short user-facing reason, not chain-of-thought.'),
+              .describe(
+                "Short user-facing reason in the current user's language, not chain-of-thought. Do not translate identifiers, literal values or source quotations.",
+              ),
             evidence: z.array(message).min(1),
           }),
         }

@@ -38,6 +38,8 @@ import {
   resolveWorkflowDraftTerminalRemoval,
   assembleWorkflowDraftEdit,
   createWorkflowDraftApiInputEditContract,
+  createWorkflowDraftApiInputEditAnswersSchema,
+  workflowDraftApiInputEditAnswersSchema,
   resolveWorkflowDraftApiInputEdits,
   stageWorkflowDraftEdit,
   describeWorkflowDraftApiBindingEdit,
@@ -131,6 +133,9 @@ import type {
   WorkflowGraphPlanningRecord,
   WorkflowDraftCapabilityGap,
   WorkflowConnectionPlanningInput,
+  WorkflowDraftApiInputEditAnswerSchemaInput,
+  WorkflowDraftApiInputEditAnswers,
+  WorkflowDraftApiInputEditResult,
 } from '@openapi-flow/core';
 import {
   clarifyWorkflowRequirements,
@@ -308,6 +313,18 @@ export function generateEditInputsWithConsumerModel(
   input: GenerateWorkflowDraftApiInputEditsInput,
 ) {
   return generateWorkflowDraftApiInputEdits(input);
+}
+export function confirmConsumerApiInputEdit(
+  input: WorkflowDraftApiInputEditAnswerSchemaInput,
+  confirmedAnswers: WorkflowDraftApiInputEditAnswers,
+): WorkflowDraftApiInputEditResult {
+  return resolveWorkflowDraftApiInputEdits({
+    ...input,
+    confirmedAnswers:
+      createWorkflowDraftApiInputEditAnswersSchema(input).parse(
+        confirmedAnswers,
+      ),
+  });
 }
 export function planBindingEditWithConsumerModel(
   input: PlanWorkflowDraftApiBindingEditInput,
@@ -2470,6 +2487,92 @@ assert.ok(
       slot.kind === 'api-request-input' && slot.targetPointer === pointer,
   ),
 );
+const typedEditMessage = {
+  id: 'installed-typed-edit',
+  text: 'Change this required OAS parameter. Ask for its actual typed value.',
+};
+const typedEditContext = {
+  ...editContext,
+  messages: [...editContext.messages, typedEditMessage],
+};
+const typedEditBase = {
+  draft: deferredEdit.draft,
+  context: typedEditContext,
+  requestMessageIds: [typedEditMessage.id],
+};
+const typedEditPlan = createWorkflowDraftEditPlan({
+  ...typedEditBase,
+  options: { includeExplanations: false },
+  proposal: {
+    decisions: [
+      {
+        kind: 'revise-api-inputs',
+        nodeId: args.callId,
+        instruction: typedEditMessage.text,
+        sources: [
+          {
+            kind: 'message',
+            messageId: typedEditMessage.id,
+            quote: typedEditMessage.text,
+          },
+        ],
+      },
+    ],
+  },
+});
+const typedEditInput = {
+  ...typedEditBase,
+  plan: typedEditPlan,
+  stepId: typedEditPlan.steps[0].id,
+};
+const typedEditContract = createWorkflowDraftApiInputEditContract({
+  ...typedEditInput,
+  proposal: {
+    targets: [
+      {
+        kind: 'set',
+        pointer,
+        sources: typedEditPlan.steps[0].decision.sources,
+      },
+    ],
+  },
+});
+const pendingTypedEdit = {
+  ...typedEditInput,
+  contract: typedEditContract,
+  output: {
+    values: {
+      [typedEditContract.targets[0].id]: { status: 'needs-input' as const },
+    },
+  },
+};
+const typedPacket: WorkflowDraftApiInputEditAnswers =
+  createWorkflowDraftApiInputEditAnswersSchema(pendingTypedEdit).parse({
+    contractId: typedEditContract.id,
+    answers: [
+      {
+        targetId: typedEditContract.targets[0].id,
+        value: Reflect.get(parameterGroup, parameter.name),
+      },
+    ],
+  });
+const typedEditResult = confirmConsumerApiInputEdit(
+  pendingTypedEdit,
+  typedPacket,
+);
+assert.deepEqual(
+  workflowDraftApiInputEditAnswersSchema.parse(typedPacket),
+  typedPacket,
+);
+assert.equal(typedEditResult.status, 'ready');
+assert.deepEqual(typedEditResult.values, pendingTypedEdit.output);
+assert.deepEqual(typedEditResult.confirmedAnswers, typedPacket);
+const typedEditCandidate = assembleWorkflowDraftEdit({
+  ...typedEditInput,
+  resolutions: [typedEditResult.resolution],
+});
+assert.deepEqual(typedEditCandidate.draft.apiCalls[0].values, args.values);
+
 const bindingContext = {
   ...nativeInputContext,
   messages: [
@@ -2832,6 +2935,7 @@ console.log(
     draftEditPlanning: 'passed',
     draftEditAssembly: 'passed',
     draftApiInputEditing: 'passed',
+    typedApiInputEditAnswers: 'passed',
     draftApiBindingEditing: 'passed',
     draftConnectionEditing: 'passed',
     draftNativeParameterEditing: 'passed',

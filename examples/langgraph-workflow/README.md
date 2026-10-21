@@ -145,6 +145,14 @@ UI는 질문 스키마, 변경 영향과 읽기 전용 SDK 미리보기를 받�
 같은 계획에 답을 적용한다. 이때 의미 분석·바인딩 모델을 다시 호출하지 않는다.
 [현재 입력에 한정한 연결 질문](../../docs/workflow-draft-api-binding-questions.md)을 참고한다.
 
+기존 API의 입력값 수정에 새 값이 없으면 `api-input-edit` 질문으로 원래
+대상·자료형을 반환한다. `answer-api-input-edits`는 Core가 소유한 답변
+스키마를 재사용하며, 부분 답변을 체크포인트에 보관하고 값이 모두 검증되면
+조립·검토를 이어간다. 값 입력만으로 모델을 다시 호출하거나 가짜 근거
+메시지를 만들지 않는다. Core 경계는 0.3.3에 포함되며 이 LangGraph 예제는
+소스로 제공한다. [답변 형식과 검토 경계](../../docs/workflow-draft-conversation-host.md#typed-existing-api-input-edits)와
+[배포 상태](../../docs/releases/0.3.3.md)를 참고한다. 소비 제품의 입력 폼 연결은 별도 작업이다.
+
 현재 라운드의 확정 답을 바꾸거나 질문을 다시 열 때는 `revise-clarification`을
 사용한다. 변경 전후 기록은 유지하고 이전 답·제출 기록은 현재 모델 입력에서
 제외한다. 상태 변경에는 LLM을 호출하지 않으며 변경된 계획은 기존 검사를

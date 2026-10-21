@@ -4,9 +4,20 @@ import {
   workflowClarificationRepliesSchema,
   workflowClarificationAnswerChangesSchema,
   workflowDraftApiBindingAnswersSchema,
+  workflowDraftApiInputEditAnswersSchema,
 } from '@openapi-flow/core';
 
 export const draftConversationResponseSchema = z.discriminatedUnion('action', [
+  z.strictObject({
+    action: z.literal('answer-api-input-edits'),
+    token: z.string().min(1),
+    messageId: z.string().refine((id) => id.trim().length > 0),
+    stepId: z.string().min(1),
+    confirmedAnswers: workflowDraftApiInputEditAnswersSchema.refine(
+      (reply) => reply.answers.length > 0,
+      'At least one explicit pending API input edit answer is required',
+    ),
+  }),
   z.strictObject({
     action: z.literal('reply-inputs'),
     token: z.string().min(1),

@@ -5,10 +5,10 @@ import type {
 } from '../../../types/workflow-draft-api-input-edit.js';
 import type { WorkflowDraftValueEdit } from '../../../types/workflow-draft-edit-assembly.js';
 import { createWorkflowDraftApiInputEditValuesSchema } from '../../../schemas/create-workflow-draft-api-input-edit-values-schema.js';
+import { createWorkflowDraftApiInputEditAnswersSchema } from '../../../schemas/create-workflow-draft-api-input-edit-answers-schema.js';
 import { describeWorkflowDraftApiInputEdit } from './describe-workflow-draft-api-input-edit.js';
 import { validateWorkflowPlanningEvidence } from '../../../planning/evidence/validate-workflow-planning-evidence.js';
 import { applyWorkflowDraftApiInputEdits } from '../values/apply-workflow-draft-api-input-edits.js';
-import { resolveWorkflowDraftApiMaterials } from '../../resolve-workflow-draft-api-materials.js';
 import { validateApiArguments } from '../../../arguments/validate-api-arguments.js';
 import { orderWorkflowDraftValueEdits } from '../values/order-workflow-draft-value-edits.js';
 import { verifyApiInputLiteralSource } from '../../../arguments/sources/verify-api-input-literal-source.js';
@@ -21,6 +21,18 @@ export function resolveWorkflowDraftApiInputEdits(
     input.output,
   );
   const described = describeWorkflowDraftApiInputEdit(input);
+  const confirmedAnswers =
+    input.confirmedAnswers === undefined
+      ? undefined
+      : structuredClone(
+          createWorkflowDraftApiInputEditAnswersSchema(input).parse(
+            input.confirmedAnswers,
+          ),
+        );
+  const human =
+    confirmedAnswers === undefined
+      ? {}
+      : { confirmedAnswers: structuredClone(confirmedAnswers) };
   const sets: WorkflowDraftValueEdit[] = [];
   const removals: WorkflowDraftValueEdit[] = [];
   const pendingTargets: WorkflowDraftApiInputEditTarget[] = [];
@@ -36,7 +48,16 @@ export function resolveWorkflowDraftApiInputEdits(
         evidence: answer.explanation.evidence,
       });
     if (answer.status === 'needs-input') {
-      pendingTargets.push(structuredClone(target));
+      const confirmed = confirmedAnswers?.answers.find(
+        (item) => item.targetId === target.id,
+      );
+      if (confirmed === undefined) pendingTargets.push(structuredClone(target));
+      else
+        sets.push({
+          kind: 'set',
+          pointer: target.pointer,
+          value: structuredClone(confirmed.value),
+        });
       continue;
     }
     const message = described.messages.find(
@@ -60,16 +81,18 @@ export function resolveWorkflowDraftApiInputEdits(
       contractId: input.contract.id,
       values: output,
       pendingTargets,
+      ...human,
     };
   // Targets address the original value. Set before deletion; remove higher array
   // indices first so one deletion does not retarget another original index.
   const edits = orderWorkflowDraftValueEdits([...sets, ...removals]);
-  const material = resolveWorkflowDraftApiMaterials({
-    content: input.draft,
-    context: input.context,
-  }).find((item) => item.callId === described.call.id)!;
   const selected = {
-    ...material,
+    callId: described.call.id,
+    operation: described.operation,
+    bindings: described.call.bindings,
+    ...(described.call.requestedInputs === undefined
+      ? {}
+      : { requestedInputs: described.call.requestedInputs }),
     requestMediaType: described.call.requestMediaType,
   };
   const values = applyWorkflowDraftApiInputEdits(
@@ -82,6 +105,7 @@ export function resolveWorkflowDraftApiInputEdits(
     status: 'ready',
     contractId: input.contract.id,
     values: output,
+    ...human,
     resolution: {
       stepId: input.stepId,
       kind: 'api-inputs',

@@ -9,6 +9,7 @@ import {
   resolveWorkflowDraftApiInputEdits,
   inspectDraftReadiness,
   validateWorkflowDraftApiInputEditContract,
+  describeWorkflowDraftApiInputEdit,
 } from '@openapi-flow/core';
 import {
   generateWorkflowDraftApiInputEdits,
@@ -99,6 +100,111 @@ function modelScript(outputs, onCall) {
     },
   };
 }
+
+async function replacementInputEditFixture() {
+  const text =
+    'Replace independent with the replacement API and set its id to "0011".';
+  const input = await workflowDraftEditAssemblyFixture(text);
+  const sources = [{ kind: 'message', messageId: 'edit-1', quote: text }];
+  const plan = createWorkflowDraftEditPlan({
+    ...input,
+    options: { includeExplanations: false },
+    proposal: {
+      decisions: [
+        {
+          kind: 'replace-api-operation',
+          nodeId: 'independent',
+          operation: input.replacement.key,
+          instruction: text,
+          sources,
+        },
+        {
+          kind: 'revise-api-inputs',
+          nodeId: 'independent',
+          instruction: text,
+          sources,
+        },
+      ],
+    },
+  });
+  return {
+    ...input,
+    plan,
+    stepId: plan.steps[1].id,
+    sources,
+    resolutions: [
+      { kind: 'api-call', stepId: plan.steps[0].id, values: {}, bindings: [] },
+    ],
+  };
+}
+
+test('an input edit reads the resolved replacement contract in the same atomic plan', async () => {
+  const input = await replacementInputEditFixture();
+  const before = globalThis.structuredClone(input.draft);
+  const described = describeWorkflowDraftApiInputEdit(input);
+  assert.deepEqual(described.call.operation, input.replacement.key);
+  assert.deepEqual(described.call.values, {});
+  const model = modelScript([
+    { targets: [target(input, '/path/id')] },
+    { values: { 'value-1': provided(input, '0011') } },
+  ]);
+  const selected = await selectWorkflowDraftApiInputEditTargets({
+    ...input,
+    model,
+  });
+  const result = await generateWorkflowDraftApiInputEdits({
+    ...input,
+    contract: selected,
+    model,
+  });
+  assert.equal(result.status, 'ready');
+  assert.equal(model.calls, 2);
+  const assembled = assembleWorkflowDraftEdit({
+    ...input,
+    resolutions: [...input.resolutions, result.resolution],
+  });
+  const changed = assembled.draft.apiCalls.find(
+    (call) => call.id === 'independent',
+  );
+  assert.deepEqual(changed.operation, input.replacement.key);
+  assert.deepEqual(changed.values, { path: { id: '0011' } });
+  assert.deepEqual(input.draft, before);
+  assert.throws(
+    () => contract(input, [target(input, '/query/locale')]),
+    /not permitted by its OAS/,
+  );
+});
+
+test('replacement input contracts reject missing materials, changed staged values and already supplied results', async () => {
+  const input = await replacementInputEditFixture();
+  assert.throws(
+    () => describeWorkflowDraftApiInputEdit({ ...input, resolutions: [] }),
+    /blocked.*unresolved/i,
+  );
+  const selected = contract(input, [target(input, '/path/id')]);
+  assert.throws(
+    () =>
+      validateWorkflowDraftApiInputEditContract({
+        ...input,
+        resolutions: [
+          { ...input.resolutions[0], values: { path: { id: 'different' } } },
+        ],
+        contract: selected,
+      }),
+    /stale|modified/i,
+  );
+  assert.throws(
+    () =>
+      describeWorkflowDraftApiInputEdit({
+        ...input,
+        resolutions: [
+          ...input.resolutions,
+          { kind: 'api-inputs', stepId: input.stepId, edits: [] },
+        ],
+      }),
+    /already.*result/i,
+  );
+});
 
 test('bounded target selection then OAS-typed values preserve every unpatched value and use distinct Message classes', async () => {
   const input = await fixture();

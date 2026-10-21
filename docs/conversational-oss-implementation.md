@@ -4041,3 +4041,209 @@ call. Evidence:
 This is not execution coverage of all eleven families through the registry, nor
 a new real-model quality evaluation. No business service was called. Product
 changes remain uncommitted and unpublished; the complete goal is still open.
+
+## Unreleased: input edits after a same-plan operation replacement
+
+Private host validation against published 0.3.2 exposed a mismatch between edit
+assembly and input planning. Atomic assembly already orders an operation
+replacement before its detail edits, but `describeWorkflowDraftApiInputEdit`
+unconditionally rejected any input edit whose plan also replaced that API. Its
+input contract did not accept completed material resolutions. This was not an
+OpenAPI or n8n limitation, and banning that semantic plan is not the fix.
+
+The source input contract now accepts explicit completed `resolutions` and
+`repairs`. The descriptor derives the actual call and OAS operation from
+`stageWorkflowDraftEdit`; unresolved contracts/requirements and already supplied
+results fail explicitly. Input-edit identity also binds the staged fingerprint,
+so changing completed values invalidates the old target contract even when its
+schema is unchanged. Resolution uses the same staged operation. Original draft,
+instance identity, typed values, binding ownership and final atomic adoption are
+preserved. Omitting resolutions means none have been completed, not permission
+to substitute the previous operation.
+
+The reference scheduler waits for a blocked replacement contract before input
+target or binding-edit work. Synthetic regressions first failed with the same
+published error, then passed after the source fix: same-plan replacement plus
+typed string input, exclusion of an old-operation-only field from the target
+inventory, stale staged values, unresolved materials, original-draft preservation
+and no early detail-model call. Focused core/LangChain transport and source tests
+passed 26/26; the new reference-conversation regression and both graph-document
+tests also passed. Final workspace build, typecheck, lint, format, whitespace and
+graph checks passed. Full `npm test` passed 1151/1152, with only the unchanged
+Ajv `properties.__proto__` runtime-validator failure. An intermediate generated
+graph-document mismatch was repaired by regenerating from the registered graph;
+the final full run includes that passing regression. Private original-OAS
+integration passed 51/51 without model or business API calls.
+
+These source changes are not published or installed into the private host.
+The running host still consumes public 0.3.2; no local tarball, alias, registry
+override or source import was used to claim live success. A real-model rerun
+through a newly published public package remains required. No business API was
+executed, no source commit/push/publication was performed, and no private OAS or
+application source was copied into this public repository. The next section records
+the later source implementation of direct typed replies; host/UI integration and
+publication remain separate work.
+
+## Unreleased: explicit typed replies for pending API literal edits
+
+Core now exposes `WorkflowDraftApiInputEditAnswers` and
+`createWorkflowDraftApiInputEditAnswersSchema`. A human packet identifies the exact
+current contract and supplies values only for set-targets the original validated
+model proposal left `needs-input`. `resolveWorkflowDraftApiInputEdits` accepts it
+as optional `confirmedAnswers`, separate from unchanged model `output`. It returns
+the original proposal and a separate cloned human receipt. No synthetic messages,
+model explanations, source-text spans, coercion, invented values or extra model
+call are introduced. The shared original OAS value validator is extracted from
+the previous model-value schema rather than reimplemented.
+
+Unknown/duplicate targets, stale contracts, targets already provided by the model,
+removals, invented metadata and wrong types fail explicitly. Partial answers leave
+the canonical draft untouched and return the still-pending fields; callers own
+explicit cumulative reply storage and review-token/revision authorization. All
+selected values must exist before cross-field OAS validation returns a complete
+resolution for normal atomic assembly and review. Typed replies cannot legitimize
+invalid original model evidence. Public packet types compose the original core
+JSON-value type and are not copied into a private host.
+
+Seven new focused regressions cover JSON types, leading-zero strings, isolated
+receipt/value copies, partial answers, stale/duplicate/coerced fields, unchanged
+source checks, no-pending/removals-only wire schema, original resource references,
+tuples, OAS 3.0 nullable values and whole-request conditional constraints. The first
+tuple fixture used a reference relative to the wrong document root and was rejected
+by the parser before this feature ran; it now points to the actual OAS document
+location without changing production parsing. A private original-ICL regression
+checks a pending string query input, an explicit typed reply, atomic assembly and
+SDK template compilation without model or business API calls.
+
+Final `npm test` passed 1158/1159, with only the unchanged approved Ajv
+`properties.__proto__` runtime-slot failure and no skips or cancellations.
+Workspace build, typecheck, lint, format, whitespace and graph-document checks
+passed. Original private-OAS integration passed 52/52. The isolated three-tarball
+consumer passed strict TypeScript with `skipLibCheck: false` and no workspace
+symlinks, including the public typed packet/schema/result and runtime resolution
+against the original 34-operation ICL snapshot:
+`.local-artifacts/packed-consumer/2026-10-20T21-29-34-333Z.json`.
+Its first new fixture attempted to assemble the same already accepted value and
+correctly failed the existing no-change guard. The fixture now answers the actual
+previously deferred input; production no-change checks were not relaxed.
+
+These changes are still source-only and uncommitted/unpublished. At this Core-only
+checkpoint, neither the consuming host's existing-API literal-edit form nor the
+reference conversation question handler used the new packet. The consuming host
+remains on public 0.3.2; the later reference-host work is recorded below. The tarball consumer
+is a source packaging check, not a public-registry installation or an upgrade of
+that host. Real-model editing quality, a newly published strict package consumer
+and a live post-install UI run remain unverified. The known approved Ajv limitation
+is not changed or bypassed.
+
+## Unreleased: reference conversation resumes typed existing-API input edits
+
+The source reference LangGraph now returns `api-input-edit` questions with Core's
+actual target/schema/contract identity and accepts `answer-api-input-edits`.
+The response envelope composes Core's public structural packet schema; its packet
+types are inferred from that same schema. Core's contextual resolver, not the
+transport envelope, owns OAS/current-target and complete-request validation.
+The host explicitly accumulates partial typed replies against the unchanged
+original proposal and original planning bundle, then schedules normal assembly
+and review. No new graph node, model call, synthetic natural-language evidence,
+value coercion, implicit deferral or execution request is introduced.
+
+Private `apiInputEditAnswerHistory` records actual submission/step IDs and typed
+packets separately from model messages. Tokens bind these receipts. Bad values,
+foreign/duplicate/already-answered targets, stale tokens and reused submission IDs
+return explicit issues without adopting an edit or replaying model work. Question
+and final-review actions stay distinct. Review mode still waits for final approval;
+automatic mode follows its existing policy. Independently pending planning work
+and explicitly enabled follow-up suggestions can still invoke their own models.
+
+Four new actual MemorySaver/Command regressions exercise partial checkpoint
+restoration and completion, rejection/cancellation invariants, final-review
+adoption and a same-plan operation replacement followed by a typed detail edit.
+The first run's only new failure was an incorrect expected original fixture ID;
+the test now compares the original draft snapshot instead of a guessed literal.
+Production behavior was not relaxed. The private original-ICL test additionally
+drives this graph through three scripted planning calls and a typed string reply
+to SDK template output, preserving original data and making no business call.
+
+Final `npm test` passed 1162/1163 with no skips/cancellations; only the unchanged
+approved Ajv special-key case failed. Fresh build, workspace typecheck, lint,
+format, whitespace and the regenerated 30-node/68-route graph checks passed.
+Original private-OAS integration passed 52/52, including the new checkpointed ICL
+reply path. The updated strict three-tarball consumer passed with no workspace
+symlinks or skipped library declaration checks, including the new public transport
+schema and inferred packet types:
+`.local-artifacts/packed-consumer/2026-10-20T21-45-23-286Z.json`.
+These scripted model responses prove contract flow, not real-model language quality.
+
+At this checkpoint it was unreleased reference-host source, not a Qoopilot form
+integration or fresh real-model/n8n execution. The later source-live check is
+recorded below. The consuming private host remains on public 0.3.2. Publication and
+post-install live validation still require the pending source-first release
+authorization. The approved Ajv `properties.__proto__` limitation is unchanged.
+
+## Live source validation: typed edits and display language
+
+The real Chomsky model used the complete original 34-operation ICL catalog through
+the reference LangGraph. One initial explicit-input request and two literal-value
+edits were followed by the short request `상품번호를 바꾸고 싶어. 새 번호는 직접 입력할 테니 먼저 물어봐.`
+The model produced a real `api-input-edit` question at the declared string input;
+the evaluation driver did not inject a missing-field question or repair output.
+An explicit synthetic typed reply preserved `"0007"`, the unchanged model proposal
+and transcript, and reached final review without another model invocation. The
+driver's explicit approval, not the model, adopted the candidate.
+
+The first functional cohort passed 11 actual planning calls, four isolated n8n
+executions and four OAS-valid local contract-server requests, with zero business
+API calls and zero retries. Its original reports and complete checkpoints remain
+in `.local-artifacts/canonical-input-reply/1792533168292-81703/`; model trace:
+`.local-artifacts/typed-input-edit-live/1792533163540-81703/`.
+Three of twelve short user-facing reasons were English. The semantic-edit, target
+and value prompts and their reason-schema descriptions omitted a general current-
+user-language instruction. Only capability-gap reasons had such a prompt rule.
+
+The source now states that optional display reasons use the current user's language
+and that identifiers, literal values and source quotations stay unchanged. It
+does not add a translation call, language-based Zod rejection, output repair or
+production retry. Two actual-ChatOpenAI local HTTP regressions first failed on
+the missing wire instruction and passed after the prompt/description change;
+they prove transmitted instructions and preserved contracts, not model language
+reliability. A new configuration guard also rejects a typed live fixture without
+its explicit edit scope and real model-call observer before external work starts.
+
+A separately labeled fresh cohort after that source change again passed 11 model
+calls and four isolated n8n executions/requests. All twelve observed display
+reasons contained Korean, and the final HTTP query retained the leading-zero
+string. The original pending model value stayed `needs-input`; human values
+remained a separate receipt. The same first cohort was not overwritten or relabeled.
+Post-change artifacts: `.local-artifacts/canonical-input-reply/1792533528432-82625/`;
+model trace: `.local-artifacts/typed-input-edit-live/1792533523884-82625/`.
+Both owned temporary n8n volumes were removed and their absence checked.
+
+These are eight executions of four versions of one known-service conversation,
+not eight independent holdout scenarios or a general quality score. Contract
+responses and bearer credentials were synthetic, approvals were test-driver
+actions, and execution was isolated. Exported JSON still targets that temporary
+local responder and local credential, not a deployed ICL service. No Qoopilot
+memory server or browser conversation was restarted or upgraded.
+
+Final `npm test` passed 1163/1164 with no skips/cancellations and only the unchanged
+approved Ajv `properties.__proto__` runtime-slot failure. Fresh build, workspace
+typecheck, lint, format, whitespace and regenerated graph checks passed. Original
+private-OAS integration passed 52/52. The strict three-tarball consumer passed
+without workspace symlinks or skipped library declaration checks:
+`.local-artifacts/packed-consumer/2026-10-20T22-04-34-227Z.json`.
+
+At that checkpoint source commit/push and publication were still pending authorization; the private product declared public
+0.3.2 and has not consumed these changes. Public-package installation, Qoopilot
+form/live-browser integration and broader quality/stream-load evaluation remain
+open. The approved Ajv special-key limitation is unchanged.
+
+## 0.3.3 source-first release preparation
+
+The owner authorized committing and pushing reviewed release source to public
+`main` before publishing all three 0.3.3 packages, followed by private-host public
+installation with exact-version-only release-age exceptions. The three manifests,
+adapter core dependencies and source example dependencies are aligned. No broad
+policy exception, source import or local tarball substitution is authorized or
+used for product integration. See the [release record](releases/0.3.3.md) for
+verified source, package and host states; publication is not source synchronization.

@@ -4,13 +4,21 @@ import type { BindingSchema, ApiBindingMaterial } from './api-bindings.js';
 import type { WorkflowMessageEvidence } from './planning-evidence.js';
 import type { WorkflowDecisionExplanation } from './workflow-clarification.js';
 import type { ValidateWorkflowDraftEditPlanInput } from './workflow-draft-edit.js';
-import type { WorkflowDraftEditResolution } from './workflow-draft-edit-assembly.js';
+import type {
+  WorkflowDraftEditResolution,
+  WorkflowDraftEditRepair,
+} from './workflow-draft-edit-assembly.js';
+import type { ApiOperationContract } from './api-operation.js';
 import type {
   WorkflowDraftApiCall,
   WorkflowSourceMessage,
 } from './workflow-draft.js';
 import type { JsonObject } from './openapi.js';
 import type { ApiInputLiteralSource } from './api-input-literal-source.js';
+import type {
+  workflowDraftApiInputEditAnswerSchema,
+  workflowDraftApiInputEditAnswersSchema,
+} from '../schemas/workflow-draft-api-input-edit-answers-schema.js';
 
 export interface WorkflowDraftApiInputEditMaterial extends ApiBindingMaterial {
   requestedInputs?: string[];
@@ -18,6 +26,9 @@ export interface WorkflowDraftApiInputEditMaterial extends ApiBindingMaterial {
 
 export interface WorkflowDraftApiInputEditInput extends ValidateWorkflowDraftEditPlanInput {
   stepId: string;
+  /** Explicit completed materials in this same plan. Omission means none. */
+  resolutions?: WorkflowDraftEditResolution[];
+  repairs?: WorkflowDraftEditRepair[];
   /** Omission preserves the call's explicit existing media selection. */
   requestMediaType?: string;
 }
@@ -37,9 +48,11 @@ export type WorkflowDraftApiInputEditTarget = Omit<
     { kind: 'set'; schema: BindingSchema } | { kind: 'remove' }
   );
 export interface WorkflowDraftApiInputEditDescription {
+  stageFingerprint: string;
   stepId: string;
   instruction: string;
   call: WorkflowDraftApiCall;
+  operation: ApiOperationContract;
   requestSchema: JsonObject;
   messages: WorkflowSourceMessage[];
   includeExplanations: boolean;
@@ -76,10 +89,20 @@ export type WorkflowDraftApiInputEditValue = (
 export interface WorkflowDraftApiInputEditValues {
   values: Record<string, WorkflowDraftApiInputEditValue>;
 }
-export interface ResolveWorkflowDraftApiInputEditsInput extends WorkflowDraftApiInputEditContractInput {
+export type WorkflowDraftApiInputEditAnswer = z.infer<
+  typeof workflowDraftApiInputEditAnswerSchema
+>;
+export type WorkflowDraftApiInputEditAnswers = z.infer<
+  typeof workflowDraftApiInputEditAnswersSchema
+>;
+export interface WorkflowDraftApiInputEditAnswerSchemaInput extends WorkflowDraftApiInputEditContractInput {
   output: WorkflowDraftApiInputEditValues;
 }
-export type WorkflowDraftApiInputEditResult =
+export interface ResolveWorkflowDraftApiInputEditsInput extends WorkflowDraftApiInputEditAnswerSchemaInput {
+  /** Explicit user answers to pending targets, separate from the unchanged model output. */
+  confirmedAnswers?: WorkflowDraftApiInputEditAnswers;
+}
+export type WorkflowDraftApiInputEditResult = (
   | {
       status: 'ready';
       contractId: string;
@@ -91,6 +114,12 @@ export type WorkflowDraftApiInputEditResult =
       contractId: string;
       values: WorkflowDraftApiInputEditValues;
       pendingTargets: WorkflowDraftApiInputEditTarget[];
-    };
+    }
+) & {
+  /** Present only when the caller supplied an explicit typed reply. */
+  confirmedAnswers?: WorkflowDraftApiInputEditAnswers;
+};
 export type WorkflowDraftApiInputEditValuesSchema =
   z.ZodType<WorkflowDraftApiInputEditValues>;
+export type WorkflowDraftApiInputEditAnswersSchema =
+  z.ZodType<WorkflowDraftApiInputEditAnswers>;

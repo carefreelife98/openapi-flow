@@ -2,10 +2,10 @@
 
 Composable Node.js libraries for selecting APIs from OpenAPI documents, generating OAS-typed request values with a host-supplied LangChain model, and building importable n8n workflow JSON with the official SDK. No HTTP server, embedded agent loop, API execution, n8n deployment, or mandatory MCP connection.
 
-Version **0.3.2** is published as `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.2.md) distinguishes source synchronization, publication and the retained Ajv limitation.
+Version **0.3.3** release source for `@openapi-flow/core`, `@openapi-flow/langchain` and `@openapi-flow/n8n`. Keep all three versions aligned. Core 0.1.0 has a different API. Use Node.js 24 or later and supply a compatible LangChain host dependency. The [release record](docs/releases/0.3.3.md) distinguishes source synchronization, publication and the retained Ajv limitation.
 
 ```sh
-npm install @openapi-flow/core@0.3.2 @openapi-flow/langchain@0.3.2 @openapi-flow/n8n@0.3.2 @langchain/core@^1
+npm install @openapi-flow/core@0.3.3 @openapi-flow/langchain@0.3.3 @openapi-flow/n8n@0.3.3 @langchain/core@^1
 ```
 
 See the [0.2.0 release](docs/releases/0.2.0.md), [publication verification](docs/releases/0.2.0-publication.md), [migration guide](docs/migration-0.2.0.md) and [changelog](CHANGELOG.md). The owner approved this candidate after reviewing the measurements; no numeric quality threshold or unseen-service reliability guarantee is implied. To build the source workspace, run `npm ci && npm run build`.

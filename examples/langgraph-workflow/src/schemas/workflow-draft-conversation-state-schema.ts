@@ -31,6 +31,7 @@ import type {
   WorkflowDraftConversationClarificationHistory,
   WorkflowDraftConversationNativeFeature,
   WorkflowDraftConversationInputAnswerExtraction,
+  WorkflowDraftConversationApiInputEditAnswerSubmission,
 } from '../types/workflow-draft-conversation.js';
 
 export const draftConversationInputSchema = new StateSchema({
@@ -90,6 +91,9 @@ export const draftConversationStateSchema = new StateSchema({
     .optional(),
   inputAnswerHistory: z
     .array(z.custom<WorkflowDraftConversationInputAnswerExtraction>())
+    .optional(),
+  apiInputEditAnswerHistory: z
+    .array(z.custom<WorkflowDraftConversationApiInputEditAnswerSubmission>())
     .optional(),
   issues: z.array(z.string()).optional(),
   selectionApproved: z.boolean().optional(),
