@@ -7,6 +7,7 @@ export interface ExtractApiInputAnswersInput {
   requirements: ApiInputRequirement[];
   reply: string;
   model: BaseChatModel;
+  selectOasEnums?: boolean;
 }
 
 export interface AnalyzeApiInputAnswersInput extends Omit<

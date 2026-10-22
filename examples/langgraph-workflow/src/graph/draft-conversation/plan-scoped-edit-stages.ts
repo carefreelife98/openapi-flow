@@ -47,6 +47,7 @@ export async function generateDraftConversationApiInputValues(
     ...input,
     stepId: bundle.stepId,
     contract: bundle.apiInputContract,
+    selectOasEnums: dependencies.selectOasEnums,
     model: dependencies.model,
   });
   if (result.status === 'needs-input')

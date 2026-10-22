@@ -12,6 +12,9 @@ import { applyWorkflowDraftApiInputEdits } from '../values/apply-workflow-draft-
 import { validateApiArguments } from '../../../arguments/validate-api-arguments.js';
 import { orderWorkflowDraftValueEdits } from '../values/order-workflow-draft-value-edits.js';
 import { verifyApiInputLiteralSource } from '../../../arguments/sources/verify-api-input-literal-source.js';
+import { describeWorkflowDraftApiInputEditEnumChoices } from './describe-workflow-draft-api-input-edit-enum-choices.js';
+import { verifyWorkflowDraftApiEnumSelection } from '../enum/verify-workflow-draft-api-enum-selection.js';
+import type { VerifiedWorkflowDraftApiEnumSelection } from '../../../types/workflow-draft-api-enum-selection.js';
 
 /** Exact-source validation is deterministic; it is not semantic entailment proof. */
 export function resolveWorkflowDraftApiInputEdits(
@@ -36,12 +39,30 @@ export function resolveWorkflowDraftApiInputEdits(
   const sets: WorkflowDraftValueEdit[] = [];
   const removals: WorkflowDraftValueEdit[] = [];
   const pendingTargets: WorkflowDraftApiInputEditTarget[] = [];
+  const enumSelections: VerifiedWorkflowDraftApiEnumSelection[] = [];
+  const { candidates } = describeWorkflowDraftApiInputEditEnumChoices(input);
   for (const target of input.contract.targets) {
     if (target.kind === 'remove') {
       removals.push({ kind: 'remove', pointer: target.pointer });
       continue;
     }
     const answer = output.values[target.id];
+    if (answer.status === 'oas-enum') {
+      const selection = verifyWorkflowDraftApiEnumSelection({
+        selection: answer.selection,
+        candidates: candidates.filter(
+          (candidate) => candidate.targetPointer === target.pointer,
+        ),
+        messages: described.messages,
+      });
+      sets.push({
+        kind: 'set',
+        pointer: target.pointer,
+        value: structuredClone(selection.value),
+      });
+      enumSelections.push(selection);
+      continue;
+    }
     if (answer.explanation)
       validateWorkflowPlanningEvidence({
         context: { messages: described.messages },
@@ -82,6 +103,7 @@ export function resolveWorkflowDraftApiInputEdits(
       values: output,
       pendingTargets,
       ...human,
+      ...(enumSelections.length ? { enumSelections } : {}),
     };
   // Targets address the original value. Set before deletion; remove higher array
   // indices first so one deletion does not retarget another original index.
@@ -106,6 +128,7 @@ export function resolveWorkflowDraftApiInputEdits(
     contractId: input.contract.id,
     values: output,
     ...human,
+    ...(enumSelections.length ? { enumSelections } : {}),
     resolution: {
       stepId: input.stepId,
       kind: 'api-inputs',

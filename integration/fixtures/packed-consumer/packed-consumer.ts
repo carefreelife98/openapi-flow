@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
+import { verifyConsumerApiEditReply } from './api-input-reply-consumer.js';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, sep } from 'node:path';
@@ -2582,6 +2583,7 @@ assert.deepEqual(
 assert.equal(typedEditResult.status, 'ready');
 assert.deepEqual(typedEditResult.values, pendingTypedEdit.output);
 assert.deepEqual(typedEditResult.confirmedAnswers, typedPacket);
+verifyConsumerApiEditReply(pendingTypedEdit, typedPacket.answers[0]!.value);
 const typedEditCandidate = assembleWorkflowDraftEdit({
   ...typedEditInput,
   resolutions: [typedEditResult.resolution],
@@ -3027,6 +3029,7 @@ console.log(
     draftEditAssembly: 'passed',
     draftApiInputEditing: 'passed',
     typedApiInputEditAnswers: 'passed',
+    sourceValidatedApiInputEditReplies: 'passed',
     draftApiBindingEditing: 'passed',
     draftConnectionEditing: 'passed',
     draftNativeParameterEditing: 'passed',

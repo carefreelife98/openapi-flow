@@ -74,6 +74,8 @@ export interface WorkflowDraftConversationDependencies {
   planApiBindingInputs?: boolean;
   /** Track scenario-requested optional literals in the existing argument call. */
   trackRequestedApiInputs?: boolean;
+  /** Select semantic meanings only from original OAS enum candidates. */
+  selectOasEnums?: boolean;
   itemMode?: 'linked';
   deployments?: N8nTemplateDeployment[];
   /** Explicit question budgets enable request clarification; no hidden environment defaults. */
@@ -128,12 +130,16 @@ export interface WorkflowDraftConversationClarificationEvidence {
   requestMessageIds: string[];
 }
 
-export interface WorkflowDraftConversationInputAnswerExtraction {
+export interface WorkflowDraftConversationInputAnswerExtractionRecord {
   messageId: string;
+  planId: string;
   token: string;
   context: ApiInputAnswerContext;
   analysis: ApiInputAnswerAnalysis;
 }
+export type WorkflowDraftConversationInputAnswerExtraction =
+  WorkflowDraftConversationInputAnswerExtractionRecord &
+    ({ kind: 'api-input' } | { kind: 'api-input-edit'; stepId: string });
 /** Private typed submissions, not synthetic natural-language evidence. */
 export interface WorkflowDraftConversationApiInputEditAnswerSubmission {
   messageId: string;

@@ -34,6 +34,10 @@ import type {
 } from './workflow-draft-api-binding-clarification.js';
 import type { WorkflowDraftApiBindingIntent } from './workflow-draft-api-binding-intent.js';
 import type { BindingSchema } from './api-bindings.js';
+import type {
+  WorkflowDraftApiEnumSelection,
+  VerifiedWorkflowDraftApiEnumSelection,
+} from './workflow-draft-api-enum-selection.js';
 
 /** One operation already selected by an add-api-call or replace-api-operation decision. */
 export interface WorkflowDraftApiCallPlanningInput extends PrepareWorkflowDraftEditInput {
@@ -135,11 +139,14 @@ export interface WorkflowDraftApiCallArgumentsDescription extends WorkflowDraftA
 export interface ResolveWorkflowDraftApiCallArgumentsInput extends WorkflowDraftApiCallArgumentsInput {
   fingerprint: string;
   proposal: WorkflowDraftApiCallArgumentsProposal;
+  /** Semantic OAS choices, never raw user literal provenance or confirmed user answers. */
+  enumSelections?: WorkflowDraftApiEnumSelection[];
 }
 export interface WorkflowDraftApiCallArgumentsResultFields extends ResolvedWorkflowDraftSourceEvidence {
   fingerprint: string;
   proposal: WorkflowDraftApiCallArgumentsProposal;
   literalSources: VerifiedWorkflowDraftApiLiteralSource[];
+  enumSelections?: VerifiedWorkflowDraftApiEnumSelection[];
   arguments: ApiCallArguments;
   requirements: ApiInputRequirement[];
 }

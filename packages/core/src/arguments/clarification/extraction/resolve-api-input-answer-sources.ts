@@ -6,6 +6,7 @@ import { apiInputAnswerSourcesSchema } from '../../../schemas/api-input-answer-e
 import { captureApiInputAnswerContext } from './capture-api-input-answer-context.js';
 import { readApiInputLiteralSource } from '../../sources/read-api-input-literal-source.js';
 import { createOasValueValidator } from '../../../openapi/common/create-oas-value-validator.js';
+import { apiInputRequirementDialect } from '../api-input-requirement-dialect.js';
 
 /** Model-selected source text is the only value source, never a model-generated value. */
 export function resolveApiInputAnswerSources(
@@ -37,9 +38,7 @@ export function resolveApiInputAnswerSources(
     });
     const checked = createOasValueValidator(
       requirement.schema,
-      requirement.openapiVersion.startsWith('3.0.')
-        ? 'openapi-3.0'
-        : 'draft-2020-12',
+      apiInputRequirementDialect(requirement),
       `answer ${requirement.targetPointer}`,
     ).validate(value);
     if (!checked.valid)

@@ -2,13 +2,15 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
   captureApiInputAnswerContext,
   createApiInputAnswerExtractionRecord,
-  resolveApiInputAnswerSources,
+  resolveApiInputAnswerInterpretations,
+  describeApiInputEnumAnswerChoices,
   describeApiInputSources,
   resolveApiInputSourceSelections,
 } from '@openapi-flow/core';
 import type {
   ApiInputAnswerAnalysis,
   ApiInputAnswerExtractionRecord,
+  ApiInputEnumAnswerSelection,
 } from '@openapi-flow/core';
 import type {
   AnalyzeApiInputAnswersInput,
@@ -27,10 +29,14 @@ export async function analyzeApiInputAnswers(
 ): Promise<ApiInputAnswerAnalysis> {
   const options = apiInputAnswerExplanationOptionsSchema.parse({
     includeExplanations: input.includeExplanations,
+    selectOasEnums: input.selectOasEnums,
   });
   const snapshot = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(options.selectOasEnums === undefined
+      ? {}
+      : { selectOasEnums: options.selectOasEnums }),
   });
   if (
     input.model !== undefined &&
@@ -60,10 +66,12 @@ export async function analyzeApiInputAnswers(
     throw new Error(
       'analyzeApiInputAnswers.model is required for a nonempty reply with pending inputs',
     );
+  const enumChoices = describeApiInputEnumAnswerChoices(snapshot);
   const schema = createApiInputAnswerSourceSchema(
     snapshot.requirements,
     catalog,
     options.includeExplanations === true,
+    enumChoices,
   );
   const output = await input.model
     .withStructuredOutput<ApiInputAnswersOutput>(
@@ -81,6 +89,7 @@ export async function analyzeApiInputAnswers(
           reply: snapshot.reply,
           questions: snapshot.requirements,
           sources: catalog,
+          ...(enumChoices.length ? { enumChoices } : {}),
         }),
       ),
     ]);
@@ -91,14 +100,40 @@ export async function analyzeApiInputAnswers(
   );
   const selections = resolveApiInputSourceSelections({
     ...snapshot,
-    selections: parsed.answers.map(({ requirementId, source }) => ({
-      requirementId,
-      source,
-    })),
+    selections: parsed.answers.flatMap(({ requirementId, source }) =>
+      source.kind === 'oas-enum' ? [] : [{ requirementId, source }],
+    ),
   });
-  const resolved = resolveApiInputAnswerSources({
+  const enumSelections: ApiInputEnumAnswerSelection[] = parsed.answers.flatMap(
+    (answer) => {
+      if (answer.source.kind !== 'oas-enum') return [];
+      if (typeof answer.reason !== 'string')
+        throw new Error(
+          `Enum answer ${answer.requirementId} requires an explanation`,
+        );
+      const [intent] = resolveApiInputSourceSelections({
+        ...snapshot,
+        selections: [
+          { requirementId: answer.requirementId, source: answer.source.intent },
+        ],
+      });
+      return [
+        {
+          requirementId: answer.requirementId,
+          candidateId: answer.source.candidateId,
+          intent: {
+            sourceFormat: intent.sourceFormat,
+            sourceText: intent.sourceText,
+          },
+          reason: answer.reason,
+        },
+      ];
+    },
+  );
+  const resolved = resolveApiInputAnswerInterpretations({
     ...snapshot,
     selections,
+    ...(enumSelections.length ? { enumSelections } : {}),
   });
   let extraction: ApiInputAnswerExtractionRecord | undefined;
   if (options.includeExplanations === true) {
@@ -110,21 +145,23 @@ export async function analyzeApiInputAnswers(
       ...snapshot,
       decision: {
         reason: parsed.reason,
-        answers: parsed.answers.map((source, index) => {
-          if (typeof source.reason !== 'string')
+        answers: selections.map((selection) => {
+          const source = parsed.answers.find(
+            (answer) => answer.requirementId === selection.requirementId,
+          );
+          if (typeof source?.reason !== 'string')
             throw new Error(
-              `model answer ${source.requirementId} requires an explanation`,
+              `model answer ${selection.requirementId} requires an explanation`,
             );
-          return { ...selections[index], reason: source.reason };
+          return { ...selection, reason: source.reason };
         }),
+        ...(enumSelections.length ? { enumSelections } : {}),
       },
     });
   }
   return {
     status: 'extracted',
-    answers: resolved.answers,
-    sources: resolved.sources,
-    unansweredRequirementIds: resolved.unansweredRequirementIds,
+    ...resolved,
     ...(extraction === undefined ? {} : { extraction }),
   };
 }

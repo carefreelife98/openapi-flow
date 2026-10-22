@@ -9,14 +9,16 @@ import type {
 } from '../../types/workflow-draft-conversation.js';
 import { draftConversationEditInput } from './draft-conversation-context.js';
 import { describeDraftConversationApiInputEditQuestions } from './describe-draft-conversation-api-input-edit-questions.js';
+import { resolveDraftConversationApiInputEditAnswerExtraction } from './resolve-draft-conversation-api-input-edit-answer-extraction.js';
 
-/** Apply real typed submissions to the unchanged proposal; never manufacture text evidence. */
+/** Typed and source-verified natural replies apply to the unchanged proposal. */
 export function applyDraftConversationApiInputEditAnswers(
   state: WorkflowDraftConversationState,
   dependencies: WorkflowDraftConversationDependencies,
 ): WorkflowDraftConversationUpdate {
   if (
-    state.response?.action !== 'answer-api-input-edits' ||
+    (state.response?.action !== 'answer-api-input-edits' &&
+      state.response?.action !== 'reply-api-input-edits') ||
     !state.messages ||
     !state.requestIds ||
     !state.bundles ||
@@ -38,18 +40,49 @@ export function applyDraftConversationApiInputEditAnswers(
       issues: [`메시지 ID가 이미 존재합니다: ${response.messageId}`],
       response: undefined,
     };
+  const confirmedAnswers =
+    response.action === 'answer-api-input-edits'
+      ? response.confirmedAnswers
+      : resolveDraftConversationApiInputEditAnswerExtraction(
+          state,
+          dependencies,
+        );
+  const natural: WorkflowDraftConversationUpdate = {};
+  if (response.action === 'reply-api-input-edits') {
+    if (!state.inputAnswerExtraction || !state.inputAnswerHistory)
+      throw new Error(
+        'Natural API edit answers require initialized extraction and source history',
+      );
+    natural.messages = [
+      ...state.messages,
+      { id: response.messageId, text: response.text },
+    ];
+    natural.requestIds = [...state.requestIds, response.messageId];
+    natural.inputAnswerHistory = [
+      ...state.inputAnswerHistory,
+      structuredClone(state.inputAnswerExtraction),
+    ];
+    natural.inputAnswerExtraction = undefined;
+    if (!confirmedAnswers.answers.length)
+      return {
+        ...natural,
+        issues: [
+          '답변에 현재 수정 질문의 새 값이 없습니다. 값을 명시하거나 작업 범위 변경을 요청해 주세요.',
+        ],
+        response: undefined,
+      };
+  }
   const questions = state.questions.filter(
     (question) =>
       question.kind === 'api-input-edit' && question.stepId === response.stepId,
   );
   if (
     !questions.length ||
-    response.confirmedAnswers.answers.some(
+    confirmedAnswers.answers.some(
       (answer) =>
         !questions.some(
           (question) =>
-            question.apiInputEditContractId ===
-              response.confirmedAnswers.contractId &&
+            question.apiInputEditContractId === confirmedAnswers.contractId &&
             question.apiInputEditTarget?.id === answer.targetId,
         ),
     )
@@ -87,14 +120,15 @@ export function applyDraftConversationApiInputEditAnswers(
       repairs: bundle.repairs,
       stepId: bundle.stepId,
       contract: bundle.apiInputContract,
+      selectOasEnums: dependencies.selectOasEnums,
       output: previous.values,
       confirmedAnswers: {
-        ...response.confirmedAnswers,
+        ...confirmedAnswers,
         answers: [
           ...(previous.confirmedAnswers === undefined
             ? []
             : previous.confirmedAnswers.answers),
-          ...response.confirmedAnswers.answers,
+          ...confirmedAnswers.answers,
         ],
       },
     });
@@ -121,11 +155,15 @@ export function applyDraftConversationApiInputEditAnswers(
       ],
       apiInputEditAnswerHistory: [
         ...state.apiInputEditAnswerHistory,
-        {
-          messageId: response.messageId,
-          stepId: response.stepId,
-          confirmedAnswers: structuredClone(response.confirmedAnswers),
-        },
+        ...(response.action === 'answer-api-input-edits'
+          ? [
+              {
+                messageId: response.messageId,
+                stepId: response.stepId,
+                confirmedAnswers: structuredClone(confirmedAnswers),
+              },
+            ]
+          : []),
       ],
       requestIds: [...state.requestIds, response.messageId],
       events: [
@@ -135,6 +173,7 @@ export function applyDraftConversationApiInputEditAnswers(
       response: undefined,
       issues: [],
       phase: 'planning',
+      ...natural,
     };
   } catch (error) {
     if (!(error instanceof Error)) throw error;

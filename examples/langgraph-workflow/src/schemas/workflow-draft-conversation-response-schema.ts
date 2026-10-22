@@ -9,6 +9,13 @@ import {
 
 export const draftConversationResponseSchema = z.discriminatedUnion('action', [
   z.strictObject({
+    action: z.literal('reply-api-input-edits'),
+    token: z.string().min(1),
+    messageId: z.string().refine((id) => id.trim().length > 0),
+    stepId: z.string().min(1),
+    text: z.string().min(1),
+  }),
+  z.strictObject({
     action: z.literal('answer-api-input-edits'),
     token: z.string().min(1),
     messageId: z.string().refine((id) => id.trim().length > 0),

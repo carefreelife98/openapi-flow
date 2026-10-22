@@ -152,6 +152,7 @@ export async function generateDraftConversationApiArguments(
     confirmedInputs: bundle.confirmedInputs,
     allowRuntimeInputs: dependencies.allowRuntimeInputs,
     trackRequestedInputs: dependencies.trackRequestedApiInputs,
+    selectOasEnums: dependencies.selectOasEnums,
     model: dependencies.model,
   });
   const update = completeDraftConversationWork(

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
 import { apiInputLiteralSourceSchema } from './api-input-literal-source-schema.js';
 import { requestedApiInputsSchema } from './requested-api-inputs-schema.js';
+import { apiInputEnumAnswerSelectionsSchema } from './api-input-enum-answer-selection-schema.js';
 
 export const apiInputRequirementSchema = z.strictObject({
   kind: z.enum(['missing-input', 'requested-input']),
@@ -12,6 +13,7 @@ export const apiInputRequirementSchema = z.strictObject({
   targetPointer: z.string().min(1),
   schema: z.union([z.boolean(), z.record(z.string(), z.json())]),
   openapiVersion: z.string().min(1),
+  schemaDialect: z.literal('draft-2020-12').optional(),
   operationSummary: z.string().optional(),
   parameterDescription: z.string().optional(),
   message: z.string().min(1),
@@ -20,6 +22,7 @@ export const apiInputRequirementSchema = z.strictObject({
 export const apiInputAnswerContextSchema = z.strictObject({
   reply: z.string(),
   requirements: z.array(apiInputRequirementSchema),
+  selectOasEnums: z.boolean().optional(),
 });
 
 export const apiInputAnswerSourceSchema = apiInputLiteralSourceSchema.extend({
@@ -33,4 +36,5 @@ export const apiInputAnswerExtractionDecisionSchema = z.strictObject({
   answers: z.array(
     apiInputAnswerSourceSchema.extend({ reason: z.string().min(1) }),
   ),
+  enumSelections: apiInputEnumAnswerSelectionsSchema.optional(),
 });

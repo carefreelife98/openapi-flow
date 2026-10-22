@@ -37,6 +37,8 @@ export interface ApiInputRequirement {
   targetPointer: string;
   schema: JsonObject | boolean;
   openapiVersion: string;
+  /** Present only when schema is an already-normalized OAS projection. Omission means raw source-version rules. */
+  schemaDialect?: 'draft-2020-12';
   operationSummary?: string;
   parameterDescription?: string;
   message: string;

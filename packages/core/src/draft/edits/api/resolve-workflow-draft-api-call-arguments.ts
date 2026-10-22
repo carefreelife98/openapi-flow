@@ -9,6 +9,7 @@ import { inspectApiArgumentRequirements } from '../../../arguments/clarification
 import { resolveWorkflowDraftSourceEvidence } from '../references/resolve-workflow-draft-source-evidence.js';
 import { jsonValuesEqual } from '../../../utils/json-values-equal.js';
 import { resolveWorkflowDraftApiLiteralSources } from './resolve-workflow-draft-api-literal-sources.js';
+import { resolveWorkflowDraftApiEnumSelections } from './resolve-workflow-draft-api-enum-selections.js';
 
 /** Resolve one actual request; partial values become typed questions/slots, never dummy data. */
 export function resolveWorkflowDraftApiCallArguments(
@@ -26,13 +27,18 @@ export function resolveWorkflowDraftApiCallArguments(
     throw new Error(
       'API call arguments must validate without defaults, coercion or transformation',
     );
+  const literalSources = resolveWorkflowDraftApiLiteralSources({
+    description,
+    proposal,
+  });
+  const enums = resolveWorkflowDraftApiEnumSelections({ ...input, proposal });
   const values = applyConfirmedApiInputs({
     callId: description.nodeId,
     operation: description.operation,
     requestMediaType: description.requestMediaType,
     bindings: input.bindingPlan.bindings,
     confirmedInputs: input.confirmedInputs,
-    values: proposal.values,
+    values: enums.values,
   });
   const inspected = inspectApiArgumentRequirements({
     callId: description.nodeId,
@@ -45,10 +51,8 @@ export function resolveWorkflowDraftApiCallArguments(
   const fields = {
     fingerprint,
     proposal,
-    literalSources: resolveWorkflowDraftApiLiteralSources({
-      description,
-      proposal,
-    }),
+    literalSources,
+    ...(enums.selections.length ? { enumSelections: enums.selections } : {}),
     ...resolveWorkflowDraftSourceEvidence({
       description,
       decision: proposal,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.11 — release preparation
+
+- Add opt-in, ID-only interpretation of original OAS enum values for draft argument generation, existing-value edits and pending input replies. Code copies original typed values and retains semantic intent separately from literal-source evidence. No defaults, examples, coercions, field aliases or hidden retries are added.
+- Share candidate enumeration and replay validation in Core. Keep source OpenAPI versions separate from the actual dialect of normalized edit-question schemas, preserving static references, sibling assertions and OAS 3.0 nullable semantics.
+- Support explicit step/token-scoped natural replies to pending API edits in the source reference LangGraph. Preserve the original model proposal and atomic draft while answering partial questions; do not regenerate selected targets or values.
+- Clarify replacement-versus-removal responsibility in model/schema descriptions. An observed real-model wrong removal is retained as quality evidence; a later same-scenario pass after the instruction change does not establish universal semantic correctness.
+- Retain the accepted Ajv `properties.__proto__` limitation and enabled failing regression. Publication and host UI verification are still pending; see the [release preparation](docs/releases/0.3.11.md).
+
 ## 0.3.6 — 2026-10-21
 
 - Preserve human-authored text answers to original choice-backed requirement questions.

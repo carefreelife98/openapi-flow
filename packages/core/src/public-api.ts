@@ -32,8 +32,14 @@ export { resolveApiInputSourceSelections } from './arguments/clarification/extra
 export { createApiInputSourceSelectionSchema } from './schemas/api-input-source-selection-schema.js';
 export { captureApiInputAnswerContext } from './arguments/clarification/extraction/capture-api-input-answer-context.js';
 export { resolveApiInputAnswerSources } from './arguments/clarification/extraction/resolve-api-input-answer-sources.js';
+export { resolveApiInputAnswerInterpretations } from './arguments/clarification/extraction/resolve-api-input-answer-interpretations.js';
+export { describeApiInputEnumAnswerChoices } from './arguments/enum/describe-api-input-enum-answer-choices.js';
+export type * from './types/api-input-enum-answers.js';
 export { createApiInputAnswerExtractionRecord } from './arguments/clarification/extraction/create-api-input-answer-extraction-record.js';
 export { validateApiInputAnswerExtractionRecord } from './arguments/clarification/extraction/validate-api-input-answer-extraction-record.js';
+export { validateApiInputAnswerAnalysis } from './arguments/clarification/extraction/validate-api-input-answer-analysis.js';
+export { describeWorkflowDraftApiInputEditAnswerRequirements } from './draft/edits/inputs/describe-workflow-draft-api-input-edit-answer-requirements.js';
+export { resolveWorkflowDraftApiInputEditReply } from './draft/edits/inputs/resolve-workflow-draft-api-input-edit-reply.js';
 export { applyConfirmedApiInputs } from './arguments/clarification/apply-confirmed-api-inputs.js';
 export { inspectApiArgumentRequirements } from './arguments/clarification/inspect-api-argument-requirements.js';
 export { validateApiInputAnswers } from './arguments/clarification/validate-api-input-answers.js';
@@ -178,6 +184,11 @@ export {
   validateWorkflowDraftNativeDependencyResolutions,
 } from './draft/edits/native/additions/resolve-workflow-draft-native-dependencies.js';
 export type * from './types/workflow-draft-api-call-planning.js';
+export type * from './types/workflow-draft-api-enum-selection.js';
+export type { ApiInputEnumCandidate } from './types/api-input-enum.js';
+export { describeWorkflowDraftApiEnumChoices } from './draft/edits/api/describe-workflow-draft-api-enum-choices.js';
+export { createWorkflowDraftApiEnumSelectionSchema } from './schemas/workflow-draft-api-enum-selection-schema.js';
+export { describeWorkflowDraftApiInputEditEnumChoices } from './draft/edits/inputs/describe-workflow-draft-api-input-edit-enum-choices.js';
 export type * from './types/workflow-draft-api-binding-intent.js';
 export { describeWorkflowDraftApiBindingIntent } from './draft/edits/api/describe-workflow-draft-api-binding-intent.js';
 export { createWorkflowDraftApiBindingIntentSchema } from './schemas/workflow-draft-api-binding-intent-schema.js';

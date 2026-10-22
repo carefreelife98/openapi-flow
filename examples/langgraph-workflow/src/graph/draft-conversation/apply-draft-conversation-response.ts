@@ -23,7 +23,10 @@ export function applyDraftConversationResponse(
   state: WorkflowDraftConversationState,
   dependencies: WorkflowDraftConversationDependencies,
 ): WorkflowDraftConversationUpdate {
-  if (state.response?.action === 'answer-api-input-edits')
+  if (
+    state.response?.action === 'answer-api-input-edits' ||
+    state.response?.action === 'reply-api-input-edits'
+  )
     return applyDraftConversationApiInputEditAnswers(state, dependencies);
   if (state.response?.action === 'answer-api-bindings')
     return applyDraftConversationApiBindingAnswers(state, dependencies);

@@ -22,6 +22,7 @@ export async function canonicalInputReplyFixture({
   deployments,
   capabilities = [],
   allowRuntimeParameters = false,
+  selectOasEnums,
 } = {}) {
   const source = globalThis.structuredClone(spec);
   if (twoInputs)
@@ -119,6 +120,8 @@ export async function canonicalInputReplyFixture({
                   };
                 if (options.name === 'generate_draft_api_call_arguments')
                   return { values: {}, ...apiEvidence };
+                if (options.name === 'select_draft_api_enum_choices')
+                  return { selections: [] };
                 if (options.name === 'plan_draft_connection_edit')
                   return {
                     decisions: [
@@ -142,6 +145,7 @@ export async function canonicalInputReplyFixture({
     reviewPolicy: 'review',
     includeExplanations,
     allowRuntimeParameters,
+    ...(selectOasEnums === undefined ? {} : { selectOasEnums }),
     ...(deployments === undefined ? {} : { deployments }),
   };
   const graph = createWorkflowDraftConversationGraph(dependencies);

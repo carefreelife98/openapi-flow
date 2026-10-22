@@ -1,8 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import {
-  resolveApiInputAnswerSources,
-  validateApiInputAnswerExtractionRecord,
-} from '@openapi-flow/core';
+import { validateApiInputAnswerAnalysis } from '@openapi-flow/core';
 import type { ApiInputAnswerAnalysis } from '@openapi-flow/core';
 import type { WorkflowDraftConversationState } from '../../types/workflow-draft-conversation.js';
 import { draftConversationReviewToken } from './draft-conversation-review-token.js';
@@ -10,10 +7,17 @@ import { draftConversationReviewToken } from './draft-conversation-review-token.
 /** Revalidate separately captured source choices against the actual current question/reply. */
 export function resolveDraftConversationInputAnswerExtraction(
   state: WorkflowDraftConversationState,
+  selectOasEnums?: boolean,
 ): ApiInputAnswerAnalysis {
   const response = state.response;
   const record = state.inputAnswerExtraction;
-  if (response?.action !== 'reply-inputs' || !record || !state.questions)
+  if (
+    response?.action !== 'reply-inputs' ||
+    !record ||
+    record.kind !== 'api-input' ||
+    !state.questions ||
+    !state.plan
+  )
     throw new Error(
       'Natural API input application requires its original extraction result',
     );
@@ -24,53 +28,23 @@ export function resolveDraftConversationInputAnswerExtraction(
   );
   if (
     record.messageId !== response.messageId ||
+    record.planId !== state.plan.id ||
     record.token !== response.token ||
     record.token !== draftConversationReviewToken(state) ||
-    !isDeepStrictEqual(record.context, { reply: response.text, requirements })
+    !isDeepStrictEqual(record.context, {
+      reply: response.text,
+      requirements,
+      ...(selectOasEnums === undefined ? {} : { selectOasEnums }),
+    })
   )
     throw new Error(
       'Natural API input extraction differs from the current reply or pending OAS contracts',
     );
-  if (!Array.isArray(record.analysis.sources))
-    throw new Error(
-      'Natural API input extraction analysis.sources must be an array',
-    );
-  const resolved = resolveApiInputAnswerSources({
+  validateApiInputAnswerAnalysis({
     reply: response.text,
     requirements,
-    selections: record.analysis.sources.map((source) => ({
-      requirementId: source.requirementId,
-      sourceFormat: source.sourceFormat,
-      sourceText: source.sourceText,
-    })),
+    ...(selectOasEnums === undefined ? {} : { selectOasEnums }),
+    analysis: record.analysis,
   });
-  if (
-    !isDeepStrictEqual(resolved, {
-      answers: record.analysis.answers,
-      sources: record.analysis.sources,
-      unansweredRequirementIds: record.analysis.unansweredRequirementIds,
-    })
-  )
-    throw new Error(
-      'Natural API input extraction changed its code-resolved values, locations or unanswered questions',
-    );
-  if (
-    record.analysis.status !==
-    (response.text === '' ? 'empty-reply' : 'extracted')
-  )
-    throw new Error(
-      'Natural API input extraction has an inconsistent analysis status',
-    );
-  if (record.analysis.extraction !== undefined) {
-    validateApiInputAnswerExtractionRecord({
-      reply: response.text,
-      requirements,
-      record: record.analysis.extraction,
-    });
-    if (!isDeepStrictEqual(record.analysis.extraction.verification, resolved))
-      throw new Error(
-        'Natural API input explanation differs from its applied source selection',
-      );
-  }
   return record.analysis;
 }

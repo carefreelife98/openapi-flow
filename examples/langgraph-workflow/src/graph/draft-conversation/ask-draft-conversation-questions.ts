@@ -11,6 +11,7 @@ import { draftConversationReviewToken } from './draft-conversation-review-token.
 import {
   draftConversationEditInput,
   describeDraftConversationPlanningResults,
+  describeDraftConversationEnumSelections,
 } from './draft-conversation-context.js';
 import { describeDraftConversationReviewSuggestions } from './describe-draft-conversation-review-suggestions.js';
 
@@ -36,6 +37,7 @@ export function askDraftConversationQuestions(
       token,
       baseRevision: state.draft!.revision,
       questions: state.questions,
+      enumSelections: describeDraftConversationEnumSelections(state),
       ...(planningResults === undefined ? {} : { planningResults }),
       ...(state.nativeFeatures === undefined
         ? {}
@@ -58,7 +60,7 @@ export function askDraftConversationQuestions(
         ...(state.questions.some(
           (question) => question.kind === 'api-input-edit',
         )
-          ? ['answer-api-input-edits']
+          ? ['answer-api-input-edits', 'reply-api-input-edits']
           : []),
         ...(state.questions.some((question) => question.kind === 'api-input')
           ? ['reply-inputs']
@@ -106,6 +108,19 @@ export function askDraftConversationQuestions(
       issues: ['현재 답변할 API 입력 수정 질문이 없습니다.'],
       response: undefined,
     };
+  if (parsed.data.action === 'reply-api-input-edits') {
+    const stepId = parsed.data.stepId;
+    if (
+      !state.questions.some(
+        (question) =>
+          question.kind === 'api-input-edit' && question.stepId === stepId,
+      )
+    )
+      return {
+        issues: ['현재 자연어로 답할 해당 API 입력 수정 질문이 없습니다.'],
+        response: undefined,
+      };
+  }
   if (
     parsed.data.action === 'reply-inputs' &&
     !state.questions.some((question) => question.kind === 'api-input')

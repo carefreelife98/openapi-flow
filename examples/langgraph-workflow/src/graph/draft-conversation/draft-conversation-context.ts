@@ -15,6 +15,34 @@ import type {
   WorkflowDraftConversationPlanningResults,
 } from '../../types/workflow-draft-conversation.js';
 import { activeDraftConversationMessages } from './active-draft-conversation-messages.js';
+import type { VerifiedWorkflowDraftApiEnumSelection } from '@openapi-flow/core';
+
+/** Enum interpretation always requires visible attribution, independently of debug explanations. */
+export function describeDraftConversationEnumSelections(
+  state: WorkflowDraftConversationState,
+): VerifiedWorkflowDraftApiEnumSelection[] {
+  if (!state.stageResults || !state.inputAnswerHistory)
+    throw new Error(
+      'Enum review requires initialized stageResults and inputAnswerHistory',
+    );
+  return structuredClone([
+    ...Object.values(state.stageResults).flatMap((result) =>
+      'enumSelections' in result ? (result.enumSelections ?? []) : [],
+    ),
+    ...state.inputAnswerHistory
+      .filter((record) => record.planId === state.plan?.id)
+      .flatMap((record) =>
+        (record.analysis.enumSelections ?? []).map((selection) => ({
+          ...selection.candidate,
+          candidateId: selection.candidateId,
+          messageId: record.messageId,
+          sourceText: selection.intent.sourceText,
+          reason: selection.reason,
+          occurrences: selection.occurrences,
+        })),
+      ),
+  ]);
+}
 
 /** Display original records only; do not summarize, regenerate or grant mutation authority. */
 export function describeDraftConversationPlanningResults(

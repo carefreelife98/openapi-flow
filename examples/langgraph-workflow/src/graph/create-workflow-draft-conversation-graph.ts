@@ -136,6 +136,7 @@ export function createWorkflowDraftConversationGraph(
     'planNativeDependencies',
     'planApiBindingInputs',
     'trackRequestedApiInputs',
+    'selectOasEnums',
   ] as const)
     if (
       dependencies[flag] !== undefined &&
@@ -350,7 +351,8 @@ export function createWorkflowDraftConversationGraph(
         state.phase === 'cancelled'
           ? END
           : state.response
-            ? state.response.action === 'reply-inputs'
+            ? state.response.action === 'reply-inputs' ||
+              state.response.action === 'reply-api-input-edits'
               ? 'extractInputAnswers'
               : 'applyResponse'
             : 'awaitQuestions',

@@ -41,7 +41,10 @@ export function applyDraftConversationApiInputAnswers(
   );
   const analysis =
     response.action === 'reply-inputs'
-      ? resolveDraftConversationInputAnswerExtraction(state)
+      ? resolveDraftConversationInputAnswerExtraction(
+          state,
+          dependencies.selectOasEnums,
+        )
       : undefined;
   let answers: ApiInputAnswer[];
   const natural: WorkflowDraftConversationUpdate = {};
@@ -122,6 +125,16 @@ export function applyDraftConversationApiInputAnswers(
       ...args,
       fingerprint: describeWorkflowDraftApiCallArguments(args).fingerprint,
       proposal: previous.proposal,
+      ...(previous.enumSelections === undefined
+        ? {}
+        : {
+            enumSelections: previous.enumSelections.map((selection) => ({
+              candidateId: selection.candidateId,
+              messageId: selection.messageId,
+              sourceText: selection.sourceText,
+              reason: selection.reason,
+            })),
+          }),
     });
     bundle.confirmedInputs = confirmedInputs;
     results[bundle.stepId] = result;

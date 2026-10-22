@@ -18,7 +18,11 @@ export function createWorkflowDraftApiInputEditProposalSchema(
     targets: z
       .array(
         z.strictObject({
-          kind: z.enum(['set', 'remove']),
+          kind: z
+            .enum(['set', 'remove'])
+            .describe(
+              'set replaces a requested field, even when its new value is unknown and must be asked later. remove requires explicit withdrawal/deletion; asking which replacement to use is not removal.',
+            ),
           pointer: z
             .string()
             .min(1)

@@ -10,6 +10,7 @@ import { draftConversationResponseSchema } from '../../schemas/workflow-draft-co
 import { draftConversationReviewToken } from './draft-conversation-review-token.js';
 import { describeDraftConversationReviewSuggestions } from './describe-draft-conversation-review-suggestions.js';
 import { describeDraftConversationPlanningResults } from './draft-conversation-context.js';
+import { describeDraftConversationEnumSelections } from './draft-conversation-context.js';
 
 /** No model or adoption work belongs in this replayed interrupt node. */
 export function askDraftConversationReview(
@@ -41,6 +42,7 @@ export function askDraftConversationReview(
       kind: 'draft-review',
       ...review,
       plan: state.plan,
+      enumSelections: describeDraftConversationEnumSelections(state),
       ...(planningResults === undefined ? {} : { planningResults }),
       ...(state.nativeFeatures === undefined
         ? {}
@@ -98,6 +100,7 @@ export function askDraftConversationReview(
   if (
     parsed.data.action === 'answer-inputs' ||
     parsed.data.action === 'reply-inputs' ||
+    parsed.data.action === 'reply-api-input-edits' ||
     parsed.data.action === 'answer-api-bindings' ||
     parsed.data.action === 'answer-api-input-edits' ||
     parsed.data.action === 'answer-requirement' ||

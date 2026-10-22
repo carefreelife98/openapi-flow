@@ -1,6 +1,7 @@
 import type { ApiInputAnswerContext } from '../../../types/api-input-answer-extraction.js';
 import { apiInputAnswerContextSchema } from '../../../schemas/api-input-answer-extraction-schema.js';
 import { createOasValueValidator } from '../../../openapi/common/create-oas-value-validator.js';
+import { apiInputRequirementDialect } from '../api-input-requirement-dialect.js';
 
 /** Capture supplied pending contracts before any asynchronous model work. */
 export function captureApiInputAnswerContext(
@@ -15,9 +16,7 @@ export function captureApiInputAnswerContext(
     ids.add(requirement.id);
     createOasValueValidator(
       requirement.schema,
-      requirement.openapiVersion.startsWith('3.0.')
-        ? 'openapi-3.0'
-        : 'draft-2020-12',
+      apiInputRequirementDialect(requirement),
       `API input requirement ${requirement.id} ${requirement.targetPointer}`,
     );
   }

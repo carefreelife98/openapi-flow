@@ -9,6 +9,9 @@ export function validateApiInputAnswerExtractionRecord(
   const expected = createApiInputAnswerExtractionRecord({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.selectOasEnums === undefined
+      ? {}
+      : { selectOasEnums: input.selectOasEnums }),
     decision: input.record.decision,
   });
   if (!isDeepStrictEqual(expected, input.record))

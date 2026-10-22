@@ -15,6 +15,11 @@ import type {
 } from './workflow-draft.js';
 import type { JsonObject } from './openapi.js';
 import type { ApiInputLiteralSource } from './api-input-literal-source.js';
+import type { ApiInputAnswerAnalysis } from './api-input-answer-extraction.js';
+import type {
+  WorkflowDraftApiEnumSelection,
+  VerifiedWorkflowDraftApiEnumSelection,
+} from './workflow-draft-api-enum-selection.js';
 import type {
   workflowDraftApiInputEditAnswerSchema,
   workflowDraftApiInputEditAnswersSchema,
@@ -72,6 +77,8 @@ export interface WorkflowDraftApiInputEditContract {
 }
 export interface WorkflowDraftApiInputEditContractInput extends WorkflowDraftApiInputEditInput {
   contract: WorkflowDraftApiInputEditContract;
+  /** Enable ID-only interpretation of declared OAS enum choices, with separate provenance. */
+  selectOasEnums?: boolean;
 }
 export interface WorkflowDraftApiInputEditValueSource extends ApiInputLiteralSource {
   messageId: string;
@@ -83,6 +90,7 @@ export type WorkflowDraftApiInputEditValue = (
       source: WorkflowDraftApiInputEditValueSource;
     }
   | { status: 'needs-input' }
+  | { status: 'oas-enum'; selection: WorkflowDraftApiEnumSelection }
 ) & {
   explanation?: WorkflowDecisionExplanation<WorkflowMessageEvidence>;
 };
@@ -99,8 +107,12 @@ export interface WorkflowDraftApiInputEditAnswerSchemaInput extends WorkflowDraf
   output: WorkflowDraftApiInputEditValues;
 }
 export interface ResolveWorkflowDraftApiInputEditsInput extends WorkflowDraftApiInputEditAnswerSchemaInput {
-  /** Explicit user answers to pending targets, separate from the unchanged model output. */
+  /** Validated user answer values, separate from the unchanged model output. Retain natural-answer analysis independently. */
   confirmedAnswers?: WorkflowDraftApiInputEditAnswers;
+}
+export interface ResolveWorkflowDraftApiInputEditReplyInput extends ResolveWorkflowDraftApiInputEditsInput {
+  reply: string;
+  analysis: ApiInputAnswerAnalysis;
 }
 export type WorkflowDraftApiInputEditResult = (
   | {
@@ -116,8 +128,10 @@ export type WorkflowDraftApiInputEditResult = (
       pendingTargets: WorkflowDraftApiInputEditTarget[];
     }
 ) & {
-  /** Present only when the caller supplied an explicit typed reply. */
+  /** Present when validated user answer values were supplied; natural provenance belongs to the separate answer analysis. */
   confirmedAnswers?: WorkflowDraftApiInputEditAnswers;
+  /** Original OAS values and human intent, not user-provided literal attribution. */
+  enumSelections?: VerifiedWorkflowDraftApiEnumSelection[];
 };
 export type WorkflowDraftApiInputEditValuesSchema =
   z.ZodType<WorkflowDraftApiInputEditValues>;

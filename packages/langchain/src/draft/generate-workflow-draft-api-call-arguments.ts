@@ -16,10 +16,18 @@ import { workflowDraftApiCallArgumentsPrompt } from '../prompts/workflow-draft-a
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { WorkflowDraftApiCallPlanningError } from './workflow-draft-api-call-planning-error.js';
+import { selectWorkflowDraftApiEnums } from './select-workflow-draft-api-enums.js';
 
 export async function generateWorkflowDraftApiCallArguments(
   input: GenerateWorkflowDraftApiCallArgumentsInput,
 ): Promise<WorkflowDraftApiCallArgumentsResult> {
+  if (
+    input.selectOasEnums !== undefined &&
+    typeof input.selectOasEnums !== 'boolean'
+  )
+    throw new Error(
+      'generateWorkflowDraftApiCallArguments.selectOasEnums must be a boolean',
+    );
   const description = describeWorkflowDraftApiCallArguments(input);
   const schema = createWorkflowDraftApiCallArgumentsSchema(input);
   if (!description.hasLiteralInputs)
@@ -89,6 +97,7 @@ export async function generateWorkflowDraftApiCallArguments(
               }
             : {}),
           includeExplanations: description.includeExplanations,
+          selectOasEnums: input.selectOasEnums === true,
         }),
       ),
     ]);
@@ -100,11 +109,17 @@ export async function generateWorkflowDraftApiCallArguments(
     );
     if (!isDeepStrictEqual(parsed, output))
       throw new Error('API call argument output changed during validation');
-    return resolveWorkflowDraftApiCallArguments({
+    const resolutionInput = {
       ...input,
       fingerprint: description.fingerprint,
       proposal: parsed,
-    });
+    };
+    if (input.selectOasEnums === true)
+      return selectWorkflowDraftApiEnums({
+        ...resolutionInput,
+        model: input.model,
+      });
+    return resolveWorkflowDraftApiCallArguments(resolutionInput);
   } catch (cause) {
     if (!(cause instanceof Error)) throw cause;
     throw new WorkflowDraftApiCallPlanningError(

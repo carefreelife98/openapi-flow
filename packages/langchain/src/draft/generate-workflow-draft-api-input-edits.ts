@@ -5,6 +5,7 @@ import {
   createWorkflowDraftApiInputEditValuesSchema,
   describeWorkflowDraftApiInputEdit,
   resolveWorkflowDraftApiInputEdits,
+  describeWorkflowDraftApiInputEditEnumChoices,
 } from '@openapi-flow/core';
 import type {
   WorkflowDraftApiInputEditResult,
@@ -28,6 +29,11 @@ export async function generateWorkflowDraftApiInputEdits(
     createWorkflowMessageEvidenceSelectionSchema(described.messages),
   );
   const contract = structuredClone(input.contract);
+  const selectOasEnums = input.selectOasEnums;
+  const enumChoices =
+    input.selectOasEnums === true
+      ? describeWorkflowDraftApiInputEditEnumChoices(input)
+      : undefined;
   if (!contract.targets.some((target) => target.kind === 'set'))
     return resolveWorkflowDraftApiInputEdits({
       ...input,
@@ -59,6 +65,7 @@ export async function generateWorkflowDraftApiInputEdits(
           messages: described.messages,
           targets: contract.targets.filter((target) => target.kind === 'set'),
           includeExplanations: described.includeExplanations,
+          ...(enumChoices === undefined ? {} : { enumChoices }),
         }),
       ),
     ]);
@@ -74,6 +81,7 @@ export async function generateWorkflowDraftApiInputEdits(
     });
     if (
       JSON.stringify(input.contract) !== JSON.stringify(contract) ||
+      input.selectOasEnums !== selectOasEnums ||
       JSON.stringify(describeWorkflowDraftApiInputEdit(input)) !==
         JSON.stringify(described)
     )

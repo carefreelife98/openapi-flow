@@ -2,10 +2,16 @@ import type {
   ApiInputAnswer,
   ApiInputRequirement,
 } from './api-clarification.js';
+import type {
+  ApiInputEnumAnswerSelection,
+  ResolvedApiInputAnswerInterpretations,
+} from './api-input-enum-answers.js';
 
 export interface ApiInputAnswerContext {
   reply: string;
   requirements: ApiInputRequirement[];
+  /** Allow semantic selection of original OAS enum values, never arbitrary generation. */
+  selectOasEnums?: boolean;
 }
 
 export interface ApiInputAnswerSource {
@@ -41,13 +47,14 @@ export interface ResolvedApiInputAnswerSources {
 export interface ApiInputAnswerExtractionDecision {
   reason: string;
   answers: ExplainedApiInputAnswerSource[];
+  enumSelections?: ApiInputEnumAnswerSelection[];
 }
 
 export interface ApiInputAnswerExtractionRecord {
   kind: 'model-extracted-api-input-answers';
   decision: ApiInputAnswerExtractionDecision;
   evidence: ApiInputAnswerContext;
-  verification: ResolvedApiInputAnswerSources;
+  verification: ResolvedApiInputAnswerInterpretations;
 }
 
 export interface CreateApiInputAnswerExtractionRecordInput extends ApiInputAnswerContext {
@@ -58,7 +65,11 @@ export interface ValidateApiInputAnswerExtractionRecordInput extends ApiInputAns
   record: ApiInputAnswerExtractionRecord;
 }
 
-export interface ApiInputAnswerAnalysis extends ResolvedApiInputAnswerSources {
+export interface ApiInputAnswerAnalysis extends ResolvedApiInputAnswerInterpretations {
   status: 'extracted' | 'no-pending-inputs' | 'empty-reply';
   extraction?: ApiInputAnswerExtractionRecord;
+}
+
+export interface ValidateApiInputAnswerAnalysisInput extends ApiInputAnswerContext {
+  analysis: ApiInputAnswerAnalysis;
 }
