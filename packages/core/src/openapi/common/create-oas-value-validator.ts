@@ -8,6 +8,13 @@ import type {
 } from '../../types/oas-value-validation.js';
 import { normalizeOasValueSchema } from './normalize-oas-value-schema.js';
 import { isObject } from '../../utils/is-object.js';
+import { createOasValueValidationCache } from './create-oas-value-validation-cache.js';
+
+// Internal retention budgets, not limits on accepted OAS contracts or request values.
+const compiledValidators = createOasValueValidationCache({
+  maximumEntries: 64,
+  maximumRetainedSchemaBytes: 1024 * 1024,
+});
 
 export function createOasValueValidator(
   input: OasValueSchema,
@@ -38,7 +45,12 @@ export function createOasValueValidator(
   };
   let validate: OasValueValidation;
   try {
-    validate = createValidator(schema);
+    validate = compiledValidators.getOrCreate(schema, dialect, (snapshot) => {
+      const compiled = createValidator(snapshot);
+      // Scalar parses string documents as YAML; encode actual string values first.
+      return (value) =>
+        compiled(typeof value === 'string' ? JSON.stringify(value) : value);
+    });
   } catch (error) {
     throw new Error(`${source} cannot compile its OAS value schema`, {
       cause: error,
@@ -46,8 +58,6 @@ export function createOasValueValidator(
   }
   return {
     schema,
-    // Scalar parses string documents as YAML; encode actual string values first.
-    validate: (value) =>
-      validate(typeof value === 'string' ? JSON.stringify(value) : value),
+    validate,
   };
 }
