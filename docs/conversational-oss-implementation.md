@@ -94,6 +94,24 @@ the accepted Ajv limitation. README-aligned strict consumption and the final
 16 focused checks also pass. Publication and post-install host validation remain
 separate; see the [0.3.8 release record](releases/0.3.8.md).
 
+Publication and host integration subsequently completed. Source `d8ccabe` was
+pushed first; all three public 0.3.8/latest packages report that gitHead and match
+the independently checked archive SHA-512 values. The private host installed the
+public packages with only the three authorized exact-version exceptions. All 329
+host tests, strict application/test types, format, lint and production builds
+pass; the original JavaScript size warning remains. A test-only correction
+replaced a description-word substring check with the existing strict wire schema
+and explicit private-field rejection regression.
+
+The actual-model/browser path now completes revision 1 with three API branches
+feeding the new response-object capability and zero reported gaps. Explicit
+review feedback clarified sort order and response wrapping; this was a visible
+user-style revision, not a hidden retry or host-specific plan. Eight model calls
+produced three downloads identical to their same-revision server artifacts.
+Address/authentication were absent, so the template keeps Start detached. No
+business-service call or execution of this new generated workflow was performed.
+This known-case result does not close general model-quality or performance work.
+
 ## Short-turn evaluation and planning/runtime contract ownership (2026-10-19)
 
 A fresh first-attempt run of the four existing scenario cohorts observed all
