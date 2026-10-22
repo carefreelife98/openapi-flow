@@ -5,6 +5,7 @@ import { URL } from 'node:url';
 import test from 'node:test';
 import { ChatOpenAI } from '@langchain/openai';
 import { analyzeWorkflowDraftEdit } from '@openapi-flow/langchain';
+import { createWorkflowDraft } from '@openapi-flow/core';
 import {
   workflowDraftEditFixture,
   editDecision,
@@ -16,6 +17,21 @@ const { default: Ajv } = createRequire(
 
 test('real ChatOpenAI wire contracts bind candidate and instance choices while optional evidence display never weakens current-request provenance', async () => {
   const input = await workflowDraftEditFixture();
+  input.draft = createWorkflowDraft({
+    context: input.context,
+    content: {
+      ...input.content,
+      requirements: [
+        {
+          id: 'existing-purpose',
+          text: 'Read a, then b; c is independent.',
+          state: 'confirmed',
+          scope: { kind: 'workflow' },
+          sourceMessageIds: ['request-1'],
+        },
+      ],
+    },
+  });
   let output;
   const requests = [];
   const server = createServer(async (request, response) => {
@@ -104,6 +120,20 @@ test('real ChatOpenAI wire contracts bind candidate and instance choices while o
         'candidate-1',
         'candidate-2',
       ]);
+      const reviseRequirement = branches.find(
+        (branch) => branch.properties.kind.const === 'revise-requirement',
+      );
+      const removeRequirement = branches.find(
+        (branch) => branch.properties.kind.const === 'remove-requirement',
+      );
+      assert.ok(reviseRequirement && removeRequirement);
+      assert.match(reviseRequirement.description, /record itself/);
+      assert.match(reviseRequirement.description, /explicit/);
+      assert.match(reviseRequirement.description, /not.*workflow behavior/);
+      assert.match(removeRequirement.description, /explicit/);
+      assert.deepEqual(reviseRequirement.properties.requirementId.enum, [
+        'existing-purpose',
+      ]);
       assert.equal(
         Object.hasOwn(add.properties, 'explanation'),
         includeExplanations,
@@ -119,6 +149,14 @@ test('real ChatOpenAI wire contracts bind candidate and instance choices while o
           pointer: '',
         });
       assert.match(wire.messages[0].content, /current user's language/);
+      assert.match(
+        wire.messages[0].content,
+        /Do not infer a requirement-record edit/,
+      );
+      assert.match(
+        wire.messages[0].content,
+        /Optional OAS inputs are permitted, not missing requirements/,
+      );
       if (includeExplanations)
         assert.match(
           add.properties.explanation.properties.reason.description,

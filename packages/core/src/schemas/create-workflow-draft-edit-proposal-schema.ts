@@ -165,11 +165,17 @@ export function createWorkflowDraftEditProposalSchema<Operation, Evidence>(
   if (sources.requirementIds.length)
     for (const kind of ['revise-requirement', 'remove-requirement'] as const)
       decisions.push(
-        z.strictObject({
-          kind: z.literal(kind),
-          requirementId: z.enum(sources.requirementIds),
-          ...fields,
-        }),
+        z
+          .strictObject({
+            kind: z.literal(kind),
+            requirementId: z.enum(sources.requirementIds),
+            ...fields,
+          })
+          .describe(
+            kind === 'revise-requirement'
+              ? 'An explicit request to edit the existing requirement record itself: its stored statement, state or scope; not a request to change workflow behavior. API/native node, input, source and connection changes use their own decisions and do not require this bookkeeping edit. A later typed human answer supplies replacement fields.'
+              : 'An explicit request to withdraw this existing requirement record itself, not its API/native nodes or connections. Do not infer record withdrawal from workflow behavior changes.',
+          ),
       );
   if (sources.removedRequirementIds.length)
     decisions.push(

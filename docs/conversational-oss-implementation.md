@@ -4,6 +4,67 @@ This is the implementation ledger for the agreed conversational library scope.
 It is not a claim that the complete product or its UI is implemented. Release
 documents determine npm availability; source-only changes are marked separately.
 
+## Behavior edits versus requirement-record edits (2026-10-22, 0.3.9 source)
+
+A private host short-turn evaluation added an API successfully but also selected
+an unsolicited requirement-record revision, asking for replacement text, state
+and scope. Source tracing confirmed the host opens that form only for an actual
+selected requirement step; it does not attach the form to every behavior edit.
+The shared prompt described revision as a changed statement/state/scope without
+explicitly separating record editing from behavior changes.
+
+The common instructions and Core proposal-schema descriptions now distinguish
+explicit record editing from API/native/input/source/connection changes. They
+retain both decisions when both are requested. Optional OAS inputs are not
+questions merely because they exist; requested unresolved inputs still belong
+to their original typed planning stage. No output fields, identifiers, decision
+vocabulary, runtime validation, value data or host orchestration changed.
+
+A pre-change actual-model semantic probe reproduced API addition plus record
+revision and clarification. With the source change, four one-call controls chose
+API addition/connections, literal-input editing, explicit record revision and
+explicit record withdrawal respectively. The paired addition calls used identical
+user/OAS/draft materials. Their expanded structural output rules are equal after
+excluding descriptions; description metadata changed reference deduplication,
+not accepted values. Outgoing schemas were never rewritten for the comparison.
+The probe constructs a valid draft explicitly and tests one semantic stage, not
+the original UI checkpoint or a full host run. Reports and original model outputs
+remain private in `.local-artifacts/requirement-edit-boundary/`.
+
+Focused 65 tests pass, including actual HTTP schema validation, behavior-only
+planning without allocated requirement work, typed replacement answers,
+restoration and requested optional inputs. The new wire regression failed before
+the source change. A test helper's unqualified global function caused an initial
+lint error and was corrected without changing production validation. Semantic
+classification remains a model-quality concern, not a new deterministic promise.
+The host retains public 0.3.8 and existing conversations. The owner authorized
+source-first 0.3.9 publication and exact-version installation exceptions, but
+publication and a post-install full browser path are required before claiming
+the UI improvement is delivered.
+
+The full source test run completed with 1,196/1,197 passing and only the unchanged
+owner-accepted Ajv `properties.__proto__` failure. No tests were skipped or
+cancelled. Typecheck, lint and format pass. This is not a fully passing unit run
+or a newly published release; the original failure stays enabled and disclosed.
+After regenerating the actual conversation diagram, 54 original-OAS checks and
+17 edit/wire/graph/document checks pass together. The first combined invocation
+omitted the required private OAS directory and failed before that suite; the
+explicit original-directory rerun is a separate successful 71-test result, not
+a repaired or weakened product contract. No business service or n8n engine was
+called for this guidance-only change.
+
+After version alignment, the separate release gate passed 54 original-OAS checks,
+18 isolated n8n suites, strict independent packed consumption, package metadata
+and archive integrity. Units retain the same 1,196/1,197 result. The security-audit
+request stalled and its test-owned child was stopped after bounded independent
+requests also timed out. A fresh 20-second, zero-retry audit after the owner's
+network confirmation timed out again. The original report remains blocked, not
+overridden; the current vulnerability count is unverified. System certificate
+trust stays enabled and no TLS or audit policy is bypassed. See the
+[0.3.9 source/release record](releases/0.3.9.md) for evidence and current publication
+status. Source synchronization proceeds separately from npm publication; the
+host is not replaced with local source or tarballs.
+
 ## Named API response composition (2026-10-22, 0.3.8 source)
 
 A private original-OAS reproduction reported a native capability gap for wrapping

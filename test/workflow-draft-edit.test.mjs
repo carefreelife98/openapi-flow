@@ -196,6 +196,52 @@ test('partial semantic uncertainty is scoped separately and missing runtime valu
   assert.deepEqual(input.draft.apiCalls[1].values, {});
 });
 
+test('behavior-only decisions do not allocate requirement replacement work or mutate accepted records', async () => {
+  const input = await workflowDraftEditFixture(
+    'Add another lookup and change the current input and route.',
+  );
+  input.draft = createWorkflowDraft({
+    context: input.context,
+    content: {
+      ...input.content,
+      requirements: [
+        {
+          id: 'purpose',
+          text: 'Read a, then b; c is independent.',
+          state: 'confirmed',
+          scope: { kind: 'workflow' },
+          sourceMessageIds: ['request-1'],
+        },
+      ],
+    },
+  });
+  const before = globalThis.structuredClone(input.draft);
+  const plan = createWorkflowDraftEditPlan({
+    ...input,
+    options,
+    proposal: {
+      decisions: [
+        editDecision(
+          { kind: 'add-api-call', operation: input.context.operations[0].key },
+          'Add another lookup',
+        ),
+        editDecision(
+          { kind: 'revise-api-inputs', nodeId: 'a' },
+          'current input',
+        ),
+        editDecision(
+          { kind: 'revise-connections', nodeIds: ['a', 'b'] },
+          'route',
+        ),
+      ],
+    },
+  });
+  assert.equal(plan.steps.length, 3);
+  assert.ok(plan.steps.every((step) => !step.stages.includes('requirements')));
+  assert.deepEqual(input.draft, before);
+  assert.doesNotThrow(() => validateWorkflowDraftEditPlan({ ...input, plan }));
+});
+
 test('stale revisions, approvals, context contracts, request IDs and modified derived plan fields cannot be silently rebased', async () => {
   const input = await workflowDraftEditFixture();
   const proposal = {

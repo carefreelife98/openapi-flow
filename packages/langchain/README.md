@@ -2,7 +2,7 @@
 
 Zod `^4.6.5` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 
-Version **0.3.8**, with matching `@openapi-flow/core@0.3.8`. Existing generic planners consume registered n8n capabilities without a service-specific branch in this patch. Original-choice follow-ups select declared IDs instead of generating their display text. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation and publication/host status are documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.8.md); this release does not rewrite OAS or values to hide it.
+Version **0.3.9**, with matching `@openapi-flow/core@0.3.9`. Shared edit instructions distinguish requested workflow changes from explicit requirement-record editing and do not ask for optional OAS inputs merely because they exist. This guides model selection; it does not guarantee every natural-language classification. Typed answers, original evidence and deterministic validation remain unchanged, with no output filtering or hidden retries. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` validation limitation and publication/host status are documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.9.md); this release does not rewrite OAS or values to hide it.
 
 Optional review follow-ups distinguish unapproved review material from actual user intent and request user-facing text without internal bookkeeping IDs. These are source instructions, not a semantic correctness guarantee or output sanitization. See the [follow-up contract](https://github.com/carefreelife98/openapi-flow/blob/main/docs/workflow-review-suggestions.md).
 
@@ -126,7 +126,7 @@ not strict output that would force absent OAS values. See the
 
 source additions provide `analyzeApiSelection` and `extractApiInputAnswers`. The former separates consequential API-role choices from absent capabilities; the latter extracts only pending, OAS-typed answers and checks their complete value spans against the user's actual reply. Existing selectors remain available. These additions are not included in npm 0.2.0; see the [conversation guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/conversational-generation.md).
 
-Independent model calls for OpenAPI workflows. Version `0.3.8` depends on matching core `0.3.8`.
+Independent model calls for OpenAPI workflows. Version `0.3.9` depends on matching core `0.3.9`.
 
 - `selectApiOperations`: choose catalog candidates and describe capability gaps with structured output.
 - `planApiBindings`: selected OAS contracts and optional declared `nativeOutputs` → output-to-request pointer bindings and request-data gaps, independently of native control-flow planning. API pointers read response bodies; native pointers read the declared JSON output. Neither changes value types or semantics.

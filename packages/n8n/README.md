@@ -2,7 +2,7 @@
 
 Zod `^4.6.5` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
 
-Version **0.3.8**, with matching `@openapi-flow/core@0.3.8`. This patch adds named composition of unchanged API responses through the registered `ComposeApiResponses` capability. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.8.md) for publication and host status.
+Version **0.3.9**, with matching `@openapi-flow/core@0.3.9`. This patch aligns the adapter dependency with the common edit-guidance update; n8n node and runtime implementations are unchanged. Named response composition remains available through `ComposeApiResponses`. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.9.md) for publication and host status.
 
 `createApiResponseObjectCapability({ materials })` / `N8nNativeFeature.ComposeApiResponses` register `compose-api-responses`. The model selects only `fields: [{ name, sourceNodeId, pointer }]`. Code derives value schemas from original OAS contracts, validates full responses and derives join inputs from distinct sources in first-field occurrence order. The compiler reuses official SDK Merge Append and Edit Fields (Set); one source needs no Merge. Literal names, nulls, scalar types and nested values are preserved. Duplicate names, absent pointers, undeclared bodies and ambiguous source item counts fail without defaults or coercion. This is one response item per API invocation, not a native-output projection or per-item batch join. See [the source guide](https://github.com/carefreelife98/openapi-flow#named-api-response-objects-038).
 
@@ -32,7 +32,7 @@ Standalone strict, reviewable and finite-batch compilation also accepts explicit
 
 `resolveN8nNativeFeatures` and `N8nNativeFeature` expose one registry for twelve existing feature families. Omission inventories every family with explicit `ready`/`requires-context` status; an explicit enum list is strict and `[]` selects none. Ready capabilities retain the existing schemas, source declarations and SDK compilers. Material-dependent families require actual OAS/native contracts, not invented placeholders. The published four-feature factory keeps its original selection. See the [registration and extension contract](../../docs/native-feature-registry.md).
 
-Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.8` depends on matching core `0.3.8`.
+Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.9` depends on matching core `0.3.9`.
 
 ## Installed declaration dependencies
 
