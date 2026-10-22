@@ -1,8 +1,98 @@
 # Conversational OSS implementation
 
 This is the implementation ledger for the agreed conversational library scope.
-It is not a claim that the complete product or its UI is implemented. All additions
-below are unreleased and are not available in npm 0.2.0.
+It is not a claim that the complete product or its UI is implemented. Release
+documents determine npm availability; source-only changes are marked separately.
+
+## Named API response composition (2026-10-22, 0.3.8 source)
+
+A private original-OAS reproduction reported a native capability gap for wrapping
+three unchanged API responses under distinct result keys. The registered stream
+collector only produced an array; Merge Append alone did not provide the requested
+object structure. The original failing host remains on public 0.3.7 with its
+failure intact. A new explicit `ComposeApiResponses` family owns the missing
+behavior instead of changing the request, suppressing the gap or altering host
+LangGraph orchestration for this scenario.
+
+The model chooses literal output names and supplied API/pointer references only.
+The implementation derives types from OAS, deduplicates source dependencies (not
+output fields), derives actual input ports and uses existing official Merge/Set
+SDK builders. A single source needs no Merge. Full response guards, strict source
+identity, pointer availability and one-item cardinality remain enforced. Repeated
+source values, dotted/empty output names and every JSON value kind retain meaning
+and type. The output is a new wrapper, not a conversion of the contained data.
+
+Focused registry/structure/source tests pass. The original-OAS suite adds both
+multi-service composition and rejection of body references where the original
+document declares no response value. Isolated n8n imports and executes four cases:
+three independent GET branches -> compiled join/guard/Set -> an OAS POST bound to
+the entire native result. The server and returned echo compare every original
+value unchanged. This is local contract execution, not business-service execution.
+A separate actual-model probe selects the new family without gaps using unchanged
+private OAS contracts; it is one native-planning stage, not a complete UI generation
+claim. No company documents or host code are added to this public repository.
+
+The first verification runs retained harness failures: a missing model timeout,
+starting original-OAS checks while a build removed `dist`, assuming a body existed
+on every first API, and reading the echo execution by callId rather than its actual
+SDK node name. A source build also caught an optional fragment-edge typing error;
+the declared optional absence is handled without changing required values.
+Those results are not relabeled as successes. Final source checks and publication
+remain separately reported. Final unit results are 1,195 passing out of 1,196;
+the only failure is the existing owner-accepted Ajv `properties.__proto__`
+limitation. All 54 original-OAS checks, 30 focused checks, four new local execution
+cases and the existing registry-planning/singleton-response n8n suites pass. The
+new execution cases send 16 local requests; no business API runs. No package is
+published or Qoopilot replaced until
+the required source-first release authorization is granted.
+
+The independent packed-consumer fixture now imports the new factory, enum and
+parameter/input types through public package exports. Three separate test-owned
+call IDs reuse one supplied original operation and explicit literal inputs; no
+previous call's planning receipt is copied to those new roles. Four named output
+fields, including a repeated source, retain three join inputs. Actual API fragment
+names and three corresponding SDK Merge connections are checked. Stable registry
+binding and unknown-source rejection are exercised without deep imports or a
+model call. A separate object-workflow JSON is retained beside the consumer's
+existing result.
+
+The first independent installation succeeded but its new test fixture failed two
+strict TypeScript checks: indexing a generic JSON Schema as a concrete property
+map and reading optional SDK parameters without a presence check. The fixture now
+compares the complete expected schema and checks required runtime fields. Neither
+the library types nor `skipLibCheck: false` is weakened; the failed report remains
+retained. The corrected independent installation and runtime compilation pass
+without workspace symlinks or manually installed n8n transitive dependencies.
+Reports explicitly identify local working-tree archives and no publication; their
+unchanged version numbers do not mean the new feature is available in npm 0.3.7.
+The release-candidate runner also includes the dedicated object-composition n8n
+check in its required integration loop, expanding that loop to 18 suites.
+
+The subsequent full working-tree gate completed all 18 isolated n8n suites,
+54 original-OAS checks, strict independent-consumer installation/compilation,
+typecheck, lint, format, zero-finding dependency audit and three verified package
+archives. Units remain 1,195/1,196 with only the unchanged accepted Ajv failure;
+there were no skips, cancellations or new failures. Report:
+`.local-artifacts/release-candidate/0.3.7-k747Cp/report.json`. The object suite
+again preserved four value cohorts through 16 local requests with no model or
+business-service call. The independent consumer also exercised the new public
+factory and generated its separate ten-node workflow.
+
+This gate tested the unpublished working tree while manifests still declared
+0.3.7; it is not a clean committed 0.3.8 release candidate or proof that npm 0.3.7
+contains this feature. The report records the existing HEAD and tracked diff,
+and the three archived package SHA-512 values were checked again after the run.
+Source-first commit/push, new publication, exact-version host exceptions and
+post-install end-to-end browser verification still await authorization. No
+package version, public host dependency or existing conversation was changed.
+
+The owner subsequently authorized source-first publication of all three 0.3.8
+packages and exact-version-only private-host exceptions. Manifests, internal
+dependencies and package READMEs are aligned. The fresh 0.3.8 gate passed all
+18 isolated n8n suites and 54 original-OAS checks; the only unit failure remains
+the accepted Ajv limitation. README-aligned strict consumption and the final
+16 focused checks also pass. Publication and post-install host validation remain
+separate; see the [0.3.8 release record](releases/0.3.8.md).
 
 ## Short-turn evaluation and planning/runtime contract ownership (2026-10-19)
 

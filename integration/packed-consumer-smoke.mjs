@@ -134,6 +134,8 @@ try {
       integrity,
     })),
     typecheck: 'passed',
+    archiveSource: 'local-working-tree',
+    publication: 'not-performed',
     skippedLibraryChecks: false,
     omittedDevelopmentDependencies: true,
     consumerDependencies,

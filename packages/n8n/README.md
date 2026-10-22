@@ -2,7 +2,9 @@
 
 Zod `^4.6.5` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
 
-Version **0.3.5**, with matching `@openapi-flow/core@0.3.5`. There is no n8n implementation change in this patch. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.5.md) for publication and host status.
+Version **0.3.8**, with matching `@openapi-flow/core@0.3.8`. This patch adds named composition of unchanged API responses through the registered `ComposeApiResponses` capability. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The previously accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.8.md) for publication and host status.
+
+`createApiResponseObjectCapability({ materials })` / `N8nNativeFeature.ComposeApiResponses` register `compose-api-responses`. The model selects only `fields: [{ name, sourceNodeId, pointer }]`. Code derives value schemas from original OAS contracts, validates full responses and derives join inputs from distinct sources in first-field occurrence order. The compiler reuses official SDK Merge Append and Edit Fields (Set); one source needs no Merge. Literal names, nulls, scalar types and nested values are preserved. Duplicate names, absent pointers, undeclared bodies and ambiguous source item counts fail without defaults or coercion. This is one response item per API invocation, not a native-output projection or per-item batch join. See [the source guide](https://github.com/carefreelife98/openapi-flow#named-api-response-objects-038).
 
 `describeN8nManualTrigger()` describes the Manual Trigger already supplied by this compiler. Pass that descriptor as `entrypoint` to native and connection planning so a model sees the actual compiler contract without selecting an extra trigger. The descriptor is not a data producer or a substitute for graph validation.
 
@@ -18,7 +20,7 @@ materializer check presence separately from the unchanged OAS, including missing
 optional descendants of a response-bound object. Strict HTTP node creation also
 rejects missing requested literals. See [requested inputs](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
 
-`resolveN8nNativePlanningFeatures` separates selectable implementation definitions from material readiness. Four source-dependent families can be selected before producers exist, then bind the original contracts through existing snapshots and SDK compilation. No guessed source schema or runtime name is used. See [planning and host integration](../../docs/native-feature-planning.md).
+`resolveN8nNativePlanningFeatures` separates selectable implementation definitions from material readiness. Five source-dependent families can be selected before producers exist, then bind the original contracts through existing snapshots and SDK compilation. No guessed source schema or runtime name is used. See [planning and host integration](../../docs/native-feature-planning.md).
 
 material-dependent array/collection/item-join compilation rebinds current data contracts and resolves runtime names from actual SDK producer exits. `createN8nNativeOutputSources` requires actual `apiResponseContracts` for referenced APIs; partial subsets can declare external native outputs explicitly. Template requests accept `itemMode: 'linked'` for ancestry-preserving item streams. No old-contract/name fallback is used; custom compiler extensions must retain a coherent material binder. See [material snapshots and runtime proof](../../docs/native-material-snapshots.md).
 
@@ -28,9 +30,9 @@ Standalone strict, reviewable and finite-batch compilation also accepts explicit
 
 `describeN8nManualTrigger()` exposes the compiler-owned start contract for requirement planning. Its description and actual SDK trigger creation share one module, so hosts can declare the existing start separately from selectable native instances. It is explicit planning metadata, not a registry default, deployment check or extra trigger node.
 
-`resolveN8nNativeFeatures` and `N8nNativeFeature` expose one registry for eleven existing feature families. Omission inventories every family with explicit `ready`/`requires-context` status; an explicit enum list is strict and `[]` selects none. Ready capabilities retain the existing schemas, source declarations and SDK compilers. Material-dependent families require actual OAS/native contracts, not invented placeholders. The published four-feature factory keeps its original selection. See the [registration and extension contract](../../docs/native-feature-registry.md).
+`resolveN8nNativeFeatures` and `N8nNativeFeature` expose one registry for twelve existing feature families. Omission inventories every family with explicit `ready`/`requires-context` status; an explicit enum list is strict and `[]` selects none. Ready capabilities retain the existing schemas, source declarations and SDK compilers. Material-dependent families require actual OAS/native contracts, not invented placeholders. The published four-feature factory keeps its original selection. See the [registration and extension contract](../../docs/native-feature-registry.md).
 
-Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.3` depends on matching core `0.3.3`.
+Deterministic OpenAPI request-node creation and explicit n8n DAG assembly with the official workflow SDK. Version `0.3.8` depends on matching core `0.3.8`.
 
 ## Installed declaration dependencies
 

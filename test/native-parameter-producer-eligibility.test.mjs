@@ -82,6 +82,7 @@ const expectedKinds = {
   [N8nNativeFeature.JsonOutput]: [],
   [N8nNativeFeature.SplitApiResponseArray]: ['response'],
   [N8nNativeFeature.CollectApiResponses]: ['response'],
+  [N8nNativeFeature.ComposeApiResponses]: ['response'],
   [N8nNativeFeature.SplitNativeOutputArray]: ['node-output'],
   [N8nNativeFeature.JoinApiItems]: ['response', 'node-output'],
 };

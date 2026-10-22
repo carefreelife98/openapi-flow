@@ -17,6 +17,7 @@ export const N8nNativeFeature = Object.freeze({
   JsonOutput: 'json-output',
   SplitApiResponseArray: 'split-api-response-array',
   CollectApiResponses: 'collect-api-responses',
+  ComposeApiResponses: 'compose-api-responses',
   SplitNativeOutputArray: 'split-native-output-array',
   JoinApiItems: 'join-api-items',
 } as const);

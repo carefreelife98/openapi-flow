@@ -4,7 +4,9 @@
 instances exist, while retaining missing context separately. The canonical host
 opts in with `nativeFeatures`; see [planning and prerequisites](native-feature-planning.md).
 
-This source API is unreleased; it is not available in npm 0.2.0.
+This table describes 0.3.8 source. `ComposeApiResponses` is not in npm 0.3.7;
+see the [release status](releases/0.3.8.md) for publication verification. The other
+families retain their existing published contracts.
 
 `N8nNativeFeature` is the enum-like, immutable list of OSS-supported feature
 families. `resolveN8nNativeFeatures` connects them to the existing capability
@@ -51,11 +53,12 @@ retry. Supplied invalid context fails even if an unrelated feature was selected.
 | `JsonOutput` | Host-supplied producer name | `jsonOutput`: explicit name, description and original Zod input schema |
 | `SplitApiResponseArray` | `split-api-response-array` | Non-empty `apiMaterials` from resolved OAS contracts |
 | `CollectApiResponses` | `collect-api-responses` | Non-empty `apiMaterials` from resolved OAS contracts |
+| `ComposeApiResponses` | `compose-api-responses` | Non-empty `apiMaterials`; one response per selected API, with OAS-derived named output fields and code-derived join inputs |
 | `SplitNativeOutputArray` | `split-native-output-array` | Non-empty `nativeOutputSources` with schemas and actual compiled names |
 | `JoinApiItems` | `join-api-items` | At least two distinct `apiMaterials` and non-empty `nativeOutputSources` |
 
 Without context, the all-features inventory contains six `ready` registrations
-and five `requires-context` registrations. The latter retain their feature and
+and six `requires-context` registrations. The latter retain their feature and
 `missingContext` list; they do not contain a dummy capability. The returned
 `capabilities` array contains only ready registrations plus explicitly supplied
 extensions. Hosts must retain and surface pending registrations when relevant,
@@ -112,7 +115,7 @@ The registry does not allocate or deduplicate workflow instances.
 The published `createN8nNativeCapabilities` API still returns its original four
 capabilities in the original order. It now delegates to this registration map
 with that explicit list. It does not silently expand existing consumers to all
-eleven families. New compositions can adopt the explicit enum boundary.
+twelve source families. New compositions can adopt the explicit enum boundary.
 
 Add a new built-in family to `types/native-feature-registry.ts` and its factory
 to `nodes/native/registry/native-feature-definitions.ts`. The exhaustive keyed
@@ -123,7 +126,7 @@ alone does not supply those contracts. This API does not claim support for every
 n8n built-in node, arbitrary code generation or unfinished host edit flows.
 
 `test/native-feature-registry.test.mjs` checks the inventory, strict selection,
-all eleven SDK factories, actual source enums, extension collisions, unchanged
+all twelve SDK factories, actual source enums, extension collisions, unchanged
 four-feature compatibility and a scripted-model native-only compilation. Private
 OAS integration checks preserve resolved operations without copying private
 contracts into packages. Independent tarball consumers check the public enum,

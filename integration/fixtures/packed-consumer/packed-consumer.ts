@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
+import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, sep } from 'node:path';
@@ -1359,6 +1360,13 @@ assert.equal(graphAudit.verification.status, 'validated');
 assert.equal(auditedArgs.literalGeneration?.callId, args.callId);
 const names = { [args.callId]: `Request ${args.callId}` };
 const request = createHttpRequestNode({
+  operation,
+  arguments: args,
+  apiNodeNames: names,
+  apiResponseContracts: { [args.callId]: operation },
+  position: [300, 0],
+});
+const responseObjectWorkflow = verifyConsumerApiResponseObject({
   operation,
   arguments: args,
   apiNodeNames: names,
@@ -2981,6 +2989,10 @@ await writeFile(
   new URL('../workflow.json', import.meta.url),
   JSON.stringify(result.workflow, null, 2),
 );
+await writeFile(
+  new URL('../api-response-object.workflow.json', import.meta.url),
+  JSON.stringify(responseObjectWorkflow, null, 2),
+);
 console.log(
   JSON.stringify({
     installedTarballs: 3,
@@ -3003,6 +3015,9 @@ console.log(
     operationCount: catalog.operations.length,
     workflowNodes: result.workflow.nodes.length,
     runtimeCompilation: 'passed',
+    apiResponseObjectCompilation: 'passed',
+    apiResponseObjectApiRoles: 3,
+    apiResponseObjectWorkflowNodes: responseObjectWorkflow.nodes.length,
     templateCompilation: 'passed',
     requirementsClarification: 'passed',
     registeredNativeFeatures: 'passed',

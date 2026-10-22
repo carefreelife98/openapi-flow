@@ -20,6 +20,7 @@ import {
   resolveN8nNativeFeatures,
   resolveN8nNativePlanningFeatures,
   compileN8nWorkflowTemplate,
+  createApiResponseObjectCapability,
 } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
@@ -2950,6 +2951,77 @@ test('private real OAS contracts compile two distinct call instances of the same
     count++;
   }
   assert.equal(count, files.length);
+});
+
+test('original multi-service OAS response types form named output fields without invented schemas or changed documents', async () => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+    })),
+  );
+  const original = JSON.stringify(sources);
+  const catalog = await createApiCatalog(sources);
+  const operations = await resolveApiOperations(
+    catalog,
+    catalog.operations.map(({ key }) => key),
+  );
+  const declared = operations.filter(
+    (operation) => listApiResponsePointers(operation).length > 0,
+  );
+  const selected = sources.flatMap((source) =>
+    declared
+      .filter((operation) => operation.key.documentId === source.id)
+      .slice(0, 1),
+  );
+  assert.ok(
+    selected.length >= 2,
+    'Original response contracts from multiple services are required',
+  );
+  const materials = selected.map((operation, index) => ({
+    callId: `source-${index + 1}`,
+    operation,
+  }));
+  const capability = createApiResponseObjectCapability({ materials });
+  const fields = materials.map((material, index) => ({
+    name: `result-${index + 1}`,
+    sourceNodeId: material.callId,
+    pointer: '',
+  }));
+  const schema = capability.outputSchema({ fields });
+  for (const [index, material] of materials.entries())
+    assert.deepEqual(
+      schema.properties[`result-${index + 1}`],
+      createResponseValueSchema(material.operation, ''),
+    );
+  const fragment = capability.compile({
+    planned: {
+      id: 'compose',
+      capability: capability.name,
+      parameters: { fields },
+    },
+    position: [0, 0],
+    apiNodeNames: Object.fromEntries(
+      materials.map(({ callId }) => [callId, `Actual ${callId}`]),
+    ),
+  });
+  assert.equal(fragment.exit.type, 'n8n-nodes-base.set');
+  assert.equal(fragment.bindingSources.length, materials.length);
+  for (const operation of operations.filter(
+    (operation) => listApiResponsePointers(operation).length === 0,
+  )) {
+    const bodyless = createApiResponseObjectCapability({
+      materials: [{ callId: 'bodyless', operation }],
+    });
+    assert.throws(
+      () =>
+        bodyless.outputSchema({
+          fields: [{ name: 'body', sourceNodeId: 'bodyless', pointer: '' }],
+        }),
+      /no declared response value/,
+    );
+  }
+  assert.equal(JSON.stringify(sources), original);
 });
 
 test('all private real OAS response contracts compile with the runtime validator without rewritten data', async () => {

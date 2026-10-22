@@ -21,12 +21,12 @@ test('omission inventories every registered feature and exposes unmet context in
     registry.registrations.map((entry) => entry.feature),
     Object.values(N8nNativeFeature),
   );
-  assert.equal(registry.registrations.length, 11);
+  assert.equal(registry.registrations.length, 12);
   assert.equal(registry.capabilities.length, 6);
   const pending = registry.registrations.filter(
     (entry) => entry.status === 'requires-context',
   );
-  assert.equal(pending.length, 5);
+  assert.equal(pending.length, 6);
   assert.ok(pending.every((entry) => entry.missingContext.length > 0));
   assert.deepEqual(
     pending.find((entry) => entry.feature === N8nNativeFeature.JoinApiItems)
@@ -68,6 +68,7 @@ test('explicit feature allowlist preserves order and fails if its source contrac
     N8nNativeFeature.JsonOutput,
     N8nNativeFeature.SplitApiResponseArray,
     N8nNativeFeature.CollectApiResponses,
+    N8nNativeFeature.ComposeApiResponses,
     N8nNativeFeature.SplitNativeOutputArray,
     N8nNativeFeature.JoinApiItems,
   ]) {
