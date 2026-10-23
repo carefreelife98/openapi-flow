@@ -1,5 +1,17 @@
 # openapi-flow
 
+The **0.3.12 release candidate** additionally extends independent
+`generateApiArguments` with opt-in `selectOasEnums` and `trackRequestedInputs`.
+This is not in the public 0.3.11 packages. Enum interpretation enables requested
+path tracking and exact literal-source verification: first-call values must
+match the original scenario without conversion. Actual unanswered OAS enum
+questions then reuse `analyzeApiInputAnswers`; Core copies the selected original
+values and returns separate `enumInterpretation` evidence. Supplied call-purpose
+metadata never becomes a human quotation. No fake edit plan, value removal,
+default selection or invalid-output retry is used. Runtime and release evidence
+for this candidate must be checked separately from the published version. See the
+[0.3.12 candidate record](docs/releases/0.3.12.md) for current status.
+
 Version **0.3.11** is published. Optional OAS enum interpretation supports draft API argument planning, edits to existing API values, and natural-language replies to pending `api-input` and `api-input-edit` questions. With `selectOasEnums: true`, the model selects offered enum candidate IDs; Core copies original typed OAS values and retains separate interpretation receipts. Use `trackRequestedInputs: true` to identify requested optional inputs when adding/replacing an API. Existing-value edits select enum IDs in their normal value call, without an additional enum call. Targeted memory-checkpoint/question/resume/review tests and real-model generation/edit/reply checks passed. Actual Chomsky-generated and edited real-OAS drafts also executed successfully in network-disabled n8n against a loopback contract fixture, not the actual business service. A separate host UI case passed natural-answer review and JSON download using the public packages; that UI artifact was not executed in n8n. Complete lifecycle/dynamic-target coverage, broader model evaluation and initial one-shot enum convenience coverage remain incomplete. No automatic default selection is added.
 
 An enum interpretation is **not** attributed to an exact user-provided literal or silently treated as an OAS default. Results expose `enumSelections` with the original OAS value/location, call identity, cited human text and a short reason. The reference LangGraph includes these per-stage receipts at question and review boundaries even when optional debug explanations are disabled. A pending unrelated input keeps the transaction unapplied until it is answered; its typed reply does not regenerate the selected enum or rewrite its source.

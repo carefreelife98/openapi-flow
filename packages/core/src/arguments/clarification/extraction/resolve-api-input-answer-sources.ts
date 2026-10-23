@@ -15,6 +15,7 @@ export function resolveApiInputAnswerSources(
   const context = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
   });
   const selections = apiInputAnswerSourcesSchema.parse(input.selections);
   const answered = new Set<string>();

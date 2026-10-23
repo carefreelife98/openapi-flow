@@ -1,5 +1,23 @@
 import type { JsonValue } from './api-arguments.js';
 import type { ApiInputAnswerSourceLocation } from './api-input-answer-extraction.js';
+import type { ApiArgumentValues } from './api-arguments.js';
+import type { WorkflowSourceMessage } from './workflow-draft.js';
+
+export interface ApiLiteralProposalSource extends ApiInputLiteralSource {
+  targetPointer: string;
+  messageId: string;
+}
+
+export interface VerifiedApiLiteralProposalSource extends ApiLiteralProposalSource {
+  occurrences: ApiInputAnswerSourceLocation[];
+}
+
+export interface ResolveApiLiteralProposalSourcesInput {
+  callId: string;
+  values: ApiArgumentValues;
+  sources: ApiLiteralProposalSource[];
+  messages: WorkflowSourceMessage[];
+}
 
 export interface ApiInputLiteralSource {
   sourceFormat: 'text' | 'json';

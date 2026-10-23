@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.12 — 2026-10-23 (candidate)
+
+- Extend independent `generateApiArguments` with opt-in OAS enum interpretation and requested-input tracking. Validate literal proposals against original scenario sources before considering semantic enum choices; code copies the selected original OAS values without coercion, defaults or output repair.
+- Derive actual missing enum questions, including explicitly requested nested descendants, without manufacturing a draft/edit plan or filling unrelated required inputs. Preserve the first literal proposal separately from confirmed inputs, bindings and semantic interpretation receipts.
+- Share exact literal-source validation with existing draft edits and preserve optional call-purpose metadata separately from human quotations.
+- Forward the new argument options through source reference generation factories. Retain requested optional inputs during argument-preparation checks and keep repeated API roles and their evidence distinct. The private example is not a published server or a mandatory agent runtime.
+- Keep all three packages and internal Core dependencies aligned at 0.3.12. No external dependency changes are intended. Retain the enabled, owner-accepted Ajv `properties.__proto__` regression and all model-quality limits. Publication and host integration are tracked separately in the [release record](docs/releases/0.3.12.md).
+
 ## 0.3.11 — 2026-10-22
 
 - Add opt-in, ID-only interpretation of original OAS enum values for draft argument generation, existing-value edits and pending input replies. Code copies original typed values and retains semantic intent separately from literal-source evidence. No defaults, examples, coercions, field aliases or hidden retries are added.

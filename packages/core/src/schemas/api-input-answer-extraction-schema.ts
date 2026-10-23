@@ -22,6 +22,11 @@ export const apiInputRequirementSchema = z.strictObject({
 export const apiInputAnswerContextSchema = z.strictObject({
   reply: z.string(),
   requirements: z.array(apiInputRequirementSchema),
+  purpose: z
+    .string()
+    .min(1)
+    .refine((value) => value.trim().length > 0)
+    .optional(),
   selectOasEnums: z.boolean().optional(),
 });
 

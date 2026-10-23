@@ -12,6 +12,7 @@ export function createApiInputAnswerExtractionRecord(
   const evidence = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
       ? {}
       : { selectOasEnums: input.selectOasEnums }),

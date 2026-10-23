@@ -11,6 +11,7 @@ export function resolveApiInputSourceSelections(
   const context = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
   });
   const catalog = describeApiInputSources(context.reply);
   const selections = apiInputAnswerSelectionsSchema.parse(input.selections);

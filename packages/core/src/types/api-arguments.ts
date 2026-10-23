@@ -1,5 +1,7 @@
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiLiteralGenerationRecord } from './api-literal-generation.js';
+import type { ValidateApiInputAnswerAnalysisInput } from './api-input-answer-extraction.js';
+import type { VerifiedApiLiteralProposalSource } from './api-input-literal-source.js';
 
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | JsonValueObject;
@@ -37,6 +39,10 @@ export interface ApiCallArguments extends ApiArgumentProposal {
   requestMediaType?: string;
   /** Optional immutable attribution of the original literal proposal, not final merged values. */
   literalGeneration?: ApiLiteralGenerationRecord;
+  /** Opt-in interpretation of unresolved OAS enum inputs; never verbatim literal attribution. */
+  enumInterpretation?: ValidateApiInputAnswerAnalysisInput;
+  /** Code-verified coverage of the original literal proposal, excluding copied OAS values. */
+  literalSources?: VerifiedApiLiteralProposalSource[];
 }
 export interface ValidateApiArgumentsInput extends ApiArgumentsSchemaInput {
   values: ApiArgumentValues;

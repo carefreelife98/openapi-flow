@@ -37,6 +37,8 @@
 
 기존 생성 factory는 `argumentOptions.includeExplanations`로 최초 리터럴 제안과 확정 입력을 구분한 생성 기록을 제공한다. 선택된 API의 역할은 원래 계약과 함께 검사해 형식·바인딩·값·그래프 계획까지 전달하며, 같은 API의 여러 호출을 하나로 합치지 않는다. [입력 생성 근거와 호출 역할](../../docs/literal-generation-records.md)을 참고한다.
 
+미배포 소스의 시나리오 기반 생성 factory는 `argumentOptions.selectOasEnums`와 `argumentOptions.trackRequestedInputs`도 독립 입력 생성 함수에 전달한다. enum 선택은 실제 미확정 OAS 후보가 있을 때만 수행하며, 요청 추적만 켠 경우에는 의미 선택 호출을 하지 않는다. 검토 준비의 재검사도 요청한 선택 입력을 보존해 미입력을 인자 준비 단계에서 알린다. 여러 호출의 역할별 근거는 따로 남고 후속 그래프 모델에는 전달하지 않는다. `confirmed-only` 대화 경로와 기존 일회성 실패 계약은 유지한다. 공개 `0.3.11`에서 이 옵션이 지원된다고 가정해서는 안 된다.
+
 정본 대화의 본문 형식 단계는 코드 전용 결정·모델 선택·모델의 미지정 판단과 코드 기본값을 구분해 `stageResults`에 남긴다. 해당 계획의 설명 설정을 따르며 추가 설명 호출은 없다. 기존 factory는 별도 `requestMediaOptions.includeExplanations`를 받는다. [선택 경위와 원본 근거](../../docs/request-media-decisions.md)를 참고한다.
 
 기존 생성·대화 factory에 `selectionOptions: { includeExplanations: true }`를 주면 최초 API 선택과 후보 질문에도 이유·원본 근거를 제공한다. 설명은 같은 모델 호출에서 받고 코드는 실제 원문·후보 스냅샷을 붙인다. 이 옵션은 탐색용 선택에만 적용된다. [사용법과 보장 범위](../../docs/api-selection-explanations.md)를 참고한다.

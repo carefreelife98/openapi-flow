@@ -10,6 +10,8 @@ import type {
 export interface ApiInputAnswerContext {
   reply: string;
   requirements: ApiInputRequirement[];
+  /** Caller-supplied call role, separate from the quoted answer/value source. */
+  purpose?: string;
   /** Allow semantic selection of original OAS enum values, never arbitrary generation. */
   selectOasEnums?: boolean;
 }

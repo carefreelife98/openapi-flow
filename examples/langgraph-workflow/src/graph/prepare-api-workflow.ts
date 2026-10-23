@@ -100,6 +100,9 @@ export function createApiPreparationStages(
           bindings: boundCall ? boundCall.bindings : [],
           includeExplanations:
             dependencies.argumentOptions?.includeExplanations,
+          selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
+          trackRequestedInputs:
+            dependencies.argumentOptions?.trackRequestedInputs,
         });
         if (args.unresolvedInputs.length)
           throw new Error(

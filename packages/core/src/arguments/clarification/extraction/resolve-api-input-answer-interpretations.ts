@@ -15,6 +15,7 @@ export function resolveApiInputAnswerInterpretations(
   const context = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
       ? {}
       : { selectOasEnums: input.selectOasEnums }),

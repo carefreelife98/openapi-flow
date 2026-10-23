@@ -2,8 +2,10 @@ import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   describeApiLiteralGeneration,
   createApiLiteralGenerationRecord,
-  validateApiArguments,
   applyConfirmedApiInputs,
+  createApiRequestSchema,
+  inspectApiArgumentRequirements,
+  resolveApiLiteralProposalSources,
 } from '@openapi-flow/core';
 import type { ApiCallArguments } from '@openapi-flow/core';
 import type {
@@ -16,6 +18,7 @@ import {
 } from '../schemas/api-literal-generation-output-schema.js';
 import { apiArgumentsPrompt } from '../prompts/api-arguments-prompt.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
+import { interpretApiArgumentEnums } from './interpret-api-argument-enums.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -31,17 +34,25 @@ export async function generateApiArguments(
     throw new Error('callId must be non-empty');
   const options = apiLiteralGenerationOptionsSchema.parse({
     includeExplanations: input.includeExplanations,
+    selectOasEnums: input.selectOasEnums,
+    trackRequestedInputs: input.trackRequestedInputs,
   });
   const {
     input: snapshot,
     contract,
     context,
   } = describeApiLiteralGeneration(input);
+  const trackInputs =
+    options.trackRequestedInputs === true || options.selectOasEnums === true;
   const schema = createApiLiteralGenerationOutputSchema(
     contract,
     options.includeExplanations === true,
+    trackInputs ? createApiRequestSchema(snapshot) : undefined,
   );
-  let proposed: ApiLiteralGenerationOutput = { values: {} };
+  let proposed: ApiLiteralGenerationOutput = {
+    values: {},
+    ...(trackInputs ? { requestedInputs: [], literalSources: [] } : {}),
+  };
   if (contract.hasLiteralInputs) {
     const model = input.model;
     if (!model || typeof model.withStructuredOutput !== 'function')
@@ -55,7 +66,14 @@ export async function generateApiArguments(
       })
       .invoke([
         new SystemMessage(apiArgumentsPrompt),
-        new HumanMessage(JSON.stringify(context)),
+        new HumanMessage(
+          JSON.stringify({
+            ...context,
+            ...(options.selectOasEnums === true
+              ? { selectOasEnums: true }
+              : {}),
+          }),
+        ),
       ]);
   }
   const parsed = parseStructuredOutput<ApiLiteralGenerationOutput>(
@@ -67,12 +85,32 @@ export async function generateApiArguments(
     ...snapshot,
     values: parsed.values,
   });
-  const validation = validateApiArguments({ ...snapshot, values });
-  return {
+  const requestedInputs =
+    'requestedInputs' in parsed ? parsed.requestedInputs : undefined;
+  const literalSources =
+    'literalSources' in parsed
+      ? resolveApiLiteralProposalSources({
+          callId: snapshot.callId,
+          values: parsed.values,
+          sources: parsed.literalSources.map((source) => ({
+            ...source,
+            messageId: 'scenario',
+          })),
+          messages: [{ id: 'scenario', text: snapshot.scenario }],
+        })
+      : undefined;
+  const inspection = inspectApiArgumentRequirements({
+    ...snapshot,
+    values,
+    requestedInputs,
+  });
+  const result: ApiCallArguments = {
     callId: snapshot.callId,
     values,
     bindings: structuredClone(snapshot.bindings),
-    unresolvedInputs: validation.missingInputs,
+    unresolvedInputs: inspection.requirements.map((item) => item.targetPointer),
+    ...(literalSources === undefined ? {} : { literalSources }),
+    ...(requestedInputs === undefined ? {} : { requestedInputs }),
     ...(snapshot.requestMediaType === undefined
       ? {}
       : { requestMediaType: snapshot.requestMediaType }),
@@ -90,4 +128,19 @@ export async function generateApiArguments(
         }
       : {}),
   };
+  if (options.selectOasEnums === true) {
+    if (literalSources === undefined)
+      throw new Error(
+        'generateApiArguments enum interpretation requires source-verified literalSources',
+      );
+    return interpretApiArgumentEnums({
+      ...snapshot,
+      ...options,
+      arguments: result,
+      proposal: { values: parsed.values },
+      literalSources,
+      model: input.model,
+    });
+  }
+  return result;
 }

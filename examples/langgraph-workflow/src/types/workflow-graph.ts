@@ -58,7 +58,10 @@ export interface GraphDependencies {
     AnalyzeApiRequestMediaTypeInput,
     'includeExplanations'
   >;
-  argumentOptions?: Pick<GenerateApiArgumentsInput, 'includeExplanations'>;
+  argumentOptions?: Pick<
+    GenerateApiArgumentsInput,
+    'includeExplanations' | 'selectOasEnums' | 'trackRequestedInputs'
+  >;
   bindingOptions?: Pick<PlanApiBindingsInput, 'includeExplanations'>;
   nativeOptions?: Pick<PlanNativeNodesInput, 'includeExplanations'>;
   connectionOptions?: Pick<PlanWorkflowConnectionsInput, 'includeExplanations'>;

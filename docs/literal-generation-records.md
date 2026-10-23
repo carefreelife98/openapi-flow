@@ -1,6 +1,7 @@
 # 독립 API 입력 생성의 이유와 근거
 
-이 기능은 미배포 소스에 있으며 npm `0.2.0`에는 없습니다.
+기본 설명·기록 기능은 공개 `0.3.11`에 포함됩니다. 아래의 초기 enum 의미 선택
+옵션은 현재 미배포 작업 소스에만 있으며 공개 `0.3.11`에는 없습니다.
 
 `generateApiArguments`에 `includeExplanations: true`를 주면 같은 값 생성 호출에서
 짧은 이유를 받고 `literalGeneration`을 반환합니다. 코드가 원래 시나리오·선택적
@@ -121,3 +122,93 @@ n8n materialization 설정에 자동으로 복사하지 않습니다. 실행에 
 독립 [바인딩](binding-planning-records.md)·[native](native-planning-records.md)·
 [전체 그래프](graph-planning-records.md)의 설명은 각 단계의 계약으로 분리합니다.
 자연어 답변 추출의 설명과 나머지 검증 범위는 [전체 구현 기록](conversational-oss-implementation.md)을 참고합니다.
+
+## 초기 요청의 enum 의미 선택 (미배포 소스)
+
+“조회수 순으로 조회해줘”와 OAS 값 `"VIEWS"`는 같은 문자열이 아닙니다.
+`selectOasEnums: true`는 이런 의미 선택을 원문 리터럴 생성과 분리합니다.
+요청 경로 추적과 리터럴 출처 검증도 함께 켭니다. 의미 선택 없이 요청한
+선택 입력만 추적하려면 `trackRequestedInputs: true`를 사용할 수 있습니다.
+
+```ts
+import { validateApiInputAnswerAnalysis } from '@openapi-flow/core';
+
+const result = await generateApiArguments({
+  ...input,
+  model,
+  selectOasEnums: true,
+  includeExplanations: true,
+});
+
+if (result.enumInterpretation)
+  validateApiInputAnswerAnalysis(result.enumInterpretation);
+```
+
+`validateApiInputAnswerAnalysis`는 `@openapi-flow/core`의 공개 함수입니다.
+위 코드의 `input`은 실제 선택한 operation·callId·scenario·bindings이며,
+선택적으로 원래 호출의 `purpose`와 확정 입력·본문 형식을 제공합니다.
+가짜 편집 계획이나 임시 API를 만들지 않습니다.
+
+같은 미배포 소스의 시나리오 기반 생성 factory에도
+`argumentOptions: { selectOasEnums: true }`를 전달할 수 있습니다.
+`trackRequestedInputs: true`만 전달하면 요청한 선택 입력은 추적하지만 enum
+의미 선택은 하지 않습니다. 선택한 옵션은 단일·DAG·검토용 준비 경로의 독립
+생성 함수로 전달됩니다. 같은 API의 여러 호출도 각 역할과 입력 기록을 따로
+보존하며, 설명·리터럴 출처·enum 선택 기록은 후속 그래프 모델에 전달하지 않습니다.
+
+검토용 준비 경로는 재검사할 때도 `requestedInputs`를 유지합니다. 답이 없는
+선택 입력을 ready로 표시하지 않고 원래 인자 준비 단계에서 알려줍니다.
+일회성 factory의 기존 fail-fast 계약은 유지하며 자동 질문 루프를 추가하지 않습니다.
+입력을 사람에게서만 받는 `confirmed-only` 대화 경로가 초기 값 생성 호출을
+새로 수행하게 바꾸지도 않습니다.
+
+첫 모델 호출은 원문 값, 요청한 입력 경로, 그 값의 정확한 원문 출처를
+응답합니다. 예를 들어 정렬 값이 의미로만 주어졌다면 다음처럼 비워 둡니다.
+
+```json
+{
+  "values": {},
+  "requestedInputs": ["/query/sort"],
+  "literalSources": [],
+  "explanation": {
+    "reason": "정렬 의도는 있지만 enum 리터럴은 원문에 없습니다."
+  }
+}
+```
+
+빈 매개변수 그룹인 `values: { "query": {} }`도 값이 없는 제안입니다.
+원본 기록을 `{}`로 바꾸지 않습니다. 반대로 빈 본문 객체·배열은 실제 요청
+데이터이므로 그 원문 출처가 필요합니다. 출처 검사는 기존 편집과 같은 공통
+모듈을 사용하며 정확한 원문 위치·JSON 타입 동등성·전체 리터럴 범위를 검사합니다.
+OAS에 허용된 값이라도 원문에 없는 enum을 리터럴로 제출하면 거절합니다.
+잘못된 값을 지우거나 해석 단계로 재시도하지 않습니다.
+
+코드가 첫 제안·확정 입력·바인딩을 검사한 뒤 실제로 남은 enum 질문만
+`analyzeApiInputAnswers`에 전달합니다. 모델은 질문에 속한 OAS 후보 ID와
+원문 의도의 위치, 짧은 이유만 고르고 Core가 원래 JSON 값을 복사합니다.
+선택지나 의도가 없으면 값을 만들지 않으며, 명확하지 않으면 질문을 남깁니다.
+이미 값이 있거나 바인딩·확정 입력이 소유한 필드는 덮어쓰지 않습니다.
+요청한 중첩 필드도 원래 OAS 계약에서 도출하고 나머지 필수 입력은 미확정으로 둡니다.
+
+`literalGeneration.proposedValues`는 최초 리터럴 제안이고 `literalSources`는
+그 제안의 검증된 출처입니다. 의미로 선택한 OAS 값은
+`enumInterpretation.analysis.enumSelections`에 별도로 남습니다. 원문·질문·
+호출 역할은 `enumInterpretation`에서 함께 보존하며, 역할을 사용자 원문 인용으로
+취급하지 않습니다. 호스트는 정상 검토에 값과 짧은 이유를 표시하되 전체
+계약이나 원문을 화면·로그로 자동 전송하지 않아야 합니다.
+
+실제 원본 OAS와 Chomsky의 별도 재확인에서는 API 선택·리터럴 생성·enum 추출
+3회가 모두 HTTP 200이고 원본 `"VIEWS"` 복사와 SDK JSON 컴파일을 확인했습니다.
+첫 실행의 60초 추출 시간 초과와 재확인 도구의 빈 그룹 오인은 별도로 보존했습니다.
+후자는 저장 결과만 다시 평가했으며 모델 재호출·값 삭제로 통과시키지 않았습니다.
+이 모델·컴파일 검증은 새 기능의 Qoopilot 적용이나 업무 API 실행을 뜻하지 않습니다.
+의미 판단의 일반 정확도와 중첩·동적 입력 전체 수명주기는 계속 별도 평가 대상입니다.
+
+2026-10-23에는 같은 저장 결과를 격리 n8n `2.37.10`에서 실행했습니다.
+검사용 loopback 주소와 워크플로우 식별자를 명시해 SDK로 다시 컴파일했으며,
+최초 인자·선택 결과·템플릿 파일의 바이트는 그대로 보존했습니다. 실제 요청은
+`GET /lives/ranking?sort=VIEWS`였고 원본 OAS의 요청·응답 검사를 통과했습니다.
+컨테이너는 외부 네트워크·포트 공개·호스트 마운트·영구 볼륨 없이 실행 후 자동
+제거됐습니다. 추가 모델 호출과 실제 업무 API 호출은 없었습니다. 이는 테스트
+배포 설정으로 재컴파일한 결과의 실행이며 Qoopilot 화면 통합이나 원래 주소 미지정
+템플릿을 그대로 실행한 검증은 아닙니다.

@@ -9,6 +9,7 @@ export function validateApiInputAnswerExtractionRecord(
   const expected = createApiInputAnswerExtractionRecord({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
       ? {}
       : { selectOasEnums: input.selectOasEnums }),

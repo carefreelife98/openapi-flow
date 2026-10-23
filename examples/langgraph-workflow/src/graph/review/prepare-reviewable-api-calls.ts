@@ -124,6 +124,9 @@ export async function prepareReviewableApiMaterials(
             model: dependencies.model,
             includeExplanations:
               dependencies.argumentOptions?.includeExplanations,
+            selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
+            trackRequestedInputs:
+              dependencies.argumentOptions?.trackRequestedInputs,
           })
         : {
             callId: material.callId,
@@ -138,6 +141,7 @@ export async function prepareReviewableApiMaterials(
       ...material,
       values: args.values,
       bindings: args.bindings,
+      requestedInputs: args.requestedInputs,
     });
     args.unresolvedInputs = inspection.requirements.map(
       (item) => item.targetPointer,

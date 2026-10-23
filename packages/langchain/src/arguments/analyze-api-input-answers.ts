@@ -34,6 +34,7 @@ export async function analyzeApiInputAnswers(
   const snapshot = captureApiInputAnswerContext({
     reply: input.reply,
     requirements: input.requirements,
+    ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(options.selectOasEnums === undefined
       ? {}
       : { selectOasEnums: options.selectOasEnums }),
@@ -88,6 +89,9 @@ export async function analyzeApiInputAnswers(
         JSON.stringify({
           reply: snapshot.reply,
           questions: snapshot.requirements,
+          ...(snapshot.purpose === undefined
+            ? {}
+            : { purpose: snapshot.purpose }),
           sources: catalog,
           ...(enumChoices.length ? { enumChoices } : {}),
         }),
