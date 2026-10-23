@@ -1,12 +1,13 @@
 # openapi-flow
 
-Candidate **0.3.13** fixes common draft-planning input omissions: native edit
+Published **0.3.13** fixes common draft-planning input omissions: native edit
 target selection receives the same actual API/native source identities and
 response contracts as value generation, and connection edits receive the supplied
 entrypoint contract. Response-object field labels are workflow configuration,
 not missing business data. No API values, references or model outputs are repaired.
 Publication and host verification are tracked in the
-[0.3.13 release record](docs/releases/0.3.13.md); this candidate is not yet published.
+[0.3.13 release record](docs/releases/0.3.13.md). All three public downloads match
+the source-first reviewed archives; full host conversation verification is separate.
 
 Published **0.3.12** additionally extends independent
 `generateApiArguments` with opt-in `selectOasEnums` and `trackRequestedInputs`.

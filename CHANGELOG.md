@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.13 — candidate, 2026-10-23
+## 0.3.13 — 2026-10-23
 
 - Share code-derived API/native source identities, response declarations and pointer catalogs between native edit target selection and value generation. Preserve request-pending versus request-planned preparation without exposing unrelated request bodies or inventing IDs.
 - Forward the optional host/compiler entrypoint contract to connection edits and share its existing planning instructions with initial connection planning. Missing entrypoints stay absent; model outputs still cannot create triggers or starts.
