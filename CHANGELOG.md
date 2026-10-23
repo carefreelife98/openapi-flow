@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.12 — 2026-10-23 (candidate)
+## 0.3.12 — 2026-10-23
 
 - Extend independent `generateApiArguments` with opt-in OAS enum interpretation and requested-input tracking. Validate literal proposals against original scenario sources before considering semantic enum choices; code copies the selected original OAS values without coercion, defaults or output repair.
 - Derive actual missing enum questions, including explicitly requested nested descendants, without manufacturing a draft/edit plan or filling unrelated required inputs. Preserve the first literal proposal separately from confirmed inputs, bindings and semantic interpretation receipts.
