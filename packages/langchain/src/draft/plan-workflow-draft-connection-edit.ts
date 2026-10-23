@@ -45,6 +45,9 @@ export async function planWorkflowDraftConnectionEdit(
       new SystemMessage(workflowDraftConnectionEditPrompt),
       new HumanMessage(
         JSON.stringify({
+          ...(input.context.entrypoint === undefined
+            ? {}
+            : { entrypoint: input.context.entrypoint }),
           clarification: describeWorkflowDraftClarification(input.context),
           planningClarifications: describeWorkflowDraftClarificationOwnership({
             ...input,

@@ -140,6 +140,65 @@ test('two composable calls generate only selected typed values and preserve API 
   }
 });
 
+test('native target selection receives staged API identities and declarations before and after their request values are resolved', async () => {
+  const original = await nativeParameterEditFixture(
+    'Add another declared API and change only the existing config count.',
+  );
+  const plan = connectionEditPlan(original, [
+    { kind: 'add-api-call', operation: original.replacement.key },
+    { kind: 'revise-native-node', nodeId: 'config' },
+  ]);
+  const added = plan.steps[0];
+  const edit = plan.steps[1];
+  for (const ready of [false, true]) {
+    const input = {
+      ...original,
+      plan,
+      stepId: edit.id,
+      resolutions: ready
+        ? [
+            {
+              stepId: added.id,
+              kind: 'api-call',
+              values: { path: { id: 'new-request' } },
+              bindings: [],
+            },
+          ]
+        : [],
+    };
+    const description = describeWorkflowDraftNativeParameterEdit(input);
+    const source = description.sourceCandidates.find(
+      (source) => source.nodeId === added.newNodeId,
+    );
+    assert.equal(source.kind, 'api');
+    assert.equal(source.operation.path, '/replacement/{id}');
+    assert.equal(
+      source.preparation.status,
+      ready ? 'request-planned' : 'request-pending',
+    );
+    const model = nativeParameterModel([
+      nativeParameterTargets(input, [{ kind: 'set', pointer: '/count' }]),
+    ]);
+    const selected = await selectWorkflowDraftNativeParameterEditTargets({
+      ...input,
+      model,
+    });
+    assert.equal(selected.status, 'ready');
+    const payload = JSON.parse(model.requests[0].messages[1].content);
+    const actual = payload.sourceCandidates.find(
+      (source) => source.nodeId === added.newNodeId,
+    );
+    assert.equal(actual.operation.path, source.operation.path);
+    assert.deepEqual(actual.preparation, source.preparation);
+    assert.deepEqual(
+      actual.responsePointerCatalog,
+      source.responsePointerCatalog,
+    );
+    assert.equal(Object.hasOwn(actual.operation, 'requestBody'), false);
+    assert.equal(Object.hasOwn(payload, 'stage'), false);
+  }
+});
+
 test('actual types are preserved; strings for numbers, forbidden fields and sparse containers fail without correction', async () => {
   const input = await nativeParameterEditFixture();
   assert.throws(

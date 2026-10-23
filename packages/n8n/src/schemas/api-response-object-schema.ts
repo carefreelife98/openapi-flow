@@ -4,7 +4,7 @@ const apiResponseObjectFieldSchema = z.strictObject({
   name: z
     .string()
     .describe(
-      'Literal output property name; dots are not nesting instructions.',
+      'Workflow-local output property label, not API request data or a value copied from the response. Preserve a name explicitly requested by the user. If a new result has no requested label, choose a concise unique label from its requested role or supplied API metadata. This label is workflow configuration, not missing business input. Dots are literal characters, not nesting instructions.',
     ),
   sourceNodeId: z
     .string()

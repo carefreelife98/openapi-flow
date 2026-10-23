@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.13 — candidate, 2026-10-23
+
+- Share code-derived API/native source identities, response declarations and pointer catalogs between native edit target selection and value generation. Preserve request-pending versus request-planned preparation without exposing unrelated request bodies or inventing IDs.
+- Forward the optional host/compiler entrypoint contract to connection edits and share its existing planning instructions with initial connection planning. Missing entrypoints stay absent; model outputs still cannot create triggers or starts.
+- Describe response-object property labels as workflow-local configuration. Preserve explicitly requested labels; otherwise the model may choose a unique concise label from supplied API metadata. This does not change API request/response data, types or validation.
+- Align the three packages and internal Core references at 0.3.13 without external dependency changes. Keep the enabled, owner-accepted Ajv `properties.__proto__` regression. See the [release record](docs/releases/0.3.13.md) for actual verification and publication status.
+
 ## 0.3.12 — 2026-10-23
 
 - Extend independent `generateApiArguments` with opt-in OAS enum interpretation and requested-input tracking. Validate literal proposals against original scenario sources before considering semantic enum choices; code copies the selected original OAS values without coercion, defaults or output repair.

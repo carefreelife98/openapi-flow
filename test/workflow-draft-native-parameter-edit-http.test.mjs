@@ -70,6 +70,16 @@ test('actual ChatOpenAI native-edit requests use object-root schemas, shared reg
         model,
       });
       assert.equal(selected.status, 'ready');
+      const targetsPayload = JSON.parse(requests.at(-1).messages[1].content);
+      assert.ok(Array.isArray(targetsPayload.sourceCandidates));
+      assert.ok(
+        targetsPayload.sourceCandidates.some(
+          (source) =>
+            source.kind === 'api' &&
+            source.nodeId === 'source' &&
+            source.operation.path === '/items/{id}',
+        ),
+      );
       const targetsWire = requests.at(-1).response_format.json_schema;
       assert.equal(
         targetsWire.name,
@@ -171,6 +181,10 @@ test('actual ChatOpenAI native-edit requests use object-root schemas, shared reg
       );
       assert.equal(Object.keys(valuesWire.schema.$defs).length, 2);
       const payload = JSON.parse(requests.at(-1).messages[1].content);
+      assert.deepEqual(
+        payload.sourceCandidates,
+        targetsPayload.sourceCandidates,
+      );
       assert.deepEqual(
         payload.targets.map((target) => target.pointer),
         ['/count', '/enabled'],

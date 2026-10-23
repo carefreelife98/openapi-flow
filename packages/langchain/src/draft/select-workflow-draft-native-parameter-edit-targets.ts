@@ -17,6 +17,7 @@ import { createWorkflowMessageEvidenceSelectionSchema } from '../schemas/create-
 import type { WorkflowMessageSelectionOutput } from '../types/workflow-message-evidence-selection.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { WorkflowDraftNativeParameterEditPlanningError } from './workflow-draft-native-parameter-edit-planning-error.js';
+import { describeNativeParameterEditSourceCandidates } from './describe-native-parameter-edit-source-candidates.js';
 
 export async function selectWorkflowDraftNativeParameterEditTargets(
   input: SelectWorkflowDraftNativeParameterEditTargetsInput,
@@ -53,6 +54,9 @@ export async function selectWorkflowDraftNativeParameterEditTargets(
           parameters: context.node.parameters,
           runtimeParameters: context.node.runtimeParameters,
           parametersSchema: context.parametersSchema,
+          sourceCandidates: describeNativeParameterEditSourceCandidates(
+            context.sourceCandidates,
+          ),
           messages: context.messages,
           backgroundMessages: context.backgroundMessages,
           includeExplanations: context.includeExplanations,

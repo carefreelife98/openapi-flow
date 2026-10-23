@@ -6,7 +6,11 @@ import test from 'node:test';
 import { ChatOpenAI } from '@langchain/openai';
 import { describeWorkflowDraftConnectionEdit } from '@openapi-flow/core';
 import { planWorkflowDraftConnectionEdit } from '@openapi-flow/langchain';
-import { resolveN8nNativeFeatures, N8nNativeFeature } from '@openapi-flow/n8n';
+import {
+  resolveN8nNativeFeatures,
+  N8nNativeFeature,
+  describeN8nManualTrigger,
+} from '@openapi-flow/n8n';
 import {
   workflowDraftConnectionEditFixture,
   connectionEditPlan,
@@ -59,6 +63,7 @@ test('actual ChatOpenAI HTTP schemas preserve actual port pairs, editable edge I
           await workflowDraftConnectionEditFixture(includeExplanations);
         let decisions;
         if (mode === 'ports') {
+          input.context.entrypoint = describeN8nManualTrigger();
           input.context.capabilities.push(
             ...resolveN8nNativeFeatures({
               features: [N8nNativeFeature.MergeAppend],
@@ -186,6 +191,9 @@ test('actual ChatOpenAI HTTP schemas preserve actual port pairs, editable edge I
             );
         }
         const payload = JSON.parse(requests.at(-1).messages[1].content);
+        if (input.context.entrypoint === undefined)
+          assert.equal(Object.hasOwn(payload, 'entrypoint'), false);
+        else assert.deepEqual(payload.entrypoint, input.context.entrypoint);
         assert.ok(Array.isArray(payload.removedIncidentEdges));
         if (mode !== 'ports') {
           assert.deepEqual(payload.removedIncidentEdges, [
