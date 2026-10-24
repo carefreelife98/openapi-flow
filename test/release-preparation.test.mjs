@@ -17,7 +17,7 @@ function fixture() {
         access: 'public',
       },
       dependencies: { '@openapi-flow/core': '0.3.0' },
-      peerDependencies: { zod: '^4.6.5' },
+      peerDependencies: { zod: '^4.6.7' },
       exports: {
         '.': {
           types: './dist/public-api.d.ts',
@@ -56,10 +56,13 @@ test('release preparation verifies package version, exports, notices and depende
 test('release preparation refuses stale dependencies, missing exports and private artifacts', () => {
   for (const mutate of [
     (x) => {
-      x.manifest.dependencies.zod = '4.6.5';
+      x.manifest.dependencies.zod = '4.6.7';
     },
     (x) => {
       delete x.manifest.peerDependencies.zod;
+    },
+    (x) => {
+      x.manifest.peerDependencies.zod = '^4.6.5';
     },
     (x) => {
       x.manifest.dependencies['@openapi-flow/core'] = '0.1.0';

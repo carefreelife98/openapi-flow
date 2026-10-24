@@ -1,6 +1,13 @@
 # @openapi-flow/langchain
 
-Zod `^4.6.5` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
+Version **0.3.14** aligns the three packages for the n8n adapter's fixed API result
+collection. Model adapter behavior is unchanged; the required host Zod peer is
+updated below. Publication is blocked by the n8n adapter's unresolved upstream
+Zod 3 advisory. The
+host still chooses the supplied planning inventory. See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
+for actual publication and host status; preparation is not publication.
+
+Zod `^4.6.7` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 
 Version **0.3.13**, with matching `@openapi-flow/core@0.3.13`. Native edit target selection and value generation share actual code-derived API/native source identities and response contracts. Connection edits also forward the optional supplied entrypoint rather than infer one. Model output remains subject to the existing deterministic validators; no output filtering or hidden retries are added. Optional enum interpretation from 0.3.11/0.3.12 remains available. The host supplies its LangChain model and owns LangGraph, storage and review policies. The Core/n8n Ajv `properties.__proto__` limitation and actual publication/host status are documented in the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.13.md); this release does not rewrite OAS or values to hide it.
 

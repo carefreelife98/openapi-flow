@@ -21,6 +21,7 @@ import {
   resolveN8nNativePlanningFeatures,
   compileN8nWorkflowTemplate,
   createApiResponseObjectCapability,
+  createApiResponseResultsCapability,
 } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
@@ -3018,6 +3019,78 @@ test('original multi-service OAS response types form named output fields without
         bodyless.outputSchema({
           fields: [{ name: 'body', sourceNodeId: 'bodyless', pointer: '' }],
         }),
+      /no declared response value/,
+    );
+  }
+  assert.equal(JSON.stringify(sources), original);
+});
+
+test('original multi-service OAS full response contracts form fixed results with code-owned provenance', async () => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+    })),
+  );
+  const original = JSON.stringify(sources);
+  const catalog = await createApiCatalog(sources);
+  const operations = await resolveApiOperations(
+    catalog,
+    catalog.operations.map(({ key }) => key),
+  );
+  const selected = sources.flatMap((source) =>
+    operations
+      .filter(
+        (operation) =>
+          operation.key.documentId === source.id &&
+          listApiResponsePointers(operation).length > 0,
+      )
+      .slice(0, 1),
+  );
+  assert.ok(
+    selected.length >= 2,
+    'Original response contracts from multiple services are required',
+  );
+  const materials = selected.map((operation, index) => ({
+    callId: `source-${index + 1}`,
+    operation,
+  }));
+  const capability = createApiResponseResultsCapability({ materials });
+  const parameters = { sourceNodeIds: materials.map(({ callId }) => callId) };
+  const schema = capability.outputSchema(parameters);
+  for (const [index, material] of materials.entries()) {
+    const properties = schema.properties.results.items.anyOf[index].properties;
+    assert.deepEqual(
+      properties.body,
+      createResponseValueSchema(material.operation, ''),
+    );
+    assert.deepEqual(properties.callId, { const: material.callId });
+    assert.deepEqual(properties.documentId, {
+      const: material.operation.key.documentId,
+    });
+    assert.deepEqual(properties.method, { const: material.operation.method });
+    assert.deepEqual(properties.path, { const: material.operation.path });
+  }
+  const fragment = capability.compile({
+    planned: { id: 'results', capability: capability.name, parameters },
+    position: [0, 0],
+    apiNodeNames: Object.fromEntries(
+      materials.map(({ callId }) => [callId, `Actual ${callId}`]),
+    ),
+  });
+  assert.equal(fragment.exit.type, 'n8n-nodes-base.aggregate');
+  assert.deepEqual(
+    fragment.bindingSources.map((source) => source.operation),
+    selected,
+  );
+  for (const operation of operations.filter(
+    (entry) => !listApiResponsePointers(entry).length,
+  )) {
+    const bodyless = createApiResponseResultsCapability({
+      materials: [{ callId: 'bodyless', operation }],
+    });
+    assert.throws(
+      () => bodyless.outputSchema({ sourceNodeIds: ['bodyless'] }),
       /no declared response value/,
     );
   }

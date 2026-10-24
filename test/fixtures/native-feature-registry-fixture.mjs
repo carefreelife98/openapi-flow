@@ -95,6 +95,7 @@ export const nativeFeatureParameters = {
       { name: 'right', sourceNodeId: 'right', pointer: '' },
     ],
   },
+  [N8nNativeFeature.GatherApiResponses]: { sourceNodeIds: ['left', 'right'] },
   [N8nNativeFeature.SplitNativeOutputArray]: {
     sourceNodeId: 'context',
     pointer: '/rows',

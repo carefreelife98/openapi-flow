@@ -18,6 +18,7 @@ export const N8nNativeFeature = Object.freeze({
   SplitApiResponseArray: 'split-api-response-array',
   CollectApiResponses: 'collect-api-responses',
   ComposeApiResponses: 'compose-api-responses',
+  GatherApiResponses: 'gather-api-responses',
   SplitNativeOutputArray: 'split-native-output-array',
   JoinApiItems: 'join-api-items',
 } as const);
@@ -33,7 +34,7 @@ export interface N8nNativeFeatureContext extends NativeItemExecutionOptions {
 }
 
 export interface ResolveN8nNativeFeaturesInput extends N8nNativeFeatureContext {
-  /** Omitted permits every registered family; [] permits none. */
+  /** Omitted inventories all families; planning excludes explicit-only legacy families. [] permits none. */
   features?: N8nNativeFeature[];
   /** Explicit host implementations are retained, never inferred or replaced. */
   extensions?: N8nNativeCapability[];
@@ -85,6 +86,8 @@ export interface N8nNativeFeaturePlanningDefinition {
 export type N8nNativeFeatureResolutionMode = 'materials' | 'planning';
 
 export interface N8nNativeFeatureDefinition {
+  /** Compatibility-only implementations remain available through explicit selection. */
+  planningExposure?: 'explicit-only';
   requirements: N8nNativeFeatureContextRequirement[];
   create: (context: N8nNativeFeatureContext) => N8nNativeCapability;
   createPlanning?: (context: NativeItemExecutionOptions) => N8nNativeCapability;

@@ -24,6 +24,16 @@ test('planning inventory preserves pending context and exposes stable definition
   assert.equal(registry.registrations.length, 12);
   assert.equal(registry.capabilities.length, 6);
   assert.equal(registry.planningCapabilities.length, 11);
+  assert.ok(
+    registry.planningCapabilities.some(
+      (entry) => entry.name === N8nNativeFeature.GatherApiResponses,
+    ),
+  );
+  assert.ok(
+    registry.registrations.every(
+      (entry) => entry.feature !== N8nNativeFeature.ComposeApiResponses,
+    ),
+  );
   assert.equal(
     registry.registrations.filter(
       (entry) => entry.status === 'requires-context',
@@ -64,12 +74,13 @@ test('planning inventory preserves pending context and exposes stable definition
   );
 });
 
-test('all five late-bound definitions resolve original contracts and official SDK fragments without fake runtime names', async () => {
+test('all six late-bound definitions resolve original contracts and official SDK fragments without fake runtime names', async () => {
   const fixture = await nativeFeatureRegistryFixture();
   const features = [
     N8nNativeFeature.SplitApiResponseArray,
     N8nNativeFeature.CollectApiResponses,
     N8nNativeFeature.ComposeApiResponses,
+    N8nNativeFeature.GatherApiResponses,
     N8nNativeFeature.SplitNativeOutputArray,
     N8nNativeFeature.JoinApiItems,
   ];

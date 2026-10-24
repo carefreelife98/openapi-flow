@@ -1,6 +1,13 @@
 # @openapi-flow/core
 
-Zod `^4.6.5` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests use 4.6.5; the strict installed-consumer check also uses the host's 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
+Version **0.3.14** aligns the three packages for the n8n adapter's fixed API result
+collection. Core behavior is unchanged; supported security updates use Scalar
+parser 0.29.16, fast-uri 3.1.9 and the host Zod peer below. Publication is blocked
+by the n8n adapter's unresolved upstream Zod 3 advisory. The existing
+Ajv special-key limitation below remains. See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
+for actual publication and host status; preparation is not publication.
+
+Zod `^4.6.7` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests and the strict installed-consumer check use 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
 
 Version **0.3.13**. This patch keeps Core contracts and validation unchanged while aligning the adapters' common draft-planning input fix. Optional enum interpretation from 0.3.11/0.3.12 remains source- and type-checked without automatic defaults. Canonical draft, clarification and runtime-input APIs described below are included. Ajv 8.20.0 does not correctly validate a declared `properties.__proto__`; generated validation may reject valid data or omit that property's constraints. This accepted limitation remains unchanged, without renaming data or skipping its failing regression. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.13.md) for actual publication and host status.
 

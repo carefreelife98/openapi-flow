@@ -61,6 +61,8 @@ export { createResponseCollectionCapability } from './nodes/native/create-respon
 export type * from './types/response-collection.js';
 export { createApiResponseObjectCapability } from './nodes/native/objects/create-api-response-object-capability.js';
 export type * from './types/api-response-object.js';
+export { createApiResponseResultsCapability } from './nodes/native/results/create-api-response-results-capability.js';
+export type * from './types/api-response-results.js';
 export { createItemJoinCapability } from './nodes/native/item-join/create-item-join-capability.js';
 export type * from './types/item-join.js';
 export { compileBatchedN8nWorkflow } from './workflow/batch/compile-batched-n8n-workflow.js';

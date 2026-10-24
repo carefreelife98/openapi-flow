@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
+import { verifyConsumerApiResponseResults } from './api-response-results-consumer.js';
 import { verifyConsumerApiEditReply } from './api-input-reply-consumer.js';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -1368,6 +1369,13 @@ const request = createHttpRequestNode({
   position: [300, 0],
 });
 const responseObjectWorkflow = verifyConsumerApiResponseObject({
+  operation,
+  arguments: args,
+  apiNodeNames: names,
+  apiResponseContracts: { [args.callId]: operation },
+  position: [300, 0],
+});
+const responseResultsWorkflow = verifyConsumerApiResponseResults({
   operation,
   arguments: args,
   apiNodeNames: names,
@@ -3020,6 +3028,8 @@ console.log(
     apiResponseObjectCompilation: 'passed',
     apiResponseObjectApiRoles: 3,
     apiResponseObjectWorkflowNodes: responseObjectWorkflow.nodes.length,
+    apiResponseResultsCompilation: 'passed',
+    apiResponseResultsWorkflowNodes: responseResultsWorkflow.nodes.length,
     templateCompilation: 'passed',
     requirementsClarification: 'passed',
     registeredNativeFeatures: 'passed',

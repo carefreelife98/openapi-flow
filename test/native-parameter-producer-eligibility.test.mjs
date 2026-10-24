@@ -83,6 +83,7 @@ const expectedKinds = {
   [N8nNativeFeature.SplitApiResponseArray]: ['response'],
   [N8nNativeFeature.CollectApiResponses]: ['response'],
   [N8nNativeFeature.ComposeApiResponses]: ['response'],
+  [N8nNativeFeature.GatherApiResponses]: ['response'],
   [N8nNativeFeature.SplitNativeOutputArray]: ['node-output'],
   [N8nNativeFeature.JoinApiItems]: ['response', 'node-output'],
 };
@@ -90,12 +91,16 @@ const expectedKinds = {
 test('all registered stable and bound native implementations explicitly declare the same supported reference kinds', async () => {
   const f = await fixture();
   assert.deepEqual(Object.keys(expectedKinds), Object.values(N8nNativeFeature));
-  for (const registration of f.registry.planningRegistrations)
+  const registry = resolveN8nNativePlanningFeatures({
+    ...f.material,
+    features: Object.values(N8nNativeFeature),
+  });
+  for (const registration of registry.planningRegistrations)
     assert.deepEqual(
       registration.capability.parameterReferenceSources,
       expectedKinds[registration.feature],
     );
-  for (const registration of f.registry.registrations) {
+  for (const registration of registry.registrations) {
     assert.equal(registration.status, 'ready');
     assert.deepEqual(
       registration.capability.parameterReferenceSources,

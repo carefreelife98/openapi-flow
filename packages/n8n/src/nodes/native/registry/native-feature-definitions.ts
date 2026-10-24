@@ -16,6 +16,8 @@ import { responseArrayDefinition } from '../response-array-definition.js';
 import { responseCollectionDefinition } from '../response-collection-definition.js';
 import { apiResponseObjectDefinition } from '../objects/api-response-object-definition.js';
 import { createApiResponseObjectCapability } from '../objects/create-api-response-object-capability.js';
+import { apiResponseResultsDefinition } from '../results/api-response-results-definition.js';
+import { createApiResponseResultsCapability } from '../results/create-api-response-results-capability.js';
 import { nativeArrayDefinition } from '../arrays/native-array-definition.js';
 import { itemJoinDefinition } from '../item-join/item-join-definition.js';
 import { nativeFeatureMaterialRequirements } from './native-feature-material-requirements.js';
@@ -86,6 +88,7 @@ export const nativeFeatureDefinitions: Record<
       createResponseCollectionCapability({ materials: context.apiMaterials! }),
   },
   [N8nNativeFeature.ComposeApiResponses]: {
+    planningExposure: 'explicit-only',
     requirements: nativeFeatureMaterialRequirements(
       apiResponseObjectDefinition,
     ),
@@ -95,6 +98,21 @@ export const nativeFeatureDefinitions: Record<
       ),
     create: (context) =>
       createApiResponseObjectCapability({ materials: context.apiMaterials! }),
+  },
+  [N8nNativeFeature.GatherApiResponses]: {
+    requirements: nativeFeatureMaterialRequirements(
+      apiResponseResultsDefinition,
+    ),
+    createPlanning: () =>
+      createMaterialPlanningCapability(
+        apiResponseResultsDefinition,
+        (sources) =>
+          createApiResponseResultsCapability({
+            materials: sources.apiMaterials,
+          }),
+      ),
+    create: (context) =>
+      createApiResponseResultsCapability({ materials: context.apiMaterials! }),
   },
   [N8nNativeFeature.SplitNativeOutputArray]: {
     requirements: nativeFeatureMaterialRequirements(nativeArrayDefinition),

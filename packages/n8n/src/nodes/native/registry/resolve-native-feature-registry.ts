@@ -18,7 +18,12 @@ export function resolveNativeFeatureRegistry(
   validateNativeFeatureContext(input);
   const selection = n8nNativeFeatureSelectionSchema.safeParse(
     input.features === undefined
-      ? Object.values(N8nNativeFeature)
+      ? Object.values(N8nNativeFeature).filter(
+          (feature) =>
+            mode !== 'planning' ||
+            nativeFeatureDefinitions[feature].planningExposure !==
+              'explicit-only',
+        )
       : input.features,
   );
   if (!selection.success)

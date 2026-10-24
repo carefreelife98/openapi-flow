@@ -1,6 +1,20 @@
 # @openapi-flow/n8n
 
-Zod `^4.6.5` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
+Version **0.3.14** introduces the fixed results family described below. See the
+[0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
+for actual publication and host status; preparation is not publication. Publication
+is blocked by the upstream SDK's Zod 3 advisory. Raising the host Zod peer does
+not replace the SDK's separately pinned Zod 3; no override or audit exclusion is used.
+
+## Fixed API results (0.3.14)
+
+`createApiResponseResultsCapability({ materials })` / `N8nNativeFeature.GatherApiResponses` register `gather-api-responses`. The model selects only `sourceNodeIds`. Code fixes `{ results: [{ callId, documentId, method, path, body }] }`, derives metadata and body schemas from original OAS contracts, and keeps each complete response body unchanged. Official SDK Merge and Aggregate nodes assemble the list after full-response validation. Duplicate calls to one operation remain separate by `callId`; exactly one source item per call is required. Wait-only joins use Merge and original API references without result reconstruction. Never infer downstream binding identity from a results array index.
+
+Default planning includes this family and no longer offers legacy `ComposeApiResponses`. Its explicit enum selection and factory remain compatible; material inventories include all thirteen registered families. Consult the 0.3.14 release record above for publication and host status. See [the source guide](https://github.com/carefreelife98/openapi-flow#fixed-api-response-results-0314) and run `npm run test:api-response-results-local-n8n` for isolated engine checks.
+
+## Published package
+
+Zod `^4.6.7` is a required host peer for the public configuration schemas. It is not an independently pinned runtime dependency. The n8n SDK's internal Zod 3 remains separately owned; this does not pass a Zod 4 instance into an API requiring Zod 3.
 
 Version **0.3.13**, with matching `@openapi-flow/core@0.3.13`. The response-object schema now distinguishes workflow-local output labels from missing API business inputs: preserve explicitly requested labels, otherwise choose unique concise labels from supplied API metadata. Data values, JSON types, node implementations and runtime validation are unchanged. Known limitation: Ajv 8.20.0 ignores a declared `properties.__proto__`. Generated validation can reject valid data or omit that property's constraints; do not rely on it for contracts using that key. The accepted limitation and original failing regression remain unchanged. No field substitution or schema compatibility transform is included. See the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.13.md) for actual publication and host status.
 

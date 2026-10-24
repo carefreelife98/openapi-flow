@@ -159,6 +159,7 @@ try {
     ['conditional-batch', ['batch-iteration-local-n8n.mjs', '--conditional']],
     ['native-output-bindings', ['native-output-bindings-local-n8n.mjs']],
     ['api-response-object', ['api-response-object-local-n8n.mjs']],
+    ['api-response-results', ['api-response-results-local-n8n.mjs']],
     [
       'orchestration',
       ['native-output-bindings-local-n8n.mjs', '--orchestrated'],

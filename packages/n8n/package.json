@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/n8n",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "license": "MIT",
   "type": "module",
   "description": "Deterministic OpenAPI request nodes and n8n workflow assembly",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@n8n/config": "2.41.2",
     "@n8n/workflow-sdk": "0.36.4",
-    "@openapi-flow/core": "0.3.13",
+    "@openapi-flow/core": "0.3.14",
     "@sentry/node": "10.70.0",
     "@types/estree": "1.0.8",
     "@types/express": "5.0.1",
@@ -44,10 +44,10 @@
     "nock": "14.0.14"
   },
   "peerDependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",

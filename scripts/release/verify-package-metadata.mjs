@@ -19,7 +19,7 @@ export function verifyPackageMetadata(manifest, packed, expectedVersion) {
     undefined,
     'Zod schemas must use the host peer, not an isolated copy',
   );
-  assert.equal(manifest.peerDependencies?.zod, '^4.6.5');
+  assert.equal(manifest.peerDependencies?.zod, '^4.6.7');
   assert.equal(packed.name, manifest.name);
   assert.equal(packed.version, manifest.version);
   assert.ok(packed.integrity && packed.filename);

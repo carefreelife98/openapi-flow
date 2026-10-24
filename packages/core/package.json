@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/core",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "license": "MIT",
   "description": "Engine-independent OpenAPI catalogs, operation contracts and typed request schemas",
   "keywords": [
@@ -51,18 +51,18 @@
   },
   "dependencies": {
     "@scalar/json-schema-validator": "^0.1.6",
-    "@scalar/openapi-parser": "0.29.13",
+    "@scalar/openapi-parser": "0.29.16",
     "@scalar/openapi-types": "0.9.7",
     "@scalar/openapi-validator": "0.1.6",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "fast-uri": "3.1.8",
+    "fast-uri": "3.1.9",
     "jsonc-parser": "3.3.1"
   },
   "peerDependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }
