@@ -1,4 +1,4 @@
-# Incremental connection planning (0.3.16 candidate)
+# Incremental connection planning (0.3.16)
 
 This source adds independently callable connection-planning stages. Publication
 status is tracked in the [release record](releases/0.3.16.md). A host-owned automatic
