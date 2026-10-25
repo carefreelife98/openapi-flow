@@ -22,7 +22,10 @@ export async function invokeStructuredModel<Output extends object>(
       }),
   );
   try {
-    return await runnable.invoke(input.messages);
+    return await runnable.invoke(
+      input.messages,
+      input.signal === undefined ? undefined : { signal: input.signal },
+    );
   } catch (cause) {
     if (cause instanceof OpenApiFlowError) throw cause;
     const diagnostic: OpenApiFlowDiagnostic = {

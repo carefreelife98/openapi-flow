@@ -30,7 +30,11 @@ import { runDocker } from './utils/run-docker.mjs';
 import { readN8nExecution } from './utils/read-n8n-execution.mjs';
 
 /** Actual binding proposals; topology/native settings are explicit fixture inputs, not model output. */
-export async function verifyBindingPlanningRecords({ model, label }) {
+export async function verifyBindingPlanningRecords({
+  model,
+  label,
+  bindingPlanner = planApiBindings,
+}) {
   assert.equal(typeof model?.withStructuredOutput, 'function');
   assert.ok(typeof label === 'string' && label.trim());
   const runId = `${Date.now()}-${process.pid}`;
@@ -97,7 +101,7 @@ export async function verifyBindingPlanningRecords({ model, label }) {
     const input = bindingPlanningFixture();
     input.scenario =
       '선택된 source 호출의 응답 id로 detail의 path.id와 price·stock의 query.id를 연결해줘. price의 query.labels와 query.filter는 source 응답의 labels 배열과 filter 객체를 그대로 사용해줘. summary 본문의 id는 detail 응답 id, price는 price 응답 price, stock은 stock 응답 stock, labels와 filter는 source 응답의 해당 필드를 그대로 사용해줘. source에는 선행 입력이 없어. 이 단계에서는 요청 입력 연결만 계획하며 상태 검사·제어 흐름·값 변환은 추가하지 마.';
-    const proposed = await planApiBindings({
+    const proposed = await bindingPlanner({
       ...input,
       model,
       includeExplanations: true,
@@ -228,7 +232,7 @@ export async function verifyBindingPlanningRecords({ model, label }) {
       materials: [material],
       nativeOutputs,
     };
-    const nativeProposed = await planApiBindings({
+    const nativeProposed = await bindingPlanner({
       ...nativeInput,
       model,
       includeExplanations: true,

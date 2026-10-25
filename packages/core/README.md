@@ -1,5 +1,11 @@
 # @openapi-flow/core
 
+Version **0.3.15** adds source-owned per-call binding descriptions, source-choice
+and field-choice resolution, resumable-result validation and complete plan
+assembly. It retains original OAS validation and global dependency-cycle checks.
+See the [binding guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/scalable-api-binding-planning.md)
+and [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.15.md).
+
 Version **0.3.14** adds source-owned structured errors and aligns the n8n adapter's
 fixed API result collection. Supported security updates use Scalar parser
 0.29.16, fast-uri 3.1.9 and the host Zod peer below. The owner accepted the n8n

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import './error-contract-consumer.js';
+import { verifyConsumerApiBindingAssembly } from './api-call-bindings-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
 import { verifyConsumerApiResponseResults } from './api-response-results-consumer.js';
@@ -465,6 +466,10 @@ if (discoveryEvidence.kind !== 'discovery')
   throw new Error('Expected code-owned discovery evidence');
 assert.deepEqual(discoveryEvidence.candidates, [candidate]);
 const [operation] = await resolveApiOperations(catalog, [candidate.key]);
+verifyConsumerApiBindingAssembly({
+  callId: 'consumer-independent-bindings',
+  operation,
+});
 const pendingAnswerRequirements = inspectApiArgumentRequirements({
   operation,
   callId: 'consumer-pending-answer',

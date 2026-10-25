@@ -3,6 +3,7 @@ import type { OutputBinding } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
 import type { NativeOutputContract } from './node-output.js';
 import type { ApiBindingPlanningRecord } from './api-binding-planning.js';
+import type { ApiCallBindingPlan } from './api-call-binding-planning.js';
 
 export interface ApiBindingMaterial {
   callId: string;
@@ -20,6 +21,8 @@ export interface ApiBindingPlanProposal {
 }
 export interface ApiBindingPlan extends ApiBindingPlanProposal {
   bindingPlanning?: ApiBindingPlanningRecord;
+  /** Optional source-choice and field-choice receipts from the per-call planner. */
+  callPlanning?: ApiCallBindingPlan[];
 }
 export interface ApiBindingGap {
   callId: string;

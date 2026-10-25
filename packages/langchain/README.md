@@ -1,5 +1,13 @@
 # @openapi-flow/langchain
 
+Version **0.3.15** adds `selectApiBindingSources`, `planApiCallBindings` and
+`planApiBindingsByCall` for scoped API binding work. The model no longer needs to
+regenerate a whole selected-call inventory in this path. Code checks complete
+coverage and cross-call cycles, and the host explicitly chooses concurrency and
+stores validated progress for resume. Existing `planApiBindings` stays compatible.
+See [scalable bindings](https://github.com/carefreelife98/openapi-flow/blob/main/docs/scalable-api-binding-planning.md)
+and the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.15.md).
+
 Version **0.3.14** adds source-owned structured errors and preserves initial
 argument provenance failures across optional enum selection. Existing prompts,
 values, schemas and retry behavior are unchanged; the host still chooses the

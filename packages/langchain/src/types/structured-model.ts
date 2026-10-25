@@ -9,4 +9,5 @@ export interface InvokeStructuredModelInput<Output extends object> {
   operation: string;
   method: 'functionCalling' | 'jsonSchema';
   messages: BaseMessage[];
+  signal?: AbortSignal;
 }

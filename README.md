@@ -1,5 +1,14 @@
 # openapi-flow
 
+Version **0.3.15** source adds API-by-API binding planning: discover producers for
+one target, retrieve only selected original contracts, then validate the complete
+plan in code. `selectApiBindingSources`, `planApiCallBindings` and
+`assembleApiBindingPlan` are independently usable; `planApiBindingsByCall` adds an
+explicit concurrency budget, cancellation and validated same-input resume.
+The existing `planApiBindings` keeps its single-call compatibility contract.
+See [scalable binding planning](docs/scalable-api-binding-planning.md) and the
+[0.3.15 release record](docs/releases/0.3.15.md) for validation and publication status.
+
 Version **0.3.14** adds fixed API results: the model selects call IDs, while code
 owns `{ results: [{ callId, documentId, method, path, body }] }` and preserves
 complete original bodies. Default planning excludes legacy name-based composition;
