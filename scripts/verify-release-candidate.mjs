@@ -148,6 +148,11 @@ try {
   ]);
   for (const [name, args] of [
     ['request-bindings', ['request-bindings-local-n8n.mjs']],
+    ['incremental-connections', ['incremental-connection-local-n8n.mjs']],
+    [
+      'incremental-native',
+      ['incremental-connection-local-n8n.mjs', '--augment-native'],
+    ],
     ['http-response-decoding', ['http-response-decoding-local-n8n.mjs']],
     ['http-authentication', ['http-authentication-local-n8n.mjs']],
     ['array-iteration', ['array-iteration-local-n8n.mjs']],

@@ -2,7 +2,7 @@
 
 이 그래프는 사용자의 대화로 n8n 워크플로우를 만드는 LangGraph입니다. 최종 결과물인 n8n 실행 그래프와는 다릅니다. 구조도이며, 실제 실행 로그나 모든 기능의 검증 완료를 뜻하지 않습니다.
 
-현재 작업(2026-10-25): 공개 0.3.15의 API별 바인딩 계획은 유지하고, 후속 api_arguments의 요청값 생성·enum 해석을 공통 오류 경계에 연결했습니다. 모델 설정·호출·출력 오류와 원문/OAS 계약 검증 실패를 구분하고 원본 예외는 비공개 cause에 보존합니다. 프롬프트·값·타입·strict 설정·재시도 정책은 바꾸지 않습니다. 이 보강은 미배포 소스이며 Qoopilot에는 아직 설치하지 않았습니다. Qoopilot의 별도 접속 설정 선택 수정은 로컬 4734114로 커밋했고 수정 전후 문서를 추가했습니다. 사용자 서버 재시작·회사 소스 push·새 npm 게시·Cloud 배포는 하지 않았습니다. 과거 api_arguments 예외 원본은 유실되어 원인은 미확인입니다. 기존 Ajv 특수 키 실패와 Zod 3 감사 제약은 그대로입니다. 이 도식은 기존 단일 호출을 유지하는 호환 참고 LangGraph이며 실제 30개 노드·68개 경로는 그대로입니다.
+현재 작업(2026-10-25): 자동 연결 예시의 선택형 native 보강과 완료 검사를 검증했습니다. 코드가 ID·계약·소유권을 관리하고 모델은 역할·생산자·설정·연결 묶음을 선택합니다. 실제 진단에서 Merge의 다른 필수 입력을 우회로 잘못 판정한 결함을 찾아 기존 전체 DAG 실행 근거를 재사용하도록 수정했습니다. 실모델 6회·거절 0회로 native 1개와 세 연결 묶음을 완성했고, 기준/생성 JSON의 격리 n8n 4회·20건 로컬 요청이 통과했습니다. 앞선 실패도 보존합니다. 후보 검사는 타입·lint·포맷, 원본 OAS 56건, 격리 n8n 21개 묶음, 독립 설치·배포 파일 검사가 통과했습니다. 단위 1365/1366이며 기존 Ajv 1건은 유지합니다. 보안 감사 High 5의 대상 의존·권고는 전판과 같지만 자동 게이트는 차단 상태입니다. Qoopilot에는 정본과 분리한 계획 그래프 전송·복원·화면 경계를 추가했으나 실제 계획기 연결·브라우저·대규모 비교는 남았습니다. 아직 공개 0.3.15를 사용하며 의도한 JSON 시나리오·기존 서버를 유지합니다. 새 게시·회사 push·Cloud 배포는 하지 않았습니다.
 
 공개 0.3.12의 세 턴 승인·네 번째 기술 질문과 실패 기록은 보존했습니다. 새 공개 0.3.13의 원본 OAS 두 개·네 턴 화면 대화에서는 API 다섯 개 → 결과 묶기 → 숫자 0 검사 다섯 개의 SDK JSON을 생성했습니다. 기존 API 요청값·OAS 계약·비교 조건은 유지했지만 집계 필드 이름과 응답 선택 범위가 바뀌어 출력 형태 보존은 통과로 세지 않습니다. 모델 HTTP 200과 의미 정확도는 구분합니다. 대기 여섯 지점의 승인 JSON 보존, 다운로드 일치와 새로고침 복원을 확인했으며 자동 재시도·업무 API·이 화면 결과의 n8n 엔진 실행은 없습니다. 한 대화의 관측 결과이며 넓은 품질·동적 대상·장기 스트리밍 검증은 미완료입니다. 기존 Ajv 실패·큰 JS 번들도 남습니다. 이 도식은 30개 노드·68개 경로의 참고 LangGraph이며 Qoopilot 실행 로그나 생성된 n8n 그래프와는 다릅니다.
 
@@ -147,6 +147,57 @@ flowchart TD
   node28 -.-> node27
   node29 -.-> node27
   node29 -.-> node28
+```
+
+## 새 자동 연결 자식 그래프 — Qoopilot 미연결
+
+실제 컴파일한 독립 예시의 노드 15개(시작·종료 포함), 경로 28개입니다. 위 대화 그래프에 연결된 경로가 아닙니다. 기술적 제안 거절은 예산 내에서 자동 반복합니다. nativeAugmentation을 명시하면 선택된 native의 설정·검증·추가 후 같은 세션을 이어갑니다. 옵션을 생략하면 native 요청을 부모로 반환하며 실제 업무 질문과 구분합니다. Qoopilot의 이벤트·화면에는 아직 연결하지 않았습니다.
+
+```mermaid
+flowchart TD
+  incremental0["__end__ / 완료·native 요청·업무 질문 결과를 부모로 반환"]
+  incremental1["__start__ / 자식 그래프 시작"]
+  incremental2["applyBundle / 코드: 묶음 검사·원자 적용 또는 거절"]
+  incremental3["applyNativeMaterial / 원본·설정 재검사·native 추가·동일 세션 재개"]
+  incremental4["fail / 체크포인트 실패 참조·원본 오류 전파"]
+  incremental5["finalize / 기존 전체 DAG 검사·계획 확정"]
+  incremental6["generateNativeParameters / 선택한 native 설정값 생성 / 값 없으면 코드 확정"]
+  incremental7["initialize / 연결 상태·원본·예산 확인"]
+  incremental8["interpretGoals / LLM: 확정 요구를 연결 목표로 해석"]
+  incremental9["planNativeDependencies / 필요한 데이터 생산자 선택 / 선택 없으면 코드 확정"]
+  incremental10["prepareNative / 선택된 native 역할·소유권으로 코드 ID 생성"]
+  incremental11["proposeBundle / LLM: 전체 맥락에서 다음 연결 묶음 제안"]
+  incremental12["publishCompletion / 완료 상태 요약 발행"]
+  incremental13["publishProgress / 검증된 상태 요약 발행·완료 조건 검사"]
+  incremental14["reserveModelCall / 코드: 호출 예산 선점·체크포인트"]
+  incremental1 --> incremental7
+  incremental2 --> incremental13
+  incremental3 --> incremental13
+  incremental4 --> incremental0
+  incremental5 --> incremental12
+  incremental6 -.-> incremental3
+  incremental6 -.-> incremental4
+  incremental7 -.-> incremental13
+  incremental7 -.-> incremental14
+  incremental8 -.-> incremental4
+  incremental8 -.-> incremental13
+  incremental9 -.-> incremental4
+  incremental9 -.-> incremental6
+  incremental9 -.-> incremental14
+  incremental10 -.-> incremental9
+  incremental10 -.-> incremental13
+  incremental10 -.-> incremental14
+  incremental11 -.-> incremental2
+  incremental11 -.-> incremental4
+  incremental12 --> incremental0
+  incremental13 -.-> incremental0
+  incremental13 -.-> incremental5
+  incremental13 -.-> incremental10
+  incremental13 -.-> incremental14
+  incremental14 -.-> incremental6
+  incremental14 -.-> incremental8
+  incremental14 -.-> incremental9
+  incremental14 -.-> incremental11
 ```
 
 ## 갱신

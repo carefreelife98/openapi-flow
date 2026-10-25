@@ -218,6 +218,28 @@ export type * from './types/api-bindings.js';
 export type * from './types/api-binding-planning.js';
 export type * from './types/native-node-planning.js';
 export type * from './types/workflow-connection-planning.js';
+export type * from './types/workflow-connection-session.js';
+export {
+  workflowConnectionSessionSchema,
+  workflowConnectionGoalProposalSchema,
+  workflowConnectionStepProposalSchema,
+  connectionRequirementFactsSchema,
+  workflowConnectionAssessmentSchema,
+  workflowConnectionMaterialRequestSchema,
+  workflowConnectionUserDecisionSchema,
+  workflowConnectionPlanningDecisionSchema,
+  workflowConnectionViolationSchema,
+  workflowConnectionRejectedProposalSchema,
+  workflowConnectionStepExpectationSchema,
+} from './schemas/workflow-connection-session-schema.js';
+export { createWorkflowConnectionSession } from './workflow/connections/incremental/create-workflow-connection-session.js';
+export { extendWorkflowConnectionSession } from './workflow/connections/incremental/extend-workflow-connection-session.js';
+export { describeWorkflowConnectionStep } from './workflow/connections/incremental/describe-workflow-connection-step.js';
+export { applyWorkflowConnectionStep } from './workflow/connections/incremental/apply-workflow-connection-step.js';
+export { inspectWorkflowConnectionCompletion } from './workflow/connections/incremental/inspect-workflow-connection-completion.js';
+export { finalizeWorkflowConnectionSession } from './workflow/connections/incremental/finalize-workflow-connection-session.js';
+export { workflowConnectionEdgeId } from './workflow/connections/incremental/connection-graph-identity.js';
+export { describeWorkflowConnectionGoals } from './workflow/connections/incremental/describe-workflow-connection-goals.js';
 export type * from './types/workflow-api-input-readiness.js';
 export type * from './types/workflow-planning-materials.js';
 export type * from './types/workflow-graph-planning.js';

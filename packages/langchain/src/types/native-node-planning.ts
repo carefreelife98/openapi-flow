@@ -98,12 +98,15 @@ export type NativeNodePlanningFailure =
 
 export interface SelectNativeNodeInstancesInput extends NativeInstanceSelectionInput {
   model?: BaseChatModel;
+  signal?: AbortSignal;
 }
 
 export interface GenerateNativeNodeParametersInput extends NativeNodeConfigurationInput {
   model?: BaseChatModel;
+  signal?: AbortSignal;
 }
 
 export interface PlanNativeInstanceDependenciesInput extends NativeSelectedPlanningInput {
   model?: BaseChatModel;
+  signal?: AbortSignal;
 }

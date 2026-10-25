@@ -17,6 +17,7 @@ import { NativeNodePlanningError } from './native-node-planning-error.js';
 export async function generateNativeNodeParameters(
   input: GenerateNativeNodeParametersInput,
 ): Promise<NativeNodeParameterResult> {
+  input.signal?.throwIfAborted();
   if (
     input.model !== undefined &&
     (!input.model || typeof input.model.withStructuredOutput !== 'function')
@@ -63,34 +64,38 @@ export async function generateNativeNodeParameters(
         strict: true,
       },
     )
-    .invoke([
-      new SystemMessage(nativeNodeParametersPrompt),
-      new HumanMessage(
-        JSON.stringify({
-          scenario: description.context.scenario,
-          purpose: description.instance.purpose,
-          target: {
-            id: description.instance.id,
-            capability: {
-              name: capability.name,
-              description: capability.description,
+    .invoke(
+      [
+        new SystemMessage(nativeNodeParametersPrompt),
+        new HumanMessage(
+          JSON.stringify({
+            scenario: description.context.scenario,
+            purpose: description.instance.purpose,
+            target: {
+              id: description.instance.id,
+              capability: {
+                name: capability.name,
+                description: capability.description,
+              },
             },
-          },
-          parametersSchema: description.instance.literalParametersSchema,
-          runtimeParameters: description.instance.runtimeParameters,
-          apiMaterials: description.context.apiMaterials,
-          preparedNativeNodes: description.context.preparedNativeNodes,
-          configuredNodes: description.configuredNodes,
-          outputs: description.outputs,
-          ...(description.sourceDependencies === undefined
-            ? {}
-            : { sourceDependencies: description.sourceDependencies }),
-          ...(description.replies === undefined
-            ? {}
-            : { replies: description.replies }),
-        }),
-      ),
-    ]);
+            parametersSchema: description.instance.literalParametersSchema,
+            runtimeParameters: description.instance.runtimeParameters,
+            apiMaterials: description.context.apiMaterials,
+            preparedNativeNodes: description.context.preparedNativeNodes,
+            configuredNodes: description.configuredNodes,
+            outputs: description.outputs,
+            ...(description.sourceDependencies === undefined
+              ? {}
+              : { sourceDependencies: description.sourceDependencies }),
+            ...(description.replies === undefined
+              ? {}
+              : { replies: description.replies }),
+          }),
+        ),
+      ],
+      input.signal === undefined ? undefined : { signal: input.signal },
+    );
+  input.signal?.throwIfAborted();
   try {
     // Validate output separately so callers can distinguish a malformed reply from stale source material.
     schema.parse(output);

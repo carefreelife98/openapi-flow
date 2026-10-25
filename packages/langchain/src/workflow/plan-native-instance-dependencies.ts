@@ -18,6 +18,7 @@ import { NativeNodePlanningError } from './native-node-planning-error.js';
 export async function planNativeInstanceDependencies(
   input: PlanNativeInstanceDependenciesInput,
 ): Promise<NativeInstanceDependencyPlan> {
+  input.signal?.throwIfAborted();
   if (
     input.model !== undefined &&
     (!input.model || typeof input.model.withStructuredOutput !== 'function')
@@ -54,10 +55,14 @@ export async function planNativeInstanceDependencies(
         strict: true,
       },
     )
-    .invoke([
-      new SystemMessage(nativeInstanceDependenciesPrompt),
-      new HumanMessage(JSON.stringify(context)),
-    ]);
+    .invoke(
+      [
+        new SystemMessage(nativeInstanceDependenciesPrompt),
+        new HumanMessage(JSON.stringify(context)),
+      ],
+      input.signal === undefined ? undefined : { signal: input.signal },
+    );
+  input.signal?.throwIfAborted();
   try {
     if (
       !isDeepStrictEqual(describeNativeInstanceDependencies(input), context) ||

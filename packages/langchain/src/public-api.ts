@@ -58,6 +58,10 @@ export { selectNativeNodeInstances } from './workflow/select-native-node-instanc
 export { generateNativeNodeParameters } from './workflow/generate-native-node-parameters.js';
 export { NativeNodePlanningError } from './workflow/native-node-planning-error.js';
 export { planWorkflowConnections } from './workflow/plan-workflow-connections.js';
+export { planWorkflowConnectionGoals } from './workflow/connections/plan-workflow-connection-goals.js';
+export { planWorkflowConnectionStep } from './workflow/connections/plan-workflow-connection-step.js';
+export type * from './types/incremental-connection-planning.js';
+export { WorkflowConnectionPlanningError } from './workflow/connections/workflow-connection-planning-error.js';
 export { orchestrateWorkflow } from './workflow/orchestrate-workflow.js';
 export type * from './types/native-node-planning.js';
 export type * from './types/workflow-orchestration.js';

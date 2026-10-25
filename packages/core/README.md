@@ -1,5 +1,11 @@
 # @openapi-flow/core
 
+Version **0.3.16** adds serializable incremental connection sessions, atomic
+bundle application, source/revision guards, native-only extension and complete
+DAG finalization. Existing APIs remain compatible. See the
+[connection guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/incremental-connection-planning.md)
+and [release status and limitations](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.16.md).
+
 Version **0.3.15** adds source-owned per-call binding descriptions, source-choice
 and field-choice resolution, resumable-result validation and complete plan
 assembly. It retains original OAS validation and global dependency-cycle checks.

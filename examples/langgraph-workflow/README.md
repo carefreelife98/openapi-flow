@@ -1,5 +1,12 @@
 # LangGraph 워크플로 생성 예제
 
+미배포 개발 소스의 `createIncrementalWorkflowConnectionGraph`는 확정 요구에서
+연결 목표를 한 번 해석하고, 다음 연결 묶음을 자동으로 제안·검사·적용하는 별도
+자식 그래프입니다. API별 사용자 승인은 요구하지 않습니다. 호출·거절·시간 예산은
+호스트가 명시하며, native 재료 요청은 사용자 질문이 아니라 부모 그래프의 자동
+보강 경로로 반환합니다. 실제 native 생성과 Qoopilot 화면은 아직 연결하지 않았습니다.
+[증분 연결 가이드](../../docs/incremental-connection-planning.md)를 참고하세요.
+
 정본 대화는 구현할 수 없는 요청을 `report-capability-gap`으로 선택해 초안의 `gapNodes`에 보존합니다. 독립적인 API·native 계획은 이어가고, 최종 JSON에는 한글 경고 영역과 실행 시 중단하는 대역 노드를 둡니다. 결손이 남으면 Start를 분리합니다. 이는 제공된 계약으로 충족하지 못했다는 판단이며 전체 서비스에 API가 없다는 증명은 아닙니다. [결손 계약](../../docs/workflow-draft-conversation-host.md#explicit-capability-gaps)을 참고하세요. 별도 모델 호출이나 새 그래프 노드를 추가하지 않습니다.
 
 `trackRequestedApiInputs: true`를 지정하면 사용자가 요청했지만 값은 아직 없는 선택 입력도 질문이나 실행 입력 슬롯으로 보존합니다. 기존 값 생성 호출에 포인터 선택을 포함하며 모델 호출이나 그래프 노드를 추가하지 않습니다. OAS 필수 여부와 구분하고 답변·초안·전송 전 검사까지 전달합니다. [선택 입력 요청 추적](../../docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적)을 참고하세요.

@@ -24,6 +24,8 @@
     "test:packed-consumer": "npm run build && node integration/packed-consumer-smoke.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
     "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",
+    "test:incremental-connection-local-n8n": "npm run build && node integration/incremental-connection-local-n8n.mjs",
+    "test:incremental-native-local-n8n": "npm run build && node integration/incremental-connection-local-n8n.mjs --augment-native",
     "test:native-runtime-input-local-n8n": "npm run build && node integration/native-runtime-input-local-n8n.mjs",
     "test:draft-edit-local-n8n": "npm run build && node integration/workflow-draft-edit-local-n8n.mjs",
     "test:native-material-revision-local-n8n": "npm run build && node integration/native-material-revision-local-n8n.mjs",

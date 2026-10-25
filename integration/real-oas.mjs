@@ -110,10 +110,15 @@ import {
   createWorkflowDraftApiInputEditContract,
   createWorkflowDraftApiInputEditAnswersSchema,
   resolveWorkflowDraftApiInputEdits,
+  applyWorkflowConnectionStep,
+  describeWorkflowConnectionStep,
+  finalizeWorkflowConnectionSession,
 } from '@openapi-flow/core';
 import {
   selectApiOperations,
   analyzeApiSelection,
+  planWorkflowConnectionGoals,
+  planWorkflowConnectionStep,
 } from '@openapi-flow/langchain';
 import { createRequire } from 'node:module';
 import { createOperationCatalog } from '@openapi-flow/core/internal';
@@ -967,6 +972,171 @@ test('explicit OAS input deferral reaches connection planning without reclassify
   assert.ok(
     totalSlots > 0,
     'real OAS cohort must exercise actual missing inputs',
+  );
+});
+
+test('incremental model contracts preserve each original OAS and explicit input slots through independent roots and an all-input join', async (t) => {
+  const sources = await Promise.all(
+    files.map(async (file) => ({
+      id: file,
+      spec: JSON.parse(await readFile(join(directory, file), 'utf8')),
+    })),
+  );
+  const original = globalThis.structuredClone(sources);
+  const catalog = await createApiCatalog(sources);
+  const operations = await resolveApiOperations(
+    catalog,
+    sources.flatMap((source) =>
+      catalog.operations
+        .filter((entry) => entry.key.documentId === source.id)
+        .slice(0, 3)
+        .map((entry) => entry.key),
+    ),
+  );
+  assert.ok(
+    operations.length >= 5,
+    'The multi-OAS cohort must contain at least five distinct operations',
+  );
+  assert.deepEqual(
+    new Set(operations.map((operation) => operation.key.documentId)),
+    new Set(sources.map((source) => source.id)),
+  );
+  const materials = operations.map((operation, index) => {
+    const callId = `real-incremental-${index}`;
+    const requestMediaType = selectDefaultApiRequestMediaType(operation);
+    return {
+      status: 'ready',
+      operation,
+      purpose: '원본 OAS의 독립 호출 계약을 유지합니다.',
+      arguments: {
+        callId,
+        values: {},
+        bindings: [],
+        requestMediaType,
+        unresolvedInputs: inspectApiArgumentRequirements({
+          operation,
+          callId,
+          values: {},
+          bindings: [],
+          requestMediaType,
+        }).requirements.map((requirement) => requirement.targetPointer),
+      },
+    };
+  });
+  const before = globalThis.structuredClone(materials);
+  const slots = collectDeferredApiInputSlots({
+    materials: materials.map((material) => ({
+      operation: material.operation,
+      ...material.arguments,
+    })),
+  });
+  const scenario =
+    '각 원본 API를 독립적으로 호출하고 모두 완료한 뒤 결과를 모읍니다. 누락 입력은 원래 OAS 타입의 명시적 입력 슬롯으로 유지합니다.';
+  const input = {
+    scenario,
+    materials,
+    capabilities: createN8nNativeCapabilities(),
+    nativeNodes: [
+      {
+        id: 'merge',
+        capability: 'merge-append',
+        parameters: { numberInputs: materials.length },
+      },
+    ],
+    deferredApiInputIds: slots.map((slot) => slot.id),
+    requirements: [
+      {
+        id: 'scenario',
+        text: scenario,
+        sources: [
+          { kind: 'message', messageId: 'scenario-source', quote: scenario },
+        ],
+      },
+    ],
+  };
+  const ids = materials.map((material) => material.arguments.callId);
+  const basis = {
+    factIds: ['scenario'],
+    reason: '원본 계약과 확정한 독립 호출·합류 의도를 유지합니다.',
+  };
+  const outputs = [
+    {
+      goals: [
+        { kind: 'independent', nodeIds: ids, ...basis },
+        { kind: 'join', nodeId: 'merge', producerIds: ids, ...basis },
+      ],
+    },
+  ];
+  let calls = 0;
+  const model = {
+    withStructuredOutput() {
+      return {
+        async invoke() {
+          return outputs[calls++];
+        },
+      };
+    },
+  };
+  let session = await planWorkflowConnectionGoals({ ...input, model });
+  const ports = describeWorkflowConnectionStep({
+    ...input,
+    session,
+  }).context.nodes.find((node) => node.id === 'merge').inputs;
+  const patch = {
+    kind: 'patch',
+    addEdges: [],
+    removeEdgeIds: [],
+    addRootNodeIds: ids,
+    removeRootNodeIds: [],
+    addTerminals: [],
+    removeTerminals: [],
+    ...basis,
+  };
+  outputs.push(
+    { decision: patch },
+    {
+      decision: {
+        ...patch,
+        addRootNodeIds: [],
+        addEdges: ids.map((id, index) => ({
+          source: { nodeId: id },
+          target: { nodeId: 'merge', port: ports[index] },
+        })),
+        addTerminals: [{ nodeId: 'merge' }],
+      },
+    },
+  );
+  for (let index = 0; index < 2; index++) {
+    const proposal = await planWorkflowConnectionStep({
+      ...input,
+      session,
+      model,
+    });
+    const applied = applyWorkflowConnectionStep({
+      ...input,
+      session,
+      expected: proposal.expected,
+      proposal: proposal.decision,
+    });
+    assert.equal(applied.status, 'accepted', JSON.stringify(applied));
+    assert.equal(applied.inspection.ready, index === 1);
+    session = applied.session;
+  }
+  const plan = finalizeWorkflowConnectionSession({ ...input, session });
+  assert.deepEqual(plan.starts, ids);
+  assert.equal(plan.edges.length, materials.length);
+  assert.equal(plan.gaps.length, 0);
+  assert.equal(plan.blockedCalls.length, 0);
+  assert.deepEqual(materials, before);
+  assert.deepEqual(sources, original);
+  assert.equal(calls, 3);
+  assert.deepEqual(
+    describeWorkflowConnectionStep({ ...input, session }).context
+      .deferredApiInputs ?? [],
+    slots,
+  );
+  t.diagnostic(
+    `Original multi-OAS incremental cohort: ${sources.length} documents; ${materials.length} distinct operations; ${slots.length} explicit input slots; ${calls} model-fixture invocations; external calls 0`,
   );
 });
 

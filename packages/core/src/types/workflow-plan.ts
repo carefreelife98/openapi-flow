@@ -137,6 +137,11 @@ export interface WorkflowRouteState {
   branches: Map<string, string>;
   completed: Set<string>;
 }
+/** Internal analysis evidence; the existing public WorkflowRouteState remains compatible. */
+export interface WorkflowTopologyRouteState extends WorkflowRouteState {
+  traversedOutputs: Map<string, Set<string>>;
+}
+export type WorkflowTopologyRoutes = Map<string, WorkflowTopologyRouteState[]>;
 
 export interface WorkflowPlanNodeContract {
   id: string;

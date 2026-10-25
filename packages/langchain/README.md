@@ -1,5 +1,11 @@
 # @openapi-flow/langchain
 
+Version **0.3.16** adds `planWorkflowConnectionGoals` and
+`planWorkflowConnectionStep`. Each makes one structured model call; the host owns
+looping, checkpointing and review. Native planning stages accept optional abort
+signals. See the [connection guide](https://github.com/carefreelife98/openapi-flow/blob/main/docs/incremental-connection-planning.md)
+and [release status and limitations](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.16.md).
+
 Version **0.3.15** adds `selectApiBindingSources`, `planApiCallBindings` and
 `planApiBindingsByCall` for scoped API binding work. The model no longer needs to
 regenerate a whole selected-call inventory in this path. Code checks complete

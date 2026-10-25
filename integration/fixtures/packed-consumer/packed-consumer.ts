@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import './error-contract-consumer.js';
 import { verifyConsumerApiBindingAssembly } from './api-call-bindings-consumer.js';
+import { verifyConsumerIncrementalConnections } from './incremental-connections-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
 import { verifyConsumerApiResponseResults } from './api-response-results-consumer.js';
@@ -1367,6 +1368,11 @@ assert.deepEqual(
 assert.equal(graphAudit.verification.status, 'validated');
 assert.equal(auditedArgs.literalGeneration?.callId, args.callId);
 const names = { [args.callId]: `Request ${args.callId}` };
+verifyConsumerIncrementalConnections({
+  status: 'ready',
+  operation,
+  arguments: args,
+});
 const request = createHttpRequestNode({
   operation,
   arguments: args,
@@ -3026,6 +3032,7 @@ console.log(
     deterministicIncidentEdgeRemoval: 'passed',
     nativeConfigurationReplies: 'passed',
     connectionPlanningRecord: 'passed',
+    incrementalConnectionSession: 'passed',
     explicitDeferredConnectionPlanning: 'passed',
     graphPlanningRecord: 'passed',
     operationCount: catalog.operations.length,

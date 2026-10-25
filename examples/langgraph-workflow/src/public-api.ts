@@ -1,4 +1,7 @@
 export { createWorkflowGenerationGraph } from './graph/create-single-call-workflow-generation-graph.js';
+export { createIncrementalWorkflowConnectionGraph } from './graph/create-incremental-workflow-connection-graph.js';
+export { IncrementalConnectionLimitError } from './graph/connections/check-incremental-connection-budget.js';
+export type * from './types/incremental-connections.js';
 export { createDagWorkflowGenerationGraph } from './graph/create-dag-workflow-generation-graph.js';
 export { createPlannedWorkflowGenerationGraph } from './graph/create-planned-workflow-generation-graph.js';
 export { createReviewableWorkflowGenerationGraph } from './graph/create-reviewable-workflow-generation-graph.js';

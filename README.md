@@ -1,5 +1,13 @@
 # openapi-flow
 
+The **0.3.16 candidate** adds [incremental connection planning](docs/incremental-connection-planning.md):
+serializable partial sessions, separate goal/connection model stages, atomic
+connection bundles and source/revision checks. An optional host-owned LangGraph
+example automatically creates requested native material under explicit budgets.
+It does not add per-node human review or a mandatory server. Publication and known
+limitations are tracked in the [0.3.16 release record](docs/releases/0.3.16.md).
+Host streaming UI and broad short-query quality evaluation remain separate work.
+
 Version **0.3.15** source adds API-by-API binding planning: discover producers for
 one target, retrieve only selected original contracts, then validate the complete
 plan in code. `selectApiBindingSources`, `planApiCallBindings` and

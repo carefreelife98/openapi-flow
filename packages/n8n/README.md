@@ -1,5 +1,10 @@
 # @openapi-flow/n8n
 
+Version **0.3.16** aligns with Core's incremental connection finalization. The
+existing official-SDK compilation path consumes the validated final plan; partial
+sessions are not executable workflows. See the
+[release status and limitations](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.16.md).
+
 Version **0.3.14** introduces the fixed results family described below. See the
 [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
 for actual publication and host status; preparation is not publication. The owner

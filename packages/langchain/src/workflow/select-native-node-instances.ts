@@ -18,6 +18,7 @@ import { NativeNodePlanningError } from './native-node-planning-error.js';
 export async function selectNativeNodeInstances(
   input: SelectNativeNodeInstancesInput,
 ): Promise<NativeInstanceSelection> {
+  input.signal?.throwIfAborted();
   if (
     input.model !== undefined &&
     (!input.model || typeof input.model.withStructuredOutput !== 'function')
@@ -56,10 +57,14 @@ export async function selectNativeNodeInstances(
         strict: true,
       },
     )
-    .invoke([
-      new SystemMessage(nativeInstanceSelectionPrompt),
-      new HumanMessage(JSON.stringify(context)),
-    ]);
+    .invoke(
+      [
+        new SystemMessage(nativeInstanceSelectionPrompt),
+        new HumanMessage(JSON.stringify(context)),
+      ],
+      input.signal === undefined ? undefined : { signal: input.signal },
+    );
+  input.signal?.throwIfAborted();
   try {
     if (
       !isDeepStrictEqual(

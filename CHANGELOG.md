@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.16 — 2026-10-25
+
+- Add serializable, source/revision-checked incremental connection sessions and separate one-call goal/connection planners. Keep original contracts, values, bindings and existing complete-plan APIs intact.
+- Supply a host-owned automatic LangGraph example with explicit budgets, checkpoints, cancellation and opt-in native material generation. No per-node human approval, hidden transport retry or mandatory server is introduced.
+- Reuse full topology route evidence for completion through parallel all-input joins, while retaining actual bypass and mutually exclusive route rejection.
+- Preserve safe underlying API-argument failure diagnostics and add optional cancellation to native planning stages. Align all three packages at 0.3.16 without changing external dependency versions.
+- Retain the enabled Ajv special-key regression and previously accepted n8n SDK Zod 3 advisory. See the [release record](docs/releases/0.3.16.md) for actual verification, publication status and remaining host/quality work.
+
 ## 0.3.13 — 2026-10-23
 
 - Share code-derived API/native source identities, response declarations and pointer catalogs between native edit target selection and value generation. Preserve request-pending versus request-planned preparation without exposing unrelated request bodies or inventing IDs.
