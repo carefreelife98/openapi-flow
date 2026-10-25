@@ -8,6 +8,9 @@ explicit concurrency budget, cancellation and validated same-input resume.
 The existing `planApiBindings` keeps its single-call compatibility contract.
 See [scalable binding planning](docs/scalable-api-binding-planning.md) and the
 [0.3.15 release record](docs/releases/0.3.15.md) for validation and publication status.
+The three npm packages and
+[GitHub Release v0.3.15](https://github.com/carefreelife98/openapi-flow/releases/tag/v0.3.15)
+are published; the disclosed security and special-key limitations remain.
 
 Version **0.3.14** adds fixed API results: the model selects call IDs, while code
 owns `{ results: [{ callId, documentId, method, path, body }] }` and preserves
