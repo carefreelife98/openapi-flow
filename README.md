@@ -3,8 +3,8 @@
 Version **0.3.14** adds fixed API results: the model selects call IDs, while code
 owns `{ results: [{ callId, documentId, method, path, body }] }` and preserves
 complete original bodies. Default planning excludes legacy name-based composition;
-explicit legacy selection remains compatible. This version is being prepared for
-publication with the owner's explicit acceptance of the n8n SDK's unresolved
+explicit legacy selection remains compatible. All three packages are published
+with the owner's explicit acceptance of the n8n SDK's unresolved
 Zod 3 security advisory. This is a disclosed risk, not a resolved audit finding.
 Supported fixes update host Zod to 4.6.7, Scalar parser to 0.29.16 and fast-uri to
 3.1.9 without overrides. Check the [0.3.14 release record](docs/releases/0.3.14.md) for actual
@@ -468,7 +468,7 @@ Webhook/callback extraction stays in core; inbound compilation lives in n8n. Fur
 
 See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [design/implementation status](docs/composable-api-design.ko.md). The [earlier API reference](docs/legacy-api.md) and [earlier walkthrough](docs/legacy-code-walkthrough.ko.md) describe the pre-split implementation, not current main exports. Legacy model functions are under `@openapi-flow/langchain/legacy`; compilers under `@openapi-flow/n8n/legacy`; full host compositions under `examples/legacy-generation/`. `@openapi-flow/core/internal` is an unstable adapter integration boundary.
 
-## Structured errors (0.3.14 candidate)
+## Structured errors (0.3.14)
 
 Core exports `OpenApiFlowError`, `isOpenApiFlowError`,
 `openApiFlowDiagnosticSchema`, and their inferred types. The LangChain and n8n
