@@ -4,12 +4,13 @@ import {
   resolveApiBindingSourceSelection,
   runOpenApiFlowOperation,
 } from '@openapi-flow/core';
+import type { ApiBindingSourceSelection } from '@openapi-flow/core';
 import type {
-  ApiBindingSourceProposal,
-  ApiBindingSourceSelection,
-} from '@openapi-flow/core';
-import type { SelectApiBindingSourcesInput } from '../types/api-call-binding-planning.js';
-import { createApiBindingSourceSelectionSchema } from '../schemas/api-call-binding-plan-schema.js';
+  SelectApiBindingSourcesInput,
+  ApiBindingSourceDecisionOutput,
+} from '../types/api-call-binding-planning.js';
+import { createApiBindingSourceDecisionSchema } from '../schemas/api-call-binding-plan-schema.js';
+import { createApiBindingSourceProposal } from './create-api-binding-source-proposal.js';
 import { apiBindingSourcesPrompt } from '../prompts/api-call-bindings-prompt.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
@@ -38,8 +39,8 @@ export async function selectApiBindingSources(
           : {}),
       },
     });
-  const schema = createApiBindingSourceSelectionSchema(description);
-  const output = await invokeStructuredModel<ApiBindingSourceProposal>({
+  const schema = createApiBindingSourceDecisionSchema(description);
+  const output = await invokeStructuredModel<ApiBindingSourceDecisionOutput>({
     model: input.model,
     schema,
     operation: 'selectApiBindingSources',
@@ -70,10 +71,8 @@ export async function selectApiBindingSources(
     () =>
       resolveApiBindingSourceSelection({
         ...description.input,
-        proposal: parseStructuredOutput(
-          schema,
-          output,
-          'API binding source selection',
+        proposal: createApiBindingSourceProposal(
+          parseStructuredOutput(schema, output, 'API binding source decision'),
         ),
       }),
   );

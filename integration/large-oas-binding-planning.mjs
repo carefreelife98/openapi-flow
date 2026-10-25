@@ -75,7 +75,9 @@ test('170 original multi-service OAS calls are planned without full source schem
               JSON.stringify(context.sourceCandidates).includes('"responses"'),
               false,
             );
-            return schema.parse({ sourceNodeIds: [], gaps: [] });
+            return schema.parse({
+              decision: { kind: 'independent-inputs' },
+            });
           },
         };
       },

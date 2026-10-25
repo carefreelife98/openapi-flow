@@ -6,6 +6,7 @@ import { URL } from 'node:url';
 import { ChatOpenAI } from '@langchain/openai';
 import { planApiBindingsByCall } from '@openapi-flow/langchain';
 import { materials, bindingPlan } from './fixtures/request-binding-fixture.mjs';
+import { createApiBindingSourceDecisionFixture } from './fixtures/api-binding-source-decision-fixture.mjs';
 
 const require = createRequire(
   new URL('../packages/core/package.json', import.meta.url),
@@ -26,6 +27,15 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
       assert.equal(tool.strict, true);
       assert.equal(Object.hasOwn(tool.parameters.properties, 'calls'), false);
       assert.equal(Object.hasOwn(tool.parameters.properties, 'callId'), false);
+      if (tool.name === 'select_api_binding_sources') {
+        const decision = tool.parameters.properties.decision;
+        assert.ok(Array.isArray(decision.anyOf));
+        assert.equal(Object.hasOwn(decision, 'oneOf'), false);
+        for (const branch of decision.anyOf) {
+          assert.equal(typeof branch.properties.kind.const, 'string');
+          assert.equal(branch.additionalProperties, false);
+        }
+      }
       const context = JSON.parse(body.messages[1].content);
       const target = bindingPlan.calls.find(
         (call) => call.callId === context.target.nodeId,
@@ -34,7 +44,7 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
       const reason = 'Only original response data is bound to this target.';
       const output =
         tool.name === 'select_api_binding_sources'
-          ? {
+          ? createApiBindingSourceDecisionFixture({
               sourceNodeIds: [
                 ...new Set(
                   target.bindings.map((binding) => binding.sourceNodeId),
@@ -42,7 +52,7 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
               ],
               gaps: [],
               reason,
-            }
+            })
           : {
               bindings: target.bindings.map(
                 ({ targetPointer, sourceNodeId, sourcePointer }) => ({

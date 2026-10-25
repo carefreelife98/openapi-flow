@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { createApiRequestInputPointerSchema } from '@openapi-flow/core';
 import type {
-  ApiBindingSourceProposal,
   ApiCallBindingProposal,
   ApiCallBindingPlanningDescription,
 } from '@openapi-flow/core';
@@ -27,18 +26,46 @@ function callGapsSchema(description: ApiCallBindingPlanningDescription) {
   );
 }
 
-export function createApiBindingSourceSelectionSchema(
+export function createApiBindingSourceDecisionSchema(
   description: ApiCallBindingPlanningDescription,
-): z.ZodType<ApiBindingSourceProposal> {
+) {
   const ids = description.sourceCandidates.map((candidate) => candidate.nodeId);
+  const independent = z.strictObject({
+    kind: z
+      .literal('independent-inputs')
+      .describe(
+        'No upstream response value is requested for this target. Required or missing independent request values are handled later; they are not missing producers.',
+      ),
+  });
+  const missing = z.strictObject({
+    kind: z.literal('missing-response-sources'),
+    gaps: callGapsSchema(description)
+      .min(1)
+      .describe(
+        'Only explicit response-to-request dependencies with no supplied producer. Never use this decision for absent independent runtime values.',
+      ),
+  });
+  const available = ids.length
+    ? [
+        z.strictObject({
+          kind: z.literal('selected-response-sources'),
+          sourceNodeIds: z
+            .array(z.enum(ids))
+            .min(1)
+            .describe(
+              'All plausible provided producers requested for this target, independent of inventory order. Code retrieves their original contracts.',
+            ),
+        }),
+        z.strictObject({
+          kind: z.literal('partially-missing-response-sources'),
+          sourceNodeIds: z.array(z.enum(ids)).min(1),
+          gaps: callGapsSchema(description).min(1),
+        }),
+      ]
+    : [];
   const schema = z.strictObject({
-    sourceNodeIds: (ids.length
-      ? z.array(z.enum(ids))
-      : z.array(z.string()).max(0)
-    ).describe(
-      'Select only possible producers needed by THIS target. All API/native identities remain available regardless of array order. [] means no supplied producer is needed. Code retrieves the selected original contracts; this index is not proof of a compatible field.',
-    ),
-    gaps: callGapsSchema(description),
+    // Distinct literal kinds keep these branches exclusive; union emits strict-provider-compatible anyOf.
+    decision: z.union([independent, missing, ...available]),
   });
   return description.input.includeExplanations === true
     ? schema.extend({ reason: apiBindingCallReasonSchema })

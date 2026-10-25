@@ -1,5 +1,12 @@
 # openapi-flow
 
+Version **0.3.18** separates per-call binding source decisions from independent
+runtime inputs. A typed model decision selects the applicable branch; code owns
+its fixed empty fields. Missing independent inputs remain for the argument stage,
+while genuine and partially missing response dependencies stay explicit. Public
+function inputs/returns are unchanged. See the
+[0.3.18 release record](docs/releases/0.3.18.md) for verification and publication status.
+
 Version **0.3.17** source adds lossless initial-goal rejection feedback and
 stage-specific clarification input. The host can re-plan rejected goals under its
 existing explicit budgets; transport/cancellation/source changes still fail.

@@ -1,5 +1,10 @@
 # @openapi-flow/core
 
+Version **0.3.18** aligns with LangChain's typed per-call source decisions.
+Core's source-selection contracts, original OAS checks and cycle validation are
+unchanged. See the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.18.md).
+
 Version **0.3.17** adds `describeApiOperationCandidate`, projecting an original
 operation into the existing discovery contract without changing its OAS or
 filtering candidates. Detailed contracts remain available for later generation

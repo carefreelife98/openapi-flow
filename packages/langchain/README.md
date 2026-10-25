@@ -1,5 +1,13 @@
 # @openapi-flow/langchain
 
+Version **0.3.18** distinguishes independent inputs, selected response sources,
+missing requested sources and partially missing sources in the model output.
+Code constructs only the fixed fields implied by the validated decision. Invalid
+extra fields fail rather than being stripped. Public function inputs/returns are
+unchanged; custom model/test doubles must follow the supplied structured schema,
+not the previous internal flat wire shape. See the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.18.md).
+
 Version **0.3.17** adds `createWorkflowConnectionGoalRejection`, its public Zod
 schema/type and optional goal-call `rejectedProposals`. Original JSON output and
 validation reasons remain private host feedback. Each library call still performs

@@ -16,6 +16,7 @@ import {
   planApiCallBindings,
 } from '@openapi-flow/langchain';
 import { materials, bindingPlan } from './fixtures/request-binding-fixture.mjs';
+import { createApiBindingSourceDecisionFixture } from './fixtures/api-binding-source-decision-fixture.mjs';
 import {
   material as nativeMaterial,
   nativeOutputs,
@@ -66,15 +67,17 @@ function bindingModel(plan, inspect = async () => {}) {
               JSON.stringify(context.sourceCandidates).includes('"responses"'),
               false,
             );
-            return schema.parse({
-              sourceNodeIds: [
-                ...new Set(
-                  call.bindings.map((binding) => binding.sourceNodeId),
-                ),
-              ],
-              gaps,
-              ...reason,
-            });
+            return schema.parse(
+              createApiBindingSourceDecisionFixture({
+                sourceNodeIds: [
+                  ...new Set(
+                    call.bindings.map((binding) => binding.sourceNodeId),
+                  ),
+                ],
+                gaps,
+                ...reason,
+              }),
+            );
           }
           assert.equal(options.name, 'plan_api_call_bindings');
           const wanted = new Set(
@@ -104,6 +107,172 @@ function bindingModel(plan, inspect = async () => {}) {
     },
   };
 }
+
+test('independent required inputs leave source lists and gaps to code, without a field-planning model call', async () => {
+  const input = {
+    scenario:
+      'Retrieve the detail. Its independent request value will be supplied later.',
+    materials,
+    callId: 'detail',
+  };
+  const detail = materials.find((material) => material.callId === 'detail');
+  assert.ok(
+    detail.operation.effective.parameters.some(
+      (item) => item.name === 'id' && item.required,
+    ),
+  );
+  let calls = 0;
+  const sources = await selectApiBindingSources({
+    ...input,
+    model: {
+      withStructuredOutput(schema, options) {
+        assert.equal(options.name, 'select_api_binding_sources');
+        const json = z.toJSONSchema(schema);
+        assert.deepEqual(Object.keys(json.properties), ['decision']);
+        return {
+          invoke: async () => {
+            calls++;
+            return { decision: { kind: 'independent-inputs' } };
+          },
+        };
+      },
+    },
+  });
+  assert.deepEqual(sources.sourceNodeIds, []);
+  assert.deepEqual(sources.gaps, []);
+  const result = await planApiCallBindings({
+    ...input,
+    sources,
+    model: {
+      withStructuredOutput() {
+        throw new Error('Independent inputs must not invoke field mapping');
+      },
+    },
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(result.bindings, []);
+  assert.deepEqual(result.gaps, []);
+});
+
+test('contradictory independent extras and the old flat output fail without stripping or repairing model fields', async () => {
+  const gap = {
+    targetPointer: '/path/id',
+    description: 'An absent independent literal is not a producer gap.',
+  };
+  for (const output of [
+    { sourceNodeIds: [], gaps: [gap] },
+    { decision: { kind: 'independent-inputs', gaps: [gap] } },
+    { decision: { kind: 'independent-inputs', sourceNodeIds: [] } },
+    { decision: { kind: 'selected-response-sources', sourceNodeIds: [] } },
+    { decision: { kind: 'missing-response-sources', gaps: [] } },
+  ]) {
+    const before = globalThis.structuredClone(output);
+    let calls = 0;
+    await assert.rejects(
+      selectApiBindingSources({
+        scenario: 'Retrieve the detail independently.',
+        materials,
+        callId: 'detail',
+        model: {
+          withStructuredOutput() {
+            return {
+              invoke: async () => {
+                calls++;
+                return output;
+              },
+            };
+          },
+        },
+      }),
+      (error) =>
+        error.diagnostic.code === 'MODEL_OUTPUT_INVALID' &&
+        error.diagnostic.stage === 'model-output',
+    );
+    assert.equal(calls, 1);
+    assert.deepEqual(output, before);
+  }
+});
+
+test('partially missing response dependencies retain both original provided sources and genuine missing dependencies', async () => {
+  const gap = {
+    targetPointer: '/body/stock',
+    description: 'The explicitly requested stock producer is absent.',
+  };
+  const sources = await selectApiBindingSources({
+    scenario: 'Use the detail ID and stock producer response in summary.',
+    materials: materials.filter((item) => item.callId !== 'stock'),
+    callId: 'summary',
+    includeExplanations: true,
+    model: {
+      withStructuredOutput() {
+        return {
+          invoke: async () => ({
+            decision: {
+              kind: 'partially-missing-response-sources',
+              sourceNodeIds: ['detail'],
+              gaps: [gap],
+            },
+            reason:
+              'Retain the provided detail source and report the requested absent producer.',
+          }),
+        };
+      },
+    },
+  });
+  assert.deepEqual(sources.sourceNodeIds, ['detail']);
+  assert.deepEqual(sources.gaps, [gap]);
+  assert.match(sources.reason, /Retain/);
+});
+
+test('an empty producer inventory excludes provided-source decisions rather than inventing candidates or empty enums', async () => {
+  const input = {
+    scenario: 'Retrieve the detail independently.',
+    materials: materials.filter((item) => item.callId === 'detail'),
+    callId: 'detail',
+  };
+  let schema;
+  const sources = await selectApiBindingSources({
+    ...input,
+    model: {
+      withStructuredOutput(value) {
+        schema = value;
+        return {
+          invoke: async () => ({ decision: { kind: 'independent-inputs' } }),
+        };
+      },
+    },
+  });
+  assert.deepEqual(sources.sourceNodeIds, []);
+  assert.equal(
+    JSON.stringify(z.toJSONSchema(schema)).includes(
+      'selected-response-sources',
+    ),
+    false,
+  );
+  assert.equal(
+    schema.safeParse({
+      decision: {
+        kind: 'selected-response-sources',
+        sourceNodeIds: ['detail'],
+      },
+    }).success,
+    false,
+  );
+  assert.equal(
+    schema.safeParse({
+      decision: {
+        kind: 'missing-response-sources',
+        gaps: [
+          {
+            targetPointer: '/path/id',
+            description: 'An explicitly requested unavailable source.',
+          },
+        ],
+      },
+    }).success,
+    true,
+  );
+});
 
 test('per-call source discovery hydrates only selected original contracts; code owns identities and whole-plan evidence', async () => {
   const original = globalThis.structuredClone(materials);
@@ -342,7 +511,14 @@ test('source identities cannot be guessed, duplicated, self-referenced or silent
         callId: 'detail',
         model: {
           withStructuredOutput() {
-            return { invoke: async () => ({ sourceNodeIds: ids, gaps: [] }) };
+            return {
+              invoke: async () => ({
+                decision: {
+                  kind: 'selected-response-sources',
+                  sourceNodeIds: ids,
+                },
+              }),
+            };
           },
         },
       }),
