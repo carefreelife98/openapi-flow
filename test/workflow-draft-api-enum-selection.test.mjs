@@ -245,3 +245,20 @@ test('LangChain performs a distinct optional enum selection, not a repair or gen
   );
   assert.equal(failed.requests.length, 2);
 });
+
+test('enum transport rejection preserves the original error instead of relabeling arguments or retrying', async () => {
+  const input = await fixture();
+  const transport = new Error('Synthetic enum transport failure');
+  const model = apiCallPlanningModel([input.proposal], (index) => {
+    if (index === 1) throw transport;
+  });
+  await assert.rejects(
+    generateWorkflowDraftApiCallArguments({
+      ...input,
+      model,
+      selectOasEnums: true,
+    }),
+    (error) => error === transport,
+  );
+  assert.equal(model.requests.length, 2);
+});

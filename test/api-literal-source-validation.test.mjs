@@ -283,6 +283,28 @@ test('source verification rejects conversion, absent pointers, stale messages an
   );
 });
 
+test('a numeric token is accepted as JSON without converting a text source into a number', async () => {
+  const f = await fixture('Use cursor 100.');
+  const values = { body: 100 };
+  const source = {
+    targetPointer: '/body',
+    messageId: 'current',
+    sourceFormat: 'text',
+    sourceText: '100',
+  };
+  assert.throws(
+    () => f.resolve(f.proposal(values, [source])),
+    /without conversion/,
+  );
+  const result = f.resolve(
+    f.proposal(values, [{ ...source, sourceFormat: 'json' }]),
+  );
+  assert.equal(result.status, 'ready');
+  assert.deepEqual(result.arguments.values, values);
+  assert.equal(typeof result.arguments.values.body, 'number');
+  assert.equal(source.sourceFormat, 'text');
+});
+
 test('background literal evidence is separate from current edit authority and is fingerprint checked', async () => {
   const f = await fixture('Add the API using the earlier explicit body.', [
     { id: 'earlier', text: 'Use body {"code":"0007"}.' },

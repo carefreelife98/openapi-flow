@@ -1,4 +1,5 @@
 import type { CompilePlannedN8nWorkflowInput } from '../types/native-capability.js';
+import { runOpenApiFlowOperation } from '@openapi-flow/core';
 import type { N8nCompileResult } from '../types/workflow-compilation.js';
 import { assembleN8nWorkflow } from './assemble-n8n-workflow.js';
 import { compileValidatedWorkflowFragments } from './compile-validated-workflow-fragments.js';
@@ -8,6 +9,20 @@ import {
 } from './inputs/compile-native-runtime-inputs.js';
 
 export function compilePlannedN8nWorkflow(
+  input: CompilePlannedN8nWorkflowInput,
+): N8nCompileResult {
+  return runOpenApiFlowOperation(
+    {
+      owner: 'n8n',
+      operation: 'compilePlannedN8nWorkflow',
+      stage: 'compilation',
+      code: 'N8N_COMPILATION_FAILED',
+    },
+    () => compilePlannedN8nWorkflowSource(input),
+  );
+}
+
+function compilePlannedN8nWorkflowSource(
   input: CompilePlannedN8nWorkflowInput,
 ): N8nCompileResult {
   const nativeInputs = prepareNativeRuntimeInputs({

@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod';
+import { OpenApiFlowError } from '@openapi-flow/core';
 
 export function parseStructuredOutput<Output>(
   schema: ZodType<Output>,
@@ -10,7 +11,14 @@ export function parseStructuredOutput<Output>(
   const issues = parsed.error.issues.map(
     (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
   );
-  throw new Error(`${source} is invalid: ${issues.join('; ')}`, {
+  throw new OpenApiFlowError({
+    message: `${source} is invalid: ${issues.join('; ')}`,
+    diagnostic: {
+      owner: 'langchain',
+      operation: 'parseStructuredOutput',
+      stage: 'model-output',
+      code: 'MODEL_OUTPUT_INVALID',
+    },
     cause: parsed.error,
   });
 }

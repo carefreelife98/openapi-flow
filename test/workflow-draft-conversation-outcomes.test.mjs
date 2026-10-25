@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createWorkflowDraft, inspectDraftReadiness } from '@openapi-flow/core';
+import {
+  createWorkflowDraft,
+  inspectDraftReadiness,
+  OpenApiFlowError,
+} from '@openapi-flow/core';
 import { draftConversationOutcomeSchema } from '@openapi-flow/example-langgraph-workflow';
 import {
   draftConversationFixture,
@@ -307,7 +311,11 @@ test('the actual graph preserves an exporting checkpoint without a stale artifac
   };
   try {
     await assert.rejects(f.graph.invoke(null, f.config), (error) => {
-      assert.equal(error, failure);
+      assert.ok(error instanceof OpenApiFlowError);
+      assert.equal(error.diagnostic.code, 'N8N_COMPILATION_FAILED');
+      assert.equal(error.diagnostic.operation, 'compileN8nWorkflowTemplate');
+      assert.equal(error.cause, failure);
+      assert.equal(error.message, failure.message);
       return true;
     });
     const failed = await f.graph.getState(f.config);

@@ -4425,3 +4425,99 @@ or local tarball was substituted into that host. See the release receipt for exa
 source identity and publication times. Direct existing-value edit forms, fresh
 post-install real-model/browser validation and broader quality/stream-load work
 remain separate; the complete product goal is not declared finished.
+
+## 2026-10-24 local argument-error context preservation
+
+`generateWorkflowDraftApiCallArguments` returned the optional enum-selection
+Promise directly from a `try` block. A rejection during that helper's initial
+literal-provenance validation therefore escaped the enclosing `catch`. The
+original rejection still reached the caller, but the promised typed argument
+failure did not retain its model output and stage. This also occurs when the
+operation has no enum candidates: the helper validates the initial proposal
+before deciding whether a separate enum model call is needed.
+
+The local source separates synchronous provenance/candidate validation from the
+asynchronous model selection. An initial validation error now reaches the existing
+arguments error boundary, which retains that output and the original cause.
+Enum-output validation keeps its own error boundary and stage; a model transport
+rejection still propagates as the original error without a retry. Merely awaiting
+the entire helper in the outer catch would incorrectly relabel enum transport
+failures as arguments failures; the added transport regression rejects that
+approach. No values, source quotes, types or OAS contracts are changed to make a
+rejected plan pass.
+
+Four regressions cover malformed literal provenance and correct unchanged values
+with enum selection both enabled and disabled. The enabled malformed-provenance
+case failed before the source fix while the other three passed. A separate Core
+example verifies that source text `100` describes a string when its declared
+source format is `text`, whereas the same original token is numeric JSON when
+declared as `json`; code does not convert between these values. This is a
+deterministic example, not a claim about an uncaptured model output.
+
+Final verification for this local change passed all 31 focused tests, including
+the enum transport identity regression. The complete suite passed 1,269 of 1,270
+tests, with only the existing Ajv special-key failure and no skipped or cancelled
+tests. Build, typecheck, lint, format and source-derived graph checks passed.
+The conversation graph remains at 30 nodes and 68 edges. These stored results
+were rechecked on 2026-10-25; no new model or workflow execution was required.
+
+The change remains uncommitted and unpublished in the local 0.3.14 candidate.
+The public host still uses 0.3.13. The existing Zod 3 security release blocker and
+approved Ajv special-key limitation remain unresolved; neither is bypassed by
+this diagnostic fix.
+
+## 2026-10-25 source-owned structured error contract (unreleased)
+
+Added a common `OpenApiFlowError`, public guard, code/diagnostic Zod schemas and
+inferred types in core. Adapters import this contract rather than duplicating
+its shape. Source boundaries own the package, operation, stage and code. Exact
+binding coverage counts are required for the coverage-mismatch diagnostic.
+Unknown failures identify the observed boundary without guessing a network,
+timeout or schema cause from message text. Existing typed errors pass through
+outer boundaries unchanged; newly wrapped exceptions retain their exact cause.
+
+The original message, stack, cause and legacy planning failure/output remain
+private. `toJSON()` is an explicit closed projection; callers must not log/spread
+the entire error. Existing native and graph error subclasses retain their
+identities, messages, `failure` payloads and causes while supporting the common
+diagnostic projection. No model retry, value repair, skipped validation, new
+OAS acceptance limit, host logging dependency or execution policy was added.
+
+Covered paths are OAS validation/reference resolution, API operation selection,
+binding planning and public assignment/gap checks, existing native/graph planning
+error classes, planned n8n compilation and template compilation. This is not a
+migration of every internal throw or every provider-specific timeout identity.
+The model helper distinguishes configuration, invoke and recognized LangChain
+output-parser failures. Only a numeric own `status` data property is exposed;
+status getters, alternate fields and error-name/message guesses are not used.
+The evaluation example now consumes the public diagnostic for interruption and
+HTTP status instead of depending on raw transport fields on an outer Error.
+
+Verification: all 45 focused error/evaluation/checkpoint tests passed, including
+18 dedicated error-contract tests. Real ChatOpenAI
+transport against loopback HTTP fixtures distinguished HTTP 400, truncated tool
+arguments, complete-call coverage rejection and a valid result, with exactly four
+requests and no hidden retries. A private multi-document OAS regression prepared
+170 real operation contracts, rejected a 169-call proposal with exact numeric
+counts, then accepted a complete independent-binding proposal without changing
+the documents. These are deterministic/model-double regressions, not a replay or
+diagnosis of an uncaptured production model exception. Existing private real-OAS
+regressions passed 55/55. An independent packed consumer installed all three
+tarballs without workspace symlinks, compiled strict types and exercised the new
+public error imports and existing compilation paths. The dedicated public
+`@openapi-flow/core/errors` entry point also bundled and executed in a browser
+environment without Node APIs or polyfills, with the same class identity as
+the default server entry point. The final complete suite passed 1,287/1,288;
+the sole failure is the unchanged approved Ajv special-key runtime-slot case.
+No tests were skipped or cancelled. Final build, workspace typecheck, lint and
+format checks passed. The SDK export-failure checkpoint regression now asserts
+the typed outer error and exact original cause identity, without relaxing the
+canonical draft, pending checkpoint, absent artifact or model-call assertions.
+
+The source-derived conversation topology is unchanged. The work remains local,
+uncommitted and unpublished in the existing 0.3.14 candidate. Qoopilot stays on
+public 0.3.13; its server logging/UI integration still needs a source-first release
+and host update. No local tarball was substituted into that host, and no Chomsky,
+business API, n8n engine or service deployment was invoked for this change.
+The existing security publication blocker and approved Ajv special-key limitation
+remain open; this diagnostic implementation does not resolve them.

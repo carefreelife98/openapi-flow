@@ -20,6 +20,7 @@
     "format": "prettier --write packages/*/src test integration examples/*/src examples/langgraph-workflow/{package.json,tsconfig.json,README.md,specs,evaluation} package.json packages/*/package.json packages/*/tsconfig.json eslint.config.mjs scripts/release/*.mjs scripts/verify-release-candidate.mjs scripts/update-workflow-conversation-graph.mjs",
     "test": "npm run build && node --test test/legacy/*.test.mjs test/*.test.mjs",
     "test:real-oas": "npm run build && node --test integration/real-oas.mjs",
+    "test:real-oas-errors": "npm run build && node --test integration/real-oas-error-contract.mjs",
     "test:packed-consumer": "npm run build && node integration/packed-consumer-smoke.mjs",
     "test:local-n8n": "npm run build && node integration/local-n8n-smoke.mjs",
     "test:request-bindings-local-n8n": "npm run build && node integration/request-bindings-local-n8n.mjs",

@@ -8,6 +8,7 @@ import {
 import type {
   WorkflowDraftApiEnumSelectionProposal,
   WorkflowDraftApiCallArgumentsResult,
+  WorkflowDraftApiEnumChoicesDescription,
 } from '@openapi-flow/core';
 import type { SelectWorkflowDraftApiEnumsInput } from '../types/workflow-draft-api-call-planning.js';
 import { workflowDraftApiEnumSelectionPrompt } from '../prompts/workflow-draft-api-enum-selection-prompt.js';
@@ -16,12 +17,21 @@ import { parseStructuredOutput } from '../legacy/planning/parse-structured-outpu
 import { WorkflowDraftApiCallPlanningError } from './workflow-draft-api-call-planning-error.js';
 
 /** A second call only when actual missing OAS enum choices remain; never a repair retry. */
-export async function selectWorkflowDraftApiEnums(
+export function selectWorkflowDraftApiEnums(
   input: SelectWorkflowDraftApiEnumsInput,
 ): Promise<WorkflowDraftApiCallArgumentsResult> {
   const original = resolveWorkflowDraftApiCallArguments(input);
-  const { candidates, targets } = describeWorkflowDraftApiEnumChoices(input);
-  if (!candidates.length) return original;
+  const choices = describeWorkflowDraftApiEnumChoices(input);
+  if (!choices.candidates.length) return Promise.resolve(original);
+  return selectMissingWorkflowDraftApiEnums(input, choices);
+}
+
+/** Model transport remains outside the enum-output validation boundary. */
+async function selectMissingWorkflowDraftApiEnums(
+  input: SelectWorkflowDraftApiEnumsInput,
+  choices: WorkflowDraftApiEnumChoicesDescription,
+): Promise<WorkflowDraftApiCallArgumentsResult> {
+  const { candidates, targets } = choices;
   const description = describeWorkflowDraftApiCallArguments(input);
   const schema = createWorkflowDraftApiEnumSelectionSchema(input);
   const output = await input.model

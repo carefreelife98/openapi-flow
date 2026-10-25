@@ -22,6 +22,10 @@
     "node": ">=24"
   },
   "exports": {
+    "./errors": {
+      "types": "./dist/errors-api.d.ts",
+      "default": "./dist/errors-api.js"
+    },
     "./runtime": {
       "types": "./dist/runtime-api.d.ts",
       "default": "./dist/runtime-api.js"

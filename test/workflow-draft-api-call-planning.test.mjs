@@ -605,6 +605,70 @@ test('typed failures retain original model outputs and transport failures are no
   assert.equal(failingModel.requests.length, 1);
 });
 
+for (const selectOasEnums of [false, true]) {
+  test(`literal provenance rejection retains its arguments output and cause with enum selection ${selectOasEnums}`, async () => {
+    const values = { path: { id: 'literal-id' } };
+    const input = await apiCallPlanningFixture(
+      'replace-api-operation',
+      'replacement',
+      false,
+      values,
+    );
+    const output = apiCallArgumentsProposal(input, values);
+    const source = output.literalSources.find(
+      (entry) => entry.targetPointer === '/path/id',
+    );
+    assert.ok(source);
+    source.sourceFormat = 'text';
+    const original = globalThis.structuredClone(output);
+    const model = apiCallPlanningModel([output]);
+    await assert.rejects(
+      generateWorkflowDraftApiCallArguments({
+        ...input,
+        bindingPlan: apiCallBindingPlan(input, []),
+        model,
+        selectOasEnums,
+      }),
+      (error) => {
+        assert.ok(error instanceof WorkflowDraftApiCallPlanningError);
+        assert.equal(error.failure.stage, 'arguments');
+        assert.equal(error.failure.output, output);
+        assert.ok(error.cause instanceof Error);
+        assert.match(
+          error.cause.message,
+          /literal \/path\/id.*without conversion/,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(output, original);
+    assert.equal(model.requests.length, 1);
+  });
+
+  test(`correct typed literal sources remain unchanged with enum selection ${selectOasEnums}`, async () => {
+    const values = { path: { id: 'literal-id' } };
+    const input = await apiCallPlanningFixture(
+      'replace-api-operation',
+      'replacement',
+      false,
+      values,
+    );
+    const output = apiCallArgumentsProposal(input, values);
+    const original = globalThis.structuredClone(output);
+    const model = apiCallPlanningModel([output]);
+    const result = await generateWorkflowDraftApiCallArguments({
+      ...input,
+      bindingPlan: apiCallBindingPlan(input, []),
+      model,
+      selectOasEnums,
+    });
+    assert.equal(result.status, 'ready');
+    assert.deepEqual(result.arguments.values, values);
+    assert.deepEqual(output, original);
+    assert.equal(model.requests.length, 1);
+  });
+}
+
 test('colliding operationRefs across OAS documents use the complete selected document and snapshot key', async () => {
   const base = await apiCallPlanningFixture(
     'add-api-call',

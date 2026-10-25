@@ -4,7 +4,8 @@ Version **0.3.14** adds fixed API results: the model selects call IDs, while cod
 owns `{ results: [{ callId, documentId, method, path, body }] }` and preserves
 complete original bodies. Default planning excludes legacy name-based composition;
 explicit legacy selection remains compatible. This version is being prepared for
-publication, currently blocked by the n8n SDK's unresolved Zod 3 security advisory.
+publication with the owner's explicit acceptance of the n8n SDK's unresolved
+Zod 3 security advisory. This is a disclosed risk, not a resolved audit finding.
 Supported fixes update host Zod to 4.6.7, Scalar parser to 0.29.16 and fast-uri to
 3.1.9 without overrides. Check the [0.3.14 release record](docs/releases/0.3.14.md) for actual
 source synchronization, publication and host-installation status.
@@ -466,6 +467,56 @@ Remaining: exhaustive OAS response-pointer/type proof, item-wise loops, combined
 Webhook/callback extraction stays in core; inbound compilation lives in n8n. Further inbound work is deferred under the current Manual Trigger/REST scope. Document acceptance is separate from selected-node conversion: valid OAS is not rejected just because an adapter cannot map a feature.
 
 See the [current Korean code walkthrough](docs/code-walkthrough.ko.md) and [design/implementation status](docs/composable-api-design.ko.md). The [earlier API reference](docs/legacy-api.md) and [earlier walkthrough](docs/legacy-code-walkthrough.ko.md) describe the pre-split implementation, not current main exports. Legacy model functions are under `@openapi-flow/langchain/legacy`; compilers under `@openapi-flow/n8n/legacy`; full host compositions under `examples/legacy-generation/`. `@openapi-flow/core/internal` is an unstable adapter integration boundary.
+
+## Structured errors (0.3.14 candidate)
+
+Core exports `OpenApiFlowError`, `isOpenApiFlowError`,
+`openApiFlowDiagnosticSchema`, and their inferred types. The LangChain and n8n
+adapters import that same contract; hosts must not redefine error-code unions.
+Use the browser-safe `@openapi-flow/core/errors` public entry point in shared
+frontend/backend contract packages. The default core entry point also reexports
+these symbols but includes Node-owned OAS/planning code. No polyfill or duplicate
+frontend schema is needed for the dedicated error entry point.
+An error's `diagnostic` and `toJSON()` contain only the explicit code, owning
+package, operation, stage, and optional numeric status/counts. The original
+`message`, `cause`, stack and rejected planning output are private diagnostics,
+not browser payloads. Log or transmit the selected diagnostic, not the entire
+error or a spread of its fields. The OSS does not log, retry, repair a proposal,
+or decide a host's recovery policy.
+
+Covered boundaries are OAS validation/resolution, `selectApiOperations`,
+`planApiBindings`, public single/complete binding assignment and gap validation,
+the existing native/graph planning error classes, `compilePlannedN8nWorkflow`,
+and `compileN8nWorkflowTemplate`. Other entry points have not all been migrated.
+Existing planning error subclasses keep their identity, `failure`, message and
+cause. Previously untyped exceptions at migrated boundaries now have a typed
+outer error; compare `cause` for the original dependency exception's identity.
+Unknown binding/compilation failures identify the observed boundary,
+not an invented underlying cause. Recognized LangChain `OutputParserException`
+instances identify output failures; arbitrary error text or names do not.
+Native `DOMException` timeout/abort identities have separate codes. Other
+providers' timeout classes remain invocation failures with their exact cause
+unless an explicit adapter supplies a typed diagnostic. HTTP status is included
+only when the thrown error explicitly provides an integer `status` from 100–599.
+
+For example, a missing call in an otherwise well-formed binding proposal produces:
+
+```json
+{
+  "code": "API_BINDING_CALL_COVERAGE_MISMATCH",
+  "owner": "core",
+  "operation": "validateApiBindingAssignments",
+  "stage": "contract-validation",
+  "expectedCount": 170,
+  "actualCount": 169,
+  "distinctCount": 169
+}
+```
+
+This example is a contract regression, not a diagnosis of any previous model run.
+Hosts attach their own thread/run/node identifiers and map codes to local-language
+UI messages. A successful diagnostic test does not recover historical exceptions
+or prove large-catalog model quality. These changes are not in public 0.3.13.
 
 ## Official usage example
 

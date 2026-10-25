@@ -2,8 +2,24 @@ import { validate as resolveAndValidate } from '@scalar/openapi-parser';
 import { validate } from '@scalar/openapi-validator';
 import type { OpenApiDocument, ParsedDocument } from '../../types/openapi.js';
 import { object } from './parse-spec-utils.js';
+import {
+  runOpenApiFlowOperation,
+  runOpenApiFlowAsyncOperation,
+} from '../../errors/run-openapi-flow-operation.js';
 
 export function validateOpenApi(input: unknown): OpenApiDocument {
+  return runOpenApiFlowOperation(
+    {
+      owner: 'core',
+      operation: 'validateOpenApi',
+      stage: 'input-validation',
+      code: 'OAS_VALIDATION_FAILED',
+    },
+    () => validateOpenApiDocument(input),
+  );
+}
+
+function validateOpenApiDocument(input: unknown): OpenApiDocument {
   let serialized: string | undefined;
   try {
     serialized = JSON.stringify(input);
@@ -24,6 +40,20 @@ export function validateOpenApi(input: unknown): OpenApiDocument {
 }
 
 export async function validateAndResolveOpenApiDocument(
+  input: OpenApiDocument,
+): Promise<ParsedDocument> {
+  return runOpenApiFlowAsyncOperation(
+    {
+      owner: 'core',
+      operation: 'validateAndResolveOpenApiDocument',
+      stage: 'input-validation',
+      code: 'OAS_RESOLUTION_FAILED',
+    },
+    () => resolveOpenApiDocumentReferences(input),
+  );
+}
+
+async function resolveOpenApiDocumentReferences(
   input: OpenApiDocument,
 ): Promise<ParsedDocument> {
   const spec = validateOpenApi(input);

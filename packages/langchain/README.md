@@ -1,11 +1,19 @@
 # @openapi-flow/langchain
 
-Version **0.3.14** aligns the three packages for the n8n adapter's fixed API result
-collection. Model adapter behavior is unchanged; the required host Zod peer is
-updated below. Publication is blocked by the n8n adapter's unresolved upstream
-Zod 3 advisory. The
-host still chooses the supplied planning inventory. See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
+Version **0.3.14** adds source-owned structured errors and preserves initial
+argument provenance failures across optional enum selection. Existing prompts,
+values, schemas and retry behavior are unchanged; the host still chooses the
+planning inventory. The owner accepted the n8n adapter's unresolved upstream
+Zod 3 advisory for this release on 2026-10-25; this does not clear the audit.
+See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
 for actual publication and host status; preparation is not publication.
+
+API selection and binding planning expose Core's shared `OpenApiFlowError`
+diagnostic. Existing native/graph planning error subclasses retain their identity,
+failure payload and cause. A typed outer error can now wrap a previously untyped
+exception; use `cause` for its original identity and serialize only the diagnostic.
+No model-output repair or hidden retry is added, and not every internal model
+call/provider-specific timeout has been migrated.
 
 Zod `^4.6.7` is a required host peer, alongside `@langchain/core`. The three libraries share the host's Zod for public schema types instead of creating an isolated pinned copy. Modern package managers install compatible missing peers; a host that directly creates Zod schemas should declare its own compatible Zod dependency.
 

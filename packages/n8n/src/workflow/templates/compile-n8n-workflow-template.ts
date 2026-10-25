@@ -6,6 +6,7 @@ import {
   inspectDeferredApiInputs,
   inspectNativeRuntimeInputs,
   createNativeRuntimeParameterMaterializations,
+  runOpenApiFlowOperation,
 } from '@openapi-flow/core';
 import type {
   WorkflowApiMaterial,
@@ -35,6 +36,20 @@ import { createTemplateGapRegions } from './create-template-gap-regions.js';
 
 /** An explicit template boundary, never a false fully-resolved strict request. */
 export function compileN8nWorkflowTemplate(
+  source: CompileN8nWorkflowTemplateInput,
+): N8nWorkflowTemplateResult {
+  return runOpenApiFlowOperation(
+    {
+      owner: 'n8n',
+      operation: 'compileN8nWorkflowTemplate',
+      stage: 'compilation',
+      code: 'N8N_COMPILATION_FAILED',
+    },
+    () => compileN8nWorkflowTemplateSource(source),
+  );
+}
+
+function compileN8nWorkflowTemplateSource(
   source: CompileN8nWorkflowTemplateInput,
 ): N8nWorkflowTemplateResult {
   if (source.itemMode !== undefined && source.itemMode !== 'linked')

@@ -1,7 +1,22 @@
 import type { ValidateApiBindingPlanInput } from '../types/api-bindings.js';
 import { requestBindingSchemas } from './request-binding-schema.js';
+import { runOpenApiFlowOperation } from '../errors/run-openapi-flow-operation.js';
 
-export function validateApiBindingGaps({
+export function validateApiBindingGaps(
+  input: ValidateApiBindingPlanInput,
+): void {
+  runOpenApiFlowOperation(
+    {
+      owner: 'core',
+      operation: 'validateApiBindingGaps',
+      stage: 'contract-validation',
+      code: 'API_BINDING_GAP_INVALID',
+    },
+    () => validateApiBindingGapContracts(input),
+  );
+}
+
+function validateApiBindingGapContracts({
   plan,
   materials,
 }: ValidateApiBindingPlanInput): void {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
+import './error-contract-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';
 import { verifyConsumerApiResponseObject } from './api-response-object-consumer.js';
 import { verifyConsumerApiResponseResults } from './api-response-results-consumer.js';

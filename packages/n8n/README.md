@@ -2,11 +2,18 @@
 
 Version **0.3.14** introduces the fixed results family described below. See the
 [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
-for actual publication and host status; preparation is not publication. Publication
-is blocked by the upstream SDK's Zod 3 advisory. Raising the host Zod peer does
-not replace the SDK's separately pinned Zod 3; no override or audit exclusion is used.
+for actual publication and host status; preparation is not publication. The owner
+accepted the upstream SDK's unresolved Zod 3 advisory for this release on
+2026-10-25. Oversized collection validation can exhaust memory; actual host
+exploitability has not been established. Raising the host Zod peer does not replace
+the SDK's separately pinned Zod 3; no override or audit exclusion is used.
 
 ## Fixed API results (0.3.14)
+
+`compilePlannedN8nWorkflow` and `compileN8nWorkflowTemplate` expose Core's shared
+structured error contract. An untyped dependency exception becomes the exact
+`cause` of `N8N_COMPILATION_FAILED`; existing typed errors pass through unchanged.
+Diagnostic JSON excludes raw messages, stacks, credentials and model output.
 
 `createApiResponseResultsCapability({ materials })` / `N8nNativeFeature.GatherApiResponses` register `gather-api-responses`. The model selects only `sourceNodeIds`. Code fixes `{ results: [{ callId, documentId, method, path, body }] }`, derives metadata and body schemas from original OAS contracts, and keeps each complete response body unchanged. Official SDK Merge and Aggregate nodes assemble the list after full-response validation. Duplicate calls to one operation remain separate by `callId`; exactly one source item per call is required. Wait-only joins use Merge and original API references without result reconstruction. Never infer downstream binding identity from a results array index.
 

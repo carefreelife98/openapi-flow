@@ -1,11 +1,19 @@
 # @openapi-flow/core
 
-Version **0.3.14** aligns the three packages for the n8n adapter's fixed API result
-collection. Core behavior is unchanged; supported security updates use Scalar
-parser 0.29.16, fast-uri 3.1.9 and the host Zod peer below. Publication is blocked
-by the n8n adapter's unresolved upstream Zod 3 advisory. The existing
-Ajv special-key limitation below remains. See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
+Version **0.3.14** adds source-owned structured errors and aligns the n8n adapter's
+fixed API result collection. Supported security updates use Scalar parser
+0.29.16, fast-uri 3.1.9 and the host Zod peer below. The owner accepted the n8n
+adapter's unresolved upstream Zod 3 advisory for this release on 2026-10-25.
+This does not clear the audit finding. The existing Ajv special-key limitation
+below remains. See the [0.3.14 release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.14.md)
 for actual publication and host status; preparation is not publication.
+
+`@openapi-flow/core/errors` exports the browser-safe `OpenApiFlowError`, guard,
+diagnostic/code schemas and inferred types without importing Node-owned OAS code.
+Covered errors retain the original exception in `cause`; `toJSON()` exposes only
+the closed diagnostic, never private messages, stacks or model output. Existing
+typed errors pass through unchanged. This does not migrate every internal throw
+or add logging, retries, schema repair or host recovery policy.
 
 Zod `^4.6.7` is a required peer, shared with the host rather than installed as a separately pinned runtime copy. Development tests and the strict installed-consumer check use 4.6.7. This preserves the public schema type boundary without casts or dependency overrides.
 
