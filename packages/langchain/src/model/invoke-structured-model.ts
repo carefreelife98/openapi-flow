@@ -18,7 +18,7 @@ export async function invokeStructuredModel<Output extends object>(
       input.model.withStructuredOutput<Output>(input.schema, {
         name: input.name,
         method: input.method,
-        strict: true,
+        ...(input.strict === undefined ? {} : { strict: input.strict }),
       }),
   );
   try {

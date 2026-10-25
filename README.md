@@ -506,6 +506,13 @@ Covered boundaries are OAS validation/resolution, `selectApiOperations`,
 `planApiBindings`, public single/complete binding assignment and gap validation,
 the existing native/graph planning error classes, `compilePlannedN8nWorkflow`,
 and `compileN8nWorkflowTemplate`. Other entry points have not all been migrated.
+The unreleased argument-boundary update also covers `generateApiArguments` and
+`analyzeApiInputAnswers`, including the optional follow-up enum model call.
+Model setup/invocation/output failures retain the common model codes; raw
+post-output OAS or original-source validation failures use
+`API_ARGUMENT_VALIDATION_FAILED`. Existing typed exceptions preserve their
+identity and code. This update changes diagnostics, not literal values, source
+checks, strictness, prompts or retry behavior. Public 0.3.15 does not include it.
 Existing planning error subclasses keep their identity, `failure`, message and
 cause. Previously untyped exceptions at migrated boundaries now have a typed
 outer error; compare `cause` for the original dependency exception's identity.

@@ -67,6 +67,7 @@ export async function planApiCallBindings(
     operation: 'planApiCallBindings',
     name: 'plan_api_call_bindings',
     method: 'functionCalling',
+    strict: true,
     signal: input.signal,
     messages: [
       new SystemMessage(apiCallBindingsPrompt),

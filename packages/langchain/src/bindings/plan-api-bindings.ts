@@ -50,6 +50,7 @@ export async function planApiBindings(
     operation: 'planApiBindings',
     name: 'plan_api_bindings',
     method: 'functionCalling',
+    strict: true,
     messages: [
       new SystemMessage(apiBindingsPrompt),
       new HumanMessage(JSON.stringify(context)),

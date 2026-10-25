@@ -69,6 +69,7 @@ export async function selectApiOperations(
     operation: 'selectApiOperations',
     name: 'select_api_operations',
     method: 'jsonSchema',
+    strict: true,
     messages: [
       new SystemMessage(
         `${operationSelectionPrompt}\n${apiSelectionExplanationPrompt}`,

@@ -45,6 +45,7 @@ export async function selectApiBindingSources(
     operation: 'selectApiBindingSources',
     name: 'select_api_binding_sources',
     method: 'functionCalling',
+    strict: true,
     signal: input.signal,
     messages: [
       new SystemMessage(apiBindingSourcesPrompt),

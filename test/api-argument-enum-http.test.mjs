@@ -4,7 +4,11 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { ChatOpenAI } from '@langchain/openai';
-import { createApiCatalog, resolveApiOperations } from '@openapi-flow/core';
+import {
+  createApiCatalog,
+  resolveApiOperations,
+  OpenApiFlowError,
+} from '@openapi-flow/core';
 import { generateApiArguments } from '@openapi-flow/langchain';
 import { textInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
@@ -44,6 +48,7 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
   );
   const { Ajv2020 } = require('ajv/dist/2020.js');
   const requests = [];
+  let rejectEnumRequest = false;
   const server = createServer(async (request, response) => {
     let raw = '';
     for await (const chunk of request) raw += chunk;
@@ -71,6 +76,18 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
             ],
           };
     requests.push({ body, payload, output });
+    if (rejectEnumRequest && wire.name === 'extract_api_input_answers') {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: {
+            message: 'private enum provider failure',
+            type: 'invalid_request_error',
+          },
+        }),
+      );
+      return;
+    }
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(
       JSON.stringify({
@@ -143,6 +160,38 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
       'VIEWS',
     );
     assert.equal(Object.hasOwn(result, 'literalGeneration'), false);
+    assert.equal(
+      Object.hasOwn(requests[0].body.tools[0].function, 'strict'),
+      false,
+    );
+    assert.equal(requests[1].body.tools[0].function.strict, true);
+    rejectEnumRequest = true;
+    await assert.rejects(
+      generateApiArguments({
+        callId: 'ranking-read',
+        operation,
+        bindings: [],
+        scenario: '조회수 순으로 조회해줘.',
+        purpose: '랭킹 조회',
+        selectOasEnums: true,
+        model,
+      }),
+      (error) => {
+        assert.ok(error instanceof OpenApiFlowError);
+        assert.equal(error.diagnostic.code, 'MODEL_INVOCATION_FAILED');
+        assert.equal(error.diagnostic.operation, 'analyzeApiInputAnswers');
+        assert.equal(error.diagnostic.stage, 'model-invocation');
+        assert.equal(error.diagnostic.httpStatus, 400);
+        assert.equal(error.cause.status, 400);
+        assert.equal(JSON.stringify(error).includes('private'), false);
+        return true;
+      },
+    );
+    assert.equal(
+      requests.length,
+      4,
+      'Exactly one literal call and one enum call per invocation',
+    );
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
