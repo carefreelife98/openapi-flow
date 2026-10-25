@@ -1,7 +1,7 @@
-# Incremental connection planning (0.3.16)
+# Incremental connection planning (0.3.17)
 
 This source adds independently callable connection-planning stages. Publication
-status is tracked in the [release record](releases/0.3.16.md). A host-owned automatic
+status is tracked in the [release record](releases/0.3.17.md). A host-owned automatic
 LangGraph composition lives in `examples/langgraph-workflow`, including opt-in
 native material generation. Host streaming UI and broad short-query quality
 evaluation remain separate work; these libraries do not ship a server or UI.
@@ -136,7 +136,7 @@ explicit `policy`: `maxModelInvocations`, `maxRejectedProposals`, `deadlineMs`.
 There are no environment or policy defaults. These are resource budgets, not
 limits on the number of OAS documents or API instances.
 
-The graph interprets goals once, reserves each model invocation before calling,
+The graph interprets goals, reserves each model invocation before calling,
 checks and applies coherent bundles, publishes a separate progress projection,
 and finalizes through the existing full validator. Graph-invalid proposals return
 their original structured violations to the next invocation. HTTP/model failures
@@ -144,7 +144,41 @@ do not consume this path as hidden retries. A failed model stage records only a
 failure reference in checkpoint state; its next node rethrows the original private
 exception. Resuming that failure node does not call the model again.
 
-The result distinguishes `complete`, `needs-native-material` and
+## Rejected initial goals (0.3.17)
+
+`createWorkflowConnectionGoalRejection({ ...source, error })` classifies a typed
+initial goal output/contract failure against the unchanged source fingerprint.
+It returns the exact JSON output, diagnostic stage/code and original reason.
+It returns `undefined` for transport, cancellation, unrelated failures, changed
+source or output that cannot be checkpointed losslessly as JSON. The host must
+propagate those failures, not turn them into a model retry.
+
+The host may checkpoint the returned `WorkflowConnectionGoalRejection` and supply
+it as `rejectedProposals` to another `planWorkflowConnectionGoals` invocation.
+That function still makes exactly one model call and validates each supplied
+record before the call. It neither repairs the response nor changes requirements.
+The example child graph implements the bounded loop and counts rejected goals
+and rejected connection bundles against the same explicit rejection budget.
+Invalid initial goals never enter a session or a public progress graph.
+
+## Discovery input for clarification (0.3.17)
+
+`describeApiOperationCandidate` projects an original `ApiOperationContract` into
+the existing public `ApiOperationCandidate` discovery contract. The clarification
+model receives every supplied candidate's identity, method, path, description
+and tags, plus native feature descriptions. It does not receive duplicated raw
+path items, request/response schemas or native configuration schemas at this
+scope-discovery stage. Selected-operation planning and all contract validation
+continue to use the original complete OAS. No candidate filtering or API-count
+limit is introduced.
+
+This reduces irrelevant model input, not a latency guarantee. A broad request
+over 176 original candidates still hit its unchanged 60-second model timeout in
+the recorded actual-model check. It is not counted as a successful workflow.
+
+## Host native augmentation and progress
+
+The automatic child graph result distinguishes `complete`, `needs-native-material` and
 `needs-user-decision`. Without `nativeAugmentation`, the parent receives native
 requests and may extend the same session with validated material. They are not
 human interrupts. With the explicit option below, the example graph resolves the

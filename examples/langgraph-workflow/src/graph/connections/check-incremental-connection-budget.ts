@@ -2,6 +2,20 @@ import type {
   IncrementalConnectionInvocationInput,
   IncrementalConnectionLimitFailure,
 } from '../../types/incremental-connections.js';
+import type { IncrementalConnectionState } from '../../types/incremental-connections.js';
+
+export function countIncrementalConnectionRejections(
+  state: IncrementalConnectionState,
+): number {
+  if (state.rejectedProposals === undefined)
+    throw new Error(
+      'Connection rejection accounting requires rejectedProposals',
+    );
+  // Optional on older completed-goal checkpoints: that version never retried a rejected goal.
+  return (
+    state.rejectedProposals.length + (state.rejectedGoalProposals?.length ?? 0)
+  );
+}
 
 export class IncrementalConnectionLimitError extends Error {
   readonly failure: IncrementalConnectionLimitFailure;
@@ -35,11 +49,12 @@ export function checkIncrementalConnectionBudget(
       limit: policy.deadlineMs,
       observed: elapsed,
     });
-  if (state.rejectedProposals.length > policy.maxRejectedProposals)
+  const rejections = countIncrementalConnectionRejections(state);
+  if (rejections > policy.maxRejectedProposals)
     throw new IncrementalConnectionLimitError({
       kind: 'rejected-proposals',
       limit: policy.maxRejectedProposals,
-      observed: state.rejectedProposals.length,
+      observed: rejections,
     });
 }
 

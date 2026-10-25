@@ -34,6 +34,9 @@ export async function invokeConnectionPlanningModel<Output extends object>(
       stage: 'model-output',
       code: 'MODEL_OUTPUT_INVALID',
       output,
+      ...(input.sourceFingerprint === undefined
+        ? {}
+        : { sourceFingerprint: input.sourceFingerprint }),
     },
     () => {
       const parsed = input.schema.parse(output);

@@ -3,6 +3,7 @@ import {
   createWorkflowClarificationRound,
   describeWorkflowPlanningContext,
   resolveWorkflowClarificationOptions,
+  describeApiOperationCandidate,
 } from '@openapi-flow/core';
 import type { WorkflowClarificationRound } from '@openapi-flow/core';
 import type {
@@ -64,8 +65,23 @@ export async function clarifyWorkflowRequirements(
             ? {}
             : { backgroundMessages: input.backgroundMessages }),
           entrypoint: context.entrypoint,
-          candidates,
-          capabilities: context.capabilities,
+          candidates: candidates.map(({ candidateId, operation }) => ({
+            candidateId,
+            ...describeApiOperationCandidate(operation),
+          })),
+          capabilities: context.capabilities.map((capability) => ({
+            name: capability.name,
+            description: capability.description,
+            ...(capability.materialRequirements === undefined
+              ? {}
+              : { materialRequirements: capability.materialRequirements }),
+            ...(capability.supportsRuntimeParameters === true
+              ? {
+                  supportsRuntimeParameters:
+                    capability.supportsRuntimeParameters,
+                }
+              : {}),
+          })),
           limits: input.limits,
           options,
         }),

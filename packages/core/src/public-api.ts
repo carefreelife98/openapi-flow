@@ -5,6 +5,7 @@ export { UnsupportedOperationError } from './openapi/common/unsupported-operatio
 export { createApiCatalog } from './openapi/catalog/create-api-catalog.js';
 export { listApiOperations } from './openapi/catalog/list-api-operations.js';
 export { resolveApiOperations } from './openapi/resolve-api-operations.js';
+export { describeApiOperationCandidate } from './openapi/catalog/describe-api-operation-candidate.js';
 export type * from './types/api-catalog.js';
 export type * from './types/api-selection-evidence.js';
 export { describeApiSelectionContext } from './openapi/selection/evidence/describe-api-selection-context.js';

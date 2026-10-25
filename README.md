@@ -1,5 +1,13 @@
 # openapi-flow
 
+Version **0.3.17** source adds lossless initial-goal rejection feedback and
+stage-specific clarification input. The host can re-plan rejected goals under its
+existing explicit budgets; transport/cancellation/source changes still fail.
+Clarification retains every API candidate while detailed input/output schemas stay
+with later selected-operation stages. A broad 176-candidate request still timed
+out; no general speed or quality gain is claimed. Publication and checks are
+tracked in the [0.3.17 release record](docs/releases/0.3.17.md).
+
 Published **0.3.16** adds [incremental connection planning](docs/incremental-connection-planning.md):
 serializable partial sessions, separate goal/connection model stages, atomic
 connection bundles and source/revision checks. An optional host-owned LangGraph

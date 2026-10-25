@@ -59,6 +59,8 @@ export { generateNativeNodeParameters } from './workflow/generate-native-node-pa
 export { NativeNodePlanningError } from './workflow/native-node-planning-error.js';
 export { planWorkflowConnections } from './workflow/plan-workflow-connections.js';
 export { planWorkflowConnectionGoals } from './workflow/connections/plan-workflow-connection-goals.js';
+export { createWorkflowConnectionGoalRejection } from './workflow/connections/create-workflow-connection-goal-rejection.js';
+export { workflowConnectionGoalRejectionSchema } from './schemas/workflow-connection-goal-rejection-schema.js';
 export { planWorkflowConnectionStep } from './workflow/connections/plan-workflow-connection-step.js';
 export type * from './types/incremental-connection-planning.js';
 export { WorkflowConnectionPlanningError } from './workflow/connections/workflow-connection-planning-error.js';

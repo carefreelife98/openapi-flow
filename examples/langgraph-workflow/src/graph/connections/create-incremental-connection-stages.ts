@@ -9,6 +9,7 @@ import {
 import {
   planWorkflowConnectionGoals,
   planWorkflowConnectionStep,
+  createWorkflowConnectionGoalRejection,
 } from '@openapi-flow/langchain';
 import type {
   IncrementalConnectionDependencies,
@@ -20,6 +21,7 @@ import {
   checkIncrementalConnectionBudget,
   createIncrementalConnectionSignal,
   IncrementalConnectionLimitError,
+  countIncrementalConnectionRejections,
 } from './check-incremental-connection-budget.js';
 import { resolveIncrementalConnectionSource } from './resolve-incremental-connection-source.js';
 import { createIncrementalNativeStages } from './native/create-incremental-native-stages.js';
@@ -86,7 +88,8 @@ export function createIncrementalConnectionStages(
     if (
       state.startedAt !== undefined ||
       state.modelInvocations !== undefined ||
-      state.rejectedProposals !== undefined
+      state.rejectedProposals !== undefined ||
+      state.rejectedGoalProposals !== undefined
     )
       throw new Error(
         'A fresh connection run must not contain previous accounting without its session',
@@ -95,6 +98,7 @@ export function createIncrementalConnectionStages(
       startedAt: Date.now(),
       modelInvocations: 0,
       rejectedProposals: [],
+      rejectedGoalProposals: [],
       status: 'planning',
       nextModelStage: 'goals',
       additionalNativeNodes: [],
@@ -122,17 +126,33 @@ export function createIncrementalConnectionStages(
   ): Promise<IncrementalConnectionUpdate> {
     return invokeModelStage(async () => {
       check(state, config);
-      const session = await planWorkflowConnectionGoals({
-        ...source(state),
-        model: dependencies.model,
-        signal: createIncrementalConnectionSignal({
-          state,
-          policy: dependencies.policy,
-          config,
-        }),
-      });
-      check(state, config);
-      return { session, nextModelStage: 'step' };
+      if (state.rejectedGoalProposals === undefined)
+        throw new Error('Goal planning requires its rejection history');
+      try {
+        const session = await planWorkflowConnectionGoals({
+          ...source(state),
+          model: dependencies.model,
+          rejectedProposals: state.rejectedGoalProposals,
+          signal: createIncrementalConnectionSignal({
+            state,
+            policy: dependencies.policy,
+            config,
+          }),
+        });
+        check(state, config);
+        return { session, nextModelStage: 'step' };
+      } catch (error) {
+        const rejection = createWorkflowConnectionGoalRejection({
+          ...source(state),
+          error,
+        });
+        if (rejection === undefined) throw error;
+        check(state, config);
+        return {
+          rejectedGoalProposals: [...state.rejectedGoalProposals, rejection],
+          nextModelStage: 'goals',
+        };
+      }
     });
   }
   async function propose(
@@ -236,7 +256,7 @@ export function createIncrementalConnectionStages(
       pendingNodeIds: description.inspection.pendingNodeIds,
       ready: description.inspection.ready,
       modelInvocations: state.modelInvocations,
-      rejectedProposals: state.rejectedProposals.length,
+      rejectedProposals: countIncrementalConnectionRejections(state),
     });
     return {};
   }

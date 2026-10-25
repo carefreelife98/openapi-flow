@@ -76,8 +76,13 @@ export function createIncrementalWorkflowConnectionGraph(
     )
     .addConditionalEdges(
       'interpretGoals',
-      (state) => (state.failureId ? 'fail' : 'publishProgress'),
-      ['fail', 'publishProgress'],
+      (state) =>
+        state.failureId
+          ? 'fail'
+          : state.session
+            ? 'publishProgress'
+            : 'reserveModelCall',
+      ['fail', 'publishProgress', 'reserveModelCall'],
     )
     .addConditionalEdges(
       'proposeBundle',

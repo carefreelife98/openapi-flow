@@ -6,6 +6,7 @@ import {
   inspectWorkflowConnectionCompletion,
   finalizeWorkflowConnectionSession,
   extendWorkflowConnectionSession,
+  describeApiOperationCandidate,
 } from '@openapi-flow/core';
 import type {
   ReadyWorkflowApiMaterial,
@@ -16,11 +17,15 @@ import type {
 import {
   planWorkflowConnectionGoals,
   planWorkflowConnectionStep,
+  createWorkflowConnectionGoalRejection,
+  workflowConnectionGoalRejectionSchema,
 } from '@openapi-flow/langchain';
 import type {
   PlanWorkflowConnectionGoalsInput,
   PlanWorkflowConnectionStepInput,
   PlanWorkflowConnectionStepResult,
+  CreateWorkflowConnectionGoalRejectionInput,
+  WorkflowConnectionGoalRejection,
 } from '@openapi-flow/langchain';
 import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
 
@@ -28,6 +33,10 @@ import { createN8nNativeCapabilities } from '@openapi-flow/n8n';
 export function verifyConsumerIncrementalConnections(
   material: ReadyWorkflowApiMaterial,
 ): ReviewableWorkflowGraphPlan {
+  assert.deepEqual(
+    describeApiOperationCandidate(material.operation).key,
+    material.operation.key,
+  );
   const scenario = 'Execute this supplied independent API once.';
   const source: WorkflowConnectionSessionSource = {
     scenario,
@@ -139,4 +148,13 @@ export function verifyConsumerConnectionStepTypes(
   input: PlanWorkflowConnectionStepInput,
 ): Promise<PlanWorkflowConnectionStepResult> {
   return planWorkflowConnectionStep(input);
+}
+
+export function verifyConsumerGoalRejectionTypes(
+  input: CreateWorkflowConnectionGoalRejectionInput,
+): WorkflowConnectionGoalRejection | undefined {
+  const rejection = createWorkflowConnectionGoalRejection(input);
+  return rejection === undefined
+    ? undefined
+    : workflowConnectionGoalRejectionSchema.parse(rejection);
 }

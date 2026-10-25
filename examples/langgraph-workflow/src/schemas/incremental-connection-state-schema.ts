@@ -12,6 +12,7 @@ import type {
   PlannedNativeNode,
 } from '@openapi-flow/core';
 import type { PlanWorkflowConnectionStepResult } from '@openapi-flow/langchain';
+import { workflowConnectionGoalRejectionSchema } from '@openapi-flow/langchain';
 import type { IncrementalNativeMaterialReceipt } from '../types/incremental-connections.js';
 
 export const incrementalConnectionPolicySchema = z.strictObject({
@@ -27,6 +28,9 @@ export const incrementalConnectionStateSchema = new StateSchema({
   modelInvocations: z.int().nonnegative().optional(),
   rejectedProposals: z
     .array(workflowConnectionRejectedProposalSchema)
+    .optional(),
+  rejectedGoalProposals: z
+    .array(workflowConnectionGoalRejectionSchema)
     .optional(),
   pending: z.custom<PlanWorkflowConnectionStepResult>().optional(),
   nextModelStage: z

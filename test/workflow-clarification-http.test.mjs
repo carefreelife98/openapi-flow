@@ -170,6 +170,25 @@ test('actual ChatOpenAI HTTP schemas reflect optional fields, candidate enums an
         assert.equal(wire.messages[1].role, 'user');
         const payload = JSON.parse(wire.messages[1].content);
         assert.equal(payload.candidates[0].candidateId, 'candidate-1');
+        assert.equal(
+          payload.candidates.length,
+          input.context.operations.length,
+        );
+        for (const [index, candidate] of payload.candidates.entries()) {
+          const original = input.context.operations[index];
+          assert.deepEqual(candidate.key, original.key);
+          assert.equal(candidate.method, original.method);
+          assert.equal(candidate.path, original.path);
+          assert.equal(Object.hasOwn(candidate, 'operation'), false);
+          assert.equal(Object.hasOwn(candidate, 'pathItem'), false);
+          assert.equal(Object.hasOwn(candidate, 'effective'), false);
+        }
+        assert.equal(
+          payload.capabilities.length,
+          input.context.capabilities.length,
+        );
+        for (const capability of payload.capabilities)
+          assert.equal(Object.hasOwn(capability, 'parametersSchema'), false);
         assert.deepEqual(payload.limits, input.limits);
         assert.equal(Object.hasOwn(format.schema.properties, 'id'), false);
       }

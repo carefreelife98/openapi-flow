@@ -1,5 +1,10 @@
 # @openapi-flow/n8n
 
+Version **0.3.17** aligns with Core and LangChain's additive planning contracts.
+The official SDK compiler and original response-value validation are unchanged.
+Rejected or incomplete goals are not executable workflows. See the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.17.md).
+
 Version **0.3.16** aligns with Core's incremental connection finalization. The
 existing official-SDK compilation path consumes the validated final plan; partial
 sessions are not executable workflows. See the

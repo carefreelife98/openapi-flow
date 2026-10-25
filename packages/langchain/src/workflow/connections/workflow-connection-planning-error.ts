@@ -4,6 +4,7 @@ import type { WorkflowConnectionPlanningFailure } from '../../types/incremental-
 /** Raw output is retained for a private host diagnostic, not in the public error projection. */
 export class WorkflowConnectionPlanningError extends OpenApiFlowError {
   readonly output: unknown;
+  readonly sourceFingerprint: string | undefined;
 
   constructor(failure: WorkflowConnectionPlanningFailure, cause: unknown) {
     super({
@@ -17,6 +18,7 @@ export class WorkflowConnectionPlanningError extends OpenApiFlowError {
       cause,
     });
     this.output = failure.output;
+    this.sourceFingerprint = failure.sourceFingerprint;
   }
 }
 

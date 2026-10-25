@@ -10,6 +10,7 @@ import type {
 } from '@openapi-flow/core';
 import type { PlanWorkflowConnectionGoalsInput } from '../../types/incremental-connection-planning.js';
 import { createWorkflowConnectionGoalsSchema } from '../../schemas/workflow-connection-goals-schema.js';
+import { workflowConnectionGoalRejectionSchema } from '../../schemas/workflow-connection-goal-rejection-schema.js';
 import { workflowConnectionGoalsPrompt } from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
 import { resolveConnectionPortSelection } from './resolve-connection-port-selection.js';
@@ -29,6 +30,17 @@ export async function planWorkflowConnectionGoals(
     },
     () => {
       const description = describeWorkflowConnectionGoals(input);
+      if (input.rejectedProposals !== undefined) {
+        if (!Array.isArray(input.rejectedProposals))
+          throw new Error('rejectedProposals must be an array when supplied');
+        for (const rejection of input.rejectedProposals) {
+          workflowConnectionGoalRejectionSchema.parse(rejection);
+          if (rejection.sourceFingerprint !== description.sourceFingerprint)
+            throw new Error(
+              'Rejected goals must belong to the unchanged source and requirements',
+            );
+        }
+      }
       return {
         description,
         schema: createWorkflowConnectionGoalsSchema(description),
@@ -40,9 +52,17 @@ export async function planWorkflowConnectionGoals(
     operation,
     name: 'plan_workflow_connection_goals',
     schema,
+    sourceFingerprint: description.sourceFingerprint,
     messages: [
       new SystemMessage(workflowConnectionGoalsPrompt),
-      new HumanMessage(JSON.stringify(description)),
+      new HumanMessage(
+        JSON.stringify({
+          ...description,
+          ...(input.rejectedProposals === undefined
+            ? {}
+            : { rejectedProposals: input.rejectedProposals }),
+        }),
+      ),
     ],
     ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
@@ -52,6 +72,7 @@ export async function planWorkflowConnectionGoals(
       stage: 'contract-validation',
       code: 'WORKFLOW_GRAPH_PLANNING_FAILED',
       output,
+      sourceFingerprint: description.sourceFingerprint,
     },
     () => {
       if (

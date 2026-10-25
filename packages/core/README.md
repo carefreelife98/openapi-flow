@@ -1,5 +1,11 @@
 # @openapi-flow/core
 
+Version **0.3.17** adds `describeApiOperationCandidate`, projecting an original
+operation into the existing discovery contract without changing its OAS or
+filtering candidates. Detailed contracts remain available for later generation
+and validation. See the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.17.md).
+
 Version **0.3.16** adds serializable incremental connection sessions, atomic
 bundle application, source/revision guards, native-only extension and complete
 DAG finalization. Existing APIs remain compatible. See the

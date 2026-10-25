@@ -14,6 +14,7 @@ import {
   planWorkflowConnectionGoals,
   planWorkflowConnectionStep,
   WorkflowConnectionPlanningError,
+  createWorkflowConnectionGoalRejection,
 } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture as fixture,
@@ -232,6 +233,149 @@ test('goal coverage validation preserves the proposed output and original cause'
     },
   );
   assert.equal(model.calls, 1);
+});
+
+test('goal rejection feedback preserves exact model and contract failures without exposing them in the public diagnostic', async () => {
+  for (const output of [
+    { goals: [] },
+    {
+      goals: [
+        {
+          kind: 'precedence',
+          before: 'source',
+          after: 'source',
+          factIds: ['intent'],
+          reason: 'An invalid self dependency.',
+        },
+      ],
+    },
+  ]) {
+    const { source, goals } = fixture();
+    let failure;
+    await assert.rejects(
+      planWorkflowConnectionGoals({
+        ...source,
+        model: connectionPlanningModel(output),
+      }),
+      (error) => {
+        failure = error;
+        return true;
+      },
+    );
+    const rejection = createWorkflowConnectionGoalRejection({
+      ...source,
+      error: failure,
+    });
+    assert.ok(rejection);
+    assert.deepEqual(rejection.output, output);
+    assert.equal(rejection.sourceFingerprint, failure.sourceFingerprint);
+    assert.equal(rejection.reason, failure.message);
+    assert.equal(Object.hasOwn(failure.toJSON(), 'output'), false);
+    assert.equal(Object.hasOwn(failure.toJSON(), 'sourceFingerprint'), false);
+    const model = modelFor({ goals }, ({ context }) => {
+      assert.deepEqual(context.rejectedProposals, [rejection]);
+    });
+    const result = await planWorkflowConnectionGoals({
+      ...source,
+      model,
+      rejectedProposals: [rejection],
+    });
+    assert.equal(result.revision, 0);
+    assert.equal(model.calls, 1);
+    rejection.output = null;
+    assert.deepEqual(failure.output, output);
+  }
+});
+
+test('goal feedback cannot be reused after the original source or requirements change', async () => {
+  const { source, goals } = fixture();
+  let failure;
+  await assert.rejects(
+    planWorkflowConnectionGoals({
+      ...source,
+      model: connectionPlanningModel({ goals: [] }),
+    }),
+    (error) => {
+      failure = error;
+      return true;
+    },
+  );
+  const rejection = createWorkflowConnectionGoalRejection({
+    ...source,
+    error: failure,
+  });
+  assert.ok(rejection);
+  source.requirements[0].text += ' Changed confirmed requirement.';
+  assert.equal(
+    createWorkflowConnectionGoalRejection({ ...source, error: failure }),
+    undefined,
+  );
+  const model = modelFor({ goals });
+  await assert.rejects(
+    planWorkflowConnectionGoals({
+      ...source,
+      model,
+      rejectedProposals: [rejection],
+    }),
+    /unchanged source and requirements/,
+  );
+  assert.equal(model.calls, 0);
+});
+
+test('transport, cancellation, unrelated stages and non-JSON output are not classified as goal feedback', async () => {
+  const { source } = fixture();
+  const failures = [
+    new Error('Network error'),
+    new globalThis.DOMException('Cancelled', 'AbortError'),
+    new WorkflowConnectionPlanningError(
+      {
+        operation: 'planWorkflowConnectionStep',
+        stage: 'model-output',
+        code: 'MODEL_OUTPUT_INVALID',
+        output: {},
+      },
+      new Error('Wrong stage'),
+    ),
+    new WorkflowConnectionPlanningError(
+      {
+        operation: 'planWorkflowConnectionGoals',
+        stage: 'model-output',
+        code: 'MODEL_OUTPUT_INVALID',
+        output: {},
+      },
+      new Error('No original fingerprint'),
+    ),
+  ];
+  for (const error of failures)
+    assert.equal(
+      createWorkflowConnectionGoalRejection({ ...source, error }),
+      undefined,
+    );
+  let failure;
+  await assert.rejects(
+    planWorkflowConnectionGoals({
+      ...source,
+      model: connectionPlanningModel({ goals: [] }),
+    }),
+    (error) => {
+      failure = error;
+      return true;
+    },
+  );
+  const nonJson = new WorkflowConnectionPlanningError(
+    {
+      operation: 'planWorkflowConnectionGoals',
+      stage: 'model-output',
+      code: 'MODEL_OUTPUT_INVALID',
+      output: { invalid: undefined },
+      sourceFingerprint: failure.sourceFingerprint,
+    },
+    new Error('Not a lossless JSON output'),
+  );
+  assert.equal(
+    createWorkflowConnectionGoalRejection({ ...source, error: nonJson }),
+    undefined,
+  );
 });
 
 test('changed requirements/source during an invocation cannot produce an applicable old decision', async () => {

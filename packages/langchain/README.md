@@ -1,5 +1,13 @@
 # @openapi-flow/langchain
 
+Version **0.3.17** adds `createWorkflowConnectionGoalRejection`, its public Zod
+schema/type and optional goal-call `rejectedProposals`. Original JSON output and
+validation reasons remain private host feedback. Each library call still performs
+one model invocation; only the host owns iteration and budgets. Clarification
+receives all discovery metadata, with detailed schemas retained for later stages.
+The broad-query timeout remains. See the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.17.md).
+
 Version **0.3.16** adds `planWorkflowConnectionGoals` and
 `planWorkflowConnectionStep`. Each makes one structured model call; the host owns
 looping, checkpointing and review. Native planning stages accept optional abort

@@ -1,5 +1,6 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { ZodType } from 'zod';
+import type { ZodType, z } from 'zod';
+import type { workflowConnectionGoalRejectionSchema } from '../schemas/workflow-connection-goal-rejection-schema.js';
 import type { BaseMessage } from '@langchain/core/messages';
 import type {
   WorkflowConnectionSessionSource,
@@ -16,7 +17,15 @@ import type {
 
 export interface PlanWorkflowConnectionGoalsInput extends WorkflowConnectionSessionSource {
   model: BaseChatModel;
+  /** Exact rejected output and code-owned validation feedback for this unchanged source. */
+  rejectedProposals?: WorkflowConnectionGoalRejection[];
   signal?: AbortSignal;
+}
+export type WorkflowConnectionGoalRejection = z.infer<
+  typeof workflowConnectionGoalRejectionSchema
+>;
+export interface CreateWorkflowConnectionGoalRejectionInput extends WorkflowConnectionSessionSource {
+  error: unknown;
 }
 export interface PlanWorkflowConnectionStepInput extends WorkflowConnectionSessionInput {
   model: BaseChatModel;
@@ -78,6 +87,7 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   name: string;
   schema: ZodType<Output>;
   messages: BaseMessage[];
+  sourceFingerprint?: string;
   signal?: AbortSignal;
 }
 export interface WorkflowConnectionPlanningFailure {
@@ -85,4 +95,5 @@ export interface WorkflowConnectionPlanningFailure {
   stage: 'model-output' | 'contract-validation';
   code: 'MODEL_OUTPUT_INVALID' | 'WORKFLOW_GRAPH_PLANNING_FAILED';
   output: unknown;
+  sourceFingerprint?: string;
 }

@@ -611,6 +611,86 @@ test('a graph-invalid bundle is rejected atomically and its exact structured fee
   assert.equal(result.modelInvocations, 4);
 });
 
+test('an invalid initial goal is retained and re-planned automatically before a connection session exists', async () => {
+  const { source, goals, plan } = fixture();
+  const invalid = {
+    goals: [
+      {
+        kind: 'precedence',
+        before: 'source',
+        after: 'source',
+        factIds: ['intent'],
+        reason: 'An invalid self dependency.',
+      },
+    ],
+  };
+  const before = globalThis.structuredClone(source.materials);
+  const model = queueModel([invalid, { goals }, ...twoBundles(source, plan)]);
+  const result = await createIncrementalWorkflowConnectionGraph(
+    dependencies(source, model),
+  ).invoke({});
+  assert.equal(result.status, 'complete');
+  assert.equal(result.modelInvocations, 4);
+  assert.equal(result.rejectedGoalProposals.length, 1);
+  assert.deepEqual(result.rejectedGoalProposals[0].output, invalid);
+  assert.match(result.rejectedGoalProposals[0].reason, /self nodes/);
+  assert.deepEqual(
+    model.requests[1].context.rejectedProposals,
+    result.rejectedGoalProposals,
+  );
+  assert.deepEqual(source.materials, before);
+  assert.deepEqual(result.plan.edges, plan.edges);
+});
+
+test('initial goal rejections consume the existing rejection budget and remain in the checkpoint', async () => {
+  const { source } = fixture();
+  const invalid = { goals: [] };
+  const model = queueModel([invalid]);
+  const graph = createIncrementalWorkflowConnectionGraph(
+    dependencies(source, model, {
+      policy: { ...policy, maxRejectedProposals: 0 },
+      checkpointer: new MemorySaver(),
+    }),
+  );
+  const config = { configurable: { thread_id: 'goal-rejection-budget' } };
+  await assert.rejects(
+    graph.invoke({}, config),
+    (error) =>
+      error instanceof IncrementalConnectionLimitError &&
+      error.failure.kind === 'rejected-proposals',
+  );
+  const saved = await graph.getState(config);
+  assert.equal(saved.values.session, undefined);
+  assert.equal(saved.values.rejectedGoalProposals.length, 1);
+  assert.deepEqual(saved.values.rejectedGoalProposals[0].output, invalid);
+  assert.equal(model.requests.length, 1);
+});
+
+test('initial goal model transport failure keeps its original exception and does not reserve another call', async () => {
+  const { source } = fixture();
+  const failure = new Error('Initial goals transport failure');
+  const model = queueModel([failure]);
+  const graph = createIncrementalWorkflowConnectionGraph(
+    dependencies(source, model, {
+      checkpointer: new MemorySaver(),
+    }),
+  );
+  const config = { configurable: { thread_id: 'initial-goal-transport' } };
+  await assert.rejects(
+    graph.invoke({}, config),
+    (error) => error.cause === failure,
+  );
+  const saved = await graph.getState(config);
+  assert.deepEqual(saved.values.rejectedGoalProposals, []);
+  assert.equal(saved.values.modelInvocations, 1);
+  assert.equal(model.requests.length, 1);
+  await assert.rejects(
+    graph.invoke(null, config),
+    (error) => error.cause === failure,
+  );
+  assert.equal(model.requests.length, 1);
+});
+
 test('the invocation budget stops before another call and the checkpointer keeps the last accepted bundle', async () => {
   const { source, goals, plan } = fixture();
   const model = queueModel([{ goals }, ...twoBundles(source, plan)]);
