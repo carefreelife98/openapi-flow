@@ -10,6 +10,12 @@ Supported fixes update host Zod to 4.6.7, Scalar parser to 0.29.16 and fast-uri 
 3.1.9 without overrides. Check the [0.3.14 release record](docs/releases/0.3.14.md) for actual
 source synchronization, publication and host-installation status.
 
+[GitHub Release v0.3.14](https://github.com/carefreelife98/openapi-flow/releases/tag/v0.3.14)
+identifies the exact npm release source. The repository's
+[release workflow](AGENTS.md#release-source-provenance) requires a source commit,
+annotated version tag, verified npm packages and published GitHub Release before
+reporting a release complete. Service deployment is separate.
+
 Published **0.3.13** fixes common draft-planning input omissions: native edit
 target selection receives the same actual API/native source identities and
 response contracts as value generation, and connection edits receive the supplied

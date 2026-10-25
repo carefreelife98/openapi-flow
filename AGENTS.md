@@ -12,7 +12,10 @@
 ## Release source provenance
 
 - Before publishing an npm version, commit the reviewed release source and push that exact commit to the authorized remote branch. Confirm the remote branch SHA equals the local release commit before running `npm publish`.
-- npm publication does not commit, push, tag, or create a GitHub release. Report these states separately. Never describe npm publication as source synchronization.
+- Each authorized version release includes an annotated `v<version>` tag, all three npm packages, and a published GitHub Release. After source synchronization, create and push the tag at the exact release source commit before npm publication. Never implicitly tag a later branch HEAD or move an existing tag.
+- Prepare public notes in `docs/releases/<version>-notes.md` covering changes, npm links, compatibility, verification scope and known limitations. Keep the detailed verification history in `docs/releases/<version>.md`. After verifying all three public package versions and downloaded archive integrity, create the GitHub Release using the existing remote tag: `gh release create v<version> --verify-tag --title "v<version>" --notes-file docs/releases/<version>-notes.md` with the authorized repository explicitly selected.
+- Verify the remote tag's peeled commit equals the release source SHA and the GitHub Release has the intended tag, notes and published (not draft) state. Record its public URL. npm publication alone is not release completion: report source synchronization, tag, each npm package, GitHub Release and host/service deployment separately.
+- If npm succeeds but GitHub publication fails, report the partial state and complete only the missing authorized step. Do not republish the npm version, recreate a mismatched tag, force-push, or claim a clean audit/full passing suite when accepted limitations remain. Honor explicit instructions to postpone a step rather than claiming the entire release is complete.
 - Keep private OAS documents, credentials, local artifacts and company application source out of this public repository. Do not use a broad add command without reviewing its exact file set.
 - Commit, push, tag and publication still require the applicable user authorization. If source synchronization is not authorized or is blocked, stop before npm publication and state the blocker.
 

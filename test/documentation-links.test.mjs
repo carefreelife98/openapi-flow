@@ -4,7 +4,10 @@ import { URL } from 'node:url';
 import test from 'node:test';
 
 const guides = [
+  'AGENTS.md',
   'README.md',
+  'docs/releases/0.3.14.md',
+  'docs/releases/0.3.14-notes.md',
   'docs/current-conversation-graph.md',
   'docs/code-walkthrough.ko.md',
   'docs/composable-api-design.ko.md',
