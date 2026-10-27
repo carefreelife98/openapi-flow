@@ -80,6 +80,9 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
                 ],
               },
               requestedInputs: ['/query/sort'],
+              ...(Object.hasOwn(schema.properties, 'enumIntentInputs')
+                ? { enumIntentInputs: ['/query/sort'] }
+                : {}),
               explanation: { reason: '이 역할의 원문 식별자만 복사했습니다.' },
             };
           }

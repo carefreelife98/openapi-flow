@@ -120,6 +120,7 @@ test('the optional enum interpretation stage receives the same cancellation sign
             return {
               literalInputs: { state: 'not-provided' },
               requestedInputs: ['/body/sort'],
+              enumIntentInputs: ['/body/sort'],
             };
           assert.equal(options.name, 'extract_api_input_answers');
           controller.abort(new Error('cancel enum interpretation'));

@@ -9,11 +9,17 @@ export function resolveApiLiteralGenerationOutput(
 ): ResolvedApiLiteralGenerationOutput {
   if ('literalInputs' in output) {
     const literals = output.literalInputs;
+    const enumIntentInputs =
+      'enumIntentInputs' in output ? output.enumIntentInputs : undefined;
     return {
       ...(literals.state === 'not-provided'
         ? { values: {}, literalSources: [] }
         : { values: literals.values, literalSources: literals.literalSources }),
-      requestedInputs: output.requestedInputs,
+      requestedInputs:
+        enumIntentInputs === undefined
+          ? output.requestedInputs
+          : [...new Set([...output.requestedInputs, ...enumIntentInputs])],
+      ...(enumIntentInputs === undefined ? {} : { enumIntentInputs }),
       ...('explanation' in output ? { explanation: output.explanation } : {}),
     };
   }

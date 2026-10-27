@@ -62,6 +62,7 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
         ? {
             literalInputs: { state: 'not-provided' },
             requestedInputs: ['/query/sort'],
+            enumIntentInputs: ['/query/sort'],
           }
         : {
             answers: [

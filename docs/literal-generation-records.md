@@ -123,7 +123,7 @@ n8n materialization 설정에 자동으로 복사하지 않습니다. 실행에 
 [전체 그래프](graph-planning-records.md)의 설명은 각 단계의 계약으로 분리합니다.
 자연어 답변 추출의 설명과 나머지 검증 범위는 [전체 구현 기록](conversational-oss-implementation.md)을 참고합니다.
 
-## 초기 요청의 enum 의미 선택 (미배포 소스)
+## 초기 요청의 enum 의미 선택
 
 “조회수 순으로 조회해줘”와 OAS 값 `"VIEWS"`는 같은 문자열이 아닙니다.
 `selectOasEnums: true`는 이런 의미 선택을 원문 리터럴 생성과 분리합니다.
@@ -149,7 +149,7 @@ if (result.enumInterpretation)
 선택적으로 원래 호출의 `purpose`와 확정 입력·본문 형식을 제공합니다.
 가짜 편집 계획이나 임시 API를 만들지 않습니다.
 
-같은 미배포 소스의 시나리오 기반 생성 factory에도
+시나리오 기반 생성 factory에도
 `argumentOptions: { selectOasEnums: true }`를 전달할 수 있습니다.
 `trackRequestedInputs: true`만 전달하면 요청한 선택 입력은 추적하지만 enum
 의미 선택은 하지 않습니다. 선택한 옵션은 단일·DAG·검토용 준비 경로의 독립
@@ -162,14 +162,19 @@ if (result.enumInterpretation)
 입력을 사람에게서만 받는 `confirmed-only` 대화 경로가 초기 값 생성 호출을
 새로 수행하게 바꾸지도 않습니다.
 
-첫 모델 호출은 원문 값, 요청한 입력 경로, 그 값의 정확한 원문 출처를
-응답합니다. 예를 들어 정렬 값이 의미로만 주어졌다면 다음처럼 비워 둡니다.
+0.4.3부터 첫 모델 호출은 `selectOasEnums: true`일 때 `enumIntentInputs`를
+명시해야 합니다. 이 목록은 값이 없다는 뜻이 아니라, 사용자가 실제로 표현한
+값의 의미를 OAS enum으로 해석할 입력 경로입니다. 예시·미선택 대안·나중에
+제공할 값은 이 목록에 넣지 않습니다. 해당 의미가 없으면 빈 배열을 반환합니다.
+코드는 이 경로를 요청한 입력 목록에 포함하므로 모델이 두 목록에 중복해서
+생성할 필요는 없습니다. 실제 정렬 의도가 있지만 enum 문자열은 원문에 없다면
+다음과 같이 응답합니다.
 
 ```json
 {
-  "values": {},
-  "requestedInputs": ["/query/sort"],
-  "literalSources": [],
+  "literalInputs": { "state": "not-provided" },
+  "requestedInputs": [],
+  "enumIntentInputs": ["/query/sort"],
   "explanation": {
     "reason": "정렬 의도는 있지만 enum 리터럴은 원문에 없습니다."
   }
@@ -183,12 +188,23 @@ if (result.enumInterpretation)
 OAS에 허용된 값이라도 원문에 없는 enum을 리터럴로 제출하면 거절합니다.
 잘못된 값을 지우거나 해석 단계로 재시도하지 않습니다.
 
-코드가 첫 제안·확정 입력·바인딩을 검사한 뒤 실제로 남은 enum 질문만
-`analyzeApiInputAnswers`에 전달합니다. 모델은 질문에 속한 OAS 후보 ID와
+코드가 첫 제안·확정 입력·바인딩을 검사한 뒤 `enumIntentInputs`에 선택된
+미확정 OAS enum 질문만 `analyzeApiInputAnswers`에 전달합니다. 목록이 비어
+있으면 이 추가 모델 호출은 하지 않습니다. 중복·없는 경로·일반 필드·이미
+값이 있거나 바인딩된 필드는 거절하며, 이 범위는 결과 재검사에도 유지합니다.
+Core의 `describeApiArgumentEnumContext`에서 이 목록을 생략하면 사용 가능한
+질문을 조회할 수 있지만, 조회 결과 전체를 자동 해석 대상으로 삼지는 않습니다.
+모델은 질문에 속한 OAS 후보 ID와
 원문 의도의 위치, 짧은 이유만 고르고 Core가 원래 JSON 값을 복사합니다.
 선택지나 의도가 없으면 값을 만들지 않으며, 명확하지 않으면 질문을 남깁니다.
 이미 값이 있거나 바인딩·확정 입력이 소유한 필드는 덮어쓰지 않습니다.
 요청한 중첩 필드도 원래 OAS 계약에서 도출하고 나머지 필수 입력은 미확정으로 둡니다.
+
+이유 문구는 이 분기를 결정하지 않습니다. 실제 값의 의미가 주어졌는지는
+여전히 모델의 의미 판단이므로 일반 정확성을 코드가 보장하지는 않습니다.
+다만 ‘값이 미정’이라는 결과를 코드가 다시 ‘의미 해석이 필요함’으로 바꾸던
+스케줄링은 제거했습니다. 직접 모델 응답을 만드는 소비자와 테스트도 이 옵션을
+사용하면 새 필드를 제공해야 하며, 이전 응답에 값을 자동 보충하지 않습니다.
 
 `literalGeneration.proposedValues`는 최초 리터럴 제안이고 `literalSources`는
 그 제안의 검증된 출처입니다. 의미로 선택한 OAS 값은

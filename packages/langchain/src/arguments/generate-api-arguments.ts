@@ -97,6 +97,8 @@ export async function generateApiArguments(
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         snapshot.literalSourceMessages,
+        true,
+        options.selectOasEnums === true,
       );
       const validationSchema = createApiLiteralGenerationOutputSchema(
         contract,
@@ -104,6 +106,7 @@ export async function generateApiArguments(
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         snapshot.literalSourceMessages,
         false,
+        options.selectOasEnums === true,
       );
       const sourceFingerprint = fingerprintApiArgumentSource(
         snapshot,
@@ -145,7 +148,11 @@ export async function generateApiArguments(
     },
   );
   let proposed: ApiLiteralGenerationOutput = trackInputs
-    ? { literalInputs: { state: 'not-provided' }, requestedInputs: [] }
+    ? {
+        literalInputs: { state: 'not-provided' },
+        requestedInputs: [],
+        ...(options.selectOasEnums === true ? { enumIntentInputs: [] } : {}),
+      }
     : { values: {} };
   if (contract.hasLiteralInputs) {
     const model = input.model;
@@ -270,6 +277,10 @@ export async function generateApiArguments(
           : {}),
       };
       if (options.selectOasEnums === true) {
+        if (parsed.enumIntentInputs === undefined)
+          throw new Error(
+            'generateApiArguments requires explicit enumIntentInputs when selectOasEnums is true',
+          );
         if (literalSources === undefined)
           throw new Error(
             'generateApiArguments enum interpretation requires source-verified literalSources',
@@ -281,6 +292,7 @@ export async function generateApiArguments(
           arguments: result,
           proposal: { values: parsed.values },
           literalSources,
+          enumIntentInputs: parsed.enumIntentInputs,
           model: input.model,
           signal: input.signal,
         });

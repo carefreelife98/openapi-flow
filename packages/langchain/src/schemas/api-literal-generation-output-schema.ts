@@ -63,7 +63,7 @@ export const apiLiteralNotProvidedSchema = z.strictObject({
   state: z
     .literal('not-provided')
     .describe(
-      'No request literal was supplied by the scenario for this call. Code owns the empty values and source list. Do not supply a placeholder body, values, or literalSources in this decision.',
+      'No actual request literal was selected by the user for this call. Examples, unchosen alternatives and values the user will supply later are not selected literals. Code owns the empty values and source list. Do not supply a placeholder body, values, or literalSources in this decision.',
     ),
 });
 
@@ -72,7 +72,11 @@ export function createApiLiteralProvidedSchema(
   messages?: WorkflowSourceMessage[],
 ) {
   return z.strictObject({
-    state: z.literal('provided'),
+    state: z
+      .literal('provided')
+      .describe(
+        'The user explicitly directs using these actual values for this call. Source occurrence alone does not turn an example, an unchosen alternative or a future input into a selected literal.',
+      ),
     values: contract.valuesSchema.refine(
       (values) =>
         Object.entries(values).some(
@@ -90,10 +94,20 @@ export function createApiLiteralProvidedSchema(
   });
 }
 
+export function createApiEnumIntentInputsSchema(requestSchema: JsonObject) {
+  return z
+    .array(createApiRequestInputPointerSchema(requestSchema))
+    .refine((pointers) => new Set(pointers).size === pointers.length)
+    .describe(
+      'Only missing input paths whose actual requested value meaning is expressed in natural language and therefore needs OAS enum interpretation. Code includes these paths in requested-input presence; do not duplicate them solely for that purpose. Return [] for unknown values, examples, unchosen alternatives or values to supply later. Requiredness or a requested field name is not a supplied value meaning. Do not include already supplied literals, confirmed inputs or bindings. Code schedules the next semantic call only for this explicit list and validates each path against unanswered OAS enum contracts.',
+    );
+}
+
 export function createApiTrackedLiteralGenerationSchema(
   contract: ApiArgumentGenerationContract,
   requestSchema: JsonObject,
   messages?: WorkflowSourceMessage[],
+  selectOasEnums = false,
 ) {
   const provided = createApiLiteralProvidedSchema(contract, messages);
   const schema = z.strictObject({
@@ -105,7 +119,11 @@ export function createApiTrackedLiteralGenerationSchema(
         'Exact OAS request pointers explicitly requested for this call, even when the value is not given verbatim. Include requested optional inputs. Do not select unrequested filters, OAS defaults or examples. Code validates the original OAS and missing presence. This field contains paths, never values or bindings.',
       ),
   });
-  return schema;
+  return selectOasEnums
+    ? schema.extend({
+        enumIntentInputs: createApiEnumIntentInputsSchema(requestSchema),
+      })
+    : schema;
 }
 
 export function createApiExplainedTrackedLiteralGenerationSchema(
@@ -113,11 +131,13 @@ export function createApiExplainedTrackedLiteralGenerationSchema(
   requestSchema: JsonObject,
   messages?: WorkflowSourceMessage[],
   requireExplanations = true,
+  selectOasEnums = false,
 ) {
   return createApiTrackedLiteralGenerationSchema(
     contract,
     requestSchema,
     messages,
+    selectOasEnums,
   ).extend({
     explanation: requireExplanations
       ? apiLiteralGenerationReasonSchema
@@ -132,6 +152,7 @@ export function createApiLiteralGenerationOutputSchema(
   requestSchema?: JsonObject,
   messages?: WorkflowSourceMessage[],
   requireExplanations = true,
+  selectOasEnums = false,
 ): ApiLiteralGenerationOutputSchema {
   z.boolean().parse(includeExplanations);
   if (requestSchema !== undefined)
@@ -141,11 +162,13 @@ export function createApiLiteralGenerationOutputSchema(
           requestSchema,
           messages,
           requireExplanations,
+          selectOasEnums,
         )
       : createApiTrackedLiteralGenerationSchema(
           contract,
           requestSchema,
           messages,
+          selectOasEnums,
         );
   return includeExplanations && contract.hasLiteralInputs
     ? contract.schema.extend({

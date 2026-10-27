@@ -20,6 +20,8 @@ export interface ApiArgumentEnumContextInput extends ApiLiteralGenerationInput {
   proposal: ApiArgumentProposal;
   literalSources: ApiLiteralProposalSource[];
   requestedInputs?: string[];
+  /** Explicit semantic targets. Omit only to discover the available enum inventory, not to schedule interpretation. */
+  enumIntentInputs?: string[];
 }
 
 export interface ResolveApiArgumentEnumInterpretationInput extends ApiArgumentEnumContextInput {

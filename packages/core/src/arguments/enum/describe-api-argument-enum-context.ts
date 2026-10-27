@@ -6,6 +6,7 @@ import { describeApiInputEnumAnswerChoices } from './describe-api-input-enum-ans
 import { applyConfirmedApiInputs } from '../clarification/apply-confirmed-api-inputs.js';
 import { resolveApiLiteralProposalSources } from '../sources/resolve-api-literal-proposal-sources.js';
 import { expandRequestedEnumRequirements } from './expand-requested-enum-requirements.js';
+import { requestedApiInputsSchema } from '../../schemas/requested-api-inputs-schema.js';
 
 /** Derive real unanswered OAS enum questions, not a synthetic draft/edit plan. */
 export function describeApiArgumentEnumContext(
@@ -49,8 +50,23 @@ export function describeApiArgumentEnumContext(
       (choice) => choice.requirementId,
     ),
   );
+  const requirements = context.requirements.filter((item) => ids.has(item.id));
+  if (input.enumIntentInputs === undefined) return { ...context, requirements };
+  const selected = requestedApiInputsSchema.safeParse(input.enumIntentInputs);
+  if (!selected.success)
+    throw new Error(
+      'API enumIntentInputs must contain distinct non-root JSON Pointers',
+      { cause: selected.error },
+    );
+  for (const pointer of selected.data)
+    if (!requirements.some((item) => item.targetPointer === pointer))
+      throw new Error(
+        `API enumIntentInputs ${pointer} is not an unanswered OAS enum input for ${snapshot.callId}`,
+      );
   return {
     ...context,
-    requirements: context.requirements.filter((item) => ids.has(item.id)),
+    requirements: requirements.filter((item) =>
+      selected.data.includes(item.targetPointer),
+    ),
   };
 }

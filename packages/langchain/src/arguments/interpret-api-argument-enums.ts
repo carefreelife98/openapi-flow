@@ -10,6 +10,7 @@ import { analyzeApiInputAnswers } from './analyze-api-input-answers.js';
 export async function interpretApiArgumentEnums(
   input: InterpretApiArgumentEnumsInput,
 ): Promise<ApiCallArguments> {
+  if (!input.enumIntentInputs.length) return input.arguments;
   const material = {
     ...input,
     requestedInputs: input.arguments.requestedInputs,
