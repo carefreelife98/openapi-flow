@@ -10,6 +10,7 @@ import {
   createPlanningEvidenceTextSchema,
   workflowMessageEvidenceSchema,
 } from './planning-evidence-schema.js';
+import { createOptionalWorkflowDecisionExplanationSchema } from './create-optional-workflow-decision-explanation-schema.js';
 
 /** Reusable described shape; model references and canonical evidence use different schemas. */
 export function createWorkflowRequirementsProposalSchema<Evidence>(
@@ -17,21 +18,24 @@ export function createWorkflowRequirementsProposalSchema<Evidence>(
   options: ResolvedWorkflowClarificationOptions,
   evidenceSchema: z.ZodType<Evidence>,
   messageEvidenceSchema: z.ZodType<WorkflowMessageEvidence> = workflowMessageEvidenceSchema,
+  requireExplanations = true,
 ): z.ZodType<WorkflowRequirementsProposal<Evidence>> {
   const limits = clarificationQuestionLimitsSchema.parse(configuredLimits);
   const explanation = options.includeExplanations
     ? {
-        explanation: z.strictObject({
-          reason: createPlanningEvidenceTextSchema().describe(
-            'A short user-facing justification, not private chain-of-thought.',
-          ),
-          evidence: z
-            .array(evidenceSchema)
-            .min(1)
-            .describe(
-              'Only supplied, checkable sources supporting this decision.',
-            ),
-        }),
+        explanation: requireExplanations
+          ? z.strictObject({
+              reason: createPlanningEvidenceTextSchema().describe(
+                'A short user-facing justification, not private chain-of-thought.',
+              ),
+              evidence: z
+                .array(evidenceSchema)
+                .min(1)
+                .describe(
+                  'Only supplied, checkable sources supporting this decision.',
+                ),
+            })
+          : createOptionalWorkflowDecisionExplanationSchema(evidenceSchema),
       }
     : {};
   const choices = z

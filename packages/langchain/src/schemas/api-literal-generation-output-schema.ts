@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   createApiRequestInputPointerSchema,
-  apiInputLiteralSourceSchema,
   optionalPlanningExplanationObjectSchema,
 } from '@openapi-flow/core';
 import type {
@@ -9,10 +8,8 @@ import type {
   JsonObject,
   WorkflowSourceMessage,
 } from '@openapi-flow/core';
-import type {
-  ApiLiteralGenerationOutputSchema,
-  ApiLiteralGenerationSource,
-} from '../types/argument-generation.js';
+import type { ApiLiteralGenerationOutputSchema } from '../types/argument-generation.js';
+import { createApiLiteralSourceSelectionsSchema } from './api-literal-source-selection-schema.js';
 
 export const apiLiteralGenerationOptionsSchema = z.strictObject({
   includeExplanations: z.boolean().optional(),
@@ -30,35 +27,6 @@ export const apiLiteralGenerationReasonSchema = z.strictObject({
     ),
 });
 
-export const apiLiteralGenerationSourcesSchema = z.array(
-  apiInputLiteralSourceSchema.extend({
-    targetPointer: z
-      .string()
-      .describe(
-        'RFC 6901 pointer relative to values, e.g. /query/id, never /values/query/id. Cover each proposed literal leaf or an explicitly quoted whole object/array. Code verifies exact occurrence, JSON type equality and complete coverage. Use literalSourceMessages when supplied; otherwise use the original scenario. Purpose, OAS and feedback are not literal quotations.',
-      ),
-  }),
-);
-
-function createLiteralSourcesSchema(
-  messages?: WorkflowSourceMessage[],
-): z.ZodType<ApiLiteralGenerationSource[]> {
-  if (messages === undefined || messages.length === 1)
-    return apiLiteralGenerationSourcesSchema.min(1);
-  const ids = messages.map((message) => message.id);
-  return z
-    .array(
-      apiLiteralGenerationSourcesSchema.element.extend({
-        messageId: z
-          .enum(ids)
-          .describe(
-            'Select the supplied original message containing this exact quotation. Never cite scenario context or feedback instead.',
-          ),
-      }),
-    )
-    .min(1);
-}
-
 export const apiLiteralNotProvidedSchema = z.strictObject({
   state: z
     .literal('not-provided')
@@ -69,7 +37,7 @@ export const apiLiteralNotProvidedSchema = z.strictObject({
 
 export function createApiLiteralProvidedSchema(
   contract: ApiArgumentGenerationContract,
-  messages?: WorkflowSourceMessage[],
+  messages: WorkflowSourceMessage[],
 ) {
   return z.strictObject({
     state: z
@@ -88,8 +56,8 @@ export function createApiLiteralProvidedSchema(
         ),
       'Provided literals require an actual request value, not empty parameter-location containers.',
     ),
-    literalSources: createLiteralSourcesSchema(messages).describe(
-      'Every provided literal, including an empty object, empty array, empty string or null, needs its original exact user source. Never use a source-free placeholder.',
+    literalSources: createApiLiteralSourceSelectionsSchema(messages).describe(
+      'Attribute each proposed literal to an original message without re-generating quotations. Select a JSON candidate for JSON values or text for an exact unquoted string. Code creates and verifies the source text.',
     ),
   });
 }
@@ -106,7 +74,7 @@ export function createApiEnumIntentInputsSchema(requestSchema: JsonObject) {
 export function createApiTrackedLiteralGenerationSchema(
   contract: ApiArgumentGenerationContract,
   requestSchema: JsonObject,
-  messages?: WorkflowSourceMessage[],
+  messages: WorkflowSourceMessage[],
   selectOasEnums = false,
 ) {
   const provided = createApiLiteralProvidedSchema(contract, messages);
@@ -129,7 +97,7 @@ export function createApiTrackedLiteralGenerationSchema(
 export function createApiExplainedTrackedLiteralGenerationSchema(
   contract: ApiArgumentGenerationContract,
   requestSchema: JsonObject,
-  messages?: WorkflowSourceMessage[],
+  messages: WorkflowSourceMessage[],
   requireExplanations = true,
   selectOasEnums = false,
 ) {
@@ -155,7 +123,11 @@ export function createApiLiteralGenerationOutputSchema(
   selectOasEnums = false,
 ): ApiLiteralGenerationOutputSchema {
   z.boolean().parse(includeExplanations);
-  if (requestSchema !== undefined)
+  if (requestSchema !== undefined) {
+    if (messages === undefined)
+      throw new Error(
+        'Tracked literal generation requires original source messages',
+      );
     return includeExplanations && contract.hasLiteralInputs
       ? createApiExplainedTrackedLiteralGenerationSchema(
           contract,
@@ -170,6 +142,7 @@ export function createApiLiteralGenerationOutputSchema(
           messages,
           selectOasEnums,
         );
+  }
   return includeExplanations && contract.hasLiteralInputs
     ? contract.schema.extend({
         explanation: requireExplanations

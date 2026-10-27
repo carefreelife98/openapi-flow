@@ -8,6 +8,7 @@ import { resolveApiInputAnswerSources } from './resolve-api-input-answer-sources
 import { describeApiInputEnumAnswerChoices } from '../../enum/describe-api-input-enum-answer-choices.js';
 import { readApiInputLiteralSource } from '../../sources/read-api-input-literal-source.js';
 import { resolveApiInputAnswerSourceText } from '../../sources/api-input-answer-message-sources.js';
+import { fingerprintApiInputAnswerContext } from './fingerprint-api-input-answer-context.js';
 
 /** Literal values and semantic intent have different sources and must never be conflated. */
 export function resolveApiInputAnswerInterpretations(
@@ -42,6 +43,13 @@ export function resolveApiInputAnswerInterpretations(
     result.answers.map((answer) => answer.requirementId),
   );
   result.enumSelections = selections.map((selection) => {
+    if (
+      selection.sourceFingerprint !== undefined &&
+      selection.sourceFingerprint !== fingerprintApiInputAnswerContext(context)
+    )
+      throw new Error(
+        `API enum answer ${selection.requirementId} source fingerprint differs from its original reply, contracts or call role`,
+      );
     if (answered.has(selection.requirementId))
       throw new Error(`Duplicate requirementId: ${selection.requirementId}`);
     const candidate = choices

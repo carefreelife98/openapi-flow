@@ -171,6 +171,12 @@ export interface SelectedNativeInstance {
   runtimeParameters?: true | NativeRuntimeParameterSelection;
 }
 
+/** Selected business roles, not ready output contracts or execution edges. */
+export type SelectedNativeRole = Pick<
+  SelectedNativeInstance,
+  'id' | 'capability' | 'purpose'
+>;
+
 export interface NativeInstanceSelection {
   id: string;
   proposal: NativeInstanceSelectionProposal;
@@ -240,6 +246,7 @@ export interface NativeNodeConfigurationDescription {
   fingerprint: string;
   context: NativeInstanceSelectionContext;
   instance: SelectedNativeInstance;
+  selectedRoles: SelectedNativeRole[];
   configuredNodes: PreparedNativeNodeMaterial[];
   outputs: NativeOutputContract[];
   replies?: NativeNodeConfigurationReply[];

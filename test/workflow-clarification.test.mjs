@@ -199,11 +199,74 @@ test('questions, choices and explanations are checked without truncation or sour
   );
   const missingReason = globalThis.structuredClone(proposal);
   delete missingReason.categories[0].questions[0].explanation;
-  assert.throws(
-    () =>
-      createWorkflowClarificationRound({ ...input, proposal: missingReason }),
-    /explanation/,
+  assert.doesNotThrow(() =>
+    createWorkflowClarificationRound({ ...input, proposal: missingReason }),
   );
+});
+
+test('clarification presentation omissions and malformed reasons do not invalidate requirements or questions; supplied source references remain strict', async () => {
+  const input = await workflowClarificationFixture();
+  const source = input.proposal.statements[0].sources[0];
+  for (const explanation of [
+    undefined,
+    null,
+    'not an explanation object',
+    {},
+    { reason: '', evidence: [source] },
+    { reason: ' \n ', evidence: [source] },
+    { reason: 42, evidence: [source] },
+    { reason: 'Display text without invented sources' },
+    { reason: 'Display text without invented sources', evidence: [] },
+  ]) {
+    const proposal = globalThis.structuredClone(input.proposal);
+    proposal.categories = clarificationQuestions(source);
+    proposal.suggestions = [{ text: '선택한 결과를 확인해줘', explanation }];
+    const displayed = [
+      ...proposal.statements,
+      ...proposal.categories,
+      ...proposal.categories.flatMap((category) => category.questions),
+      ...proposal.categories.flatMap((category) =>
+        category.questions.flatMap((question) => question.answer.choices ?? []),
+      ),
+      ...proposal.suggestions,
+    ];
+    for (const item of displayed) item.explanation = explanation;
+    const round = createWorkflowClarificationRound({ ...input, proposal });
+    assert.equal(round.statements[0].text, input.proposal.statements[0].text);
+    assert.deepEqual(round.statements[0].sources, [source]);
+    assert.equal(round.categories[0].questions.length, 3);
+    for (const item of [
+      ...round.statements,
+      ...round.categories,
+      ...round.categories.flatMap((category) => category.questions),
+      ...round.categories.flatMap((category) =>
+        category.questions.flatMap((question) => question.answer.choices ?? []),
+      ),
+      ...round.suggestions,
+    ])
+      assert.equal(item.explanation, undefined);
+    assert.doesNotThrow(() =>
+      validateWorkflowClarificationRound({ round, context: input.context }),
+    );
+  }
+  for (const evidence of [
+    [{ ...source, messageId: 'unknown-message' }],
+    [{ ...source, quote: 'The user did not say this' }],
+    [
+      {
+        kind: 'oas',
+        operation: input.context.operations[0].key,
+        pointer: '/not-declared',
+      },
+    ],
+    [{ kind: 'native', capability: 'unregistered' }],
+  ]) {
+    const proposal = globalThis.structuredClone(input.proposal);
+    proposal.statements[0].explanation = { reason: null, evidence };
+    assert.throws(() =>
+      createWorkflowClarificationRound({ ...input, proposal }),
+    );
+  }
 });
 
 test('source checks validate exact quotes, OAS snapshots/pointers and actual native capability names', async () => {
@@ -576,6 +639,70 @@ test('the model makes one typed bounded call and core resolves candidate evidenc
       .messageId.enum,
     ['request-1'],
   );
+});
+
+test('the model wire requests explanations, but runtime clarification accepts omitted or malformed display text in a single call', async () => {
+  const input = await workflowClarificationFixture();
+  for (const explanation of [
+    undefined,
+    null,
+    { reason: false },
+    { reason: ' \n ', evidence: [] },
+  ]) {
+    let calls = 0;
+    const round = await clarifyWorkflowRequirements({
+      ...input,
+      model: {
+        withStructuredOutput(schema) {
+          const wire = expandLocalSchemaReferences(toJsonSchema(schema));
+          const statement = wire.properties.statements.items;
+          assert(statement.required.includes('explanation'));
+          assert.equal(
+            statement.properties.explanation.properties.reason.type,
+            'string',
+          );
+          return {
+            async invoke() {
+              calls++;
+              const proposal = modelMessageEvidenceSelections(input.proposal);
+              proposal.statements[0].explanation = explanation;
+              return proposal;
+            },
+          };
+        },
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(round.statements[0].explanation, undefined);
+    assert.deepEqual(
+      round.statements[0].sources,
+      input.proposal.statements[0].sources,
+    );
+    assert.deepEqual(round.categories, []);
+  }
+  let calls = 0;
+  await assert.rejects(
+    clarifyWorkflowRequirements({
+      ...input,
+      model: {
+        withStructuredOutput() {
+          return {
+            async invoke() {
+              calls++;
+              const proposal = modelMessageEvidenceSelections(input.proposal);
+              proposal.statements[0].explanation = {
+                reason: null,
+                evidence: [{ kind: 'oas', candidateId: 'not-supplied' }],
+              };
+              return proposal;
+            },
+          };
+        },
+      },
+    }),
+    /model workflow requirements is invalid/,
+  );
+  assert.equal(calls, 1);
 });
 
 test('disabled optional output fields are absent from the real schema, not generated then discarded', async () => {

@@ -12,6 +12,7 @@ export function verifyWorkflowDraftApiEnumSelection(
   const selection = createWorkflowDraftApiEnumChoiceSchema(
     input.candidates,
     input.messages.map((message) => message.id),
+    false,
   ).parse(input.selection);
   const candidate = input.candidates.find(
     (item) => item.id === selection.candidateId,

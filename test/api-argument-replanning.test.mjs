@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OpenApiFlowError } from '@openapi-flow/core';
@@ -160,7 +161,7 @@ test('transport and arbitrary typed errors cannot become literal rejection feedb
   );
 });
 
-test('rejected output is never a new literal source even if the next proposal quotes it exactly', async () => {
+test('rejected output is never a new literal source even when another original JSON candidate is selected', async () => {
   const input = {
     ...(await literalGenerationFixture()),
     trackRequestedInputs: true,
@@ -173,7 +174,7 @@ test('rejected output is never a new literal source even if the next proposal qu
         {
           targetPointer: '/body/quantity',
           sourceFormat: 'json',
-          sourceText: '99',
+          candidateId: literalJsonCandidateId('2'),
         },
       ],
     },
@@ -255,7 +256,7 @@ test('an enum interpretation rejection belongs to its own stage, not literal-val
               requestedInputs: ['/body/order'],
               enumIntentInputs: ['/body/order'],
             };
-          assert.equal(options.name, 'extract_api_input_answers');
+          assert.equal(options.name, 'select_api_argument_enums');
           return { answers: 'wrong shape' };
         },
       };
@@ -269,6 +270,6 @@ test('an enum interpretation rejection belongs to its own stage, not literal-val
   });
   assert.deepEqual(calls, [
     'generate_api_arguments',
-    'extract_api_input_answers',
+    'select_api_argument_enums',
   ]);
 });

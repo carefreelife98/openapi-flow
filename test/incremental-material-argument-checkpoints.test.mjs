@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import test from 'node:test';
 import { MemorySaver } from '@langchain/langgraph';
 import {
@@ -268,7 +269,7 @@ test('provided typed literals keep their exact user source and the host evaluate
           {
             targetPointer: '/query/id',
             sourceFormat: 'json',
-            sourceText: JSON.stringify(value),
+            candidateId: literalJsonCandidateId(JSON.stringify(value)),
           },
         ],
       },

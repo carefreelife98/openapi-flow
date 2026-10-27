@@ -109,6 +109,12 @@ export function describeNativeNodeConfiguration(
   return {
     fingerprint: fingerprint(),
     ...structuredClone(fields),
+    // The validated selection ID already binds every role; this is only its read-only projection.
+    selectedRoles: selection.instances.map(({ id, capability, purpose }) => ({
+      id,
+      capability,
+      purpose,
+    })),
     ...(accepted.length ? { replies: accepted } : {}),
   };
 }

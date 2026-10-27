@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'node:http';
@@ -76,7 +77,7 @@ test('real ChatOpenAI wire schema selects source IDs only for multiple explicit 
             {
               targetPointer: '/body/quantity',
               sourceFormat: 'json',
-              sourceText: '2',
+              candidateId: literalJsonCandidateId('2'),
               ...(count === 2 ? { messageId: 'request' } : {}),
             },
           ],

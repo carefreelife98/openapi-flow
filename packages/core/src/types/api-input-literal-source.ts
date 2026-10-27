@@ -2,6 +2,35 @@ import type { JsonValue } from './api-arguments.js';
 import type { ApiInputAnswerSourceLocation } from './api-input-answer-extraction.js';
 import type { ApiArgumentValues } from './api-arguments.js';
 import type { WorkflowSourceMessage } from './workflow-draft.js';
+import type { ApiInputJsonSourceCandidate } from './api-input-source-selection.js';
+
+export interface ApiLiteralMessageJsonSources {
+  messageId: string;
+  json: Pick<ApiInputJsonSourceCandidate, 'id' | 'text'>[];
+}
+
+export interface ApiTextLiteralSourceSelection {
+  sourceFormat: 'text';
+  targetPointer: string;
+  messageId: string;
+}
+
+export interface ApiJsonLiteralSourceSelection {
+  sourceFormat: 'json';
+  targetPointer: string;
+  messageId: string;
+  candidateId: string;
+}
+
+export type ApiLiteralSourceSelection =
+  ApiTextLiteralSourceSelection | ApiJsonLiteralSourceSelection;
+
+export interface ResolveApiLiteralSourceSelectionsInput {
+  callId: string;
+  values: ApiArgumentValues;
+  selections: ApiLiteralSourceSelection[];
+  messages: WorkflowSourceMessage[];
+}
 
 export interface ApiLiteralProposalSource extends ApiInputLiteralSource {
   targetPointer: string;

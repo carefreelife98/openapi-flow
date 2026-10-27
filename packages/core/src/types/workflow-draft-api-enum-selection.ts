@@ -12,7 +12,7 @@ export interface WorkflowDraftApiEnumSelection {
   candidateId: string;
   messageId: string;
   sourceText: string;
-  reason: string;
+  reason?: string;
 }
 
 export interface VerifiedWorkflowDraftApiEnumSelection

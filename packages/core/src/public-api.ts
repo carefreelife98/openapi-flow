@@ -19,6 +19,8 @@ export type * from './types/api-argument-enum.js';
 export type * from './types/api-input-literal-source.js';
 export { apiInputLiteralSourceSchema } from './schemas/api-input-literal-source-schema.js';
 export { resolveApiLiteralProposalSources } from './arguments/sources/resolve-api-literal-proposal-sources.js';
+export { describeApiLiteralJsonSources } from './arguments/sources/describe-api-literal-json-sources.js';
+export { resolveApiLiteralSourceSelections } from './arguments/sources/resolve-api-literal-source-selections.js';
 export { createApiRequestInputPointerSchema } from './schemas/create-api-request-input-pointer-schema.js';
 export { describeApiArgumentEnumContext } from './arguments/enum/describe-api-argument-enum-context.js';
 export { resolveApiArgumentEnumInterpretation } from './arguments/enum/resolve-api-argument-enum-interpretation.js';
@@ -46,6 +48,7 @@ export { createApiInputSourceSelectionSchema } from './schemas/api-input-source-
 export { captureApiInputAnswerContext } from './arguments/clarification/extraction/capture-api-input-answer-context.js';
 export { resolveApiInputAnswerSources } from './arguments/clarification/extraction/resolve-api-input-answer-sources.js';
 export { resolveApiInputAnswerInterpretations } from './arguments/clarification/extraction/resolve-api-input-answer-interpretations.js';
+export { fingerprintApiInputAnswerContext } from './arguments/clarification/extraction/fingerprint-api-input-answer-context.js';
 export { describeApiInputEnumAnswerChoices } from './arguments/enum/describe-api-input-enum-answer-choices.js';
 export type * from './types/api-input-enum-answers.js';
 export { createApiInputAnswerExtractionRecord } from './arguments/clarification/extraction/create-api-input-answer-extraction-record.js';

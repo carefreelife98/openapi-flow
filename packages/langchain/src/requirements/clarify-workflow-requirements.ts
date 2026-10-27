@@ -88,7 +88,13 @@ export async function clarifyWorkflowRequirements(
       ),
     ]);
   const proposed = parseStructuredOutput(
-    schema,
+    createWorkflowRequirementsSchema(
+      input.limits,
+      options,
+      context,
+      candidates,
+      false,
+    ),
     output,
     'model workflow requirements',
   );

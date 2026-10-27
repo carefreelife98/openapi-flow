@@ -62,6 +62,40 @@ test('pending enum interpretation copies every JSON value type from its original
   }
 });
 
+test('enum display reason absence or invalid formatting cannot block a source-valid OAS choice', async () => {
+  const input = await enumContext();
+  const candidate = describeApiInputEnumAnswerChoices(input)[0].candidates[0];
+  for (const reason of [
+    undefined,
+    '',
+    ' ',
+    null,
+    7,
+    { reason: 'display only' },
+  ]) {
+    const selection = { ...enumSelection(input, candidate), reason };
+    const original = globalThis.structuredClone(selection);
+    const resolved = resolveApiInputAnswerInterpretations({
+      ...input,
+      selections: [],
+      enumSelections: [selection],
+    });
+    assert.deepEqual(resolved.answers, [
+      { requirementId: input.requirements[0].id, value: candidate.value },
+    ]);
+    assert.equal(resolved.enumSelections[0].reason, undefined);
+    assert.equal(resolved.enumSelections[0].candidate.id, candidate.id);
+    assert.deepEqual(selection, original);
+    assert.throws(() =>
+      resolveApiInputAnswerInterpretations({
+        ...input,
+        selections: [],
+        enumSelections: [{ ...selection, candidateId: 'not-an-oas-choice' }],
+      }),
+    );
+  }
+});
+
 test('enum choices honor original references, sibling assertions and OAS 3.0 nullable, never defaults/examples', async () => {
   const input = await enumContext({
     $defs: { sort: { enum: ['NEW', 'VIEWS', 0] } },
@@ -117,7 +151,6 @@ test('code rejects unknown/stale/cross-question choices, fabricated intent, extr
       ],
     },
     { enumSelections: [{ ...selection, value: 'HACKED' }] },
-    { enumSelections: [{ ...selection, reason: ' ' }] },
     { enumSelections: [selection, selection] },
     { selectOasEnums: false },
     {

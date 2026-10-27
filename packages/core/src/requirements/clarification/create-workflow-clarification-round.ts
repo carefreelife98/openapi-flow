@@ -4,7 +4,10 @@ import type {
   WorkflowClarificationRound,
 } from '../../types/workflow-clarification.js';
 import { createWorkflowRequirementsProposalSchema } from '../../schemas/create-workflow-requirements-proposal-schema.js';
-import { workflowPlanningEvidenceSchema } from '../../schemas/planning-evidence-schema.js';
+import {
+  workflowPlanningEvidenceSchema,
+  workflowMessageEvidenceSchema,
+} from '../../schemas/planning-evidence-schema.js';
 import { clarificationQuestionLimitsSchema } from '../../schemas/workflow-clarification-settings-schema.js';
 import { workflowPlanningContextFingerprintFromDescription } from '../../planning/evidence/workflow-planning-context-fingerprint.js';
 import { describeWorkflowPlanningContext } from '../../planning/evidence/describe-workflow-planning-context.js';
@@ -20,30 +23,21 @@ export function createWorkflowClarificationRound(
   const context = describeWorkflowPlanningContext(input.context);
   const contextFingerprint =
     workflowPlanningContextFingerprintFromDescription(context);
+  const explanationEvidence = workflowPlanningEvidenceSchema.transform(
+    (evidence) => {
+      validateDescribedWorkflowPlanningEvidence(context, [evidence]);
+      return evidence;
+    },
+  );
   const proposal = createWorkflowRequirementsProposalSchema(
     limits,
     options,
-    workflowPlanningEvidenceSchema,
+    explanationEvidence,
+    workflowMessageEvidenceSchema,
+    false,
   ).parse(input.proposal);
-  const described = [
-    ...proposal.statements,
-    ...proposal.categories,
-    ...proposal.categories.flatMap((category) => category.questions),
-    ...proposal.categories.flatMap((category) =>
-      category.questions.flatMap((question) =>
-        question.answer.kind === 'text' ? [] : question.answer.choices,
-      ),
-    ),
-    ...(proposal.suggestions ?? []),
-  ];
   for (const statement of proposal.statements)
     validateDescribedWorkflowPlanningEvidence(context, statement.sources);
-  for (const item of described)
-    if (item.explanation)
-      validateDescribedWorkflowPlanningEvidence(
-        context,
-        item.explanation.evidence,
-      );
   const id =
     'clarification:' +
     createHash('sha256')

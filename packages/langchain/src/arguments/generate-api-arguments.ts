@@ -5,7 +5,8 @@ import {
   applyConfirmedApiInputs,
   createApiRequestSchema,
   inspectApiArgumentRequirements,
-  resolveApiLiteralProposalSources,
+  resolveApiLiteralSourceSelections,
+  describeApiLiteralJsonSources,
   runOpenApiFlowOperation,
   runOpenApiFlowAsyncOperation,
   isOpenApiFlowError,
@@ -51,6 +52,8 @@ export async function generateApiArguments(
     sourceFingerprint,
     rejectedProposals,
     materialRepair,
+    literalMessages,
+    literalJsonSources,
   } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
@@ -92,11 +95,18 @@ export async function generateApiArguments(
         options.selectOasEnums === true ||
         snapshot.literalSourceMessages !== undefined ||
         materialRepair !== undefined;
+      const literalMessages =
+        snapshot.literalSourceMessages === undefined
+          ? [{ id: 'scenario', text: snapshot.scenario }]
+          : snapshot.literalSourceMessages;
+      const literalJsonSources = trackInputs
+        ? describeApiLiteralJsonSources(literalMessages)
+        : undefined;
       const schema = createApiLiteralGenerationOutputSchema(
         contract,
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
-        snapshot.literalSourceMessages,
+        literalMessages,
         true,
         options.selectOasEnums === true,
       );
@@ -104,7 +114,7 @@ export async function generateApiArguments(
         contract,
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
-        snapshot.literalSourceMessages,
+        literalMessages,
         false,
         options.selectOasEnums === true,
       );
@@ -144,6 +154,8 @@ export async function generateApiArguments(
         sourceFingerprint,
         rejectedProposals,
         materialRepair,
+        literalMessages,
+        literalJsonSources,
       };
     },
   );
@@ -185,6 +197,9 @@ export async function generateApiArguments(
           new HumanMessage(
             JSON.stringify({
               ...context,
+              ...(literalJsonSources === undefined
+                ? {}
+                : { literalJsonSources }),
               ...(rejectedProposals === undefined ? {} : { rejectedProposals }),
               ...(materialRepair === undefined ? {} : { materialRepair }),
               ...(options.selectOasEnums === true
@@ -230,17 +245,14 @@ export async function generateApiArguments(
       const requestedInputs = parsed.requestedInputs;
       const literalSources =
         parsed.literalSources !== undefined
-          ? resolveApiLiteralProposalSources({
+          ? resolveApiLiteralSourceSelections({
               callId: snapshot.callId,
               values: parsed.values,
-              sources: attributeApiLiteralGenerationSources(
+              selections: attributeApiLiteralGenerationSources(
                 snapshot,
                 parsed.literalSources,
               ),
-              messages:
-                snapshot.literalSourceMessages === undefined
-                  ? [{ id: 'scenario', text: snapshot.scenario }]
-                  : snapshot.literalSourceMessages,
+              messages: literalMessages,
             })
           : undefined;
       const inspection = inspectApiArgumentRequirements({

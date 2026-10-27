@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -34,7 +35,11 @@ async function input() {
 
 function output(
   sources = [
-    { targetPointer: '/body/id', sourceFormat: 'json', sourceText: '"0007"' },
+    {
+      targetPointer: '/body/id',
+      sourceFormat: 'json',
+      candidateId: literalJsonCandidateId('"0007"'),
+    },
   ],
 ) {
   return {
@@ -65,10 +70,12 @@ test('explicit original messages separate literal attribution from JSON prompt c
   );
   assert.equal(model.calls[0].payload.scenario, source.scenario);
   const provided = model.calls[0].schema.properties.literalInputs.anyOf[1];
-  assert.equal(
-    'messageId' in provided.properties.literalSources.items.properties,
-    false,
-  );
+  const choices = provided.properties.literalSources.items.anyOf;
+  assert.equal(choices.length, 2);
+  for (const choice of choices) {
+    assert.equal(Object.hasOwn(choice.properties, 'messageId'), false);
+    assert.equal(Object.hasOwn(choice.properties, 'sourceText'), false);
+  }
   validateApiLiteralGenerationRecord({
     ...source,
     record: result.literalGeneration,
@@ -91,13 +98,13 @@ test('multiple actual source messages require exact supplied IDs and preserve ty
     {
       targetPointer: '/body/id',
       sourceFormat: 'json',
-      sourceText: '"0007"',
+      candidateId: literalJsonCandidateId('"0007"'),
       messageId: 'request',
     },
     {
       targetPointer: '/body/count',
       sourceFormat: 'json',
-      sourceText: '0',
+      candidateId: literalJsonCandidateId('0'),
       messageId: 'answer',
     },
   ]);
@@ -122,7 +129,7 @@ for (const messageId of [undefined, 'scenario', 'invented', 'answer'])
       {
         targetPointer: '/body/id',
         sourceFormat: 'json',
-        sourceText: '"0007"',
+        candidateId: literalJsonCandidateId('"0007"'),
         ...(messageId === undefined ? {} : { messageId }),
       },
     ]);
@@ -171,7 +178,7 @@ test('scenario-only quotes, OAS examples and partial JSON tokens are not origina
         model: literalGenerationModel(output()),
       }),
       (error) => {
-        assert.equal(error.diagnostic.code, 'API_ARGUMENT_VALIDATION_FAILED');
+        assert.equal(error.diagnostic.code, 'MODEL_OUTPUT_INVALID');
         return true;
       },
     );
@@ -214,7 +221,7 @@ test('rejection feedback is bound to original message IDs and text, not only the
     {
       targetPointer: '/body/id',
       sourceFormat: 'json',
-      sourceText: '"missing"',
+      candidateId: literalJsonCandidateId('"missing"'),
     },
   ]);
   let failure;

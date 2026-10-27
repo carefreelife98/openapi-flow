@@ -10,7 +10,6 @@ import {
   OpenApiFlowError,
 } from '@openapi-flow/core';
 import { generateApiArguments } from '@openapi-flow/langchain';
-import { textInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
 test('real ChatOpenAI transport exposes typed literal/source paths then only original enum/source IDs', async () => {
   const catalog = await createApiCatalog([
@@ -65,22 +64,17 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
             enumIntentInputs: ['/query/sort'],
           }
         : {
-            answers: [
-              {
-                requirementId: payload.questions[0].id,
-                source: {
-                  kind: 'oas-enum',
-                  candidateId: payload.enumChoices[0].candidates.find(
-                    (item) => item.value === 'VIEWS',
-                  ).id,
-                  intent: textInputSource(payload, '조회수'),
-                },
-                reason: '조회수 의도를 원본 OAS에서 선택했습니다.',
+            decisions: {
+              [payload.questions[0].id]: {
+                status: 'selected',
+                candidateId: payload.enumChoices[0].candidates.find(
+                  (item) => item.value === 'VIEWS',
+                ).id,
               },
-            ],
+            },
           };
     requests.push({ body, payload, output });
-    if (rejectEnumRequest && wire.name === 'extract_api_input_answers') {
+    if (rejectEnumRequest && wire.name === 'select_api_argument_enums') {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(
         JSON.stringify({
@@ -145,11 +139,16 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
     assert.equal(requests.length, 2);
     assert.deepEqual(
       requests.map(({ body }) => body.tools[0].function.name),
-      ['generate_api_arguments', 'extract_api_input_answers'],
+      ['generate_api_arguments', 'select_api_argument_enums'],
     );
     for (const { body, output } of requests) {
       const ajv = new Ajv2020({ strict: false });
       const schema = body.tools[0].function.parameters;
+      assert.equal(
+        JSON.stringify(schema).includes('"oneOf"'),
+        false,
+        'The compatible model output protocol uses anyOf, not the provider-rejected oneOf keyword',
+      );
       assert.equal(
         ajv.validateSchema(schema),
         true,
@@ -158,7 +157,9 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
       assert.equal(ajv.compile(schema)(output), true);
     }
     assert.equal(requests[1].payload.purpose, '랭킹 조회');
-    assert.equal(requests[1].payload.reply, '조회수 순으로 조회해줘.');
+    assert.deepEqual(requests[1].payload.sourceMessages, [
+      { id: 'scenario', text: '조회수 순으로 조회해줘.' },
+    ]);
     assert.equal(
       result.enumInterpretation.analysis.enumSelections[0].candidate.value,
       'VIEWS',
@@ -183,7 +184,7 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
       (error) => {
         assert.ok(error instanceof OpenApiFlowError);
         assert.equal(error.diagnostic.code, 'MODEL_INVOCATION_FAILED');
-        assert.equal(error.diagnostic.operation, 'analyzeApiInputAnswers');
+        assert.equal(error.diagnostic.operation, 'selectApiArgumentEnums');
         assert.equal(error.diagnostic.stage, 'model-invocation');
         assert.equal(error.diagnostic.httpStatus, 400);
         assert.equal(error.cause.status, 400);

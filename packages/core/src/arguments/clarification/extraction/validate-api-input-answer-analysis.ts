@@ -39,7 +39,12 @@ export function validateApiInputAnswerAnalysis(
             requirementId: selection.requirementId,
             candidateId: selection.candidateId,
             intent: selection.intent,
-            reason: selection.reason,
+            ...(selection.sourceFingerprint === undefined
+              ? {}
+              : { sourceFingerprint: selection.sourceFingerprint }),
+            ...(selection.reason === undefined
+              ? {}
+              : { reason: selection.reason }),
           })),
         }),
   });

@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -9,7 +10,6 @@ import {
   validateApiLiteralGenerationRecord,
 } from '@openapi-flow/core';
 import { repeatedCallSources } from './fixtures/repeated-call-literal-fixture.mjs';
-import { textInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
 function initialInput() {
   const sources = globalThis.structuredClone(repeatedCallSources);
@@ -75,7 +75,7 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
                   {
                     targetPointer: '/path/id',
                     sourceFormat: 'json',
-                    sourceText: JSON.stringify(id),
+                    candidateId: literalJsonCandidateId(JSON.stringify(id)),
                   },
                 ],
               },
@@ -86,7 +86,7 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
               explanation: { reason: '이 역할의 원문 식별자만 복사했습니다.' },
             };
           }
-          if (options.name === 'extract_api_input_answers') {
+          if (options.name === 'select_api_argument_enums') {
             assert.equal(payload.questions.length, 1);
             assert.equal(payload.questions[0].targetPointer, '/query/sort');
             const first = payload.purpose === '첫 번째 조회 역할';
@@ -96,23 +96,11 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
             );
             assert.ok(candidate);
             return {
-              answers: unanswered
-                ? []
-                : [
-                    {
-                      requirementId: choice.requirementId,
-                      source: {
-                        kind: 'oas-enum',
-                        candidateId: candidate.id,
-                        intent: textInputSource(
-                          payload,
-                          first ? '조회수' : '최신순',
-                        ),
-                      },
-                      reason: '현재 조회 역할에 맞는 원래 OAS enum입니다.',
-                    },
-                  ],
-              reason: '각 호출 역할의 실제 요청만 해석했습니다.',
+              decisions: {
+                [choice.requirementId]: unanswered
+                  ? { status: 'not-supplied' }
+                  : { status: 'selected', candidateId: candidate.id },
+              },
             };
           }
           if (options.name === 'plan_reviewable_workflow_graph') {
@@ -156,7 +144,7 @@ test('single-call reference factory forwards enum options and preserves source-o
     [
       'select_api_operations',
       'generate_api_arguments',
-      'extract_api_input_answers',
+      'select_api_argument_enums',
     ],
   );
 });
@@ -192,7 +180,7 @@ test('reviewable reference factory keeps independent enum evidence for repeated 
     assert.deepEqual(material.arguments.unresolvedInputs, []);
   }
   assert.equal(
-    model.calls.filter((call) => call.name === 'extract_api_input_answers')
+    model.calls.filter((call) => call.name === 'select_api_argument_enums')
       .length,
     2,
   );
@@ -228,7 +216,7 @@ test('reference factory can track requested inputs without enabling semantic enu
     /Request inputs need user clarification:.*\/query\/sort/,
   );
   assert.equal(
-    model.calls.some((call) => call.name === 'extract_api_input_answers'),
+    model.calls.some((call) => call.name === 'select_api_argument_enums'),
     false,
   );
 });

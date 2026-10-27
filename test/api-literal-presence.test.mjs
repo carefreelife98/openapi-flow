@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -61,7 +62,11 @@ for (const value of [{}, [], null, '', 0, false])
         state: 'provided',
         values: { body: value },
         literalSources: [
-          { targetPointer: '/body', sourceFormat: 'json', sourceText: text },
+          {
+            targetPointer: '/body',
+            sourceFormat: 'json',
+            candidateId: literalJsonCandidateId(text),
+          },
         ],
       },
       requestedInputs: ['/body'],
@@ -95,7 +100,7 @@ test('partial typed values keep their source while unspecified siblings remain q
         {
           targetPointer: '/body/id',
           sourceFormat: 'json',
-          sourceText: '"0007"',
+          candidateId: literalJsonCandidateId('"0007"'),
         },
       ],
     },
@@ -173,7 +178,11 @@ test('a provided empty body still needs an exact original source; availability i
       state: 'provided',
       values: { body: {} },
       literalSources: [
-        { targetPointer: '/body', sourceFormat: 'json', sourceText: '{}' },
+        {
+          targetPointer: '/body',
+          sourceFormat: 'json',
+          candidateId: literalJsonCandidateId('{}'),
+        },
       ],
     },
     requestedInputs: ['/body'],
@@ -188,8 +197,8 @@ test('a provided empty body still needs an exact original source; availability i
       model: literalGenerationModel(output),
     }),
     (error) => {
-      assert.equal(error.diagnostic.code, 'API_ARGUMENT_VALIDATION_FAILED');
-      assert.equal(error.diagnostic.stage, 'contract-validation');
+      assert.equal(error.diagnostic.code, 'MODEL_OUTPUT_INVALID');
+      assert.equal(error.diagnostic.stage, 'model-output');
       return true;
     },
   );

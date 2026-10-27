@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -9,12 +10,11 @@ import {
   validateApiLiteralGenerationRecord,
 } from '@openapi-flow/core';
 import { generateApiArguments } from '@openapi-flow/langchain';
-import { textInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
 const idSource = {
   targetPointer: '/query/id',
   sourceFormat: 'json',
-  sourceText: '"0007"',
+  candidateId: literalJsonCandidateId('"0007"'),
 };
 
 async function operation(
@@ -70,26 +70,17 @@ function model(
           calls.push({ schema, options, payload });
           if (options.name === 'generate_api_arguments')
             return globalThis.structuredClone(first);
-          assert.equal(options.name, 'extract_api_input_answers');
+          assert.equal(options.name, 'select_api_argument_enums');
           const candidate = choose(payload);
           return mutate({
-            answers:
-              candidate === undefined
-                ? []
-                : [
-                    {
-                      requirementId: payload.enumChoices[0].requirementId,
-                      source: {
-                        kind: 'oas-enum',
-                        candidateId: candidate.id,
-                        intent: textInputSource(payload, '조회수'),
-                      },
-                      reason: '조회수 의도에 맞는 OAS 후보를 선택했습니다.',
-                    },
-                  ],
-            ...(Object.hasOwn(schema.properties, 'reason')
-              ? { reason: '현재 호출의 요청 의도만 확인했습니다.' }
-              : {}),
+            decisions: Object.fromEntries(
+              payload.questions.map((question) => [
+                question.id,
+                candidate === undefined
+                  ? { status: 'not-supplied' }
+                  : { status: 'selected', candidateId: candidate.id },
+              ]),
+            ),
           });
         },
       };
@@ -126,10 +117,14 @@ test('initial independent generation tracks requested optional inputs and reuses
   assert.deepEqual(result.unresolvedInputs, []);
   assert.deepEqual(
     llm.calls.map((call) => call.options.name),
-    ['generate_api_arguments', 'extract_api_input_answers'],
+    ['generate_api_arguments', 'select_api_argument_enums'],
   );
   assert.equal(llm.calls[1].payload.purpose, input.purpose);
-  assert.equal(llm.calls[1].payload.reply, input.scenario);
+  assert.deepEqual(llm.calls[1].payload.sourceMessages, [
+    { id: 'scenario', text: input.scenario },
+  ]);
+  assert.equal(Object.hasOwn(llm.calls[1].payload, 'reply'), false);
+  assert.equal(Object.hasOwn(llm.calls[1].payload, 'sources'), false);
   assert.equal(Object.hasOwn(llm.calls[1].payload, 'draft'), false);
   assert.equal(Object.hasOwn(llm.calls[1].payload, 'plan'), false);
   assert.equal(llm.calls[1].payload.questions.length, 1);
@@ -241,7 +236,7 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
         {
           targetPointer: '/query/sort',
           sourceFormat: 'json',
-          sourceText: '"VIEWS"',
+          candidateId: literalJsonCandidateId('"VIEWS"'),
         },
       ],
     },
@@ -358,15 +353,15 @@ test('invalid first values and invalid enum choices fail without repair, another
   assert.equal(invalid.calls.length, 1);
   for (const mutate of [
     (output) => {
-      output.answers[0].source.value = 'VIEWS';
+      Object.values(output.decisions)[0].value = 'VIEWS';
       return output;
     },
     (output) => {
-      output.answers[0].source.candidateId = 'foreign';
+      Object.values(output.decisions)[0].candidateId = 'foreign';
       return output;
     },
     (output) => {
-      output.answers[0].source.intent.startTokenId = 'foreign';
+      Object.values(output.decisions)[0].sourceMessageId = 'foreign';
       return output;
     },
   ]) {
@@ -407,7 +402,7 @@ test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an
         {
           targetPointer: '/query/sort',
           sourceFormat: 'json',
-          sourceText: '"VIEWS"',
+          candidateId: literalJsonCandidateId('"VIEWS"'),
         },
       ],
     },
@@ -423,7 +418,7 @@ test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an
       selectOasEnums: true,
       model: llm,
     }),
-    /original|source|occurrence/,
+    (error) => error.diagnostic.code === 'MODEL_OUTPUT_INVALID',
   );
   assert.equal(llm.calls.length, 1);
 });
@@ -544,6 +539,66 @@ test('unknown inputs stay missing without a second semantic call, regardless of 
   assert.equal(Object.hasOwn(result, 'enumInterpretation'), false);
   assert.equal(llm.calls.length, 1);
   assert.ok(llm.calls[0].schema.properties.enumIntentInputs);
+});
+
+test('an advertised enum target can still be explicitly not supplied without promoting an example', async () => {
+  const llm = model(
+    {
+      literalInputs: { state: 'not-provided' },
+      requestedInputs: ['/query/sort'],
+      enumIntentInputs: ['/query/sort'],
+    },
+    () => undefined,
+  );
+  const result = await generateApiArguments({
+    callId: 'example-is-not-an-answer',
+    operation: await operation(),
+    bindings: [],
+    scenario: '정렬은 나중에 지정할게. 예시 값은 VIEWS다.',
+    selectOasEnums: true,
+    model: llm,
+  });
+  assert.deepEqual(result.values, {});
+  assert.deepEqual(result.unresolvedInputs, ['/query/id', '/query/sort']);
+  assert.deepEqual(result.enumInterpretation.analysis.answers, []);
+  assert.equal(llm.calls.length, 2);
+  const payload = llm.calls[1].payload;
+  for (const field of ['reply', 'sources', 'messageSources'])
+    assert.equal(Object.hasOwn(payload, field), false);
+  assert.equal(Object.hasOwn(payload.sourceMessages[0], 'tokens'), false);
+  validateApiInputAnswerAnalysis(result.enumInterpretation);
+});
+
+test('initial enum decisions copy every OAS value type and bind source identity without requiring display reasons', async () => {
+  for (const value of ['VIEWS', 0, false, null, [1, '2'], { count: 2 }]) {
+    const input = {
+      callId: 'typed-choice',
+      operation: await operation({ enum: [value] }),
+      bindings: [],
+      scenario: '조회수 의미를 사용해줘.',
+      selectOasEnums: true,
+    };
+    const llm = model({
+      literalInputs: { state: 'not-provided' },
+      requestedInputs: [],
+      enumIntentInputs: ['/query/sort'],
+    });
+    const result = await generateApiArguments({ ...input, model: llm });
+    assert.deepEqual(result.values, { query: { sort: value } });
+    const selection = result.enumInterpretation.analysis.enumSelections[0];
+    assert.match(selection.sourceFingerprint, /^[a-f0-9]{64}$/);
+    assert.equal(Object.hasOwn(selection, 'reason'), false);
+    assert.equal(selection.intent.sourceText, input.scenario);
+    validateApiInputAnswerAnalysis(result.enumInterpretation);
+    assert.throws(
+      () =>
+        validateApiInputAnswerAnalysis({
+          ...result.enumInterpretation,
+          purpose: 'another call role',
+        }),
+      /source fingerprint/,
+    );
+  }
 });
 
 test('only explicitly selected semantic targets reach enum interpretation; code derives their requested presence', async () => {

@@ -1,3 +1,4 @@
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OutputParserException } from '@langchain/core/output_parsers';
@@ -151,7 +152,7 @@ test('argument output shape and original-source validation failures remain disti
         {
           targetPointer: '/body/quantity',
           sourceFormat: 'json',
-          sourceText: '"private-value-not-in-scenario"',
+          candidateId: literalJsonCandidateId('5'),
         },
       ],
     },

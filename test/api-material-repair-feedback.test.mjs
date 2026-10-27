@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import test from 'node:test';
 import { createServer } from 'node:http';
 import { ChatOpenAI } from '@langchain/openai';
@@ -85,7 +86,7 @@ function literalOutput(value) {
         {
           targetPointer: '/query/id',
           sourceFormat: 'json',
-          sourceText: JSON.stringify(value),
+          candidateId: literalJsonCandidateId(JSON.stringify(value)),
         },
       ],
     },
@@ -692,8 +693,10 @@ test('a JSON envelope is not silently unwrapped into original messages for liter
     replacement: repair.pendingReplacement,
   });
   const output = literalOutput('request-only-7');
-  output.literalInputs.literalSources[0].sourceFormat = 'text';
-  output.literalInputs.literalSources[0].sourceText = 'request-only-7';
+  output.literalInputs.literalSources[0] = {
+    targetPointer: '/query/id',
+    sourceFormat: 'text',
+  };
   const model = recoveryQueueModel([output]);
   await assert.rejects(
     generateApiArguments({

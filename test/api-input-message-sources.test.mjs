@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import test from 'node:test';
 import { isDeepStrictEqual } from 'node:util';
 import {
@@ -371,7 +372,7 @@ test('generation composes literal and enum stages using the same original messag
               {
                 targetPointer: '/body/id',
                 sourceFormat: 'json',
-                sourceText: '"0007"',
+                candidateId: literalJsonCandidateId('"0007"'),
               },
             ],
           },
@@ -379,7 +380,16 @@ test('generation composes literal and enum stages using the same original messag
           enumIntentInputs: ['/body/sort'],
           explanation: { reason: '원문 상품번호입니다.' },
         }
-      : enumOutput(payload),
+      : {
+          decisions: {
+            [payload.questions[0].id]: {
+              status: 'selected',
+              candidateId: payload.enumChoices[0].candidates.find(
+                (item) => item.value === 'VIEWS',
+              ).id,
+            },
+          },
+        },
   );
   const result = await generateApiArguments({ ...input, model });
   assert.deepEqual(result.values, { body: { id: '0007', sort: 'VIEWS' } });
@@ -391,7 +401,7 @@ test('generation composes literal and enum stages using the same original messag
   validateApiInputAnswerAnalysis(result.enumInterpretation);
   assert.deepEqual(
     model.calls.map((call) => call.options.name),
-    ['generate_api_arguments', 'extract_api_input_answers'],
+    ['generate_api_arguments', 'select_api_argument_enums'],
   );
   assert.equal(Object.hasOwn(model.calls[1].payload, 'draft'), false);
 });
@@ -435,8 +445,16 @@ test('a change to original generation messages during the second enum call canno
         requestedInputs: ['/body/value'],
         enumIntentInputs: ['/body/value'],
       };
-    const output = enumOutput(payload);
-    delete output.reason;
+    const output = {
+      decisions: {
+        [payload.questions[0].id]: {
+          status: 'selected',
+          candidateId: payload.enumChoices[0].candidates.find(
+            (item) => item.value === 'VIEWS',
+          ).id,
+        },
+      },
+    };
     input.literalSourceMessages[0].id = 'different-source';
     return output;
   });

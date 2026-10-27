@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import {
@@ -140,7 +141,7 @@ test('newly unbound fields produce typed dependent work from actual OAS while or
           {
             targetPointer: '/query/id',
             sourceFormat: 'json',
-            sourceText: '"request-only-7"',
+            candidateId: literalJsonCandidateId('"request-only-7"'),
           },
         ],
       },

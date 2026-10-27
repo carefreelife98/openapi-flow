@@ -82,6 +82,7 @@ export async function generateNativeNodeParameters(
                 description: capability.description,
               },
             },
+            selectedRoles: description.selectedRoles,
             parametersSchema: description.instance.literalParametersSchema,
             runtimeParameters: description.instance.runtimeParameters,
             apiMaterials: description.context.apiMaterials,

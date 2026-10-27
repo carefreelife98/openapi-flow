@@ -6,7 +6,7 @@ import type {
   ApiLiteralProposalSource,
   OpenApiFlowError,
   WorkflowConnectionApiRepairContext,
-  ApiInputLiteralSource,
+  ApiLiteralSourceSelection,
   ApiArgumentEnumContextInput,
 } from '@openapi-flow/core';
 import type { z } from 'zod';
@@ -20,6 +20,20 @@ import type {
 } from '../schemas/api-literal-generation-output-schema.js';
 import type { apiLiteralGenerationOptionsSchema } from '../schemas/api-literal-generation-output-schema.js';
 import type { apiArgumentRejectionSchema } from '../schemas/api-argument-rejection-schema.js';
+import type { apiArgumentEnumDecisionSchema } from '../schemas/api-argument-enum-decision-schema.js';
+
+export type ApiArgumentEnumDecision = z.infer<
+  typeof apiArgumentEnumDecisionSchema
+>;
+
+export type ApiArgumentEnumDecisionShape = Record<
+  string,
+  z.ZodType<ApiArgumentEnumDecision>
+>;
+
+export interface ApiArgumentEnumDecisionOutput {
+  decisions: Record<string, ApiArgumentEnumDecision>;
+}
 
 export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
   model?: BaseChatModel;
@@ -32,11 +46,16 @@ export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
   materialRepair?: WorkflowConnectionApiRepairContext;
 }
 
-export interface ApiLiteralGenerationSource extends ApiInputLiteralSource {
-  targetPointer: string;
-  /** Selected only when more than one original message is supplied. */
-  messageId?: string;
-}
+/** Model source choice; the code owns sourceText in the resulting verified receipt. */
+export type ApiLiteralGenerationSource =
+  | (Omit<
+      Extract<ApiLiteralSourceSelection, { sourceFormat: 'text' }>,
+      'messageId'
+    > & { messageId?: string })
+  | (Omit<
+      Extract<ApiLiteralSourceSelection, { sourceFormat: 'json' }>,
+      'messageId'
+    > & { messageId?: string });
 
 export type ApiArgumentRejection = z.infer<typeof apiArgumentRejectionSchema>;
 

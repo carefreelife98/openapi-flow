@@ -12,6 +12,7 @@ export function createWorkflowRequirementsSchema(
   options: ResolvedWorkflowClarificationOptions,
   context: WorkflowPlanningContextDescription,
   candidates: WorkflowClarificationOasCandidate[],
+  requireExplanations = true,
 ) {
   const { message, evidence } = createWorkflowPlanningEvidenceSchemas(
     context,
@@ -23,5 +24,6 @@ export function createWorkflowRequirementsSchema(
     options,
     evidence,
     message,
+    requireExplanations,
   );
 }

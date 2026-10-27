@@ -345,6 +345,32 @@ test('an explicit empty producer choice never exposes all available sources or t
   const description = describeNativeNodeConfiguration(input);
   assert.deepEqual(description.outputs, []);
   assert.deepEqual(description.context.preparedNativeNodes, []);
+  assert.deepEqual(
+    description.selectedRoles,
+    f.selection.instances.map(({ id, capability, purpose }) => ({
+      id,
+      capability,
+      purpose,
+    })),
+  );
+  assert.equal(
+    description.selectedRoles.some((role) =>
+      Object.hasOwn(role, 'literalParametersSchema'),
+    ),
+    false,
+  );
+  description.selectedRoles[0].purpose = 'mutated view';
+  assert.equal(f.selection.instances[0].purpose, 'final children');
+  const staleSelection = globalThis.structuredClone(f.selection);
+  staleSelection.instances[0].purpose = 'different selected role';
+  assert.throws(
+    () =>
+      describeNativeNodeConfiguration({
+        ...input,
+        selection: staleSelection,
+      }),
+    /stale|modified/,
+  );
   const changed = globalThis.structuredClone(f.proposal);
   changed.sourcesByNodeId[f.source.id].sourceNodeIds = ['unrelated-existing'];
   assert.throws(() =>
@@ -353,6 +379,39 @@ test('an explicit empty producer choice never exposes all available sources or t
       proposal: changed,
     }),
   );
+});
+
+test('one value call retains all selected roles without granting unselected producer access', async () => {
+  const f = nativeDependencyFixture({ withPrepared: true });
+  const input = nativeDependencyConfiguration(f, f.source);
+  const before = JSON.stringify(input);
+  const calls = [];
+  const result = await generateNativeNodeParameters({
+    ...input,
+    model: modelReply(
+      {
+        decision: { status: 'provided', parameters: nativeDependencyValues },
+      },
+      calls,
+    ),
+  });
+  assert.equal(result.status, 'ready');
+  assert.equal(calls.length, 1);
+  const payload = JSON.parse(calls[0].messages[1].content);
+  assert.deepEqual(
+    payload.selectedRoles,
+    f.selection.instances.map(({ id, capability, purpose }) => ({
+      id,
+      capability,
+      purpose,
+    })),
+  );
+  assert.deepEqual(payload.apiMaterials, []);
+  assert.deepEqual(payload.preparedNativeNodes, []);
+  assert.deepEqual(payload.configuredNodes, []);
+  assert.deepEqual(payload.outputs, []);
+  assert.deepEqual(payload.sourceDependencies.sourceNodeIds, []);
+  assert.equal(JSON.stringify(input), before);
 });
 
 test('completed supplied consumers cannot substitute a different available producer with the same schema', async () => {

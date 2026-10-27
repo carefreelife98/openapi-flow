@@ -1,6 +1,6 @@
 import type {
   ApiLiteralGenerationInput,
-  ApiLiteralProposalSource,
+  ApiLiteralSourceSelection,
 } from '@openapi-flow/core';
 import type { ApiLiteralGenerationSource } from '../types/argument-generation.js';
 
@@ -8,7 +8,7 @@ import type { ApiLiteralGenerationSource } from '../types/argument-generation.js
 export function attributeApiLiteralGenerationSources(
   input: ApiLiteralGenerationInput,
   sources: ApiLiteralGenerationSource[],
-): ApiLiteralProposalSource[] {
+): ApiLiteralSourceSelection[] {
   const messages = input.literalSourceMessages;
   if (messages === undefined)
     return sources.map((source) => ({ ...source, messageId: 'scenario' }));

@@ -17,7 +17,9 @@ export interface ApiInputEnumAnswerSelection {
   requirementId: string;
   candidateId: string;
   intent: ApiInputMessageLiteralSource;
-  reason: string;
+  /** Code-owned identity of the original question, call role and source context. */
+  sourceFingerprint?: string;
+  reason?: string;
 }
 
 export interface VerifiedApiInputEnumAnswerSelection extends ApiInputEnumAnswerSelection {

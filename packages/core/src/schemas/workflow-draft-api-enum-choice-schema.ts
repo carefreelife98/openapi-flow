@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import type { WorkflowDraftApiEnumSelection } from '../types/workflow-draft-api-enum-selection.js';
 import type { ApiInputEnumCandidate } from '../types/api-input-enum.js';
+import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 /** No generated value or schema field exists in a semantic enum choice. */
 export function createWorkflowDraftApiEnumChoiceSchema(
   candidates: ApiInputEnumCandidate[],
   messageIds: string[],
+  requireExplanations = true,
 ): z.ZodType<WorkflowDraftApiEnumSelection> {
   if (!messageIds.length)
     throw new Error('API enum choice requires original human message IDs');
@@ -27,12 +29,14 @@ export function createWorkflowDraftApiEnumChoiceSchema(
       .describe(
         'Exact original human text expressing the intended meaning; it need not contain the enum literal.',
       ),
-    reason: z
-      .string()
-      .min(1)
-      .refine((value) => value.trim().length > 0)
-      .describe(
-        'Brief user-facing reason why this OAS choice matches the cited request. Not private chain-of-thought.',
-      ),
+    reason: requireExplanations
+      ? z
+          .string()
+          .min(1)
+          .refine((value) => value.trim().length > 0)
+          .describe(
+            'Brief user-facing reason why this OAS choice matches the cited request. Not private chain-of-thought.',
+          )
+      : optionalPlanningExplanationSchema,
   });
 }
