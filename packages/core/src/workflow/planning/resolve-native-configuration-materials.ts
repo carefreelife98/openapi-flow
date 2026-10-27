@@ -21,6 +21,7 @@ import type {
 import { createWorkflowNodeContracts } from '../create-workflow-node-contracts.js';
 import { isSchemaProvablyEmpty } from '../../bindings/is-schema-provably-empty.js';
 import { z } from 'zod';
+import { nativeParameterProducerIds } from './native-parameter-producer-ids.js';
 
 /** Actual implementation references must equal the prior choice; unused or substituted producers are not repairs. */
 export function validateNativeNodeProducerReferences(
@@ -33,19 +34,7 @@ export function validateNativeNodeProducerReferences(
     nativeNodes: [node],
     capabilities: [capability],
   });
-  const actual = [
-    ...new Set([
-      ...contract.references.map((reference) => reference.nodeId),
-      ...Object.values(
-        contract.inputReferences === undefined ? {} : contract.inputReferences,
-      )
-        .flat()
-        .map((reference) => reference.nodeId),
-      ...(contract.rejoinsExclusiveOutputs === undefined
-        ? []
-        : [contract.rejoinsExclusiveOutputs]),
-    ]),
-  ].sort();
+  const actual = nativeParameterProducerIds(contract);
   if (!jsonValuesEqual(actual, [...expected].sort()))
     throw new Error(
       `Native instance ${node.id}: actual parameter references must exactly match its declared producer dependencies`,

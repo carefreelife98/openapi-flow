@@ -14,6 +14,7 @@ import {
 import { validateConnectionMaterialRepairTargets } from './validate-connection-material-repair-targets.js';
 import { selectWorkflowConnectionArgumentValues } from './select-workflow-connection-argument-values.js';
 import { collectDeferredApiInputSlots } from '../../../inputs/collect-deferred-api-input-slots.js';
+import { resolveNativePlanningMaterials } from '../../planning/resolve-native-planning-materials.js';
 
 export function validateWorkflowConnectionSourceRepairRequest(
   input: ValidateWorkflowConnectionSourceRepairRequestInput,
@@ -154,6 +155,29 @@ export function prepareConnectionMaterialReplacement(
       return structuredClone(next);
     }),
   };
+
+  if (replacement.nativeNodes.length) {
+    const bound = resolveNativePlanningMaterials({
+      capabilities: before.source.input.capabilities,
+      nativeNodes: source.nativeNodes === undefined ? [] : source.nativeNodes,
+      apiMaterials: before.source.input.materials.map((material) => ({
+        callId:
+          material.status === 'ready'
+            ? material.arguments.callId
+            : material.callId,
+        operation: material.operation,
+        requestMediaType:
+          material.status === 'ready'
+            ? material.arguments.requestMediaType
+            : material.requestMediaType,
+        ...(material.purpose === undefined
+          ? {}
+          : { purpose: material.purpose }),
+      })),
+      nativeOutputs: [],
+    });
+    source.capabilities = bound.capabilities;
+  }
 
   const slots = collectDeferredApiInputSlots({
     materials: (source.materials === undefined ? [] : source.materials).flatMap(

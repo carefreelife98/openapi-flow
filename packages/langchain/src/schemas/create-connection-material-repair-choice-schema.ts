@@ -20,7 +20,11 @@ export function createConnectionMaterialRepairChoiceSchema(
     if (!stage.nodeIds.length) continue;
     targets.push(
       workflowConnectionMaterialRepairTargetSchema.extend({
-        stage: z.literal(stage.stage),
+        stage: z
+          .literal(stage.stage)
+          .describe(
+            'Origin-stage ownership: api-bindings changes API producer references; api-arguments changes only API literals/requested inputs and retains bindings; native-dependencies changes native producer IDs and then regenerates its settings; native-parameters changes settings or pointers while retaining the existing producer IDs. Request native-dependencies for a producer substitution, not native-parameters alone.',
+          ),
         nodeId: z.enum(stage.nodeIds),
       }),
     );

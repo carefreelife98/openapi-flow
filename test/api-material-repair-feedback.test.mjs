@@ -492,6 +492,36 @@ test('literal generation rejects mutated recovery requests after one model respo
   assert.equal(model.requests.length, 1);
 });
 
+test('a JSON envelope is not silently unwrapped into original messages for literal attribution', async () => {
+  const { repair } = literalFixture();
+  repair.source.scenario = JSON.stringify({
+    requests: ['Use the price identifier request-only-7.'],
+    answers: [],
+  });
+  repair.request.sourceFingerprint = describeWorkflowConnectionGoals(
+    repair.source,
+  ).sourceFingerprint;
+  const work = describeWorkflowConnectionMaterialRepairWork({
+    source: repair.source,
+    request: repair.request,
+    replacement: repair.pendingReplacement,
+  });
+  const output = literalOutput('request-only-7');
+  output.literalInputs.literalSources[0].sourceFormat = 'text';
+  output.literalInputs.literalSources[0].sourceText = 'request-only-7';
+  const model = recoveryQueueModel([output]);
+  await assert.rejects(
+    generateApiArguments({
+      ...work.apiArgumentTasks[0].input,
+      materialRepair: repair,
+      model,
+    }),
+    /complete literal/,
+  );
+  assert.equal(model.requests.length, 1);
+  assert.equal(model.requests[0].payload.scenario, repair.source.scenario);
+});
+
 test('real ChatOpenAI transport keeps recovery data separate in all three API planning calls', async () => {
   const binding = fixture();
   const literal = literalFixture();

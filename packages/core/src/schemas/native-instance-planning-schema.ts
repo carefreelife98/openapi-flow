@@ -8,6 +8,7 @@ import type {
 } from '../types/native-node-planning.js';
 import { describeNativeInstanceSelection } from '../workflow/planning/resolve-native-instance-selection.js';
 import { resolveNativeConfigurationMaterials } from '../workflow/planning/resolve-native-configuration-materials.js';
+import { createNativeNodeParameterProposalSchema } from './create-native-node-parameter-proposal-schema.js';
 
 /** User answers are data, not model output and not permission to change the selected role. */
 export const nativeNodeConfigurationRepliesSchema = z.array(
@@ -121,31 +122,8 @@ export function createNativeNodeParametersSchema(
   input: NativeNodeConfigurationInput,
 ): z.ZodType<NativeNodeParameterProposal> {
   const { contract } = resolveNativeConfigurationMaterials(input);
-  const reasons =
-    input.includeExplanations === true ? { reason: z.string().min(1) } : {};
-  return z
-    .strictObject({
-      decision: z.union([
-        z.strictObject({
-          status: z.literal('provided'),
-          parameters: contract.valuesSchema.describe(
-            'Only the selected target instance settings not owned by execution-time inputs. No existing target output is required to choose literals.',
-          ),
-          ...reasons,
-        }),
-        z.strictObject({
-          status: z.literal('needs-clarification'),
-          message: z
-            .string()
-            .min(1)
-            .describe(
-              'Ask only for missing settings or producer references required by this selected implementation contract, never for a prepared copy/output of the target being created.',
-            ),
-          ...reasons,
-        }),
-      ]),
-    })
-    .meta({
-      $defs: contract.definitions,
-    }) as z.ZodType<NativeNodeParameterProposal>;
+  return createNativeNodeParameterProposalSchema(
+    contract,
+    input.includeExplanations === true,
+  );
 }

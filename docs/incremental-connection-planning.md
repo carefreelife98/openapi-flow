@@ -359,6 +359,75 @@ before reuse. No checked flag, silent rebase or mutated original is trusted. Bin
 declaration ordering and audit-only differences are not execution progress; actual
 literal-array order remains meaningful and unchanged by comparison.
 
+### Unreleased: existing-native producer and parameter repair
+
+`planWorkflowConnectionNativeDependencies` and
+`generateWorkflowConnectionNativeParameters` repair existing material without
+reselecting roles, allocating IDs or constructing a completed draft prematurely.
+Core supplies the dependency schema's exact requested target keys and actual
+producer IDs. It combines proposed choices with preserved API/native references
+for cycle checks, including cycles that cross an API and a native node. The model
+never generates the unchanged rows or runtime DAG edges.
+
+Pass the original `source` and source-bound `request` to both functions. Parameter
+generation for a `native-dependencies` target requires the exact Core-checked
+dependency result. Parameter-only targets retain their actual existing producer
+IDs, and direct material application enforces the same restriction. Both modes
+keep the original capability and execution-input ownership. Only selected actual
+producer outputs/response contracts reach parameter generation; API request
+contracts are not duplicated into either model prompt.
+
+For multiple native targets, pass ordered `completedParameters` results. Core
+replays every ready result against the same request and its exact preceding
+results, rejecting duplicates, changed receipts and stale ordering. It derives
+current outputs from these candidates and defers unfinished requested targets.
+It does not substitute the old target output when its new contract is not ready.
+Changed output contracts can therefore reach the next target before adoption,
+while all affected material remains private. Final material apply rebinds actual
+native contracts and checks downstream references. Session/revision acceptance
+and final graph readiness remain separate required checks.
+
+A ready parameter result is a locally validated candidate, not an adopted
+replacement or a completed workflow. A genuine missing business setting can
+produce the existing explicit question-result shape, bound to this repair's
+fingerprint; it is not an approval of a fabricated setting or interchangeable
+with an initial-selection question. These functions own no hidden retry,
+checkpoint, budget, new native implementation, execution or automatic adoption.
+Zero-source choices and fully runtime-owned settings remain code-only.
+`WorkflowConnectionNativeRepairError` retains the exact rejected response and
+repair fingerprint privately with its original cause and named operation;
+transport/cancellation errors are not relabeled as material rejections. The
+initial/revision repair-choice schema explains each stage's producer/value
+ownership before the model chooses a recovery target.
+
+The initial and repair planners share the native value/question schema and
+parameter-producer extraction. The new functions and types are public exports in
+the unreleased source only. Qoopilot still installs public 0.4.0; its originating
+dispatcher, ordered progress storage, accepted/candidate atomic transition and
+full original-five comparison remain separate work.
+
+Core's returned source contains planning contracts, not the n8n compiler registry.
+For n8n compilation, retain the host's original n8n capability implementations
+and call `resolveN8nNativeMaterials` with those definitions and the actual repaired
+nodes/API materials. Never substitute a Core contract when the adapter's compiler
+is missing. This explicit ownership boundary also applies to other engines.
+
+Verification: 17 new native boundary/adapter/actual-SDK HTTP cases and one API
+source-format boundary case passed in the full suite (1,709/1,710, the same known Ajv
+prototype-key failure, no skips/cancellations).
+Original private OAS regression passed 59 cases across four documents; strict
+types, build, Lint, format and independent three-package installation passed.
+An additional independent consumer exercised the new native functions. A fixed
+isolated n8n 2.37.10 before/after comparison (two conditions, four executions in
+two verified-source runs) returned no child items for the wrong
+producer and preserved `0`, `false`, the expression-looking literal string and
+`3` after correction. Its model responses were scripted, with no real model or
+business API call. An initial fixture lacked bound native contracts, another
+inherited the wrong dependency receipt, and the first engine harness supplied
+Core contracts instead of n8n compiler definitions; these were corrected at their
+own boundaries and rerun. This is not original-five generation quality or product
+UI/dispatcher verification.
+
 ### Unreleased: explicit API repair feedback at the originating planner
 
 `selectApiBindingSources`, `planApiCallBindings` and `generateApiArguments` accept
@@ -368,6 +437,15 @@ stage, call identity, immutable scenario/role/OAS, complete supplied producer
 contracts and the request's actual requirement IDs. A valid repair label alone is
 not sufficient. Missing fields, stale snapshots and unrelated targets fail before
 model invocation. The descriptor is private model data, not a browser/SSE payload.
+
+Remaining integration constraint: a host's polished connection intent and its
+original-message/answer JSON projection are not necessarily the same source text.
+Simply adding a second scenario string does not solve literal attribution inside
+a JSON-string envelope: the scanner intentionally rejects partial extraction
+from a protected literal. That attempted addition was not adopted; the regression
+asserts this existing rejection, not JSON-envelope support. Original source
+messages/answers need an explicit primary-source channel before that host format
+can be integrated without loosening validation or changing the original input.
 
 For argument work released by a binding change, also supply `pendingReplacement`.
 Core rederives `describeWorkflowConnectionMaterialRepairWork` and verifies the
@@ -385,11 +463,11 @@ description, so a changed reason/source cannot reuse an old argument rejection.
 Fully bound arguments and independent no-source field mapping remain code-only.
 There is no automatic retry, replacement adoption or new value default. Use the
 existing apply/work/replay APIs after planning and let the host own checkpoint,
-budget and atomic revision. Native-origin repair and the Qoopilot dispatcher are
-separate remaining work; this unreleased API addition is not installed in the
+budget and atomic revision. Native-origin repair has the separate functions above;
+the Qoopilot dispatcher remains work. This unreleased API addition is not installed in the
 public 0.4.0 packages or Qoopilot.
 
-Verification: 13 new boundary/adapter/real-SDK HTTP-wire cases, 54 focused cases,
+API feedback baseline at `c58b5a7`: 13 new boundary/adapter/real-SDK HTTP-wire cases, 54 focused cases,
 59 original-private-OAS cases across four files, and an independent three-package
 consumer passed. The full suite passed 1,691/1,692 with the previously documented
 Ajv prototype-key failure and no skips/cancellations. Strict types, build, Lint and

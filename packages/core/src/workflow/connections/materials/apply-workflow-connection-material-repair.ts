@@ -15,6 +15,7 @@ import {
 import { createComparableConnectionArgumentValues } from './create-comparable-connection-argument-values.js';
 import { prepareConnectionMaterialReplacement } from './prepare-connection-material-replacement.js';
 import { describeWorkflowConnectionMaterialRepairWork } from './describe-workflow-connection-material-repair-work.js';
+import { nativeParameterProducerIds } from '../../planning/native-parameter-producer-ids.js';
 export { validateWorkflowConnectionSourceRepairRequest } from './prepare-connection-material-replacement.js';
 
 /** Replace only explicitly requested execution material. OAS, roles, requirements, registry and baseline edges remain original. */
@@ -38,6 +39,33 @@ export function applyWorkflowConnectionMaterialRepair(
         replacement.nativeNodes.map((node) => [node.id, node]),
       );
       const after = describeConnectionSessionSource(source);
+      const before = describeConnectionSessionSource(snapshot);
+      for (const target of request.request.targets) {
+        if (
+          target.stage !== 'native-parameters' ||
+          request.request.targets.some(
+            (item) =>
+              item.nodeId === target.nodeId &&
+              item.stage === 'native-dependencies',
+          )
+        )
+          continue;
+        const original = before.source.context.nodes.find(
+          (node) => node.id === target.nodeId,
+        )!;
+        const changed = after.source.context.nodes.find(
+          (node) => node.id === target.nodeId,
+        )!;
+        if (
+          !isDeepStrictEqual(
+            nativeParameterProducerIds(original),
+            nativeParameterProducerIds(changed),
+          )
+        )
+          throw new Error(
+            `native-parameters repair cannot change producers without native-dependencies: ${target.nodeId}`,
+          );
+      }
       const changedApi = snapshot.materials?.some(
         (material) =>
           material.status === 'ready' &&

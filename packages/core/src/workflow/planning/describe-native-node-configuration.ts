@@ -4,7 +4,6 @@ import type {
   NativeNodeConfigurationDescription,
   ResolveNativeNodeParametersInput,
   NativeNodeParameterResult,
-  NativeNodeParameterProposal,
   NativeNodeConfigurationReply,
 } from '../../types/native-node-planning.js';
 import { createNativeNodePlan } from './create-native-node-plan.js';
@@ -18,6 +17,7 @@ import {
   resolveNativeConfigurationMaterials,
   validateNativeNodeProducerReferences,
 } from './resolve-native-configuration-materials.js';
+import { nativeParameterQuestionIdentity } from './native-parameter-question-identity.js';
 
 export function describeNativeNodeConfiguration(
   input: NativeNodeConfigurationInput,
@@ -178,17 +178,4 @@ export function resolveNativeNodeParameters(
     node: structuredClone(node),
     proposal: structuredClone(proposal),
   };
-}
-
-function nativeParameterQuestionIdentity(
-  fingerprint: string,
-  nodeId: string,
-  proposal: NativeNodeParameterProposal,
-): string {
-  return (
-    'native-question:' +
-    createHash('sha256')
-      .update(JSON.stringify({ fingerprint, nodeId, proposal }))
-      .digest('hex')
-  );
 }

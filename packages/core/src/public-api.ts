@@ -397,6 +397,17 @@ export {
 export { inspectWorkflowConnectionMaterialRepairInputs } from './workflow/connections/materials/inspect-workflow-connection-material-repair-inputs.js';
 export { describeWorkflowConnectionMaterialRepairWork } from './workflow/connections/materials/describe-workflow-connection-material-repair-work.js';
 export { describeWorkflowConnectionApiRepair } from './workflow/connections/materials/describe-workflow-connection-api-repair.js';
+export type * from './types/workflow-connection-native-repair.js';
+export {
+  describeWorkflowConnectionNativeDependencies,
+  createWorkflowConnectionNativeDependenciesSchema,
+  resolveWorkflowConnectionNativeDependencies,
+} from './workflow/connections/materials/native/workflow-connection-native-dependencies.js';
+export {
+  describeWorkflowConnectionNativeParameters,
+  createWorkflowConnectionNativeParametersSchema,
+  resolveWorkflowConnectionNativeParameters,
+} from './workflow/connections/materials/native/workflow-connection-native-parameters.js';
 export type * from './types/workflow-connection-goal-review.js';
 export type * from './types/native-instance-selection-review.js';
 export { createNativeInstanceSelectionReviewSchema } from './schemas/native-instance-selection-review-schema.js';

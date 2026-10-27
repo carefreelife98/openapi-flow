@@ -95,3 +95,7 @@ export { planWorkflowConnectionOutline } from './workflow/connections/plan-workf
 export { describeWorkflowConnectionOutlineRequest } from './workflow/connections/describe-workflow-connection-outline-request.js';
 export { createWorkflowConnectionOutlineRejection } from './workflow/connections/create-workflow-connection-outline-rejection.js';
 export { workflowConnectionOutlineRejectionSchema } from './schemas/workflow-connection-outline-rejection-schema.js';
+export type * from './types/workflow-connection-native-repair.js';
+export { planWorkflowConnectionNativeDependencies } from './workflow/connections/plan-workflow-connection-native-dependencies.js';
+export { generateWorkflowConnectionNativeParameters } from './workflow/connections/generate-workflow-connection-native-parameters.js';
+export { WorkflowConnectionNativeRepairError } from './workflow/connections/workflow-connection-native-repair-error.js';
