@@ -408,7 +408,11 @@ test('invented producers, cycles, repeated fixed edges and missing bound depende
         nativeNodes,
         capabilities: [contextCapability],
       }),
-      (error) => error.failure.stage === 'graph-validation',
+      (error) =>
+        error.failure.stage ===
+        (edges.some((edge) => edge.from === 'invented')
+          ? 'proposal-schema'
+          : 'graph-validation'),
     );
   }
   const chat = model({

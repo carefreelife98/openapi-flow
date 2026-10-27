@@ -8,10 +8,11 @@ import {
 import type { ReviewableWorkflowGraphPlan } from '@openapi-flow/core';
 import type {
   PlanWorkflowConnectionsInput,
-  WorkflowConnectionPlanningOutput,
   ResolvedWorkflowConnectionOutput,
 } from '../types/workflow-orchestration.js';
-import { createReviewableWorkflowGraphSchema } from '../schemas/reviewable-workflow-graph-schema.js';
+import { createWorkflowConnectionSelectionSchema } from '../schemas/workflow-connection-selection-schema.js';
+import type { WorkflowConnectionSelectionOutput } from '../types/workflow-connection-selection.js';
+import { resolveWorkflowConnectionSelection } from './resolve-workflow-connection-selection.js';
 import { resolveWorkflowConnectionOutput } from './resolve-workflow-connection-output.js';
 import { workflowConnectionsPrompt } from '../prompts/workflow-connections-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
@@ -33,13 +34,12 @@ export async function planWorkflowConnections(
     sources,
   } = describeWorkflowConnectionPlanning(input);
   const readyIds = context.readyCallIds;
-  const schema = createReviewableWorkflowGraphSchema(
-    [],
-    readyIds,
-    options.includeExplanations === true ? 'connections' : 'none',
+  const schema = createWorkflowConnectionSelectionSchema(
+    context,
+    options.includeExplanations === true,
   );
-  const output: WorkflowConnectionPlanningOutput = await input.model
-    .withStructuredOutput<WorkflowConnectionPlanningOutput>(
+  const output: WorkflowConnectionSelectionOutput = await input.model
+    .withStructuredOutput<WorkflowConnectionSelectionOutput>(
       serializeStructuredOutputSchema(schema, 'draft-2020-12'),
       {
         name: 'plan_workflow_connections',
@@ -53,7 +53,7 @@ export async function planWorkflowConnections(
     ]);
   let resolved: ResolvedWorkflowConnectionOutput;
   try {
-    const parsed = parseStructuredOutput<WorkflowConnectionPlanningOutput>(
+    const parsed = parseStructuredOutput<WorkflowConnectionSelectionOutput>(
       schema,
       output,
       'model workflow connections',
@@ -62,7 +62,14 @@ export async function planWorkflowConnections(
       throw new Error(
         'connection model schema must validate without defaults, coercion or transformation',
       );
-    resolved = resolveWorkflowConnectionOutput(parsed, readyIds.length);
+    resolved = resolveWorkflowConnectionOutput(
+      resolveWorkflowConnectionSelection(
+        parsed,
+        context,
+        options.includeExplanations === true,
+      ),
+      readyIds.length,
+    );
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     throw new ReviewableWorkflowGraphPlanningError(

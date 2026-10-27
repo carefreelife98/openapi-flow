@@ -8,6 +8,7 @@ import type {
   ExplainedWorkflowBlockedCall,
 } from '@openapi-flow/core';
 import type { ExplainedGraphNativeNode } from './workflow-planning.js';
+import type { WorkflowConnectionSelectionOutput } from './workflow-connection-selection.js';
 
 export interface PlanReviewableWorkflowGraphInput extends ReviewableWorkflowPlanningContext {
   scenario: string;
@@ -19,7 +20,11 @@ export interface PlanReviewableWorkflowGraphInput extends ReviewableWorkflowPlan
 
 export type ReviewableWorkflowGraphPlanningFailure =
   | { stage: 'proposal-schema'; output: unknown }
-  | { stage: 'graph-validation'; output: ReviewableWorkflowGraphModelOutput };
+  | {
+      stage: 'graph-validation';
+      output:
+        ReviewableWorkflowGraphModelOutput | WorkflowConnectionSelectionOutput;
+    };
 
 export type ReviewableWorkflowGraphOutput = Omit<
   ReviewableWorkflowGraphProposal,

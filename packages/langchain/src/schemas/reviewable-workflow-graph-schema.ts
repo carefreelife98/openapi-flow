@@ -1,7 +1,5 @@
 import { z } from 'zod';
 import type { WorkflowCapability } from '@openapi-flow/core';
-import type { WorkflowConnectionPlanningOutput } from '../types/workflow-orchestration.js';
-import type { ReviewableWorkflowGraphModelOutput } from '../types/reviewable-workflow-planning.js';
 import type { WorkflowGraphExplanationMode } from '../types/workflow-planning.js';
 import { workflowConnectionReasonSchema } from './workflow-connection-explanation-schema.js';
 import { workflowGraphReasonSchema } from './workflow-graph-explanation-schema.js';
@@ -10,9 +8,7 @@ export function createReviewableWorkflowGraphSchema(
   capabilities: WorkflowCapability[],
   readyCallIds: string[],
   explanationMode: WorkflowGraphExplanationMode = 'none',
-): z.ZodType<
-  WorkflowConnectionPlanningOutput | ReviewableWorkflowGraphModelOutput
-> {
+) {
   const includeExplanations = explanationMode !== 'none';
   const reasonSchema =
     explanationMode === 'graph'

@@ -163,7 +163,15 @@ test('newly blocked calls retain their own reason while supplied and additional 
   };
   const result = await planWorkflowConnections({
     ...input,
-    model: connectionPlanningModel(explainConnections(proposal)),
+    model: connectionPlanningModel(
+      explainConnections({
+        ...proposal,
+        edges: proposal.edges.map((edge) => ({
+          ...edge,
+          to: edge.to === 'notification' ? { gapId: edge.to } : edge.to,
+        })),
+      }),
+    ),
     includeExplanations: true,
   });
   assert.equal(result.gaps.length, 2);
@@ -256,7 +264,12 @@ test('duplicate fixed edges, undeclared ports and missing mandatory producers st
         includeExplanations: true,
       }),
       (e) => {
-        assert.equal(e.failure.stage, 'graph-validation');
+        assert.equal(
+          e.failure.stage,
+          output.edges.some((edge) => edge.output === 'invented')
+            ? 'proposal-schema'
+            : 'graph-validation',
+        );
         assert.deepEqual(e.failure.output, output);
         assert.ok(e.cause);
         return true;

@@ -3,6 +3,7 @@ export const workflowEntrypointPlanningPrompt =
 
 export const workflowConnectionsPrompt = `Design connections only between supplied immutable node materials for the scenario.
 ${workflowEntrypointPlanningPrompt}
+For edge from/to, select an exact supplied node ID from the output schema. Reference a NEW additional gap only with {gapId: its exact additionalGaps ID}. Never put an existing node ID in gapId or invent a supplied ID. Code resolves explicit gap references; it never corrects misspelled identities.
 Code has already derived node IDs, ports and data dependencies from OAS bindings and registered native implementations. Do not generate or change API values, bindings, native nodes, parameters, output schemas, credentials, starts, JavaScript or n8n JSON.
 deferredApiInputs, when supplied, are code-derived OAS input slots explicitly left for the user before execution. They do not make an API unavailable and are not orchestration gaps. Preserve their node connections and data dependencies; never invent values or block API calls merely because these slots are unfilled. This planning result is not execution approval.
 Supplied nativeNodes contain the validated immutable parameters and actual ports. Read each condition and operator before routing its true/false outputs; node names do not establish condition polarity. Do not regenerate or change these parameters.
