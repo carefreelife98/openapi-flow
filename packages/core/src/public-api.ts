@@ -26,6 +26,11 @@ export type * from './types/api-literal-generation.js';
 export { describeApiLiteralGeneration } from './arguments/generation/describe-api-literal-generation.js';
 export { createApiLiteralGenerationRecord } from './arguments/generation/create-api-literal-generation-record.js';
 export { validateApiLiteralGenerationRecord } from './arguments/generation/validate-api-literal-generation-record.js';
+export {
+  describeApiInputMessageSources,
+  hasApiInputAnswerSourceText,
+} from './arguments/sources/api-input-answer-message-sources.js';
+export { createApiInputMessageSourceSelectionSchema } from './schemas/api-input-source-selection-schema.js';
 export type * from './types/api-clarification.js';
 export type * from './types/requested-api-inputs.js';
 export type * from './types/workflow-draft-capability-gap.js';

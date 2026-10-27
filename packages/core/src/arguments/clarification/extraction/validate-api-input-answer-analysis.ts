@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { ValidateApiInputAnswerAnalysisInput } from '../../../types/api-input-answer-extraction.js';
 import { resolveApiInputAnswerInterpretations } from './resolve-api-input-answer-interpretations.js';
 import { validateApiInputAnswerExtractionRecord } from './validate-api-input-answer-extraction-record.js';
+import { hasApiInputAnswerSourceText } from '../../sources/api-input-answer-message-sources.js';
 
 /** Replay model choices against independently supplied original questions and reply. */
 export function validateApiInputAnswerAnalysis(
@@ -9,6 +10,9 @@ export function validateApiInputAnswerAnalysis(
 ): void {
   const context = {
     reply: input.reply,
+    ...(input.sourceMessages === undefined
+      ? {}
+      : { sourceMessages: input.sourceMessages }),
     requirements: input.requirements,
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
@@ -24,6 +28,9 @@ export function validateApiInputAnswerAnalysis(
       requirementId: source.requirementId,
       sourceFormat: source.sourceFormat,
       sourceText: source.sourceText,
+      ...(source.messageId === undefined
+        ? {}
+        : { messageId: source.messageId }),
     })),
     ...(analysis.enumSelections === undefined
       ? {}
@@ -48,7 +55,7 @@ export function validateApiInputAnswerAnalysis(
   }
   const status = !input.requirements.length
     ? 'no-pending-inputs'
-    : input.reply === ''
+    : !hasApiInputAnswerSourceText(context)
       ? 'empty-reply'
       : 'extracted';
   if (

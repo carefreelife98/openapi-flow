@@ -7,6 +7,7 @@ import { captureApiInputAnswerContext } from './capture-api-input-answer-context
 import { readApiInputLiteralSource } from '../../sources/read-api-input-literal-source.js';
 import { createOasValueValidator } from '../../../openapi/common/create-oas-value-validator.js';
 import { apiInputRequirementDialect } from '../api-input-requirement-dialect.js';
+import { resolveApiInputAnswerSourceText } from '../../sources/api-input-answer-message-sources.js';
 
 /** Model-selected source text is the only value source, never a model-generated value. */
 export function resolveApiInputAnswerSources(
@@ -14,6 +15,9 @@ export function resolveApiInputAnswerSources(
 ): ResolvedApiInputAnswerSources {
   const context = captureApiInputAnswerContext({
     reply: input.reply,
+    ...(input.sourceMessages === undefined
+      ? {}
+      : { sourceMessages: input.sourceMessages }),
     requirements: input.requirements,
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
   });
@@ -34,7 +38,7 @@ export function resolveApiInputAnswerSources(
       );
     const { value, occurrences } = readApiInputLiteralSource({
       ...selection,
-      text: context.reply,
+      text: resolveApiInputAnswerSourceText(context, selection),
       label: `Answer ${requirement.id}`,
     });
     const checked = createOasValueValidator(

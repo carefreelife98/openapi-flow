@@ -1,8 +1,13 @@
 import { z } from 'zod';
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
-import { apiInputLiteralSourceSchema } from './api-input-literal-source-schema.js';
+import { apiInputMessageLiteralSourceSchema } from './api-input-literal-source-schema.js';
+import { workflowNonemptySourceMessagesSchema } from './planning-evidence-schema.js';
 import { requestedApiInputsSchema } from './requested-api-inputs-schema.js';
 import { apiInputEnumAnswerSelectionsSchema } from './api-input-enum-answer-selection-schema.js';
+import type {
+  ApiInputAnswerContext,
+  ApiInputAnswerSource,
+} from '../types/api-input-answer-extraction.js';
 
 export const apiInputRequirementSchema = z.strictObject({
   kind: z.enum(['missing-input', 'requested-input']),
@@ -21,6 +26,7 @@ export const apiInputRequirementSchema = z.strictObject({
 
 export const apiInputAnswerContextSchema = z.strictObject({
   reply: z.string(),
+  sourceMessages: workflowNonemptySourceMessagesSchema.optional(),
   requirements: z.array(apiInputRequirementSchema),
   purpose: z
     .string()
@@ -28,11 +34,12 @@ export const apiInputAnswerContextSchema = z.strictObject({
     .refine((value) => value.trim().length > 0)
     .optional(),
   selectOasEnums: z.boolean().optional(),
-});
+}) satisfies z.ZodType<ApiInputAnswerContext>;
 
-export const apiInputAnswerSourceSchema = apiInputLiteralSourceSchema.extend({
-  requirementId: z.string().min(1),
-});
+export const apiInputAnswerSourceSchema =
+  apiInputMessageLiteralSourceSchema.extend({
+    requirementId: z.string().min(1),
+  }) satisfies z.ZodType<ApiInputAnswerSource>;
 
 export const apiInputAnswerSourcesSchema = z.array(apiInputAnswerSourceSchema);
 

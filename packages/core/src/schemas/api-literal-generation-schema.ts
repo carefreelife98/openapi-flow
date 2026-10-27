@@ -7,18 +7,12 @@ import type {
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
 import {
   planningEvidenceTextSchema,
-  workflowSourceMessagesSchema,
+  workflowNonemptySourceMessagesSchema,
 } from './planning-evidence-schema.js';
-
-export const apiLiteralSourceMessagesSchema =
-  workflowSourceMessagesSchema.refine(
-    (messages) => messages.length > 0,
-    'literalSourceMessages must not be empty',
-  );
 
 export const apiLiteralSourceContextSchema = z.strictObject({
   scenario: planningEvidenceTextSchema,
-  literalSourceMessages: apiLiteralSourceMessagesSchema.optional(),
+  literalSourceMessages: workflowNonemptySourceMessagesSchema.optional(),
 });
 
 export const apiLiteralGenerationIdentitySchema =
@@ -68,7 +62,7 @@ export function createApiLiteralGenerationRecordSchema(
             }),
             z.strictObject({
               kind: z.literal('literal-source-messages'),
-              messages: apiLiteralSourceMessagesSchema,
+              messages: workflowNonemptySourceMessagesSchema,
             }),
             z.strictObject({
               kind: z.literal('literal-input-contract'),

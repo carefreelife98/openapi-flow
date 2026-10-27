@@ -1,8 +1,12 @@
 import type { ApiInputAnswerSource } from '../../../types/api-input-answer-extraction.js';
-import type { ResolveApiInputSourceSelectionsInput } from '../../../types/api-input-source-selection.js';
+import type {
+  ResolveApiInputSourceSelectionsInput,
+  ApiInputSourceCatalog,
+} from '../../../types/api-input-source-selection.js';
 import { apiInputAnswerSelectionsSchema } from '../../../schemas/api-input-source-selection-schema.js';
 import { captureApiInputAnswerContext } from './capture-api-input-answer-context.js';
 import { describeApiInputSources } from '../../sources/describe-api-input-sources.js';
+import { resolveApiInputAnswerSourceText } from '../../sources/api-input-answer-message-sources.js';
 
 /** Resolve IDs against a fresh original-reply inventory, not model-provided text. */
 export function resolveApiInputSourceSelections(
@@ -10,12 +14,15 @@ export function resolveApiInputSourceSelections(
 ): ApiInputAnswerSource[] {
   const context = captureApiInputAnswerContext({
     reply: input.reply,
+    ...(input.sourceMessages === undefined
+      ? {}
+      : { sourceMessages: input.sourceMessages }),
     requirements: input.requirements,
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
   });
-  const catalog = describeApiInputSources(context.reply);
   const selections = apiInputAnswerSelectionsSchema.parse(input.selections);
   const answered = new Set<string>();
+  const catalogs = new Map<string, ApiInputSourceCatalog>();
   return selections.map((selection) => {
     if (
       !context.requirements.some(
@@ -28,6 +35,19 @@ export function resolveApiInputSourceSelections(
       );
     answered.add(selection.requirementId);
     const source = selection.source;
+    const messageId =
+      context.sourceMessages === undefined
+        ? source.messageId
+        : context.sourceMessages.length === 1 && source.messageId === undefined
+          ? context.sourceMessages[0]?.id
+          : source.messageId;
+    const text = resolveApiInputAnswerSourceText(context, { messageId });
+    let catalog = catalogs.get(text);
+    if (catalog === undefined) {
+      catalog = describeApiInputSources(text);
+      catalogs.set(text, catalog);
+    }
+    const message = messageId === undefined ? {} : { messageId };
     if (source.kind === 'json') {
       const candidate = catalog.json.find(
         (item) => item.id === source.candidateId,
@@ -38,6 +58,7 @@ export function resolveApiInputSourceSelections(
         );
       return {
         requirementId: selection.requirementId,
+        ...message,
         sourceFormat: 'json',
         sourceText: candidate.text,
       };
@@ -65,8 +86,9 @@ export function resolveApiInputSourceSelections(
     const last = segment.tokens[end];
     return {
       requirementId: selection.requirementId,
+      ...message,
       sourceFormat: 'text',
-      sourceText: context.reply.slice(first.offset, last.offset + last.length),
+      sourceText: text.slice(first.offset, last.offset + last.length),
     };
   });
 }

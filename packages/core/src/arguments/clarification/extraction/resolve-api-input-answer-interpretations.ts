@@ -7,6 +7,7 @@ import { captureApiInputAnswerContext } from './capture-api-input-answer-context
 import { resolveApiInputAnswerSources } from './resolve-api-input-answer-sources.js';
 import { describeApiInputEnumAnswerChoices } from '../../enum/describe-api-input-enum-answer-choices.js';
 import { readApiInputLiteralSource } from '../../sources/read-api-input-literal-source.js';
+import { resolveApiInputAnswerSourceText } from '../../sources/api-input-answer-message-sources.js';
 
 /** Literal values and semantic intent have different sources and must never be conflated. */
 export function resolveApiInputAnswerInterpretations(
@@ -14,6 +15,9 @@ export function resolveApiInputAnswerInterpretations(
 ): ResolvedApiInputAnswerInterpretations {
   const context = captureApiInputAnswerContext({
     reply: input.reply,
+    ...(input.sourceMessages === undefined
+      ? {}
+      : { sourceMessages: input.sourceMessages }),
     requirements: input.requirements,
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
@@ -22,8 +26,7 @@ export function resolveApiInputAnswerInterpretations(
   });
   const result: ResolvedApiInputAnswerInterpretations =
     resolveApiInputAnswerSources({
-      reply: context.reply,
-      requirements: context.requirements,
+      ...context,
       selections: input.selections,
     });
   if (input.enumSelections === undefined) return result;
@@ -50,7 +53,7 @@ export function resolveApiInputAnswerInterpretations(
       );
     const { occurrences } = readApiInputLiteralSource({
       ...selection.intent,
-      text: context.reply,
+      text: resolveApiInputAnswerSourceText(context, selection.intent),
       label: `Enum answer intent ${selection.requirementId}`,
     });
     answered.add(selection.requirementId);

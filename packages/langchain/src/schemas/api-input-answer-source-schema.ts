@@ -1,9 +1,14 @@
 import { z } from 'zod';
-import { createApiInputSourceSelectionSchema } from '@openapi-flow/core';
+import {
+  createApiInputSourceSelectionSchema,
+  createApiInputMessageSourceSelectionSchema,
+} from '@openapi-flow/core';
 import type {
   ApiInputRequirement,
   ApiInputSourceCatalog,
   ApiInputEnumAnswerChoice,
+  ApiInputMessageSourceCatalog,
+  ApiInputSourceSelection,
 } from '@openapi-flow/core';
 
 export const apiInputAnswerExplanationOptionsSchema = z.strictObject({
@@ -14,9 +19,10 @@ export const apiInputAnswerExplanationOptionsSchema = z.strictObject({
 /** Values and unanswered IDs are deliberately not model-owned output fields. */
 export function createApiInputAnswerSourceSchema(
   requirements: ApiInputRequirement[],
-  catalog: ApiInputSourceCatalog,
+  catalog: ApiInputSourceCatalog | undefined,
   includeExplanations = false,
   enumChoices: ApiInputEnumAnswerChoice[] = [],
+  messageSources?: ApiInputMessageSourceCatalog[],
 ) {
   const ids = requirements.map((item) => item.id);
   if (!ids.length || new Set(ids).size !== ids.length)
@@ -27,15 +33,25 @@ export function createApiInputAnswerSourceSchema(
     .string()
     .min(1)
     .describe(
-      "A brief user-facing reason in the user's language, grounded only in this reply and the supplied pending questions. Instruction/schema language does not set the user's language. Never translate input values, identifiers or original source spans. Not a hidden reasoning trace or a claim that code validation passed.",
+      "A brief user-facing reason in the user's language, grounded only in the original user sources and supplied pending questions. Separate reply context is not a quotation source when explicit messages are supplied. Instruction/schema language does not set the user's language. Never translate input values, identifiers or original source spans. Not a hidden reasoning trace or a claim that code validation passed.",
     );
+  let sourceSchema: z.ZodType<ApiInputSourceSelection>;
+  if (messageSources !== undefined)
+    sourceSchema = createApiInputMessageSourceSelectionSchema(messageSources);
+  else {
+    if (catalog === undefined)
+      throw new Error(
+        'Answer source schema requires its original source catalog',
+      );
+    sourceSchema = createApiInputSourceSelectionSchema(catalog);
+  }
   const answer = z.strictObject({
     requirementId: z
       .enum(ids)
       .describe(
         'The offered pending question answered by this exact source span.',
       ),
-    source: createApiInputSourceSelectionSchema(catalog),
+    source: sourceSchema,
     ...(includeExplanations ? { reason } : {}),
   });
   const enumAnswers = enumChoices.map((choice) => {
@@ -48,7 +64,7 @@ export function createApiInputAnswerSourceSchema(
       source: z.strictObject({
         kind: z.literal('oas-enum'),
         candidateId: z.enum(choice.candidates.map((candidate) => candidate.id)),
-        intent: createApiInputSourceSelectionSchema(catalog),
+        intent: sourceSchema,
       }),
       reason,
     });
@@ -57,7 +73,7 @@ export function createApiInputAnswerSourceSchema(
     answers: z
       .array(enumAnswers.length ? z.union([answer, ...enumAnswers]) : answer)
       .describe(
-        'Select each answered pending question at most once. Return [] when the reply gives no complete requested value. Do not return a value field or fabricate missing inputs.',
+        'Select each answered pending question at most once. Return [] when the original sources give no complete requested value or supported enum intent. Do not return a value field or fabricate missing inputs.',
       ),
     ...(includeExplanations ? { reason } : {}),
   });

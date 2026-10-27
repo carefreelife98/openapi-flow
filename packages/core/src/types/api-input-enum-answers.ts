@@ -5,7 +5,7 @@ import type {
   ResolvedApiInputAnswerSources,
 } from './api-input-answer-extraction.js';
 import type { ApiInputEnumCandidate } from './api-input-enum.js';
-import type { ApiInputLiteralSource } from './api-input-literal-source.js';
+import type { ApiInputMessageLiteralSource } from './api-input-literal-source.js';
 
 export interface ApiInputEnumAnswerChoice {
   requirementId: string;
@@ -16,7 +16,7 @@ export interface ApiInputEnumAnswerChoice {
 export interface ApiInputEnumAnswerSelection {
   requirementId: string;
   candidateId: string;
-  intent: ApiInputLiteralSource;
+  intent: ApiInputMessageLiteralSource;
   reason: string;
 }
 

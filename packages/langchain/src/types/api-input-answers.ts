@@ -1,14 +1,10 @@
-import type { ApiInputRequirement } from '@openapi-flow/core';
+import type { ApiInputAnswerContext } from '@openapi-flow/core';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { z } from 'zod';
 import type { createApiInputAnswerSourceSchema } from '../schemas/api-input-answer-source-schema.js';
 
-export interface ExtractApiInputAnswersInput {
-  requirements: ApiInputRequirement[];
-  reply: string;
+export interface ExtractApiInputAnswersInput extends ApiInputAnswerContext {
   model: BaseChatModel;
-  selectOasEnums?: boolean;
-  purpose?: string;
   signal?: AbortSignal;
 }
 

@@ -90,6 +90,9 @@ import {
   describeApiLiteralGeneration,
   createApiLiteralGenerationRecord,
   validateApiLiteralGenerationRecord,
+  describeApiInputMessageSources,
+  createApiInputMessageSourceSelectionSchema,
+  captureApiInputAnswerContext,
   describeApiBindingPlanning,
   createApiBindingPlanningRecord,
   validateApiBindingPlanningRecord,
@@ -134,6 +137,7 @@ import type {
   ApiRequestMediaTypeDecision,
   ApiLiteralGenerationRecord,
   ApiLiteralSourceContext,
+  ApiInputAnswerContext,
   ApiBindingPlanningRecord,
   ApiBindingPlan,
   NativeNodePlanningRecord,
@@ -1075,6 +1079,40 @@ validateApiLiteralGenerationRecord({
 assert.deepEqual(
   JSON.parse(JSON.stringify(originalLiteralRecord)),
   originalLiteralRecord,
+);
+const originalAnswerContext: ApiInputAnswerContext = {
+  reply: 'Separate formatted context',
+  requirements: [],
+  sourceMessages: [
+    { id: 'original-values', text: JSON.stringify(proposal.values) },
+  ],
+};
+const capturedAnswerContext = captureApiInputAnswerContext(
+  originalAnswerContext,
+);
+assert(capturedAnswerContext.sourceMessages);
+const messageSources = describeApiInputMessageSources(
+  capturedAnswerContext.sourceMessages,
+);
+assert.equal(messageSources[0].messageId, 'original-values');
+const originalJson = messageSources[0].sources.json.find(
+  (entry) => entry.text === JSON.stringify(proposal.values),
+);
+assert(originalJson);
+const messageSourceSchema =
+  createApiInputMessageSourceSelectionSchema(messageSources);
+assert.equal(
+  messageSourceSchema.safeParse({ kind: 'json', candidateId: originalJson.id })
+    .success,
+  true,
+);
+assert.equal(
+  messageSourceSchema.safeParse({
+    kind: 'json',
+    candidateId: originalJson.id,
+    messageId: 'invented',
+  }).success,
+  false,
 );
 const auditedArgs: ApiCallArguments = {
   ...args,
@@ -3059,6 +3097,7 @@ console.log(
     requestMediaDecisions: 'passed',
     literalGenerationRecord: 'passed',
     explicitLiteralSourceContext: 'passed',
+    explicitMessageSourceCatalog: 'passed',
     bindingPlanningRecord: 'passed',
     nativePlanningRecord: 'passed',
     stagedNativeConfiguration: 'passed',

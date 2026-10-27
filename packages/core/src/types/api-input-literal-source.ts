@@ -23,6 +23,12 @@ export interface ApiInputLiteralSource {
   sourceFormat: 'text' | 'json';
   sourceText: string;
 }
+export interface ApiInputMessageReference {
+  /** Present in code-resolved evidence when explicit original messages were supplied. */
+  messageId?: string;
+}
+export interface ApiInputMessageLiteralSource
+  extends ApiInputLiteralSource, ApiInputMessageReference {}
 export interface ReadApiInputLiteralSourceInput extends ApiInputLiteralSource {
   text: string;
   label: string;

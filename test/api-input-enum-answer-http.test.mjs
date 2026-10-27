@@ -56,6 +56,21 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
     const payload = JSON.parse(
       body.messages.find((message) => message.role === 'user').content,
     );
+    let intent;
+    if (payload.messageSources === undefined)
+      intent = textInputSource(payload, '최신순');
+    else {
+      const message = payload.messageSources.find(
+        (entry) => entry.messageId === 'request',
+      );
+      assert(message);
+      intent = {
+        ...textInputSource({ sources: message.sources }, '최신순'),
+        ...(payload.messageSources.length === 1
+          ? {}
+          : { messageId: message.messageId }),
+      };
+    }
     const output = {
       answers: [
         {
@@ -65,7 +80,7 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
             candidateId: payload.enumChoices[0].candidates.find(
               (item) => item.value === 'NEW',
             ).id,
-            intent: textInputSource(payload, '최신순'),
+            intent,
           },
           reason: '최신순을 OAS 후보에서 선택했습니다.',
         },
@@ -115,16 +130,30 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
         baseURL: `http://127.0.0.1:${server.address().port}/v1`,
       },
     });
-    for (const [includeExplanations, reply] of [
+    for (const [includeExplanations, reply, sourceMessages] of [
       [false, '최신순으로 해줘.'],
       [true, '최신순으로 해줘.'],
       [false, '업무 요구 설명 '.repeat(1000) + '최신순으로 해줘.'],
       [true, '업무 요구 설명 '.repeat(1000) + '최신순으로 해줘.'],
+      [
+        true,
+        JSON.stringify({ context: 'Formatted context, not an intent source.' }),
+        [{ id: 'request', text: '최신순으로 해줘.' }],
+      ],
+      [
+        true,
+        JSON.stringify({ context: 'Formatted context, not an intent source.' }),
+        [
+          { id: 'request', text: '최신순으로 해줘.' },
+          { id: 'answer', text: '다른 필터는 필요 없어.' },
+        ],
+      ],
     ]) {
       const result = await analyzeApiInputAnswers({
         model,
         requirements,
         reply,
+        ...(sourceMessages === undefined ? {} : { sourceMessages }),
         selectOasEnums: true,
         includeExplanations,
       });
@@ -156,6 +185,9 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
         (value) => {
           value.answers[0].source.intent.startTokenId = 'invented';
         },
+        (value) => {
+          value.answers[0].source.intent.messageId = 'invented';
+        },
       ]) {
         const value = globalThis.structuredClone(output);
         mutate(value);
@@ -164,10 +196,22 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
       assert.equal(result.answers[0].value, 'NEW');
       assert.equal(result.enumSelections[0].reason, output.answers[0].reason);
       assert.equal(result.enumSelections[0].intent.sourceText, '최신순');
+      if (sourceMessages !== undefined) {
+        assert.equal(result.enumSelections[0].intent.messageId, 'request');
+        assert.equal(
+          Object.hasOwn(JSON.parse(body.messages[1].content), 'sources'),
+          false,
+        );
+        if (sourceMessages.length > 1) {
+          const missing = globalThis.structuredClone(output);
+          delete missing.answers[0].source.intent.messageId;
+          assert.equal(validate(missing), false);
+        }
+      }
       assert.deepEqual(result.sources, []);
       assert.equal(Object.hasOwn(result, 'extraction'), includeExplanations);
     }
-    assert.equal(requests.length, 4);
+    assert.equal(requests.length, 6);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

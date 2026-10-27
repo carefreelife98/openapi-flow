@@ -1,10 +1,13 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { isDeepStrictEqual } from 'node:util';
 import {
   captureApiInputAnswerContext,
   createApiInputAnswerExtractionRecord,
   resolveApiInputAnswerInterpretations,
   describeApiInputEnumAnswerChoices,
   describeApiInputSources,
+  describeApiInputMessageSources,
+  hasApiInputAnswerSourceText,
   resolveApiInputSourceSelections,
   runOpenApiFlowOperation,
 } from '@openapi-flow/core';
@@ -45,6 +48,9 @@ export async function analyzeApiInputAnswers(
       });
       const snapshot = captureApiInputAnswerContext({
         reply: input.reply,
+        ...(input.sourceMessages === undefined
+          ? {}
+          : { sourceMessages: input.sourceMessages }),
         requirements: input.requirements,
         ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
         ...(options.selectOasEnums === undefined
@@ -61,7 +67,7 @@ export async function analyzeApiInputAnswers(
       return { options, snapshot };
     },
   );
-  if (!snapshot.requirements.length || snapshot.reply === '')
+  if (!snapshot.requirements.length || !hasApiInputAnswerSourceText(snapshot))
     return {
       status: snapshot.requirements.length
         ? 'empty-reply'
@@ -70,8 +76,25 @@ export async function analyzeApiInputAnswers(
       sources: [],
       unansweredRequirementIds: snapshot.requirements.map((item) => item.id),
     };
-  const catalog = describeApiInputSources(snapshot.reply);
-  if (!catalog.json.length && !catalog.text.length)
+  const catalog =
+    snapshot.sourceMessages === undefined
+      ? describeApiInputSources(snapshot.reply)
+      : undefined;
+  const messageSources =
+    snapshot.sourceMessages === undefined
+      ? undefined
+      : describeApiInputMessageSources(snapshot.sourceMessages);
+  let hasSources: boolean;
+  if (messageSources !== undefined)
+    hasSources = messageSources.some(
+      ({ sources }) => sources.json.length > 0 || sources.text.length > 0,
+    );
+  else {
+    if (catalog === undefined)
+      throw new Error('API input answer sources are missing');
+    hasSources = catalog.json.length > 0 || catalog.text.length > 0;
+  }
+  if (!hasSources)
     return {
       status: 'extracted',
       answers: [],
@@ -96,6 +119,7 @@ export async function analyzeApiInputAnswers(
         catalog,
         options.includeExplanations === true,
         enumChoices,
+        messageSources,
       );
       return {
         model: input.model,
@@ -122,7 +146,9 @@ export async function analyzeApiInputAnswers(
           ...(snapshot.purpose === undefined
             ? {}
             : { purpose: snapshot.purpose }),
-          sources: catalog,
+          ...(catalog === undefined
+            ? { messageSources }
+            : { sources: catalog }),
           ...(enumChoices.length ? { enumChoices } : {}),
         }),
       ),
@@ -136,6 +162,13 @@ export async function analyzeApiInputAnswers(
       code: 'API_ARGUMENT_VALIDATION_FAILED',
     },
     () => {
+      if (
+        snapshot.sourceMessages !== undefined &&
+        !isDeepStrictEqual(snapshot.sourceMessages, input.sourceMessages)
+      )
+        throw new Error(
+          'sourceMessages changed during API input answer analysis',
+        );
       const parsed = parseStructuredOutput(
         schema,
         output,
@@ -170,6 +203,9 @@ export async function analyzeApiInputAnswers(
               intent: {
                 sourceFormat: intent.sourceFormat,
                 sourceText: intent.sourceText,
+                ...(intent.messageId === undefined
+                  ? {}
+                  : { messageId: intent.messageId }),
               },
               reason: answer.reason,
             },

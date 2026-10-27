@@ -33,6 +33,9 @@ export function describeApiArgumentEnumContext(
   });
   const context: ApiInputAnswerContext = {
     reply: snapshot.scenario,
+    ...(snapshot.literalSourceMessages === undefined
+      ? {}
+      : { sourceMessages: snapshot.literalSourceMessages }),
     requirements: expandRequestedEnumRequirements({
       ...input,
       values,

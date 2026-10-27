@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const apiInputMessageReferenceSchema = z.strictObject({
+  messageId: z
+    .string()
+    .refine((value) => value.trim().length > 0)
+    .optional(),
+});
+
 export const apiInputLiteralSourceSchema = z.strictObject({
   sourceFormat: z
     .enum(['text', 'json'])
@@ -13,3 +20,6 @@ export const apiInputLiteralSourceSchema = z.strictObject({
       'Exact complete substring from the selected original user message. For a quoted JSON string preserve its original quotes and escapes and use sourceFormat json. Never add/remove quotes, invent text or use a schema default.',
     ),
 });
+
+export const apiInputMessageLiteralSourceSchema =
+  apiInputLiteralSourceSchema.extend(apiInputMessageReferenceSchema.shape);

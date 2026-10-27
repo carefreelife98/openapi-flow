@@ -23,6 +23,11 @@ export const workflowSourceMessagesSchema = z
     (messages) =>
       new Set(messages.map((message) => message.id)).size === messages.length,
   ) satisfies z.ZodType<WorkflowSourceMessage[]>;
+export const workflowNonemptySourceMessagesSchema =
+  workflowSourceMessagesSchema.refine(
+    (messages) => messages.length > 0,
+    'sourceMessages must not be empty',
+  );
 export const workflowPlanningMessagesSchema = z
   .array(
     z.strictObject({

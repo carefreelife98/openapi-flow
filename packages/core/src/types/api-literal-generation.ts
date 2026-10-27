@@ -11,7 +11,7 @@ import type { WorkflowSourceMessage } from './workflow-draft.js';
 
 export interface ApiLiteralSourceContext {
   scenario: string;
-  /** Original literal-value sources, separate from formatted scenario context. No JSON unwrapping. */
+  /** Original value and enum-intent sources, separate from formatted scenario context. No JSON unwrapping. */
   literalSourceMessages?: WorkflowSourceMessage[];
 }
 

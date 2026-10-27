@@ -1,4 +1,3 @@
-import { isDeepStrictEqual } from 'node:util';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   describeApiLiteralGeneration,
@@ -35,6 +34,7 @@ import { rethrowApiArgumentPlanningError } from './api-argument-planning-error.j
 import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
 import { attributeApiLiteralGenerationSources } from './attribute-api-literal-generation-sources.js';
+import { assertApiArgumentGenerationSource } from './assert-api-argument-generation-source.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -199,31 +199,7 @@ export async function generateApiArguments(
       code: 'API_ARGUMENT_VALIDATION_FAILED',
     },
     async () => {
-      if (
-        snapshot.literalSourceMessages !== undefined &&
-        !isDeepStrictEqual(
-          snapshot.literalSourceMessages,
-          input.literalSourceMessages,
-        )
-      )
-        throw new Error(
-          'literalSourceMessages changed during argument generation',
-        );
-      if (
-        materialRepair !== undefined &&
-        (input.materialRepair === undefined ||
-          !isDeepStrictEqual(
-            materialRepair,
-            describeWorkflowConnectionApiRepair({
-              stage: 'api-arguments',
-              repair: input.materialRepair,
-              planning: input,
-            }),
-          ))
-      )
-        throw new Error(
-          'API material repair feedback changed during argument generation',
-        );
+      assertApiArgumentGenerationSource(input, snapshot, materialRepair);
       const output = parseStructuredOutput<ApiLiteralGenerationOutput>(
         schema,
         proposed,
@@ -287,7 +263,7 @@ export async function generateApiArguments(
             'generateApiArguments enum interpretation requires source-verified literalSources',
           );
         interpretingEnums = true;
-        return interpretApiArgumentEnums({
+        const interpreted = await interpretApiArgumentEnums({
           ...snapshot,
           ...options,
           arguments: result,
@@ -296,6 +272,8 @@ export async function generateApiArguments(
           model: input.model,
           signal: input.signal,
         });
+        assertApiArgumentGenerationSource(input, snapshot, materialRepair);
+        return interpreted;
       }
       return result;
     },

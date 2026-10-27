@@ -43,10 +43,27 @@ repair explanations or fabricated text does not establish user authorization.
 - Fully bound/confirmed input still uses no literal model call. Message metadata
   is not executable HTTP node configuration.
 
-The channel concerns literal-value attribution. Existing semantic OAS-enum intent
-interpretation continues to use `scenario` as its separate context. This addition
-does not claim multi-message enum-intent extraction, automatic answer projection
-or a change to that stage's source contract.
+The same original messages now reach semantic OAS-enum intent interpretation.
+Core derives the actual pending enum contracts and copies the selected OAS value;
+the model selects only a per-question candidate ID and an original-message intent
+span. `scenario` remains separate call context, not an additional quotation source.
+Without explicit messages, the existing scenario/reply-only behavior is unchanged.
+
+Standalone `analyzeApiInputAnswers` / `extractApiInputAnswers` accept optional
+`sourceMessages` through Core's public `ApiInputAnswerContext`. Each message has
+its own source catalog and original UTF-16 offsets. With one message, source IDs
+are code-owned; with multiple messages, each literal/intent selection names a
+supplied message ID. Resolved evidence always retains that ID. Questions, record
+validation and enum replay preserve these sources rather than joining strings.
+No enum value, quotation or source offset is model-generated.
+
+An empty explicit message list is invalid. A valid list of empty original texts
+returns `empty-reply` without a model call, even if the separate context mentions
+an intent. Conversely, nonempty originals can be used with empty reply context.
+Generation rechecks original messages and recovery identity after both the literal
+and enum decisions; changing the original source during the second call cannot
+adopt stale arguments. Scope changes and ambiguous intent still require the host's
+existing decision policy; exact provenance does not prove semantic correctness.
 
 ## Originating-stage recovery
 

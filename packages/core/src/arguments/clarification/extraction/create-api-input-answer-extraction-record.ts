@@ -11,6 +11,9 @@ export function createApiInputAnswerExtractionRecord(
 ): ApiInputAnswerExtractionRecord {
   const evidence = captureApiInputAnswerContext({
     reply: input.reply,
+    ...(input.sourceMessages === undefined
+      ? {}
+      : { sourceMessages: input.sourceMessages }),
     requirements: input.requirements,
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
     ...(input.selectOasEnums === undefined
@@ -26,6 +29,9 @@ export function createApiInputAnswerExtractionRecord(
       requirementId: source.requirementId,
       sourceFormat: source.sourceFormat,
       sourceText: source.sourceText,
+      ...(source.messageId === undefined
+        ? {}
+        : { messageId: source.messageId }),
     })),
     ...(decision.enumSelections === undefined
       ? {}

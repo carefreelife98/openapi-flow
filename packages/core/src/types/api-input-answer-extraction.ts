@@ -6,9 +6,13 @@ import type {
   ApiInputEnumAnswerSelection,
   ResolvedApiInputAnswerInterpretations,
 } from './api-input-enum-answers.js';
+import type { WorkflowSourceMessage } from './workflow-draft.js';
+import type { ApiInputMessageLiteralSource } from './api-input-literal-source.js';
 
 export interface ApiInputAnswerContext {
   reply: string;
+  /** Original answer/intent sources, separate from formatted reply context. */
+  sourceMessages?: WorkflowSourceMessage[];
   requirements: ApiInputRequirement[];
   /** Caller-supplied call role, separate from the quoted answer/value source. */
   purpose?: string;
@@ -16,10 +20,8 @@ export interface ApiInputAnswerContext {
   selectOasEnums?: boolean;
 }
 
-export interface ApiInputAnswerSource {
+export interface ApiInputAnswerSource extends ApiInputMessageLiteralSource {
   requirementId: string;
-  sourceFormat: 'text' | 'json';
-  sourceText: string;
 }
 
 export interface ExplainedApiInputAnswerSource extends ApiInputAnswerSource {

@@ -2,6 +2,7 @@ import type {
   ApiInputAnswerContext,
   ApiInputAnswerSourceLocation,
 } from './api-input-answer-extraction.js';
+import type { ApiInputMessageReference } from './api-input-literal-source.js';
 
 export interface ProtectedApiInputLiteral extends ApiInputAnswerSourceLocation {
   quoted: boolean;
@@ -27,12 +28,17 @@ export interface ApiInputSourceCatalog {
   text: ApiInputTextSourceSegment[];
 }
 
-export interface ApiInputJsonSourceSelection {
+export interface ApiInputMessageSourceCatalog {
+  messageId: string;
+  sources: ApiInputSourceCatalog;
+}
+
+export interface ApiInputJsonSourceSelection extends ApiInputMessageReference {
   kind: 'json';
   candidateId: string;
 }
 
-export interface ApiInputTextSourceSelection {
+export interface ApiInputTextSourceSelection extends ApiInputMessageReference {
   kind: 'text';
   startTokenId: string;
   endTokenId: string;
@@ -40,8 +46,11 @@ export interface ApiInputTextSourceSelection {
 
 export interface ApiInputAnswerSourceSelection {
   requirementId: string;
-  source: ApiInputJsonSourceSelection | ApiInputTextSourceSelection;
+  source: ApiInputSourceSelection;
 }
+
+export type ApiInputSourceSelection =
+  ApiInputJsonSourceSelection | ApiInputTextSourceSelection;
 
 export interface ResolveApiInputSourceSelectionsInput extends ApiInputAnswerContext {
   selections: ApiInputAnswerSourceSelection[];
