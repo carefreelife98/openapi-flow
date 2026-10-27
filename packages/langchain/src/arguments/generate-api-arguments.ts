@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   describeApiLiteralGeneration,
@@ -9,6 +10,7 @@ import {
   runOpenApiFlowOperation,
   runOpenApiFlowAsyncOperation,
   isOpenApiFlowError,
+  describeWorkflowConnectionApiRepair,
 } from '@openapi-flow/core';
 import type { ApiCallArguments } from '@openapi-flow/core';
 import type {
@@ -31,6 +33,7 @@ import { apiArgumentRejectionsSchema } from '../schemas/api-argument-rejection-s
 import { fingerprintApiArgumentSource } from './fingerprint-api-argument-source.js';
 import { rethrowApiArgumentPlanningError } from './api-argument-planning-error.js';
 import { modelSignalSchema } from '../schemas/model-signal-schema.js';
+import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -44,6 +47,7 @@ export async function generateApiArguments(
     schema,
     sourceFingerprint,
     rejectedProposals,
+    materialRepair,
   } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
@@ -72,15 +76,28 @@ export async function generateApiArguments(
         contract,
         context,
       } = describeApiLiteralGeneration(input);
+      const materialRepair =
+        input.materialRepair === undefined
+          ? undefined
+          : describeWorkflowConnectionApiRepair({
+              stage: 'api-arguments',
+              repair: input.materialRepair,
+              planning: input,
+            });
       const trackInputs =
         options.trackRequestedInputs === true ||
-        options.selectOasEnums === true;
+        options.selectOasEnums === true ||
+        materialRepair !== undefined;
       const schema = createApiLiteralGenerationOutputSchema(
         contract,
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
       );
-      const sourceFingerprint = fingerprintApiArgumentSource(snapshot, options);
+      const sourceFingerprint = fingerprintApiArgumentSource(
+        snapshot,
+        options,
+        materialRepair,
+      );
       const rejectedProposals =
         input.rejectedProposals === undefined
           ? undefined
@@ -110,6 +127,7 @@ export async function generateApiArguments(
         schema,
         sourceFingerprint,
         rejectedProposals,
+        materialRepair,
       };
     },
   );
@@ -134,14 +152,21 @@ export async function generateApiArguments(
         signal: input.signal,
         messages: [
           new SystemMessage(
-            rejectedProposals === undefined
-              ? apiArgumentsPrompt
-              : [apiArgumentsPrompt, apiArgumentReplanningPrompt].join('\n'),
+            [
+              apiArgumentsPrompt,
+              ...(rejectedProposals === undefined
+                ? []
+                : [apiArgumentReplanningPrompt]),
+              ...(materialRepair === undefined
+                ? []
+                : [apiMaterialRepairPrompt]),
+            ].join('\n'),
           ),
           new HumanMessage(
             JSON.stringify({
               ...context,
               ...(rejectedProposals === undefined ? {} : { rejectedProposals }),
+              ...(materialRepair === undefined ? {} : { materialRepair }),
               ...(options.selectOasEnums === true
                 ? { selectOasEnums: true }
                 : {}),
@@ -171,6 +196,21 @@ export async function generateApiArguments(
       code: 'API_ARGUMENT_VALIDATION_FAILED',
     },
     async () => {
+      if (
+        materialRepair !== undefined &&
+        (input.materialRepair === undefined ||
+          !isDeepStrictEqual(
+            materialRepair,
+            describeWorkflowConnectionApiRepair({
+              stage: 'api-arguments',
+              repair: input.materialRepair,
+              planning: input,
+            }),
+          ))
+      )
+        throw new Error(
+          'API material repair feedback changed during argument generation',
+        );
       const output = parseStructuredOutput<ApiLiteralGenerationOutput>(
         schema,
         proposed,

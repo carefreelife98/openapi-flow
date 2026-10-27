@@ -17,6 +17,38 @@ import type { NativePlanningCapabilityMaterial } from './native-node-planning.js
 import type { DeferredApiInputSlot } from './deferred-api-inputs.js';
 import type { WorkflowConnectionMaterialRepairTarget } from './workflow-connection-revision.js';
 import type { ApiLiteralGenerationInput } from './api-literal-generation.js';
+import type { ApiCallBindingPlanningInput } from './api-call-binding-planning.js';
+import type { OutputBinding } from './api-arguments.js';
+import type { WorkflowRequirementFact } from './workflow-clarification.js';
+
+/** Private planning feedback, never a replacement for the original user scenario. */
+export interface WorkflowConnectionApiRepairContext extends ValidateWorkflowConnectionSourceRepairRequestInput {
+  /** Binding work is rederived and checked before exposing newly released literal inputs. */
+  pendingReplacement?: WorkflowConnectionMaterialReplacement;
+}
+
+export type DescribeWorkflowConnectionApiRepairInput =
+  | {
+      stage: 'api-bindings';
+      repair: WorkflowConnectionApiRepairContext;
+      planning: ApiCallBindingPlanningInput;
+    }
+  | {
+      stage: 'api-arguments';
+      repair: WorkflowConnectionApiRepairContext;
+      planning: ApiLiteralGenerationInput;
+    };
+
+export interface WorkflowConnectionApiRepairDescription {
+  sourceFingerprint: string;
+  /** Binds the complete validated request and pending work without copying their values to the model. */
+  repairFingerprint: string;
+  target: WorkflowConnectionMaterialRepairTarget;
+  reason: string;
+  requirements: WorkflowRequirementFact[];
+  /** Only binding planners receive the old references; literals remain isolated from bound fields. */
+  previousBindings?: OutputBinding[];
+}
 
 export type WorkflowConnectionArgumentValues = Pick<
   ApiCallArguments,

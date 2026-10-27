@@ -6,6 +6,7 @@ import type {
   ApiBindingSourceSelection,
   ApiCallBindingPlan,
   ApiBindingSourceProposal,
+  WorkflowConnectionApiRepairContext,
 } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from './binding-planning.js';
 
@@ -17,6 +18,7 @@ export type ApiBindingSourceDecisionOutput = z.infer<
 export interface SelectApiBindingSourcesInput extends ApiCallBindingPlanningInput {
   model: BaseChatModel;
   signal?: AbortSignal;
+  materialRepair?: WorkflowConnectionApiRepairContext;
 }
 
 export interface PlanApiCallBindingsInput extends SelectApiBindingSourcesInput {

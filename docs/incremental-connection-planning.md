@@ -359,6 +359,71 @@ before reuse. No checked flag, silent rebase or mutated original is trusted. Bin
 declaration ordering and audit-only differences are not execution progress; actual
 literal-array order remains meaningful and unchanged by comparison.
 
+### Unreleased: explicit API repair feedback at the originating planner
+
+`selectApiBindingSources`, `planApiCallBindings` and `generateApiArguments` accept
+optional `materialRepair` with the original `source` and source-bound `request`.
+Core's `describeWorkflowConnectionApiRepair` checks the actual originating input:
+stage, call identity, immutable scenario/role/OAS, complete supplied producer
+contracts and the request's actual requirement IDs. A valid repair label alone is
+not sufficient. Missing fields, stale snapshots and unrelated targets fail before
+model invocation. The descriptor is private model data, not a browser/SSE payload.
+
+For argument work released by a binding change, also supply `pendingReplacement`.
+Core rederives `describeWorkflowConnectionMaterialRepairWork` and verifies the
+actual task/bindings before generating values. Do not append the reason to the
+scenario or treat the pending material as already adopted. Literal repair uses
+the existing tracked typed-output/source-quotation schema even when the caller
+did not separately enable input tracking: only quotations from the unchanged
+scenario can justify model literals. It never exposes old bound-field definitions
+or old literal values as a new source. An independent enum decision still uses
+the existing explicitly enabled OAS enum interpretation stage.
+
+The adapters send `materialRepair` separately, recheck it after the model returns,
+and preserve the no-feedback path. Rejection feedback also binds this repair
+description, so a changed reason/source cannot reuse an old argument rejection.
+Fully bound arguments and independent no-source field mapping remain code-only.
+There is no automatic retry, replacement adoption or new value default. Use the
+existing apply/work/replay APIs after planning and let the host own checkpoint,
+budget and atomic revision. Native-origin repair and the Qoopilot dispatcher are
+separate remaining work; this unreleased API addition is not installed in the
+public 0.4.0 packages or Qoopilot.
+
+Verification: 13 new boundary/adapter/real-SDK HTTP-wire cases, 54 focused cases,
+59 original-private-OAS cases across four files, and an independent three-package
+consumer passed. The full suite passed 1,691/1,692 with the previously documented
+Ajv prototype-key failure and no skips/cancellations. Strict types, build, Lint and
+format passed. Early test/build overlap, a missing required OAS directory and two
+test Lint errors were corrected and rerun without weakening product checks. No
+actual model, business API or n8n execution was performed for this API-only change.
+
+```ts
+const sources = await selectApiBindingSources({
+  ...bindingInput,
+  model,
+  materialRepair: { source: originalSource, request: repairRequest },
+});
+const bindingPlan = await planApiCallBindings({
+  ...bindingInput,
+  model,
+  sources,
+  materialRepair: { source: originalSource, request: repairRequest },
+});
+// After constructing pendingReplacement and deriving work with Core:
+for (const task of work.apiArgumentTasks) {
+  const argumentsResult = await generateApiArguments({
+    ...task.input,
+    model,
+    materialRepair: {
+      source: originalSource,
+      request: repairRequest,
+      pendingReplacement,
+    },
+  });
+  // The host checkpoints each result before Core's apply/work/replay boundary.
+}
+```
+
 The optional `materialRecovery` setting on the **consumer example**
 `createIncrementalWorkflowConnectionGraph` demonstrates dispatch, shared budgets,
 checkpointing and progress. It is not a loop inside the importable packages and

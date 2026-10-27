@@ -5,6 +5,7 @@ import type {
   ApiArgumentProposal,
   ApiLiteralProposalSource,
   OpenApiFlowError,
+  WorkflowConnectionApiRepairContext,
 } from '@openapi-flow/core';
 import type { z } from 'zod';
 import type { apiLiteralGenerationReasonSchema } from '../schemas/api-literal-generation-output-schema.js';
@@ -26,6 +27,7 @@ export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
   /** Exact, private rejection feedback for the same source; no library-owned retries. */
   rejectedProposals?: ApiArgumentRejection[];
   signal?: AbortSignal;
+  materialRepair?: WorkflowConnectionApiRepairContext;
 }
 
 export type ApiArgumentRejection = z.infer<typeof apiArgumentRejectionSchema>;

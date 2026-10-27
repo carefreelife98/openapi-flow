@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto';
-import type { ApiLiteralGenerationInput } from '@openapi-flow/core';
+import type {
+  ApiLiteralGenerationInput,
+  WorkflowConnectionApiRepairDescription,
+} from '@openapi-flow/core';
 import type { ApiLiteralGenerationOptions } from '../types/argument-generation.js';
 
 /** Only the validated Core snapshot and effective options participate, never a model/client or prior outputs. */
 export function fingerprintApiArgumentSource(
   snapshot: ApiLiteralGenerationInput,
   options: ApiLiteralGenerationOptions,
+  materialRepair?: WorkflowConnectionApiRepairDescription,
 ): string {
   return createHash('sha256')
     .update(
@@ -14,6 +18,7 @@ export function fingerprintApiArgumentSource(
         includeExplanations: options.includeExplanations === true,
         selectOasEnums: options.selectOasEnums === true,
         trackRequestedInputs: options.trackRequestedInputs === true,
+        ...(materialRepair === undefined ? {} : { materialRepair }),
       }),
     )
     .digest('hex');

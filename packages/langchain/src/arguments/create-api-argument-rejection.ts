@@ -1,5 +1,8 @@
 import { isDeepStrictEqual } from 'node:util';
-import { describeApiLiteralGeneration } from '@openapi-flow/core';
+import {
+  describeApiLiteralGeneration,
+  describeWorkflowConnectionApiRepair,
+} from '@openapi-flow/core';
 import type {
   CreateApiArgumentRejectionInput,
   ApiArgumentRejection,
@@ -21,9 +24,17 @@ export function createApiArgumentRejection(
     trackRequestedInputs: input.trackRequestedInputs,
   });
   const current = describeApiLiteralGeneration(input);
+  const materialRepair =
+    input.materialRepair === undefined
+      ? undefined
+      : describeWorkflowConnectionApiRepair({
+          stage: 'api-arguments',
+          repair: input.materialRepair,
+          planning: input,
+        });
   if (
     error.sourceFingerprint !==
-    fingerprintApiArgumentSource(current.input, options)
+    fingerprintApiArgumentSource(current.input, options, materialRepair)
   )
     return undefined;
   const result = apiArgumentRejectionSchema.safeParse({
