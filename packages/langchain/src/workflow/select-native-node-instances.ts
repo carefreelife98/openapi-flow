@@ -4,6 +4,7 @@ import {
   createNativeInstanceSelectionSchema,
   describeNativeInstanceSelection,
   resolveNativeInstanceSelection,
+  describeNativeInstanceSelectionFeedback,
 } from '@openapi-flow/core';
 import type {
   NativeInstanceSelection,
@@ -27,6 +28,10 @@ export async function selectNativeNodeInstances(
       'selectNativeNodeInstances.model must support structured output when supplied',
     );
   const { context } = describeNativeInstanceSelection(input);
+  const feedback =
+    input.feedback === undefined
+      ? undefined
+      : describeNativeInstanceSelectionFeedback(input, input.feedback);
   const originalOptions = JSON.stringify([
     input.planId,
     input.allowRuntimeParameters,
@@ -60,7 +65,12 @@ export async function selectNativeNodeInstances(
     .invoke(
       [
         new SystemMessage(nativeInstanceSelectionPrompt),
-        new HumanMessage(JSON.stringify(context)),
+        new HumanMessage(
+          JSON.stringify({
+            ...context,
+            ...(feedback === undefined ? {} : { selectionFeedback: feedback }),
+          }),
+        ),
       ],
       input.signal === undefined ? undefined : { signal: input.signal },
     );
@@ -70,6 +80,12 @@ export async function selectNativeNodeInstances(
       !isDeepStrictEqual(
         describeNativeInstanceSelection(input).context,
         context,
+      ) ||
+      !isDeepStrictEqual(
+        feedback,
+        input.feedback === undefined
+          ? undefined
+          : describeNativeInstanceSelectionFeedback(input, input.feedback),
       ) ||
       JSON.stringify([
         input.planId,

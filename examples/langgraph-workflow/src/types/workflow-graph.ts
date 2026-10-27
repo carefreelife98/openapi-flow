@@ -26,6 +26,7 @@ import type { workflowStateSchema } from '../schemas/workflow-state-schema.js';
 import type { WorkflowGraphPlan } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '@openapi-flow/n8n';
 import type { NativePlanningGraphDependencies } from './native-planning.js';
+import type { ApiArgumentPlanningOptions } from './api-argument-planning.js';
 
 export type WorkflowState = typeof workflowStateSchema.State;
 export type WorkflowUpdate = typeof workflowStateSchema.Update;
@@ -63,6 +64,8 @@ export interface GraphDependencies {
     'includeExplanations' | 'selectOasEnums' | 'trackRequestedInputs'
   >;
   bindingOptions?: Pick<PlanApiBindingsInput, 'includeExplanations'>;
+  /** Explicit host-owned correction policy, separate from OSS value-generation options. */
+  argumentPlanning?: ApiArgumentPlanningOptions;
   nativeOptions?: Pick<PlanNativeNodesInput, 'includeExplanations'>;
   connectionOptions?: Pick<PlanWorkflowConnectionsInput, 'includeExplanations'>;
   graphOptions?: Pick<PlanWorkflowGraphInput, 'includeExplanations'>;

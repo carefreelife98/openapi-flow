@@ -1,5 +1,19 @@
 # API 입력 연결 질문과 명시적 답변
 
+## 미배포 요청값 재계획의 소유 경계
+
+독립 `generateApiArguments`는 한 번의 제안을 검증하고 결과 또는 원본 거절을
+반환합니다. `createApiArgumentRejection`으로 만든 동일 입력의 피드백을 다음
+호출에 제공할 수 있지만 OSS가 호출 횟수·시간·사용자 검토 정책을 정하지 않습니다.
+선택적 `signal`은 리터럴 호출과 후속 enum 해석까지 전달하며 취소 뒤 늦게 도착한
+값은 수용하지 않습니다. 취소 신호 자체는 프롬프트·지문·checkpoint에 넣지 않습니다.
+
+공식 examples의 `createApiArgumentPlanningGraph`가 이 계약을 예산·저장·안전한
+진행 콜백으로 조합합니다. 리터럴 형식·계약 거절만 반복하고 실제 미정 값은 부모가
+입력을 확인합니다. Qoopilot 같은 호스트의 SSE·질문·화면 정책과 분리하며 기존
+정본 초안 대화에 이 루프를 자동 삽입하지 않습니다.
+[예제의 사용법과 검증 한계](../examples/langgraph-workflow/README.md#요청값-자동-재계획과-책임-경계-미배포)를 참고하세요.
+
 선택된 API의 입력에 어떤 선행 응답을 연결할지 모호하면, 모델은 확인할
 입력 위치와 출처 후보만 제안합니다. 질문 문장·작업 정보·입력 스키마·선택지
 ID는 Core가 만듭니다. 사용자의 답변은 같은 계획에서 코드로 적용합니다.
@@ -80,15 +94,37 @@ const argumentsResult = await generateWorkflowDraftApiCallArguments({
 기존 값 생성 호출의 출력 스키마에 `requestedInputs`를 추가합니다. 모델은
 요청한 원본 OAS 포인터만 선택하고, 코드가 그 위치의 값·바인딩 존재 여부와
 OAS 계약을 검사합니다. 호출을 하나 더 추가하거나 OAS의 `required`를 바꾸지 않습니다.
-모델 출력의 예시는 다음과 같습니다. 실제 메시지 ID는 해당 호출에서 제공된 ID입니다.
+아래는 미배포 작업본의 모델 출력입니다. `trackRequestedInputs: true` 또는
+`selectOasEnums: true`이면 실제 값의 존재 여부도 명시합니다. 값이 없을 때 모델이
+빈 본문을 만들지 않도록 `not-provided` 분기에는 값·출처 필드를 허용하지 않습니다.
 
 ```json
 {
-  "values": {},
-  "requestedInputs": ["/query/addrType"],
-  "sourceMessageIds": ["address-request"]
+  "literalInputs": { "state": "not-provided" },
+  "requestedInputs": ["/query/addrType"]
 }
 ```
+
+이 분기를 검증한 뒤 코드가 내부의 빈 입력 목록을 구성합니다. 반면 사용자가
+실제로 빈 객체를 지정했다면 `provided` 분기에 원래 값을 보존해야 합니다.
+`values`는 해당 호출의 OAS 타입을 따르며, 빈 객체·빈 배열·`null`·빈 문자열·
+`0`·`false`에도 실제 사용자 출처가 필요합니다. 출처 없는 `{ body: {} }`를
+입력 미정으로 바꾸거나, OAS의 예제·기본값을 확정 사용자 값으로 복사하지 않습니다.
+값 생성 대상이 있는 호출에서 `includeExplanations: true`이면 두 분기 모두 루트의
+`explanation`도 요구합니다.
+
+이 변경은 모델 전송 형식과 공개 `ApiLiteralGenerationOutput` 타입의 변경입니다.
+기존 추적 모드의 `{ values, literalSources, requestedInputs }` 출력이나 이를 흉내 낸
+사용자 모델·테스트 대역은 새 계약에 맞춰야 합니다. 옛 출력을 자동 변환하지 않습니다.
+두 옵션을 모두 끈 기존 값 생성 모드는 `{ values }`를 유지하며, 최종 반환값인
+`ApiCallArguments`와 Core의 OAS·출처 검사는 바뀌지 않습니다. 아직 공개 0.3.18에
+포함된 기능이 아니며, 배포 시 호환성 안내와 버전 판단이 필요합니다.
+
+책임도 구분합니다. OSS는 위 출력 스키마·값 검증·구조화된 실패 진단을 제공하고
+자체 반복 호출은 하지 않습니다. Qoopilot 같은 호스트가 API별 결과 checkpoint,
+실패한 호출만의 재계획, 예산·취소·질문·화면 표시를 담당합니다. 다른 LangChain
+패키지 사본의 파싱 예외도 공식 `lc_error_code`로 식별하며, 오류 문구만으로
+출력 오류를 추측하거나 잘못된 필드를 옮겨 보정하지 않습니다.
 
 값이 없으면 `kind: "requested-input"` 질문으로 반환합니다. OAS 자체의 필수값
 누락은 기존 `kind: "missing-input"`과 구분합니다. `allowRuntimeInputs: true`를
@@ -120,6 +156,44 @@ Core의 `inspectApiArgumentRequirements`나 초안 API call에 `requestedInputs`
 호출은 추가 요청 추적을 수행하지 않습니다. 최초 모델이 질의의 뜻을 정확히
 읽었는지까지 코드가 증명하는 것은 아니므로 의미 선택 품질 평가는 여전히 필요합니다.
 
+## 동일 입력의 거절된 값 제안 다시 계획하기 (미배포)
+
+`createApiArgumentRejection`은 `generateApiArguments`의 실제 리터럴 출력·계약
+오류에서만 비공개 피드백을 만듭니다. 다음 호출의 `rejectedProposals`에 전달하면
+이전 제안·검증 사유를 현재 스키마와 함께 받습니다. 사용자 원문인 `scenario`는
+바뀌지 않으며 거절된 값이나 사유를 새 입력 근거로 인용할 수 없습니다.
+
+```ts
+const rejection = createApiArgumentRejection({ ...originalInput, error });
+if (rejection === undefined) throw error;
+
+// The host first stores the rejection and checks its explicit budget/cancellation policy.
+const result = await generateApiArguments({
+  ...originalInput,
+  model,
+  rejectedProposals: [rejection],
+});
+```
+
+이 예시는 호스트가 허용한 다음 호출이며 OSS 내부의 자동 반복이 아닙니다. 원문·
+OAS·역할·바인딩·확정 입력·생성 옵션이 달라지면 피드백을 재사용하지 않습니다.
+유효하지 않은 피드백은 모델 호출 전에 거절합니다. 비 JSON 출력을 바꿔 저장하거나
+오류 문구에서 JSON을 추출해 복구하지 않습니다. 파서가 제공한 원래 출력은 원래
+형식으로 보존하고, 없으면 다른 필드를 대체 출처로 쓰지 않습니다.
+
+`ApiArgumentPlanningError`는 기존 `OpenApiFlowError`의 하위 타입으로 원래 진단·
+`cause`와 `originalError`를 보존합니다. `toJSON()`에는 기존 안전한 진단만 포함하고
+원래 출력·검증 사유·지문은 내보내지 않습니다. 잘못된 제안은 검증 전 데이터이므로
+`output`은 `unknown`이며 피드백 스키마가 JSON 보존 가능성을 확인한 뒤에만 사용합니다.
+전송·인증·timeout·모델 설정 오류는 이 재계획 대상으로 바꾸지 않습니다. 후속 enum
+해석 오류도 리터럴 재계획으로 돌리지 않고 원래 단계의 오류를 유지합니다.
+
+호스트가 반복 예산·취소·원인 단계 이동·checkpoint와 공개 진행 이벤트를 담당합니다.
+현재 Qoopilot은 API별 결과 보존과 사용자가 요청한 실패 지점 재개를 제공하지만,
+이 새 피드백 계약을 쓰는 자동 루프는 아직 연결하지 않았습니다. 공개 0.3.18에도
+포함되지 않았습니다. 피드백은 비공개 checkpoint에서만 다루고 SSE·기본 화면·
+n8n 실행 JSON에는 포함하지 않아야 합니다.
+
 ## 모델이 정하는 범위
 
 `planWorkflowDraftApiCallBindings`는 현재 선택된 작업의 `requestSchema`와
@@ -137,7 +211,10 @@ Core의 `inspectApiArgumentRequirements`나 초안 API call에 `requestedInputs`
         "targetPointer": "/query/owner",
         "candidates": [
           { "sourceNodeId": "<actual-source-id>", "sourcePointer": "/email" },
-          { "sourceNodeId": "<actual-source-id>", "sourcePointer": "/accountId" }
+          {
+            "sourceNodeId": "<actual-source-id>",
+            "sourcePointer": "/accountId"
+          }
         ]
       }
     ],

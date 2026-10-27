@@ -9,6 +9,17 @@ import { analyzeApiInputAnswers } from '@openapi-flow/langchain';
 import { clarificationOperation } from './fixtures/api-clarification-fixture.mjs';
 import { textInputSource } from './fixtures/api-input-source-selection-fixture.mjs';
 
+function countEnumItems(schema) {
+  if (schema === null || typeof schema !== 'object') return 0;
+  return (
+    (Array.isArray(schema.enum) ? schema.enum.length : 0) +
+    Object.values(schema).reduce(
+      (count, value) => count + countEnumItems(value),
+      0,
+    )
+  );
+}
+
 test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with per-question candidates and required intent/reason', async () => {
   const require = createRequire(
     new URL('../packages/core/package.json', import.meta.url),
@@ -32,6 +43,16 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
     let raw = '';
     for await (const chunk of request) raw += chunk;
     const body = JSON.parse(raw);
+    const enumItems = countEnumItems(body.tools[0].function.parameters);
+    if (enumItems > 1000) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: { message: 'Structured-output enum budget exceeded' },
+        }),
+      );
+      return;
+    }
     const payload = JSON.parse(
       body.messages.find((message) => message.role === 'user').content,
     );
@@ -94,17 +115,23 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
         baseURL: `http://127.0.0.1:${server.address().port}/v1`,
       },
     });
-    for (const includeExplanations of [false, true]) {
+    for (const [includeExplanations, reply] of [
+      [false, '최신순으로 해줘.'],
+      [true, '최신순으로 해줘.'],
+      [false, '업무 요구 설명 '.repeat(1000) + '최신순으로 해줘.'],
+      [true, '업무 요구 설명 '.repeat(1000) + '최신순으로 해줘.'],
+    ]) {
       const result = await analyzeApiInputAnswers({
         model,
         requirements,
-        reply: '최신순으로 해줘.',
+        reply,
         selectOasEnums: true,
         includeExplanations,
       });
       const { body, output } = requests.at(-1);
       const wire = body.tools[0].function;
       assert.equal(wire.strict, true);
+      assert.ok(countEnumItems(wire.parameters) < 1000);
       const ajv = new Ajv2020({ strict: false });
       assert.equal(
         ajv.validateSchema(wire.parameters),
@@ -140,7 +167,7 @@ test('actual ChatOpenAI transport sends a valid ID-only pending-enum schema with
       assert.deepEqual(result.sources, []);
       assert.equal(Object.hasOwn(result, 'extraction'), includeExplanations);
     }
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 4);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

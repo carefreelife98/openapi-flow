@@ -21,9 +21,9 @@ import { connectionEditPlan } from './fixtures/workflow-draft-connection-edit-fi
 
 test('planning inventory preserves pending context and exposes stable definitions without fabricated ready outputs', () => {
   const registry = resolveN8nNativePlanningFeatures();
-  assert.equal(registry.registrations.length, 12);
+  assert.equal(registry.registrations.length, 16);
   assert.equal(registry.capabilities.length, 6);
-  assert.equal(registry.planningCapabilities.length, 11);
+  assert.equal(registry.planningCapabilities.length, 15);
   assert.ok(
     registry.planningCapabilities.some(
       (entry) => entry.name === N8nNativeFeature.GatherApiResponses,
@@ -38,7 +38,7 @@ test('planning inventory preserves pending context and exposes stable definition
     registry.registrations.filter(
       (entry) => entry.status === 'requires-context',
     ).length,
-    6,
+    10,
   );
   for (const definition of registry.planningCapabilities.filter(
     (entry) => entry.bindMaterialContracts,
@@ -79,6 +79,7 @@ test('all six late-bound definitions resolve original contracts and official SDK
   const features = [
     N8nNativeFeature.SplitApiResponseArray,
     N8nNativeFeature.CollectApiResponses,
+    N8nNativeFeature.CollectNativeOutputValues,
     N8nNativeFeature.ComposeApiResponses,
     N8nNativeFeature.GatherApiResponses,
     N8nNativeFeature.SplitNativeOutputArray,

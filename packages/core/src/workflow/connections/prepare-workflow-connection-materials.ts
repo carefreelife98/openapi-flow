@@ -65,6 +65,7 @@ export function prepareWorkflowConnectionMaterials(
     const contract = createNativeParameterGenerationContract({
       nodeId: node.id,
       capability,
+      planningParametersSchema: capability.parametersSchema,
       runtimeParameters: node.runtimeParameters,
     });
     const checked = contract.valuesSchema.safeParse(node.parameters);

@@ -26,7 +26,7 @@ const turn = (draft) => ({
 test('opt-in omitted features exposes every registered family and keeps missing producer contracts visible', async () => {
   const f = await nativeFeaturePlanningFixture({
     respond: (call) => {
-      assert.equal(call.payload.capabilities.length, 11);
+      assert.equal(call.payload.capabilities.length, 15);
       return { decisions: [conversationSemantic(call, { kind: 'no-change' })] };
     },
   });
@@ -35,10 +35,10 @@ test('opt-in omitted features exposes every registered family and keeps missing 
   assert.equal(result.outcome.kind, 'no-workflow');
   assert.equal(result.outcome.changeStatus, 'no-change');
   assert.equal(result.artifact, undefined);
-  assert.equal(result.nativeFeatures.length, 12);
+  assert.equal(result.nativeFeatures.length, 16);
   assert.equal(
     result.nativeFeatures.filter((entry) => entry.planningAvailable).length,
-    11,
+    15,
   );
   assert.deepEqual(
     result.nativeFeatures.find(
@@ -52,6 +52,17 @@ test('opt-in omitted features exposes every registered family and keeps missing 
     },
   );
   assert.deepEqual(f.context.capabilities, []);
+  assert.deepEqual(
+    result.nativeFeatures.find(
+      (entry) => entry.feature === N8nNativeFeature.SelectApiResponseMapEntry,
+    ),
+    {
+      feature: N8nNativeFeature.SelectApiResponseMapEntry,
+      status: 'requires-context',
+      planningAvailable: true,
+      missingContext: [{ field: 'apiMaterials', minimumItems: 1 }],
+    },
+  );
   assert.equal(f.calls.length, 1);
 });
 

@@ -12,6 +12,8 @@ export async function createFiveApiDagRuntime(runId) {
   const requests = [],
     failures = [];
   let source;
+  let detailId;
+  let priceRequestId;
   const server = createServer(async (request, response) => {
     let raw = '';
     for await (const chunk of request) raw += chunk;
@@ -31,10 +33,10 @@ export async function createFiveApiDagRuntime(runId) {
       } else if (url.pathname.startsWith('/detail/')) {
         assert.equal(request.method, 'GET');
         assert.equal(decodeURIComponent(url.pathname.slice(8)), source.id);
-        body = { id: source.id };
+        body = { id: detailId };
       } else if (url.pathname === '/price') {
         assert.equal(request.method, 'GET');
-        assert.equal(url.searchParams.get('id'), source.id);
+        assert.equal(url.searchParams.get('id'), priceRequestId);
         assert.equal(url.searchParams.get('labels'), source.labels.join('|'));
         assert.equal(
           url.searchParams.get('filter[R]'),
@@ -48,7 +50,7 @@ export async function createFiveApiDagRuntime(runId) {
       } else if (url.pathname === '/summary') {
         assert.equal(request.method, 'POST');
         assert.deepEqual(received.body, {
-          id: source.id,
+          id: detailId,
           price: 12.5,
           stock: 0,
           labels: source.labels,
@@ -85,8 +87,28 @@ export async function createFiveApiDagRuntime(runId) {
     baseUrl: `http://host.docker.internal:${server.address().port}`,
     requests,
     failures,
-    async execute(workflow, explicitSource) {
+    async execute(workflow, explicitSource, responseCase) {
+      if (responseCase !== undefined) {
+        assert.ok(
+          responseCase !== null && typeof responseCase === 'object',
+          'responseCase must be an object when supplied',
+        );
+        assert.equal(
+          typeof responseCase.detailId,
+          'string',
+          'responseCase.detailId is required',
+        );
+        assert.equal(
+          typeof responseCase.priceRequestId,
+          'string',
+          'responseCase.priceRequestId is required',
+        );
+      }
       source = globalThis.structuredClone(explicitSource);
+      // Omission retains the original equal-ID fixture. Explicit cases must provide both actual expectations.
+      detailId = responseCase === undefined ? source.id : responseCase.detailId;
+      priceRequestId =
+        responseCase === undefined ? source.id : responseCase.priceRequestId;
       const offset = requests.length;
       const imported = await runDocker(
         [...runtime, 'import:workflow', '--input=/dev/stdin'],

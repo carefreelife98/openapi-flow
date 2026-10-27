@@ -1,6 +1,4 @@
 import { defineMaterialBoundCapability } from './common/define-material-bound-capability.js';
-import { node } from '@n8n/workflow-sdk';
-import { readFileSync } from 'node:fs';
 import { createResponseValueSchema } from '@openapi-flow/core';
 import type { ApiBindingMaterial } from '@openapi-flow/core';
 import type { N8nNativeCapability } from '../../types/native-capability.js';
@@ -10,8 +8,7 @@ import type {
 } from '../../types/response-collection.js';
 import { createResponseCollectionParametersSchema } from '../../schemas/response-collection-schema.js';
 import { responseCollectionDefinition } from './response-collection-definition.js';
-import { createOutputReaderCode } from '../request/bindings/create-output-reader-code.js';
-import { javascriptJsonLiteral } from '../../utils/javascript-json-literal.js';
+import { createValueCollectionFragment } from './collection/create-value-collection-fragment.js';
 
 export function createResponseCollectionCapability(
   input: CreateResponseCollectionCapabilityInput,
@@ -44,6 +41,7 @@ export function createResponseCollectionCapability(
   return defineMaterialBoundCapability({
     ...responseCollectionDefinition,
     parametersSchema,
+    createPlanningParametersSchema: () => parametersSchema,
     materialSources: {
       apiMaterials: structuredClone(input.materials),
       nativeOutputs: [],
@@ -86,83 +84,17 @@ export function createResponseCollectionCapability(
         !apiNodeNames[material.callId].trim()
       )
         throw new Error(`apiNodeNames is missing ${material.callId}`);
-      const runtime = readFileSync(
-        new URL(
-          '../request/runtime/request-runtime.bundle.js',
-          import.meta.url,
-        ),
-        'utf8',
-      );
-      const read = createOutputReaderCode(
-        [
-          {
-            kind: 'api-response',
-            nodeId: material.callId,
-            nodeName: apiNodeNames[material.callId],
-            operation: material.operation,
-          },
-        ],
-        true,
-      );
-      const extract = node({
-        type: 'n8n-nodes-base.code',
-        version: 2,
-        config: {
-          id: `${planned.id}-read-values`,
-          name: `Read values ${planned.id}`,
-          position,
-          parameters: {
-            mode: 'runOnceForAllItems',
-            jsCode: `${runtime}\nconst parameters=${javascriptJsonLiteral(parameters)};\nreturn $input.all().map((_,inputIndex)=>{${read}\nconst value=OpenApiFlowRequestRuntime.pointerValue(responses[parameters.sourceNodeId],parameters.pointer);if(value===undefined)throw new Error('Missing response pointer '+parameters.sourceNodeId+parameters.pointer);return {json:{value},pairedItem:{item:inputIndex}};});`,
-          },
+      return createValueCollectionFragment({
+        planned,
+        position,
+        pointer: parameters.pointer,
+        source: {
+          kind: 'api-response',
+          nodeId: material.callId,
+          nodeName: apiNodeNames[material.callId],
+          operation: material.operation,
         },
       });
-      const aggregate = node({
-        type: 'n8n-nodes-base.aggregate',
-        version: 1,
-        config: {
-          id: planned.id,
-          name: planned.id,
-          position: [position[0] + 220, position[1]],
-          parameters: {
-            aggregate: 'aggregateIndividualFields',
-            fieldsToAggregate: {
-              fieldToAggregate: [
-                {
-                  fieldToAggregate: 'value',
-                  renameField: true,
-                  outputFieldName: 'items',
-                },
-              ],
-            },
-            options: {
-              disableDotNotation: true,
-              mergeLists: false,
-              keepMissing: true,
-              includeBinaries: false,
-            },
-          },
-        },
-      });
-      return {
-        nodeId: planned.id,
-        bindingSources: [
-          {
-            kind: 'api-response',
-            nodeId: material.callId,
-            nodeName: apiNodeNames[material.callId],
-            operation: material.operation,
-          },
-        ],
-        nodes: [extract, aggregate],
-        entry: extract,
-        exit: aggregate,
-        inputPorts: { main: 0 },
-        outputPorts: { main: 0 },
-        internalEdges: [
-          { from: extract.id, output: 0, to: aggregate.id, input: 0 },
-        ],
-      };
     },
   });
 }

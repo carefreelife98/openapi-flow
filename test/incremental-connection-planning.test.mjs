@@ -91,10 +91,15 @@ test('model steps select endpoints; code fills unique ports, validates atomic bu
   const first = patch({
     addRootNodeIds: ['source'],
     addEdges: plan.edges.filter((edge) => edge.from === 'source'),
+    addTerminals: ['detail', 'price', 'stock'].map((nodeId) => ({
+      nodeId,
+      output: 'main',
+    })),
   });
   const second = patch({
     addEdges: plan.edges.filter((edge) => edge.from !== 'source'),
     addTerminals: [{ nodeId: 'summary', output: 'main' }],
+    removeTerminals: first.addTerminals,
   });
   for (const proposal of [first, second]) {
     const before = globalThis.structuredClone(session);
@@ -378,10 +383,10 @@ test('transport, cancellation, unrelated stages and non-JSON output are not clas
   );
 });
 
-test('changed requirements/source during an invocation cannot produce an applicable old decision', async () => {
+test('changed requirements/source during an invocation is an input failure, never a replannable old decision', async () => {
   const { source, goals } = fixture();
   const session = createWorkflowConnectionSession({ ...source, goals });
-  const output = { decision: patch({}) };
+  const output = { decision: modelPatch(source, patch({})) };
   const model = connectionPlanningModel(output, () => {
     source.requirements[0].text += ' changed';
   });
@@ -389,7 +394,8 @@ test('changed requirements/source during an invocation cannot produce an applica
     planWorkflowConnectionStep({ ...source, session, model }),
     (error) => {
       assert.ok(error instanceof WorkflowConnectionPlanningError);
-      assert.equal(error.diagnostic.stage, 'contract-validation');
+      assert.equal(error.diagnostic.stage, 'input-validation');
+      assert.equal(error.diagnostic.code, 'PLANNING_INPUT_INVALID');
       assert.deepEqual(error.output, output);
       return true;
     },
@@ -499,7 +505,7 @@ test('prior rejections are explicit validated input and are supplied without an 
       ],
     },
   ];
-  const decision = patch({ addRootNodeIds: ['source'] });
+  const decision = modelPatch(source, patch({}));
   const model = modelFor({ decision }, ({ context }) =>
     assert.deepEqual(context.rejectedProposals, rejectedProposals),
   );
@@ -541,7 +547,7 @@ test('multiple actual output ports require a model choice; unique outputs remain
     parameters: {},
   });
   const session = createWorkflowConnectionSession({ ...source, goals });
-  const decision = patch({});
+  const decision = modelPatch(source, patch({}));
   decision.addEdges = [
     { source: { nodeId: 'switch', port: 'yes' }, target: { nodeId: 'source' } },
   ];
@@ -608,7 +614,7 @@ test('170 supplied instances remain visible and schema growth is linear rather t
       ...source,
       session,
       model: modelFor(
-        { decision: patch({ addRootNodeIds: ids }) },
+        { decision: modelPatch(source, patch({})) },
         ({ schema, context }) => {
           stepSize = JSON.stringify(schema).length;
           assert.deepEqual(

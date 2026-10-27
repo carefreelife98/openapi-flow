@@ -53,7 +53,7 @@
 
 [workflow-graph-planning-error.ts](../packages/langchain/src/workflow/workflow-graph-planning-error.ts)의 `WorkflowGraphPlanningError`는 반환된 모델 출력의 검사 실패를 구분한다. `failure.stage`가 `proposal-schema`이면 `failure.output`은 아직 검증되지 않은 `unknown`이고, `graph-validation`이면 schema를 통과한 `WorkflowGraphProposal`이다. 후자도 실행 가능한 계획으로 승인된 것은 아니다. 호출자는 이 오류를 잡아 비공개 진단 기록이나 사람 검토 단계로 넘길 수 있다. 자동 재시도·출력 보정은 없으며, 모델 호출 내부의 통신·파싱 오류는 반환된 계획이 없어 이 오류 타입으로 감싸지 않는다.
 
-[validate-workflow-graph-plan.ts](../packages/core/src/workflow/validate-workflow-graph-plan.ts)는 모든 경로에서 선행 API 응답이 존재하는지, Merge 입력 분기가 함께 실행 가능한지까지 검사한다. [create-native-capabilities.ts](../packages/n8n/src/nodes/native/create-native-capabilities.ts)는 IF·Merge·검증·중단의 별도 매퍼를 등록하고, [compile-planned-n8n-workflow.ts](../packages/n8n/src/workflow/compile-planned-n8n-workflow.ts)는 이를 SDK JSON으로 조립한다. 본문 pointer와 n8n full-response envelope를 연결하는 코드는 `nodes/native/response-check-code.ts`에 있다.
+[validate-workflow-graph-plan.ts](../packages/core/src/workflow/validate-workflow-graph-plan.ts)는 모든 경로에서 선행 API 응답이 존재하는지, Merge 입력 분기가 함께 실행 가능한지까지 검사한다. [create-native-capabilities.ts](../packages/n8n/src/nodes/native/create-native-capabilities.ts)는 IF·Merge·검증·중단의 별도 매퍼를 등록하고, [compile-planned-n8n-workflow.ts](../packages/n8n/src/workflow/compile-planned-n8n-workflow.ts)는 이를 SDK JSON으로 조립한다. API 본문과 실제 native JSON의 원본 계약·값 존재를 검사하는 공통 코드는 `nodes/native/comparisons/`에 있다. IF 표현식 전에 Code 단계가 잘못된 입력을 차단하며 원래 값이나 비교 결과를 보정하지 않는다.
 
 현재 응답 pointer의 모든 OAS 타입을 정적으로 증명하는 것은 아니며, 없는 필드는 런타임 오류로 드러낸다. API 요청의 응답 바인딩과 조건·검증용 응답 읽기는 별도 단계다.
 

@@ -67,12 +67,15 @@ export function createNativeInstanceSelectionSchema(
           ),
       }),
     ];
-    if (capability.parameterSources.includes('workflow-fields'))
+    if (capability.parameterSources.includes('workflow-input'))
       variants.push(
         z.strictObject({
           ...fields,
           parameterSource: z.literal('workflow-input'),
         }),
+      );
+    if (capability.parameterSources.includes('workflow-fields'))
+      variants.push(
         z.strictObject({
           ...fields,
           parameterSource: z.literal('workflow-fields'),

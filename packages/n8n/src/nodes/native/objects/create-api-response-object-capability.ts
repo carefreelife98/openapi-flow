@@ -4,7 +4,7 @@ import type {
   CreateApiResponseObjectCapabilityInput,
   ApiResponseObjectParameters,
 } from '../../../types/api-response-object.js';
-import { createApiResponseObjectParametersSchema } from '../../../schemas/api-response-object-schema.js';
+import { createApiResponseObjectBoundParametersSchema } from '../../../schemas/api-response-object-schema.js';
 import { defineMaterialBoundCapability } from '../common/define-material-bound-capability.js';
 import { apiResponseObjectDefinition } from './api-response-object-definition.js';
 import { compileApiResponseObject } from './compile-api-response-object.js';
@@ -22,9 +22,8 @@ export function createApiResponseObjectCapability(
     supplied.some((material) => !material.callId.trim())
   )
     throw new Error('response object capability requires unique API materials');
-  const parametersSchema = createApiResponseObjectParametersSchema([
-    ...materials.keys(),
-  ]);
+  const parametersSchema =
+    createApiResponseObjectBoundParametersSchema(supplied);
   function describeFields(parameters: ApiResponseObjectParameters) {
     return parameters.fields.map((field) => {
       const material = materials.get(field.sourceNodeId);
@@ -42,6 +41,7 @@ export function createApiResponseObjectCapability(
   return defineMaterialBoundCapability({
     ...apiResponseObjectDefinition,
     parametersSchema,
+    createPlanningParametersSchema: () => parametersSchema,
     materialSources: { apiMaterials: supplied, nativeOutputs: [] },
     bindMaterialContracts: (sources) =>
       createApiResponseObjectCapability({ materials: sources.apiMaterials }),

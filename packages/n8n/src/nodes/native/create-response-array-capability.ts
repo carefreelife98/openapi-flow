@@ -18,8 +18,9 @@ export function createResponseArrayCapability(
       'response array capability: itemMode must be linked or omitted',
     );
   const linked = input.itemMode === 'linked';
+  const supplied = structuredClone(input.materials);
   const materials = new Map(
-    input.materials.map((material) => [material.callId, material]),
+    supplied.map((material) => [material.callId, material]),
   );
   if (
     !materials.size ||
@@ -27,9 +28,7 @@ export function createResponseArrayCapability(
     input.materials.some((material) => !material.callId.trim())
   )
     throw new Error('response array capability requires unique API materials');
-  const parametersSchema = createResponseArrayParametersSchema([
-    ...materials.keys(),
-  ]);
+  const parametersSchema = createResponseArrayParametersSchema(supplied);
   function source(parameters: ResponseArrayParameters): ApiBindingMaterial {
     const material = materials.get(parameters.sourceNodeId);
     if (!material)
@@ -42,8 +41,9 @@ export function createResponseArrayCapability(
   return defineMaterialBoundCapability({
     ...responseArrayDefinition,
     parametersSchema,
+    createPlanningParametersSchema: () => parametersSchema,
     materialSources: {
-      apiMaterials: structuredClone(input.materials),
+      apiMaterials: supplied,
       nativeOutputs: [],
     },
     bindMaterialContracts: (sources) =>

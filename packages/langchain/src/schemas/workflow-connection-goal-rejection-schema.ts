@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { workflowConnectionStepExpectationSchema } from '@openapi-flow/core';
+import {
+  workflowConnectionStepExpectationSchema,
+  workflowPlanningConstraintInspectionSchema,
+} from '@openapi-flow/core';
 
 /** Private planning feedback; never part of the public error JSON or progress projection. */
 const source = {
@@ -21,6 +24,7 @@ export const workflowConnectionGoalRejectionSchema = z.discriminatedUnion(
       ...source,
       stage: z.literal('contract-validation'),
       code: z.literal('WORKFLOW_GRAPH_PLANNING_FAILED'),
+      constraints: workflowPlanningConstraintInspectionSchema.optional(),
     }),
   ],
 );

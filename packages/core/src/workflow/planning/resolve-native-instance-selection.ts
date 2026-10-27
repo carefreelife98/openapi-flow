@@ -84,9 +84,17 @@ export function resolveNativeInstanceSelection(
         : choice.parameterSource === 'workflow-fields'
           ? { pointers: choice.pointers }
           : undefined;
+    const runtimeCapability = snapshot.capabilities.find(
+      (entry) => entry.name === capability.name,
+    );
+    if (!runtimeCapability)
+      throw new Error(
+        `Native instance ${id} has no executable capability ${capability.name}`,
+      );
     const contract = createNativeParameterGenerationContract({
       nodeId: id,
-      capability,
+      capability: runtimeCapability,
+      planningParametersSchema: capability.parametersSchema,
       runtimeParameters,
     });
     return {

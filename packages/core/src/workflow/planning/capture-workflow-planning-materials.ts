@@ -8,6 +8,7 @@ import { describeApiBindingPlanning } from '../../bindings/planning/describe-api
 import { validateNativeApiResponseReferences } from '../validate-native-api-response-references.js';
 import { captureNativePlanningCapability } from './capture-native-planning-capability.js';
 import { resolveNativePlanningMaterials } from './resolve-native-planning-materials.js';
+import { bindApiPlanningMaterialContracts } from './bind-api-planning-material-contracts.js';
 
 /** Capture the shared supplied-material protocol, without creating a fictitious planning identity. */
 export function captureWorkflowPlanningMaterials(
@@ -17,9 +18,7 @@ export function captureWorkflowPlanningMaterials(
     input.capabilities === undefined ? [] : input.capabilities;
   if (!Array.isArray(suppliedCapabilities))
     throw new Error('native planning capabilities must be an array');
-  const capabilities = suppliedCapabilities.map(
-    captureNativePlanningCapability,
-  );
+  const definitions = suppliedCapabilities.map(captureNativePlanningCapability);
   const suppliedApis =
     input.apiMaterials === undefined ? [] : input.apiMaterials;
   if (!Array.isArray(suppliedApis))
@@ -30,6 +29,10 @@ export function captureWorkflowPlanningMaterials(
         materials: suppliedApis,
       }).input.materials
     : [];
+  const capabilities = bindApiPlanningMaterialContracts(
+    definitions,
+    apiMaterials,
+  );
   const suppliedPrepared =
     input.preparedNativeNodes === undefined ? [] : input.preparedNativeNodes;
   if (!Array.isArray(suppliedPrepared))

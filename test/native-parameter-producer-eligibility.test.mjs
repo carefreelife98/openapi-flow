@@ -73,19 +73,23 @@ async function fixture() {
 }
 
 const expectedKinds = {
-  [N8nNativeFeature.If]: ['response'],
+  [N8nNativeFeature.If]: ['response', 'node-output'],
   [N8nNativeFeature.MergeAppend]: [],
-  [N8nNativeFeature.AssertResponses]: ['response'],
+  [N8nNativeFeature.AssertResponses]: ['response', 'node-output'],
   [N8nNativeFeature.StopAndError]: [],
   [N8nNativeFeature.PassThrough]: [],
   [N8nNativeFeature.RejoinExclusiveBranches]: ['exclusive-output'],
   [N8nNativeFeature.JsonOutput]: [],
   [N8nNativeFeature.SplitApiResponseArray]: ['response'],
   [N8nNativeFeature.CollectApiResponses]: ['response'],
+  [N8nNativeFeature.CollectNativeOutputValues]: ['node-output'],
   [N8nNativeFeature.ComposeApiResponses]: ['response'],
   [N8nNativeFeature.GatherApiResponses]: ['response'],
   [N8nNativeFeature.SplitNativeOutputArray]: ['node-output'],
   [N8nNativeFeature.JoinApiItems]: ['response', 'node-output'],
+  [N8nNativeFeature.SelectApiResponseMapEntry]: ['response'],
+  [N8nNativeFeature.JoinApiResponseArraysByKey]: ['response'],
+  [N8nNativeFeature.ProjectNativeOutput]: ['node-output'],
 };
 
 test('all registered stable and bound native implementations explicitly declare the same supported reference kinds', async () => {
@@ -124,7 +128,20 @@ test('standalone source choices distinguish actual API responses, native JSON an
     context.sourceCandidatesByNodeId[
       byFeature(N8nNativeFeature.AssertResponses).id
     ],
-    ['left', 'right'],
+    [
+      'left',
+      'right',
+      'context',
+      ...f.selection.instances
+        .filter((node) =>
+          f.capabilities.some(
+            (capability) =>
+              capability.name === node.capability &&
+              capability.outputSchema !== undefined,
+          ),
+        )
+        .map((node) => node.id),
+    ],
   );
   assert.deepEqual(
     context.sourceCandidatesByNodeId[
@@ -235,11 +252,15 @@ test('canonical edit roles use the same implementation eligibility before any va
   const described = describeWorkflowDraftNativeDependencies({ ...input, plan });
   const [merge, checks, rejoin] = described.roles;
   assert.deepEqual(merge.parameterReferenceSources, []);
-  assert.deepEqual(checks.parameterReferenceSources, ['response']);
+  assert.deepEqual(checks.parameterReferenceSources, [
+    'response',
+    'node-output',
+  ]);
   assert.deepEqual(described.sourceCandidatesByNodeId[merge.nodeId], []);
   assert.deepEqual(described.sourceCandidatesByNodeId[checks.nodeId], [
     'left',
     'right',
+    'context',
   ]);
   assert.deepEqual(described.sourceCandidatesByNodeId[rejoin.nodeId], [
     'prepared-if',
@@ -256,6 +277,14 @@ test('canonical edit roles use the same implementation eligibility before any va
       proposal,
     ),
     proposal,
+  );
+  const withNative = globalThis.structuredClone(proposal);
+  withNative.sourcesByNodeId[checks.nodeId].sourceNodeIds = ['context'];
+  assert.deepEqual(
+    createWorkflowDraftNativeDependenciesSchema({ ...input, plan }).parse(
+      withNative,
+    ),
+    withNative,
   );
   proposal.sourcesByNodeId[merge.nodeId].sourceNodeIds = ['left'];
   assert.throws(() =>

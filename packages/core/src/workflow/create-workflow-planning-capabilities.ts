@@ -1,12 +1,19 @@
 import type { WorkflowCapability } from '../types/workflow-plan.js';
 import type { WorkflowCapabilityPlanningInput } from '../types/workflow-capability-planning.js';
 import { assertApiCallIdentities } from './assert-api-call-identities.js';
+import { validateNativeOutputContracts } from '../bindings/validate-native-output-contracts.js';
 
 export function createWorkflowPlanningCapabilities({
   capabilities,
   apiCallIds,
+  nativeOutputs,
 }: WorkflowCapabilityPlanningInput): WorkflowCapability[] {
   assertApiCallIdentities(apiCallIds);
+  if (nativeOutputs !== undefined) {
+    validateNativeOutputContracts(nativeOutputs);
+    if (nativeOutputs.some((source) => apiCallIds.includes(source.nodeId)))
+      throw new Error('planning.nativeOutputs cannot reuse an API callId');
+  }
   if (!Array.isArray(capabilities))
     throw new Error('planning.capabilities must be an array');
   if (
@@ -22,6 +29,9 @@ export function createWorkflowPlanningCapabilities({
       );
     const parametersSchema = capability.createPlanningParametersSchema({
       apiCallIds: [...apiCallIds],
+      ...(nativeOutputs === undefined
+        ? {}
+        : { nativeOutputs: structuredClone(nativeOutputs) }),
     });
     if (!parametersSchema || typeof parametersSchema.safeParse !== 'function')
       throw new Error(

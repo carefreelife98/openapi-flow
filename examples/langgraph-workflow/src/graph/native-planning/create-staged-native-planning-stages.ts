@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import {
   selectNativeNodeInstances,
   generateNativeNodeParameters,
@@ -18,12 +19,27 @@ import type {
   WorkflowUpdate,
 } from '../../types/workflow-graph.js';
 import { nativePlanningInput } from './native-planning-input.js';
+import { createNativeSelectionPlanningGraph } from '../create-native-selection-planning-graph.js';
+import { NativeSelectionPlanningStoppedError } from './selection/native-selection-planning-errors.js';
+import type { NativeSelectionPlanningReceipt } from '../../types/native-selection-planning.js';
 
 /** Planning worklist order is not workflow execution order; only the later DAG owns edges. */
 export function createStagedNativePlanningStages(
   dependencies: NativePlanningGraphDependencies,
 ) {
-  async function select(state: WorkflowState): Promise<WorkflowUpdate> {
+  const selectionGraph =
+    dependencies.nativePlanning?.selectionReview === undefined
+      ? undefined
+      : createNativeSelectionPlanningGraph({
+          ...dependencies.nativePlanning.selectionReview,
+          capabilities: dependencies.capabilities,
+          model: dependencies.model,
+          now: Date.now,
+        });
+  async function select(
+    state: WorkflowState,
+    config?: RunnableConfig,
+  ): Promise<WorkflowUpdate> {
     if (
       state.nativeSelection !== undefined ||
       state.nativeDependencies !== undefined ||
@@ -32,15 +48,48 @@ export function createStagedNativePlanningStages(
       throw new Error(
         'Staged native selection must not overwrite generated state',
       );
-    const selection = await selectNativeNodeInstances({
-      ...nativePlanningInput(state, dependencies),
-      model: dependencies.model,
-    });
+    const input = nativePlanningInput(state, dependencies);
+    let planning: NativeSelectionPlanningReceipt | undefined;
+    const selection =
+      selectionGraph === undefined
+        ? await selectNativeNodeInstances({
+            ...input,
+            model: dependencies.model,
+            ...(config?.signal === undefined ? {} : { signal: config.signal }),
+          })
+        : await (async () => {
+            const source = { ...input };
+            // The child receives runtime functions from dependencies, never its checkpoint input.
+            Reflect.deleteProperty(source, 'capabilities');
+            const result = await selectionGraph.invoke({ source }, config);
+            const selected = result.selections?.at(-1);
+            if (
+              !selected ||
+              !result.status ||
+              result.modelInvocations === undefined ||
+              result.reselections === undefined ||
+              !result.reviews
+            )
+              throw new Error(
+                'Native selection planning ended without its original result and accounting',
+              );
+            planning = {
+              status: result.status,
+              modelInvocations: result.modelInvocations,
+              reselections: result.reselections,
+              reviews: result.reviews,
+            };
+            return selected;
+          })();
     return {
       nativeSelection: selection,
+      ...(planning === undefined ? {} : { nativeSelectionPlanning: planning }),
       nativeConfigurations: [],
       nativeReplyIssues: [],
-      nativePlanningStatus: 'working',
+      nativePlanningStatus:
+        planning !== undefined && planning.status !== 'ready'
+          ? 'selection-blocked'
+          : 'working',
       trace: [...state.trace, 'native-select'],
     };
   }
@@ -251,7 +300,28 @@ export function createStagedNativePlanningStages(
       trace: [...state.trace, 'native-plan'],
     };
   }
-  return { select, planDependencies, schedule, generate, finalize };
+  function stopSelection(state: WorkflowState): never {
+    if (
+      !state.nativeSelection ||
+      !state.nativeSelectionPlanning ||
+      state.nativePlanningStatus !== 'selection-blocked'
+    )
+      throw new Error(
+        'Native selection stop requires its preserved selection and review receipt',
+      );
+    throw new NativeSelectionPlanningStoppedError({
+      selection: state.nativeSelection,
+      receipt: state.nativeSelectionPlanning,
+    });
+  }
+  return {
+    select,
+    planDependencies,
+    schedule,
+    generate,
+    finalize,
+    stopSelection,
+  };
 }
 
 export function routeNativeConfiguration(

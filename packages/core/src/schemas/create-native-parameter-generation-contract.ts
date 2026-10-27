@@ -14,8 +14,15 @@ import { createSchemaResourceContext } from '../bindings/resources/create-schema
 export function createNativeParameterGenerationContract(
   input: NativeParameterGenerationInput,
 ): NativeParameterGenerationContract {
-  const { capability, runtimeParameters } = input;
-  const original = z.toJSONSchema(capability.parametersSchema, {
+  const { capability, runtimeParameters, planningParametersSchema } = input;
+  if (
+    !planningParametersSchema ||
+    typeof planningParametersSchema.safeParse !== 'function'
+  )
+    throw new Error(
+      `Native instance ${input.nodeId} planningParametersSchema is required`,
+    );
+  const original = z.toJSONSchema(planningParametersSchema, {
     io: 'input',
     target: 'draft-2020-12',
     reused: 'inline',
@@ -36,7 +43,7 @@ export function createNativeParameterGenerationContract(
   if (runtimeParameters === undefined)
     return {
       literalParametersSchema: original,
-      valuesSchema: capability.parametersSchema,
+      valuesSchema: planningParametersSchema,
       definitions: {},
       hasLiteralParameters: !hasFixedEmptyNativeParameters(
         original,

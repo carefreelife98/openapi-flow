@@ -57,16 +57,21 @@ export function incrementalConnectionModelPatch(source, patch) {
     return node[direction].length === 1 ? { nodeId } : { nodeId, port };
   };
   return {
-    ...patch,
+    kind: patch.kind,
+    removeEdgeIds: patch.removeEdgeIds,
+    factIds: patch.factIds,
+    reason: patch.reason,
     addEdges: patch.addEdges.map((edge) => ({
       source: select(edge.from, edge.output, 'outputs'),
       target: select(edge.to, edge.input, 'inputs'),
     })),
-    addTerminals: patch.addTerminals.map((item) =>
-      select(item.nodeId, item.output, 'outputs'),
+    addRootNodeIds: globalThis.structuredClone(patch.addRootNodeIds),
+    removeRootNodeIds: globalThis.structuredClone(patch.removeRootNodeIds),
+    addTerminals: patch.addTerminals.map((terminal) =>
+      select(terminal.nodeId, terminal.output, 'outputs'),
     ),
-    removeTerminals: patch.removeTerminals.map((item) =>
-      select(item.nodeId, item.output, 'outputs'),
+    removeTerminals: patch.removeTerminals.map((terminal) =>
+      select(terminal.nodeId, terminal.output, 'outputs'),
     ),
   };
 }

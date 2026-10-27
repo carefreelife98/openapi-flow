@@ -8,13 +8,15 @@ import { resolveNativeNodeParameterSource } from './resolve-native-node-paramete
 export function resolveNativeNodePlanningOutput(
   output: NativeNodePlanningOutput,
 ): ResolvedNativeNodePlanningOutput {
-  if (!('decision' in output))
+  if ('nativeNodes' in output)
     return {
       proposal: {
         nativeNodes: output.nativeNodes.map(resolveNativeNodeParameterSource),
         gaps: output.gaps,
       },
     };
+  if ('gaps' in output)
+    return { proposal: { nativeNodes: [], gaps: output.gaps } };
   const { decision } = output;
   if ('additions' in decision)
     return {

@@ -26,9 +26,16 @@ export function describeNativeNodePlanning(
     preparedNativeNodes: prepared,
   } = captureWorkflowPlanningMaterials(input);
   const apiIds = apiMaterials.map((material) => material.callId);
+  const resolved = resolveNativePlanningMaterials({
+    nativeNodes: prepared,
+    capabilities,
+    apiMaterials,
+    nativeOutputs: [],
+  });
   const planningCapabilities = createWorkflowPlanningCapabilities({
     capabilities,
     apiCallIds: apiIds,
+    nativeOutputs: resolved.outputs,
   });
   const snapshot: NativeNodePlanningSnapshot = {
     ...options,
@@ -56,15 +63,7 @@ export function describeNativeNodePlanning(
         }),
       })),
       preparedNativeNodes: structuredClone(
-        createPreparedNativeNodeMaterials(
-          prepared,
-          resolveNativePlanningMaterials({
-            nativeNodes: prepared,
-            capabilities,
-            apiMaterials,
-            nativeOutputs: [],
-          }).capabilities,
-        ),
+        createPreparedNativeNodeMaterials(prepared, resolved.capabilities),
       ),
       capabilities: planningCapabilities.map((capability) =>
         createNativePlanningCapabilityMaterial(

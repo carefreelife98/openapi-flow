@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import type { WorkflowConnectionGoalPlanningDescription } from '@openapi-flow/core';
-import type {
-  WorkflowConnectionGoalsModelOutput,
-  WorkflowConnectionGoalSelection,
-} from '../types/incremental-connection-planning.js';
+import type { WorkflowConnectionGoalSelection } from '../types/incremental-connection-planning.js';
 import {
   connectionChoicesSchema,
   connectionDecisionTextSchema as text,
@@ -12,7 +9,7 @@ import {
 
 export function createWorkflowConnectionGoalsSchema(
   description: WorkflowConnectionGoalPlanningDescription,
-): z.ZodType<WorkflowConnectionGoalsModelOutput> {
+) {
   const nodes = description.context.nodes;
   const ids = nodes.map((node) => node.id);
   if (!ids.length) throw new Error('Connection goals require supplied nodes');

@@ -25,26 +25,38 @@ export const apiInputAnswerSelectionsSchema = z.array(
 export function createApiInputSourceSelectionSchema(
   catalog: ApiInputSourceCatalog,
 ) {
-  const jsonIds = catalog.json.map((candidate) => candidate.id);
-  const textIds = catalog.text.flatMap((segment) =>
-    segment.tokens.map((token) => token.id),
+  const jsonIds = new Set(catalog.json.map((candidate) => candidate.id));
+  const textIds = new Set(
+    catalog.text.flatMap((segment) => segment.tokens.map((token) => token.id)),
   );
   const choices: z.ZodType<
     ApiInputJsonSourceSelection | ApiInputTextSourceSelection
   >[] = [];
-  if (jsonIds.length)
+  if (jsonIds.size)
     choices.push(
       z.strictObject({
         kind: z.literal('json'),
         candidateId: z
-          .enum(jsonIds)
+          .string()
+          .regex(/^json:\d+:\d+$/)
+          .refine((id) => jsonIds.has(id), {
+            message: 'Select an offered original JSON source candidate',
+          })
           .describe(
             'Select a complete original JSON literal candidate. Code owns its exact text and JSON parsing, including string delimiters.',
           ),
       }),
     );
-  if (textIds.length) {
-    const boundary = z.enum(textIds);
+  if (textIds.size) {
+    // Wire schemas describe the stable ID grammar. Original-catalog membership
+    // remains mandatory locally and is independently rechecked by the resolver.
+    // Enumerating every source position makes schema size grow with input text.
+    const boundary = z
+      .string()
+      .regex(/^text:\d+:\d+$/)
+      .refine((id) => textIds.has(id), {
+        message: 'Select an offered original text boundary',
+      });
     choices.push(
       z.strictObject({
         kind: z.literal('text'),

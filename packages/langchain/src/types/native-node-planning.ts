@@ -11,6 +11,7 @@ import type {
   NativeInstanceSelectionInput,
   NativeNodeConfigurationInput,
   NativeSelectedPlanningInput,
+  NativeInstanceSelectionFeedback,
 } from '@openapi-flow/core';
 
 export interface PlanNativeNodesInput extends NativeNodePlanningInput {
@@ -44,6 +45,9 @@ export interface NativeNodeModelProposal {
   gaps: NativePlanningProposal['gaps'];
 }
 
+/** Used only when code proves that no offered capability has a parameter choice in this call. */
+export type NativeNodeGapOnlyOutput = Pick<NativePlanningProposal, 'gaps'>;
+
 export interface ExplainedNativeNodeProposal {
   node: NativeNodeModelInstance;
   reason: string;
@@ -59,7 +63,9 @@ export interface ExplainedNativeNodePlanningOutput {
 }
 
 export type NativeNodePlanningOutput =
-  NativeNodeModelProposal | ExplainedNativeNodePlanningOutput;
+  | NativeNodeModelProposal
+  | ExplainedNativeNodePlanningOutput
+  | NativeNodeGapOnlyOutput;
 
 export interface ResolvedNativeNodePlanningOutput {
   proposal: NativeNodeProposal;
@@ -99,6 +105,8 @@ export type NativeNodePlanningFailure =
 export interface SelectNativeNodeInstancesInput extends NativeInstanceSelectionInput {
   model?: BaseChatModel;
   signal?: AbortSignal;
+  /** Explicit independently reviewed rejection. Never causes a hidden retry. */
+  feedback?: NativeInstanceSelectionFeedback;
 }
 
 export interface GenerateNativeNodeParametersInput extends NativeNodeConfigurationInput {

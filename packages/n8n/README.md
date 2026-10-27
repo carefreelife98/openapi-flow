@@ -1,5 +1,78 @@
 # @openapi-flow/n8n
 
+0.4.0 adds original native-output projection/measurement/collection,
+explicit API map selection and typed key joins, and official SDK node metadata,
+configuration validation and construction helpers. Execution reuses the official
+n8n nodes. These helpers do not provide automatic planning for all n8n node types,
+arbitrary computation, classification or pagination. Development sections below
+target this version. Publication, compatibility and accepted limitations are in
+the [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.0.md).
+
+0.4.0 source adds `N8nNativeFeature.CollectNativeOutputValues` and
+`createNativeValueCollectionCapability({ sources })`. This is a contract adapter
+for official Aggregate, not a new aggregation implementation. Select an actual
+native producer and its pointer to collect unchanged stream values into `items`.
+The existing API collector shares the same reader/SDK compilation path. Original
+types, nested arrays, duplicates, nulls, order and aggregate ancestry are retained;
+missing selected values fail before aggregation. Empty input creates no result.
+This is a reduction, not a branch join, grouping per parent or pagination.
+It is not present in published 0.3.18. See the
+[collection contract](../../docs/native-feature-planning.md).
+
+0.4.0 source extends the existing IF and assertion operands with
+`{source:'node-output',nodeId,pointer}`. This is not a new native feature family.
+Planning specializes native IDs and pointer choices from actual completed output
+contracts, separately from API response bodies. The compiler requires the actual
+`nativeOutputSources` names/schemas. In linked item mode it follows item ancestry;
+otherwise multiple source items fail rather than choosing the first.
+
+The shared Code boundary validates the full source, selected-value presence and
+operator types before IF expression evaluation. n8n can handle expression errors
+without failing the workflow, so missing optional values must not masquerade as a
+normal false branch. A valid false comparison remains valid and is not rejected.
+No source values, original types, business thresholds or classification labels are
+invented. Run `node integration/native-output-comparisons-local-n8n.mjs` for the
+isolated engine checks. This source is not in published 0.3.18.
+
+0.4.0 source adds `N8nNativeFeature.ProjectNativeOutput` and
+`createNativeOutputProjectionCapability({ sources })`. Select unchanged fields from
+one actual native JSON producer with `{sourceNodeId,fields:[{name,pointer}]}`.
+Core derives source-specific pointer choices and output types; a guard validates the
+full producer and selected-value presence, then official Edit Fields performs the
+selection per linked input item. Empty input remains empty. Compiling requires actual
+compiled producer names/schemas, not guessed names. This does not provide arbitrary arithmetic, conversion,
+classification, collection, or pagination. Explicit derived count fields may add
+`measurement: 'utf16-code-units'` for a string or `'array-items'` for an array;
+official Edit Fields evaluates `.length`. Omitting `measurement` still copies the
+original value. UTF-16 units are not Unicode characters/graphemes or a replacement
+for OAS length validation. The model must not infer a missing business counting
+policy. Missing/null/wrong-typed values fail before Edit Fields, never becoming zero.
+Strict planning distinguishes copy fields from measured fields with a required unit.
+No arbitrary code, casts or new native family is introduced. Run
+`node integration/native-output-projection-local-n8n.mjs` for isolated typed-value,
+empty-input and fail-fast consumer checks. This source is not in published 0.3.18.
+
+0.4.0 source adds `N8nNativeFeature.JoinApiResponseArraysByKey` and
+`createApiResponseKeyJoinCapability({ materials })`. Explicit left/right API-array
+and relative key pointers compile to official SDK Merge 3.2 matching-fields mode,
+with strict typed equality, all duplicate matches and inner/full/left/right retention.
+Full OAS response validation and linked readers preserve unchanged rows under fixed
+`left`/`right` fields. Missing-key handling must be explicit; missing keys never match
+each other or become null. This is not the ancestry-based `JoinApiItems`, a positional
+zip, a page accumulator, or a claim of per-item preservation inside a batch scope.
+The isolated synthetic engine check is `node integration/api-response-key-join-local-n8n.mjs`.
+This source is not part of published 0.3.18. See the [native planning guide](../../docs/native-feature-planning.md).
+
+0.4.0 source adds `N8nNativeFeature.SelectApiResponseMapEntry` and
+`createApiResponseMapEntryCapability`. Select one exact object key with
+`{sourceNodeId,pointer,key}` and preserve the original value as `{key,value}`.
+Use existing `SplitNativeOutputArray` on `/value` for grouped arrays. Only the key
+may be deferred through explicit native runtime field ownership; API identity and
+response-pointer structure remain literal. OAS-derived output contracts, full-response
+validation, exact own-key checks and linked item ancestry are preserved. Missing keys
+fail without choosing a first entry or fabricating an empty array. This source is not
+part of the published 0.3.18 release. See the [native planning guide](../../docs/native-feature-planning.md).
+
 Version **0.3.18** aligns with LangChain's typed source decision fix.
 The official SDK compiler and runtime response validation are unchanged. See the
 [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.18.md).
@@ -106,7 +179,7 @@ Our code is MIT-licensed. The separately licensed `@n8n/workflow-sdk` dependency
 
 `compilePlannedN8nWorkflow`, `compileBatchedN8nWorkflow` and `compileReviewableN8nWorkflow` provide original API response contracts from their materials to native compilers. IF/assertions require the original OAS contract and actual source name for each referenced API. If invoking a capability's `compile` directly, supply `apiResponseContracts` alongside `apiNodeNames`; literal-only checks need no response context. Assembly rejects a different declared contract or producer.
 
-Shared compilation lives in `nodes/native/response-checks/`, with types in `types/response-check-compilation.ts` and `types/response-check-guard.ts`. IF uses Code guard → official IF, preserving input values, binary fields and paired-item ancestry. Its expressions contain only source reads and comparisons. Assertions use the same full-response reader before checking values. Runtime status/media select the OAS response contract; matching one field never exempts invalid sibling fields. No schema or data conversion is introduced.
+Shared compilation lives in `nodes/native/comparisons/`, with types in `types/comparison-input-compilation.ts` and `types/comparison-input-guard.ts`. IF uses Code guard → official IF, preserving input values, binary fields and paired-item ancestry. Its expressions contain only source reads and comparisons. Assertions use the same full-source reader before checking values. Runtime status/media select the OAS response contract; native JSON uses its actual producer contract, never a fictitious HTTP body. Matching one field never exempts invalid sibling fields. Selected pointers and operator types are checked in Code before IF; generated guard node IDs and names remain unchanged. No schema or data conversion is introduced.
 
 `test:array-iteration-local-n8n` covers 14 cases, including five new IF/assertion failures with no forbidden downstream calls. Its report explicitly retains the original error and the n8n display message. n8n 2.37.10's [task-runner parser](https://github.com/n8n-io/n8n/blob/n8n%402.37.10/packages/%40n8n/task-runner/src/js-task-runner/errors/execution-error.ts) truncates colon-containing errors despite preserving the original stack. This display defect remains unresolved; the adapter does not rewrite errors to accommodate it.
 

@@ -70,8 +70,8 @@ export function createReviewableWorkflowGenerationGraph(
       'selectRequestMediaTypes',
       createApiRequestMediaTypesStage(dependencies),
     )
-    .addNode('prepareCalls', (state) =>
-      prepareReviewableApiCalls(state, dependencies),
+    .addNode('prepareCalls', (state, config) =>
+      prepareReviewableApiCalls(state, dependencies, config),
     )
     .addNode('planGraph', planGraph)
     .addNode('compileWorkflow', (state) =>

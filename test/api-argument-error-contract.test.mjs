@@ -87,6 +87,53 @@ test('argument model failures preserve exact causes without heuristic timeout de
   }
 });
 
+test('a foreign peer parser error uses the official code and retains its original cause without class/name heuristics', async () => {
+  const input = await literalGenerationFixture();
+  const foreign = new Error('Private foreign parser result');
+  Object.defineProperty(foreign, 'lc_error_code', {
+    value: 'OUTPUT_PARSING_FAILURE',
+  });
+  assert.equal(foreign instanceof OutputParserException, false);
+  await assert.rejects(
+    generateApiArguments({
+      ...input,
+      model: literalGenerationModel({}, () => {
+        throw foreign;
+      }),
+    }),
+    expectDiagnostic('MODEL_OUTPUT_INVALID', 'model-output', foreign),
+  );
+});
+
+test('parser-looking text/name and an inherited or getter code do not authorize output-error classification', async () => {
+  const input = await literalGenerationFixture();
+  let getterCalls = 0;
+  const getter = new Error('private');
+  Object.defineProperty(getter, 'lc_error_code', {
+    get() {
+      getterCalls++;
+      return 'OUTPUT_PARSING_FAILURE';
+    },
+  });
+  const inherited = Object.create(new Error('private inherited'));
+  Object.defineProperty(Object.getPrototypeOf(inherited), 'lc_error_code', {
+    value: 'OUTPUT_PARSING_FAILURE',
+  });
+  const named = new Error('OUTPUT_PARSING_FAILURE timeout');
+  named.name = 'OutputParserException';
+  for (const cause of [getter, inherited, named])
+    await assert.rejects(
+      generateApiArguments({
+        ...input,
+        model: literalGenerationModel({}, () => {
+          throw cause;
+        }),
+      }),
+      expectDiagnostic('MODEL_INVOCATION_FAILED', 'model-invocation', cause),
+    );
+  assert.equal(getterCalls, 0);
+});
+
 test('argument output shape and original-source validation failures remain distinct', async () => {
   const input = await literalGenerationFixture();
   const invalidShape = literalGenerationModel({
@@ -97,15 +144,18 @@ test('argument output shape and original-source validation failures remain disti
     expectDiagnostic('MODEL_OUTPUT_INVALID', 'model-output'),
   );
   const invalidSource = literalGenerationModel({
-    values: { body: { quantity: 2 } },
+    literalInputs: {
+      state: 'provided',
+      values: { body: { quantity: 2 } },
+      literalSources: [
+        {
+          targetPointer: '/body/quantity',
+          sourceFormat: 'json',
+          sourceText: '"private-value-not-in-scenario"',
+        },
+      ],
+    },
     requestedInputs: ['/body/quantity'],
-    literalSources: [
-      {
-        targetPointer: '/body/quantity',
-        sourceFormat: 'json',
-        sourceText: '"private-value-not-in-scenario"',
-      },
-    ],
   });
   await assert.rejects(
     generateApiArguments({

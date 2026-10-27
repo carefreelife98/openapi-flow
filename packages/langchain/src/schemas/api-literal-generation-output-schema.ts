@@ -35,27 +35,81 @@ export const apiLiteralGenerationSourcesSchema = z.array(
   }),
 );
 
-/** The core values schema is unchanged; only optional human-readable attribution is added. */
+export const apiLiteralNotProvidedSchema = z.strictObject({
+  state: z
+    .literal('not-provided')
+    .describe(
+      'No request literal was supplied by the scenario for this call. Code owns the empty values and source list. Do not supply a placeholder body, values, or literalSources in this decision.',
+    ),
+});
+
+export function createApiLiteralProvidedSchema(
+  contract: ApiArgumentGenerationContract,
+) {
+  return z.strictObject({
+    state: z.literal('provided'),
+    values: contract.valuesSchema.refine(
+      (values) =>
+        Object.entries(values).some(
+          ([group, value]) =>
+            group === 'body' ||
+            (value !== null &&
+              typeof value === 'object' &&
+              Object.keys(value).length > 0),
+        ),
+      'Provided literals require an actual request value, not empty parameter-location containers.',
+    ),
+    literalSources: apiLiteralGenerationSourcesSchema
+      .min(1)
+      .describe(
+        'Every provided literal, including an empty object, empty array, empty string or null, needs its original exact user source. Never use a source-free placeholder.',
+      ),
+  });
+}
+
+export function createApiTrackedLiteralGenerationSchema(
+  contract: ApiArgumentGenerationContract,
+  requestSchema: JsonObject,
+) {
+  const provided = createApiLiteralProvidedSchema(contract);
+  const schema = z.strictObject({
+    literalInputs: z.union([apiLiteralNotProvidedSchema, provided]),
+    requestedInputs: z
+      .array(createApiRequestInputPointerSchema(requestSchema))
+      .refine((pointers) => new Set(pointers).size === pointers.length)
+      .describe(
+        'Exact OAS request pointers explicitly requested for this call, even when the value is not given verbatim. Include requested optional inputs. Do not select unrequested filters, OAS defaults or examples. Code validates the original OAS and missing presence. This field contains paths, never values or bindings.',
+      ),
+  });
+  return schema;
+}
+
+export function createApiExplainedTrackedLiteralGenerationSchema(
+  contract: ApiArgumentGenerationContract,
+  requestSchema: JsonObject,
+) {
+  return createApiTrackedLiteralGenerationSchema(
+    contract,
+    requestSchema,
+  ).extend({
+    explanation: apiLiteralGenerationReasonSchema,
+  });
+}
+
+/** Tracked generation separates absence from literal empty values; the OAS value contract stays unchanged. */
 export function createApiLiteralGenerationOutputSchema(
   contract: ApiArgumentGenerationContract,
   includeExplanations: boolean,
   requestSchema?: JsonObject,
 ): ApiLiteralGenerationOutputSchema {
   z.boolean().parse(includeExplanations);
-  if (requestSchema !== undefined) {
-    const schema = contract.schema.extend({
-      literalSources: apiLiteralGenerationSourcesSchema,
-      requestedInputs: z
-        .array(createApiRequestInputPointerSchema(requestSchema))
-        .refine((pointers) => new Set(pointers).size === pointers.length)
-        .describe(
-          'Exact OAS request pointers explicitly requested for this call, even when the value is not given verbatim. Include requested optional inputs. Do not select unrequested filters, OAS defaults or examples. Code validates the original OAS and missing presence. This field contains paths, never values or bindings.',
-        ),
-    });
+  if (requestSchema !== undefined)
     return includeExplanations && contract.hasLiteralInputs
-      ? schema.extend({ explanation: apiLiteralGenerationReasonSchema })
-      : schema;
-  }
+      ? createApiExplainedTrackedLiteralGenerationSchema(
+          contract,
+          requestSchema,
+        )
+      : createApiTrackedLiteralGenerationSchema(contract, requestSchema);
   return includeExplanations && contract.hasLiteralInputs
     ? contract.schema.extend({ explanation: apiLiteralGenerationReasonSchema })
     : contract.schema;

@@ -1,0 +1,6 @@
+export interface CreateComparisonInputGuardInput {
+  nodeId: string;
+  readerCode: string;
+  linked: boolean;
+  position: [number, number];
+}

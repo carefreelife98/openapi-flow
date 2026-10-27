@@ -10,6 +10,8 @@ import { validateNativeApiResponseReferences } from '../validate-native-api-resp
 import { resolveNativeStructureParameters } from '../resolve-native-structure-parameters.js';
 import { resolveNativePlanningMaterials } from './resolve-native-planning-materials.js';
 import { createWorkflowPlanningCapabilities } from '../create-workflow-planning-capabilities.js';
+import { createNativeParameterGenerationContract } from '../../schemas/create-native-parameter-generation-contract.js';
+import { jsonValuesEqual } from '../../utils/json-values-equal.js';
 
 /** Opaque symbolic IDs come from the proposal; original contracts and review gap IDs are code-owned. */
 export function createNativeNodePlan(
@@ -30,7 +32,7 @@ export function createNativeNodePlan(
   const nodes = assembleNativeNodeMaterials(prepared, proposal.nativeNodes);
   if (proposal.nativeNodes.some((node) => apiIds.includes(node.id)))
     throw new Error('native node plan contains an API callId');
-  const { capabilities } = resolveNativePlanningMaterials({
+  const { capabilities, outputs } = resolveNativePlanningMaterials({
     nativeNodes: nodes,
     capabilities: snapshot.capabilities,
     apiMaterials: apis,
@@ -39,6 +41,7 @@ export function createNativeNodePlan(
   const planningCapabilities = createWorkflowPlanningCapabilities({
     capabilities,
     apiCallIds: apiIds,
+    nativeOutputs: outputs,
   });
   for (const node of proposal.nativeNodes) {
     const capability = planningCapabilities.find(
@@ -53,7 +56,29 @@ export function createNativeNodePlan(
       throw new Error(
         `node ${node.id}: native planning runtime parameters were not enabled`,
       );
-    resolveNativeStructureParameters(node, capability);
+    if (node.runtimeParameters === undefined) {
+      resolveNativeStructureParameters(node, capability);
+      continue;
+    }
+    const runtimeCapability = capabilities.find(
+      (candidate) => candidate.name === node.capability,
+    );
+    if (!runtimeCapability)
+      throw new Error(
+        `node ${node.id}: missing executable capability ${node.capability}`,
+      );
+    resolveNativeStructureParameters(node, runtimeCapability);
+    const contract = createNativeParameterGenerationContract({
+      nodeId: node.id,
+      capability: runtimeCapability,
+      planningParametersSchema: capability.parametersSchema,
+      runtimeParameters: node.runtimeParameters,
+    });
+    const checked = contract.valuesSchema.parse(node.parameters);
+    if (!jsonValuesEqual(checked, node.parameters))
+      throw new Error(
+        `node ${node.id}: native planning must preserve original parameter values`,
+      );
   }
   createNativeOutputContracts({ nativeNodes: nodes, capabilities });
   validateNativeApiResponseReferences({

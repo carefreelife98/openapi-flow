@@ -174,6 +174,27 @@ try {
     ['workflow-template', ['workflow-template-local-n8n.mjs']],
     ['schema-projection', ['schema-projection-local-n8n.mjs']],
     ['native-schema-references', ['native-schema-reference-repro.mjs']],
+    ['connection-revision', ['connection-revision-local-n8n.mjs']],
+    ['initial-material-recovery', ['initial-material-recovery-local-n8n.mjs']],
+    [
+      'initial-goal-review',
+      ['initial-material-recovery-local-n8n.mjs', '--with-goal-review'],
+    ],
+    ['accepted-material-recovery', ['accepted-revision-local-n8n.mjs']],
+    [
+      'accepted-goal-review',
+      ['accepted-revision-local-n8n.mjs', '--with-goal-review'],
+    ],
+    ['native-selection-review', ['native-selection-planning-local-n8n.mjs']],
+    [
+      'response-field-selection',
+      ['api-response-field-selection-local-n8n.mjs'],
+    ],
+    ['response-key-join', ['api-response-key-join-local-n8n.mjs']],
+    ['response-map-entry', ['api-response-map-entry-local-n8n.mjs']],
+    ['native-output-comparisons', ['native-output-comparisons-local-n8n.mjs']],
+    ['native-output-projection', ['native-output-projection-local-n8n.mjs']],
+    ['native-value-collection', ['native-value-collection-local-n8n.mjs']],
   ])
     await execute(name, process.execPath, [
       join('integration', args[0]),

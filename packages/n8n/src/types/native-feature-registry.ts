@@ -17,10 +17,14 @@ export const N8nNativeFeature = Object.freeze({
   JsonOutput: 'json-output',
   SplitApiResponseArray: 'split-api-response-array',
   CollectApiResponses: 'collect-api-responses',
+  CollectNativeOutputValues: 'collect-native-output-values',
   ComposeApiResponses: 'compose-api-responses',
   GatherApiResponses: 'gather-api-responses',
   SplitNativeOutputArray: 'split-native-output-array',
   JoinApiItems: 'join-api-items',
+  SelectApiResponseMapEntry: 'select-api-response-map-entry',
+  JoinApiResponseArraysByKey: 'join-api-response-arrays-by-key',
+  ProjectNativeOutput: 'project-native-output',
 } as const);
 
 export type N8nNativeFeature =

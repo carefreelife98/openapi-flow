@@ -39,6 +39,8 @@ export interface NativePlanningCapabilityMaterial {
   name: string;
   description: string;
   parametersSchema: BindingSchema;
+  /** Only an emptiness proof; false does not establish that a value or required producer exists. */
+  hasProvablyEmptyParameters: boolean;
   parameterReferenceSources?: WorkflowCapability['parameterReferenceSources'];
   parameterSources: ('literal' | 'workflow-input' | 'workflow-fields')[];
   materialRequirements?: WorkflowCapability['materialRequirements'];
@@ -212,7 +214,10 @@ export interface NativeNodeConfigurationInput extends NativeSelectedPlanningInpu
 
 export interface NativeParameterGenerationInput {
   nodeId: string;
+  /** Executable implementation contract, never replaced by a model candidate schema. */
   capability: WorkflowCapability;
+  /** Model-specific candidates/refinements for the current supplied materials. */
+  planningParametersSchema: WorkflowCapability['parametersSchema'];
   runtimeParameters?: true | NativeRuntimeParameterSelection;
 }
 

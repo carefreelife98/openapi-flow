@@ -1,5 +1,8 @@
 import { isDeepStrictEqual } from 'node:util';
-import { describeWorkflowConnectionGoals } from '@openapi-flow/core';
+import {
+  describeWorkflowConnectionGoals,
+  WorkflowPlanningConstraintError,
+} from '@openapi-flow/core';
 import type {
   CreateWorkflowConnectionGoalRejectionInput,
   WorkflowConnectionGoalRejection,
@@ -14,7 +17,10 @@ export function createWorkflowConnectionGoalRejection(
   const { error } = input;
   if (
     !(error instanceof WorkflowConnectionPlanningError) ||
-    error.diagnostic.operation !== 'planWorkflowConnectionGoals' ||
+    ![
+      'planWorkflowConnectionGoals',
+      'planWorkflowConnectionGoalRecovery',
+    ].includes(error.diagnostic.operation) ||
     !['model-output', 'contract-validation'].includes(error.diagnostic.stage) ||
     error.sourceFingerprint === undefined
   )
@@ -27,6 +33,9 @@ export function createWorkflowConnectionGoalRejection(
     code: error.diagnostic.code,
     output: error.output,
     reason: error.message,
+    ...(error.cause instanceof WorkflowPlanningConstraintError
+      ? { constraints: error.cause.inspection }
+      : {}),
   });
   // Non-JSON results cannot be checkpointed losslessly; never repair them to enable a retry.
   if (!parsed.success || !isDeepStrictEqual(parsed.data.output, error.output))

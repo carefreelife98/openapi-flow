@@ -49,13 +49,14 @@ export function describeWorkflowGraphPlanning(
   const apiIds = captured.materials.map((material) =>
     material.status === 'ready' ? material.arguments.callId : material.callId,
   );
-  const planningCapabilities = createWorkflowPlanningCapabilities({
-    capabilities: captured.capabilities,
-    apiCallIds: apiIds,
-  });
   const nativeOutputs = createNativeOutputContracts({
     nativeNodes: captured.preparedNativeNodes,
     capabilities: captured.capabilities,
+  });
+  const planningCapabilities = createWorkflowPlanningCapabilities({
+    capabilities: captured.capabilities,
+    apiCallIds: apiIds,
+    nativeOutputs,
   });
   return {
     input: { ...identity, ...captured, gaps },

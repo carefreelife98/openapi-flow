@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { WorkflowCapabilityPlanningContext } from '@openapi-flow/core';
 import {
-  nativeOperandSchema,
+  createNativeOutputPointerSelectionSchema,
+  isSchemaProvablyEmpty,
+} from '@openapi-flow/core';
+import type { NativeOperand } from '../types/native-capability.js';
+import {
+  nativeResponseOperandSchema,
+  nativeLiteralOperandSchema,
+  nativeOutputOperandSchema,
   nativeCheckSchema,
   ifParametersSchema,
   assertionParametersSchema,
@@ -9,21 +16,31 @@ import {
 
 function createPlanningCheckSchema({
   apiCallIds,
+  nativeOutputs,
 }: WorkflowCapabilityPlanningContext) {
-  const literal = nativeOperandSchema.options[1];
+  const variants: z.ZodType<NativeOperand>[] = [nativeLiteralOperandSchema];
+  if (apiCallIds.length)
+    variants.push(
+      nativeResponseOperandSchema.extend({
+        nodeId: z
+          .enum(apiCallIds)
+          .describe(
+            'Exact supplied API callId; choose a response source, never create an ID.',
+          ),
+      }),
+    );
+  for (const output of nativeOutputs === undefined ? [] : nativeOutputs) {
+    const pointer = createNativeOutputPointerSelectionSchema(output);
+    if (isSchemaProvablyEmpty(z.toJSONSchema(pointer))) continue;
+    variants.push(
+      nativeOutputOperandSchema.extend({
+        nodeId: z.literal(output.nodeId),
+        pointer,
+      }),
+    );
+  }
   const operand =
-    apiCallIds.length === 0
-      ? literal
-      : z.union([
-          nativeOperandSchema.options[0].extend({
-            nodeId: z
-              .enum(apiCallIds)
-              .describe(
-                'Exact supplied API callId; choose a response source, never create an ID.',
-              ),
-          }),
-          literal,
-        ]);
+    variants.length === 1 ? nativeLiteralOperandSchema : z.union(variants);
   return nativeCheckSchema.extend({ left: operand, right: operand });
 }
 
@@ -35,7 +52,7 @@ export function createIfPlanningParametersSchema(
       .array(createPlanningCheckSchema(context))
       .min(1)
       .describe(
-        'Only conditions required by the scenario, with supplied API callIds and OAS-derived response pointers.',
+        'Only scenario-required comparisons of supplied API responses or actual declared native outputs. Keep source values and types unchanged.',
       ),
   });
 }
@@ -54,7 +71,7 @@ export function createAssertionPlanningParametersSchema(
       )
       .min(1)
       .describe(
-        'Declarative assertions over supplied API responses. Exact API callIds only; no invented references or model-written JavaScript.',
+        'Declarative assertions over supplied API responses or actual native outputs. Exact supplied IDs and pointers only; no invented references or model-written JavaScript.',
       ),
   });
 }

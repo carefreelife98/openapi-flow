@@ -109,8 +109,11 @@ test('initial independent generation tracks requested optional inputs and reuses
   };
   const original = globalThis.structuredClone(input);
   const llm = model({
-    literalSources: [idSource],
-    values: { query: { id: '0007' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007' } },
+      literalSources: [idSource],
+    },
     requestedInputs: ['/query/id', '/query/sort'],
     explanation: { reason: '첫 조회에 명시한 상품번호만 그대로 추출했습니다.' },
   });
@@ -174,9 +177,12 @@ test('ambiguous enum remains a real requested question; default and unrequested 
   };
   const ambiguous = model(
     {
-      values: { query: { id: '0007' } },
+      literalInputs: {
+        state: 'provided',
+        values: { query: { id: '0007' } },
+        literalSources: [idSource],
+      },
       requestedInputs: ['/query/sort'],
-      literalSources: [idSource],
     },
     () => undefined,
   );
@@ -185,8 +191,11 @@ test('ambiguous enum remains a real requested question; default and unrequested 
   assert.deepEqual(result.unresolvedInputs, ['/query/sort']);
   assert.deepEqual(result.enumInterpretation.analysis.answers, []);
   const unrequested = model({
-    literalSources: [idSource],
-    values: { query: { id: '0007' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007' } },
+      literalSources: [idSource],
+    },
     requestedInputs: [],
   });
   const untouched = await generateApiArguments({
@@ -208,23 +217,29 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
     trackRequestedInputs: true,
   };
   const disabled = model({
-    literalSources: [idSource],
-    values: { query: { id: '0007' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007' } },
+      literalSources: [idSource],
+    },
     requestedInputs: ['/query/sort'],
   });
   const result = await generateApiArguments({ ...input, model: disabled });
   assert.equal(disabled.calls.length, 1);
   assert.deepEqual(result.unresolvedInputs, ['/query/sort']);
   const supplied = model({
-    literalSources: [
-      idSource,
-      {
-        targetPointer: '/query/sort',
-        sourceFormat: 'json',
-        sourceText: '"VIEWS"',
-      },
-    ],
-    values: { query: { id: '0007', sort: 'VIEWS' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007', sort: 'VIEWS' } },
+      literalSources: [
+        idSource,
+        {
+          targetPointer: '/query/sort',
+          sourceFormat: 'json',
+          sourceText: '"VIEWS"',
+        },
+      ],
+    },
     requestedInputs: ['/query/sort'],
   });
   const literal = await generateApiArguments({
@@ -240,8 +255,11 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
 test('original JSON enum types are copied without coercion, including null and composite parameter values', async () => {
   for (const value of [0, false, null, ['00', 1], { key: '00', count: 2 }]) {
     const llm = model({
-      literalSources: [idSource],
-      values: { query: { id: '0007' } },
+      literalInputs: {
+        state: 'provided',
+        values: { query: { id: '0007' } },
+        literalSources: [idSource],
+      },
       requestedInputs: ['/query/sort'],
     });
     const result = await generateApiArguments({
@@ -318,8 +336,11 @@ test('invalid first values and invalid enum choices fail without repair, another
     trackRequestedInputs: true,
   };
   const invalid = model({
-    literalSources: [idSource],
-    values: { query: { id: '0007', sort: 'invented' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007', sort: 'invented' } },
+      literalSources: [idSource],
+    },
     requestedInputs: ['/query/sort'],
   });
   await assert.rejects(
@@ -343,9 +364,12 @@ test('invalid first values and invalid enum choices fail without repair, another
   ]) {
     const invalidChoice = model(
       {
-        values: { query: { id: '0007' } },
+        literalInputs: {
+          state: 'provided',
+          values: { query: { id: '0007' } },
+          literalSources: [idSource],
+        },
         requestedInputs: ['/query/sort'],
-        literalSources: [idSource],
       },
       undefined,
       mutate,
@@ -366,16 +390,19 @@ test('invalid first values and invalid enum choices fail without repair, another
 
 test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an explicit literal', async () => {
   const llm = model({
-    values: { query: { id: '0007', sort: 'VIEWS' } },
+    literalInputs: {
+      state: 'provided',
+      values: { query: { id: '0007', sort: 'VIEWS' } },
+      literalSources: [
+        idSource,
+        {
+          targetPointer: '/query/sort',
+          sourceFormat: 'json',
+          sourceText: '"VIEWS"',
+        },
+      ],
+    },
     requestedInputs: ['/query/sort'],
-    literalSources: [
-      idSource,
-      {
-        targetPointer: '/query/sort',
-        sourceFormat: 'json',
-        sourceText: '"VIEWS"',
-      },
-    ],
   });
   await assert.rejects(
     generateApiArguments({
@@ -434,9 +461,8 @@ test('an absent request body exposes only requested enum descendants and preserv
     catalog.operations[0].key,
   ]);
   const llm = model({
-    values: {},
+    literalInputs: { state: 'not-provided' },
     requestedInputs: ['/body/preferences/sort'],
-    literalSources: [],
   });
   const result = await generateApiArguments({
     callId: 'nested',
@@ -460,11 +486,10 @@ test('an absent request body exposes only requested enum descendants and preserv
   );
 });
 
-test('an empty parameter group is retained as original proposal evidence and is not a fabricated literal', async () => {
+test('explicit literal absence keeps enum intent pending without emitting an empty parameter container', async () => {
   const llm = model({
-    values: { query: {} },
+    literalInputs: { state: 'not-provided' },
     requestedInputs: ['/query/sort'],
-    literalSources: [],
   });
   const result = await generateApiArguments({
     callId: 'empty-query',

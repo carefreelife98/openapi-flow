@@ -24,11 +24,9 @@ export const apiResponseResultsParametersSchema = z
   });
 
 export function createApiResponseResultsParametersSchema(callIds: string[]) {
-  if (!callIds.length)
-    throw new Error('response results parameters require API callIds');
   return apiResponseResultsParametersSchema.safeExtend({
     sourceNodeIds: z
-      .array(z.enum(callIds))
+      .array(callIds.length ? z.enum(callIds) : z.never())
       .min(1)
       .describe(sourceSelectionDescription),
   });

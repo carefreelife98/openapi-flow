@@ -184,7 +184,7 @@ test('the original source, not the required OAS type, determines literal represe
   );
 });
 
-test('strict source schemas contain only offered IDs, with no generated text, values or format choice', async () => {
+test('wire grammar contains ID selections only and local source schemas retain exact catalog membership', async () => {
   const sources = describeApiInputSources(
     '회원번호는 "fixture-member-01"이야.',
   );
@@ -198,6 +198,9 @@ test('strict source schemas contain only offered IDs, with no generated text, va
   const valid = jsonInputSource({ sources }, '"fixture-member-01"');
   assert.equal(validate(valid), true);
   assert.equal(validate({ ...valid, candidateId: 'invented' }), false);
+  const foreign = { ...valid, candidateId: 'json:999999:4' };
+  assert.equal(validate(foreign), true);
+  assert.equal(schema.safeParse(foreign).success, false);
   assert.equal(
     validate({ sourceText: 'fixture-member-01', sourceFormat: 'text' }),
     false,

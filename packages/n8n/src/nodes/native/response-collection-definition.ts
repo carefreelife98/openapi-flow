@@ -1,5 +1,8 @@
 import type { NativeMaterialFeatureDefinition } from '../../types/native-material-binding.js';
-import { responseCollectionParametersSchema } from '../../schemas/response-collection-schema.js';
+import {
+  responseCollectionParametersSchema,
+  createResponseCollectionParametersSchema,
+} from '../../schemas/response-collection-schema.js';
 
 export const responseCollectionDefinition: NativeMaterialFeatureDefinition = {
   name: 'collect-api-responses',
@@ -7,6 +10,8 @@ export const responseCollectionDefinition: NativeMaterialFeatureDefinition = {
   description:
     'Collect unchanged item-linked API response values from one incoming stream into {items: values} using n8n Aggregate. Validates each full OAS response first. Preserves null, nested arrays, duplicates and received order. Not a branch join. Empty streams do not trigger this node or create an artificial result.',
   parametersSchema: responseCollectionParametersSchema,
+  createPlanningParametersSchema: ({ apiCallIds }) =>
+    createResponseCollectionParametersSchema(apiCallIds),
   parameterReferenceSources: ['response'],
   inputPorts: () => ['main'],
   outputPorts: () => ['main'],

@@ -3,6 +3,7 @@ import type { WorkflowCapability } from '../../types/workflow-plan.js';
 import type { NativePlanningCapabilityMaterial } from '../../types/native-node-planning.js';
 import { nativeMaterialRequirementsSchema } from '../../schemas/native-material-requirements-schema.js';
 import { nativeParameterReferenceSourcesSchema } from '../../schemas/native-parameter-reference-sources-schema.js';
+import { isSchemaProvablyEmpty } from '../../bindings/is-schema-provably-empty.js';
 
 /** Serializable generation contract only; executable implementations remain host supplied. */
 export function createNativePlanningCapabilityMaterial(
@@ -37,10 +38,24 @@ export function createNativePlanningCapabilityMaterial(
       throw new Error(
         `native planning capability ${capability.name}.${field} must be a boolean`,
       );
+  const parametersSchema = z.toJSONSchema(capability.parametersSchema);
+  const parameterSources: NativePlanningCapabilityMaterial['parameterSources'] =
+    ['literal'];
+  if (allowRuntimeParameters && capability.supportsRuntimeParameters === true) {
+    // Whole-object ownership supplies no plan-time values. Do not offer it when
+    // the implementation's reference contract requires literal structure.
+    if (
+      capability.referenceStructureSchema === undefined ||
+      capability.referenceStructureSchema.safeParse({}).success
+    )
+      parameterSources.push('workflow-input');
+    if (allowFieldOwnership) parameterSources.push('workflow-fields');
+  }
   return {
     name: capability.name,
     description: capability.description,
-    parametersSchema: z.toJSONSchema(capability.parametersSchema),
+    parametersSchema,
+    hasProvablyEmptyParameters: isSchemaProvablyEmpty(parametersSchema),
     ...(capability.parameterReferenceSources === undefined
       ? {}
       : {
@@ -59,11 +74,6 @@ export function createNativePlanningCapabilityMaterial(
     ...(capability.materialSources === undefined
       ? {}
       : { materialSources: structuredClone(capability.materialSources) }),
-    parameterSources:
-      allowRuntimeParameters && capability.supportsRuntimeParameters === true
-        ? allowFieldOwnership
-          ? ['literal', 'workflow-input', 'workflow-fields']
-          : ['literal', 'workflow-input']
-        : ['literal'],
+    parameterSources,
   };
 }

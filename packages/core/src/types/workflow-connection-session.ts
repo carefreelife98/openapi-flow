@@ -5,6 +5,8 @@ import type {
   WorkflowConnectionPlanningContext,
 } from './workflow-connection-planning.js';
 import type { WorkflowRequirementFact } from './workflow-clarification.js';
+import type { WorkflowPlanningConstraintInspection } from './workflow-planning-constraints.js';
+import type { WorkflowConnectionMaterialRepairStage } from './workflow-connection-material-repair.js';
 import type {
   ApiOperationContract,
   ApiOperationObject,
@@ -158,6 +160,8 @@ export interface WorkflowConnectionGoalPlanningDescription {
   context: WorkflowConnectionPlanningContext;
   apiOperations: WorkflowConnectionOperationContext[];
   requirements: WorkflowRequirementFact[];
+  constraints: WorkflowPlanningConstraintInspection;
+  materialRepairStages: WorkflowConnectionMaterialRepairStage[];
 }
 export interface WorkflowConnectionOperationContext
   extends

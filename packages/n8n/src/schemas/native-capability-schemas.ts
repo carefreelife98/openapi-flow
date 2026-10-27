@@ -2,27 +2,44 @@ import { z } from 'zod';
 
 // Disjoint source literals retain the same validation contract with anyOf.
 // OpenAI-compatible strict tools reject the oneOf emitted by discriminatedUnion.
+export const nativeResponseOperandSchema = z.strictObject({
+  source: z.literal('response'),
+  nodeId: z
+    .string()
+    .min(1)
+    .describe('API callId whose response is guaranteed to have executed.'),
+  pointer: z
+    .string()
+    .describe(
+      'RFC 6901 pointer into the response body. Empty string means the whole body.',
+    ),
+});
+export const nativeLiteralOperandSchema = z.strictObject({
+  source: z.literal('literal'),
+  value: z
+    .union([z.string(), z.number(), z.boolean(), z.null()])
+    .describe(
+      'An explicitly requested scalar comparison value; no expressions or code.',
+    ),
+});
+export const nativeOutputOperandSchema = z.strictObject({
+  source: z.literal('node-output'),
+  nodeId: z
+    .string()
+    .min(1)
+    .describe(
+      'Exact actual native JSON producer ID, not an API or future role.',
+    ),
+  pointer: z
+    .string()
+    .describe(
+      'RFC 6901 pointer into that declared native output; no coercion or inferred field mapping.',
+    ),
+});
 export const nativeOperandSchema = z.union([
-  z.strictObject({
-    source: z.literal('response'),
-    nodeId: z
-      .string()
-      .min(1)
-      .describe('API callId whose response is guaranteed to have executed.'),
-    pointer: z
-      .string()
-      .describe(
-        'RFC 6901 pointer into the response body. Empty string means the whole body.',
-      ),
-  }),
-  z.strictObject({
-    source: z.literal('literal'),
-    value: z
-      .union([z.string(), z.number(), z.boolean(), z.null()])
-      .describe(
-        'An explicitly requested scalar comparison value; no expressions or code.',
-      ),
-  }),
+  nativeResponseOperandSchema,
+  nativeLiteralOperandSchema,
+  nativeOutputOperandSchema,
 ]);
 
 export const nativeCheckSchema = z.strictObject({

@@ -1,3 +1,5 @@
+import type { ApiOperationContract } from './api-operation.js';
+
 export type ApiResponsePointerType = string | string[];
 
 export interface ApiResponsePointer {
@@ -26,5 +28,15 @@ export interface ApiResponsePointerCatalog {
   responseKey: string;
   mediaType: string;
   declaredPointers: ApiResponsePointer[];
+  dynamicLocations: ApiResponsePointerBoundary[];
+}
+export interface ApiResponsePointerSelectionInput {
+  operation: ApiOperationContract;
+  valueKind: 'array' | 'value';
+}
+
+export interface ApiResponsePointerSelectionDescription {
+  declaredPointers: string[];
+  excludedPointers: string[];
   dynamicLocations: ApiResponsePointerBoundary[];
 }

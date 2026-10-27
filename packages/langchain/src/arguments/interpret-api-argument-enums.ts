@@ -20,6 +20,7 @@ export async function interpretApiArgumentEnums(
     ...context,
     model: input.model,
     includeExplanations: input.includeExplanations,
+    signal: input.signal,
   });
   const resolved = resolveApiArgumentEnumInterpretation({
     ...material,

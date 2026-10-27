@@ -1,4 +1,5 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import type {
   OrchestratedGraphDependencies,
   WorkflowState,
@@ -42,6 +43,7 @@ export function createOrchestratedWorkflowGenerationGraph(
       state.workflow !== undefined ||
       state.reviewPlan !== undefined ||
       state.nativeSelection !== undefined ||
+      state.nativeSelectionPlanning !== undefined ||
       state.nativeDependencies !== undefined ||
       state.nativeConfigurations !== undefined ||
       state.nativePlanningStatus !== undefined ||
@@ -54,14 +56,21 @@ export function createOrchestratedWorkflowGenerationGraph(
   }
   const planNatives = createNativeNodePlanningStage(dependencies);
   const nativeStages = createStagedNativePlanningStages(dependencies);
-  async function prepareCalls(state: WorkflowState): Promise<WorkflowUpdate> {
+  async function prepareCalls(
+    state: WorkflowState,
+    config?: RunnableConfig,
+  ): Promise<WorkflowUpdate> {
     if (!state.nativePlan) throw new Error('API binding requires native plan');
-    return prepareReviewableApiCalls(state, {
-      ...(dependencies.nativePlanning?.mode === 'staged'
-        ? resolveWorkflowNativeDependencies(state, dependencies)
-        : dependencies),
-      preparedNativeNodes: state.nativePlan.nativeNodes,
-    });
+    return prepareReviewableApiCalls(
+      state,
+      {
+        ...(dependencies.nativePlanning?.mode === 'staged'
+          ? resolveWorkflowNativeDependencies(state, dependencies)
+          : dependencies),
+        preparedNativeNodes: state.nativePlan.nativeNodes,
+      },
+      config,
+    );
   }
   async function connectNodes(state: WorkflowState): Promise<WorkflowUpdate> {
     return createWorkflowConnectionPlanningStage(
@@ -80,6 +89,7 @@ export function createOrchestratedWorkflowGenerationGraph(
     )
     .addNode('planNativeNodes', planNatives)
     .addNode('selectNativeInstances', nativeStages.select)
+    .addNode('stopNativeSelectionPlanning', nativeStages.stopSelection)
     .addNode('planNativeDependencies', nativeStages.planDependencies)
     .addNode('scheduleNativeConfiguration', nativeStages.schedule)
     .addNode('generateNativeParameters', nativeStages.generate)
@@ -106,11 +116,21 @@ export function createOrchestratedWorkflowGenerationGraph(
         : 'planNativeNodes',
     )
     .addEdge('planNativeNodes', 'prepareCalls')
-    .addConditionalEdges('selectNativeInstances', () =>
-      dependencies.nativePlanning?.planDependencies === true
-        ? 'planNativeDependencies'
-        : 'scheduleNativeConfiguration',
+    .addConditionalEdges(
+      'selectNativeInstances',
+      (state) =>
+        state.nativePlanningStatus === 'selection-blocked'
+          ? 'stopNativeSelectionPlanning'
+          : dependencies.nativePlanning?.planDependencies === true
+            ? 'planNativeDependencies'
+            : 'scheduleNativeConfiguration',
+      [
+        'stopNativeSelectionPlanning',
+        'planNativeDependencies',
+        'scheduleNativeConfiguration',
+      ],
     )
+    .addEdge('stopNativeSelectionPlanning', END)
     .addEdge('planNativeDependencies', 'scheduleNativeConfiguration')
     .addConditionalEdges(
       'scheduleNativeConfiguration',

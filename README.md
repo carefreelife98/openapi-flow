@@ -1,5 +1,88 @@
 # openapi-flow
 
+## 0.4.0 contracts
+
+The contracts below target 0.4.0. Source, tag, npm and GitHub publication are tracked
+separately in the [release record](docs/releases/0.4.0.md). A library release does
+not imply an applied host upgrade.
+
+This version adds source-bound constraints, revisable planning outlines,
+originating-stage recovery and independent native selection review. Importable
+model functions still make one invocation; the consumer owns loops, checkpoints,
+HITL and streaming. Start/finish intent remains explicit: disconnected nodes are
+not automatically considered placed or complete.
+
+There is a low-level migration: `createNativeParameterGenerationContract` requires
+`planningParametersSchema` separately from the executable capability. Keep the
+implementation validator and supplied model-candidate schema distinct. Model test
+doubles must follow the supplied schema, not a remembered internal JSON shape.
+See [0.4.0 notes](docs/releases/0.4.0-notes.md) for scope and limitations.
+
+The complete original five-scenario quality evaluation and private-host integration
+remain unfinished. Passing a compiler or synthetic engine fixture does not prove
+natural-language workflow quality, business semantics or support for every native node.
+
+0.4.0 source also composes accepted-plan recovery in the optional consumer
+example: preserve the accepted region, execute an explicit originating-stage
+callback, review revised goals when configured, then atomically adopt a Core-checked
+candidate. Source changes replay an ordered Core receipt ledger. Planners still
+make one call; budget/checkpoint/dispatch policy remains with the host, not the
+importable packages. This is not an installed Qoopilot upgrade or a claim of
+actual-model quality. See [accepted-plan recovery](docs/incremental-connection-planning.md#unreleased-recovering-an-already-accepted-partial-plan).
+
+0.4.0 source adds a revisable global connection outline and scoped planning
+bundles. `planWorkflowConnectionOutline` makes one model call; Core owns source-bound
+identities, complete reference coverage, actual producer boundaries and atomic
+bundle writes. Global facts, goals, ports and accepted edges remain visible during
+each step. Grouping is not proof of business correctness or execution order.
+The opt-in consumer example owns scheduling, budgets and checkpoints. Qoopilot's
+installed 0.3.18, UI and deployment are unchanged. See the
+[outline contract](docs/incremental-connection-planning.md#unreleased-global-outline-and-scoped-connection-bundles).
+
+Outline proposal failures also expose exact, request-bound private feedback.
+Importable planners still perform one call; the consumer example owns bounded
+correction, rejection accounting and checkpointed resume. Transport/cancellation
+and changed input are never converted into another outline attempt.
+
+0.4.0 repair-stage choices now use actual OAS input ownership. Core derives
+dependent argument work after binding results; the consumer example can run it
+under the existing explicit model budget and checkpoint the result. This remains
+separate from an installed Qoopilot upgrade and full model-quality evaluation.
+
+0.4.0 development source adds optional cancellation to API argument/enum
+generation and a host-owned, budgeted correction example. Importable OSS planners
+still perform one attempt; checkpointing, retries, review and streaming remain
+consumer responsibilities. The example is not an applied Qoopilot upgrade. See
+[ownership and usage](examples/langgraph-workflow/README.md) and the
+[actual compiled graph](docs/current-conversation-graph.md).
+
+0.4.0 accepted-plan revision functions additionally separate a checked
+goal/connection candidate from an explicit material-stage replanning request.
+Original requirements/OAS/edge permissions stay fixed, while code reports causal
+impact and invalidates affected assessments. See
+[revision ownership and adoption](docs/incremental-connection-planning.md).
+This is not a published Qoopilot upgrade or a completed hierarchical planner.
+
+0.4.0 material-repair inspection also exposes newly missing request slots
+before adoption. Only an explicit host policy can defer those inputs; Core never
+fills them or silently retires an approval. See the
+[pending-input contract](docs/incremental-connection-planning.md).
+
+The 0.4.0 independent initial-goal review compares the full original facts
+with candidate goals and actual material before adoption. Core checks evidence
+references and source-bound receipts; coverage remains fallible model judgment.
+The optional consumer example owns review scheduling and the shared budget, not
+the importable packages. See the [review contract](docs/incremental-connection-planning.md).
+
+Initial rejected goals can also request their actual originating material stage
+before any accepted session exists. The optional consumer example dispatches that
+request under a shared invocation lease and checkpoints the checked replacement.
+Core preserves original contracts and stage ownership. This mechanism does not
+prove natural-language requirement coverage: an actual recovery probe relaxed an
+explicit independence requirement and was recorded as a quality failure, despite
+a structurally complete graph. See the
+[unreleased recovery boundaries](docs/incremental-connection-planning.md).
+
 Version **0.3.18** separates per-call binding source decisions from independent
 runtime inputs. A typed model decision selects the applicable branch; code owns
 its fixed empty fields. Missing independent inputs remain for the argument stage,
@@ -166,6 +249,19 @@ questions/slots, separately from OAS requiredness, and n8n checks their presence
 after actual bindings before HTTP. The canonical host option is
 `trackRequestedApiInputs: true`. See [requested literal inputs](docs/workflow-draft-api-binding-questions.md#값이-미정인-선택-입력의-요청-추적).
 
+0.4.0 tracked argument generation distinguishes `literalInputs.state` values
+`not-provided` and `provided`; an unknown body is not a source-free empty object.
+This changes the tracked model wire format and its exported output type, not the
+final `ApiCallArguments` contract. Custom models/test doubles need the new format;
+there is no legacy-output repair. Host-owned automatic origin-stage replanning remains
+unfinished. This is not included in published 0.3.18; see the same guide for scope.
+
+0.4.0 `createApiArgumentRejection` and `rejectedProposals` support a caller's
+next literal-planning attempt with exact unchanged-source feedback, separate from
+the original scenario. Transport/configuration and enum-stage failures are not
+literal replanning feedback. The library adds no retry loop; hosts own budgets,
+cancellation and private checkpoint storage. See [literal replanning](docs/workflow-draft-api-binding-questions.md#동일-입력의-거절된-값-제안-다시-계획하기-미배포).
+
 [clarification answer revisions](docs/workflow-clarification-answer-revisions.md)
 replace a currently confirmed answer or reopen its original question through code,
 without model-generated state changes. The canonical host preserves transition
@@ -177,6 +273,12 @@ Focus on workflows started by **Manual Trigger** that call OAS-defined outgoing 
 Further webhook/callback implementation is deferred, including inbound authentication/schema checks and callback registration/correlation. Existing inbound extraction and legacy compilation are retained, not removed or expanded. This development priority does not restrict acceptance of standards-valid OAS documents.
 
 ## TODO and roadmap
+
+- [ ] Unreleased source-only failure hardening and representative workflow completion:
+  - [x] Keep source-selection wire schemas bounded while preserving exact local source membership, original values/types, and ordered text-boundary checks.
+  - [x] Remove redundant root/terminal generation from incremental model outputs; derive those boundaries from proposed edges and actual contracts, retaining atomic DAG/reference validation.
+  - [x] Re-evaluate five complete representative scenarios with the real model after network recovery. One scenario compiled in both connection modes; ambiguous example-value interpretation, native planning gaps and request provenance failures remain. A separate replay of unchanged prepared filter materials compiled and passed four isolated-engine conditions. Compilation alone is not a complete business-quality pass.
+  - [ ] Add explicitly contracted dynamic object-map selection, paginated traversal, range-constrained batching and requested comparison/character-count views. Existing array/item support does not imply those features exist; do not omit the requested behavior or fabricate a successful workflow.
 
 - [ ] Unreleased canonical editing: move incident-edge cleanup after explicit node removal into code-owned changes, and obtain explicit valid decisions for affected native joins. The latest short-turn run passed 10/12 turns; planning/runtime contract separation fixes one recorded failure, while branch/Merge removal remains open. See the [bounded evaluation record](docs/short-conversation-evaluation.md).
 

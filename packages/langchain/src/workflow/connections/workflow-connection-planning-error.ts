@@ -5,6 +5,7 @@ import type { WorkflowConnectionPlanningFailure } from '../../types/incremental-
 export class WorkflowConnectionPlanningError extends OpenApiFlowError {
   readonly output: unknown;
   readonly sourceFingerprint: string | undefined;
+  readonly requestFingerprint: string | undefined;
 
   constructor(failure: WorkflowConnectionPlanningFailure, cause: unknown) {
     super({
@@ -19,6 +20,7 @@ export class WorkflowConnectionPlanningError extends OpenApiFlowError {
     });
     this.output = failure.output;
     this.sourceFingerprint = failure.sourceFingerprint;
+    this.requestFingerprint = failure.requestFingerprint;
   }
 }
 

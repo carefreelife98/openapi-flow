@@ -22,6 +22,8 @@ import {
   compileN8nWorkflowTemplate,
   createApiResponseObjectCapability,
   createApiResponseResultsCapability,
+  createNativeOutputProjectionCapability,
+  createNativeValueCollectionCapability,
 } from '@openapi-flow/n8n';
 import {
   operationsFromSpec,
@@ -58,6 +60,8 @@ import {
   describeWorkflowDraftNativeReferenceRepair,
   resolveWorkflowDraftNativeReferenceRepair,
   createResponseValueSchema,
+  createNativeValueSchema,
+  createApiResponsePointerSelectionSchema,
   describeWorkflowDraftNativeNodeAddition,
   resolveWorkflowDraftNativeNodeAddition,
   describeWorkflowDraftConnectionEdit,
@@ -113,6 +117,7 @@ import {
   applyWorkflowConnectionStep,
   describeWorkflowConnectionStep,
   finalizeWorkflowConnectionSession,
+  createWorkflowPlanningCapabilities,
 } from '@openapi-flow/core';
 import {
   selectApiOperations,
@@ -1098,11 +1103,11 @@ test('incremental model contracts preserve each original OAS and explicit input 
       decision: {
         ...patch,
         addRootNodeIds: [],
+        addTerminals: [{ nodeId: 'merge' }],
         addEdges: ids.map((id, index) => ({
           source: { nodeId: id },
           target: { nodeId: 'merge', port: ports[index] },
         })),
-        addTerminals: [{ nodeId: 'merge' }],
       },
     },
   );
@@ -2744,12 +2749,21 @@ test('private OAS native feature registry preserves resolved operations and rest
       registry.registrations.every((entry) => entry.status === 'ready'),
     );
     for (const capability of registry.capabilities) {
+      // Producer identity and pointer admissibility are separate contracts. A body
+      // that is not an array must not become splittable just because its ID exists.
+      const acceptsRoot =
+        capability.name === N8nNativeFeature.SplitApiResponseArray
+          ? createApiResponsePointerSelectionSchema({
+              operation,
+              valueKind: 'array',
+            }).safeParse('').success
+          : true;
       assert.equal(
         capability.parametersSchema.safeParse({
           sourceNodeId: 'actual-call',
           pointer: '',
         }).success,
-        true,
+        acceptsRoot,
       );
       assert.equal(
         capability.parametersSchema.safeParse({
@@ -3053,6 +3067,220 @@ test('private real OAS contracts compile full-response guards for native IF and 
   }
 });
 
+test('original OAS bodies remain native JSON contracts when supplied to IF and assertion planning', async () => {
+  for (const file of files) {
+    const spec = JSON.parse(await readFile(join(directory, file), 'utf8'));
+    const before = JSON.stringify(spec);
+    const catalog = await createApiCatalog([{ id: file, spec }]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const operation = operations.find(
+      (entry) => listApiResponsePointers(entry).length > 0,
+    );
+    assert.ok(operation, 'each original OAS must supply a body contract');
+    const producer = createApiResponseObjectCapability({
+      materials: [{ callId: 'api-source', operation }],
+    });
+    const output = {
+      nodeId: 'original-body',
+      schema: producer.outputSchema({
+        fields: [{ name: 'original', sourceNodeId: 'api-source', pointer: '' }],
+      }),
+    };
+    assert.deepEqual(
+      output.schema.properties.original,
+      createResponseValueSchema(operation, ''),
+    );
+    const check = {
+      left: {
+        source: 'node-output',
+        nodeId: output.nodeId,
+        pointer: '/original',
+      },
+      operator: 'notEquals',
+      right: { source: 'literal', value: null },
+    };
+    for (const options of [{}, { itemMode: 'linked' }]) {
+      const implementations = createN8nNativeCapabilities(options).filter(
+        (entry) => ['if', 'assert-responses'].includes(entry.name),
+      );
+      const planning = createWorkflowPlanningCapabilities({
+        capabilities: implementations,
+        apiCallIds: [],
+        nativeOutputs: [output],
+      });
+      for (const capability of implementations) {
+        const parameters =
+          capability.name === 'if'
+            ? { combinator: 'and', conditions: [check] }
+            : {
+                checks: [
+                  { ...check, message: 'Original body must not be null' },
+                ],
+              };
+        const modelSchema = planning.find(
+          (entry) => entry.name === capability.name,
+        );
+        assert.equal(
+          modelSchema.parametersSchema.safeParse(parameters).success,
+          true,
+        );
+        const fragment = capability.compile({
+          planned: {
+            id: 'check-original',
+            capability: capability.name,
+            parameters,
+          },
+          position: [0, 0],
+          apiNodeNames: {},
+          nativeOutputSources: [{ ...output, nodeName: 'Original body item' }],
+        });
+        assert.equal(fragment.entry.type, 'n8n-nodes-base.code');
+        assert.equal(fragment.bindingSources.length, 1);
+        assert.equal(fragment.bindingSources[0].kind, 'native-json');
+        assert.deepEqual(fragment.bindingSources[0].schema, output.schema);
+        assert.equal(
+          Object.hasOwn(fragment.bindingSources[0], 'operation'),
+          false,
+        );
+      }
+    }
+    assert.equal(JSON.stringify(spec), before);
+  }
+});
+
+test('original OAS response contracts remain unchanged when native values are collected by official Aggregate', async () => {
+  for (const file of files) {
+    const spec = JSON.parse(await readFile(join(directory, file), 'utf8'));
+    const before = JSON.stringify(spec);
+    const catalog = await createApiCatalog([{ id: file, spec }]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const operation = operations.find(
+      (entry) => listApiResponsePointers(entry).length > 0,
+    );
+    assert.ok(operation, `${file} needs an actual response contract`);
+    const response = createApiResponseObjectCapability({
+      materials: [{ callId: 'actual-api', operation }],
+    });
+    const output = {
+      nodeId: 'actual-native-body',
+      nodeName: 'Actual native body',
+      schema: response.outputSchema({
+        fields: [{ name: 'body', sourceNodeId: 'actual-api', pointer: '' }],
+      }),
+    };
+    const capability = createNativeValueCollectionCapability({
+      sources: [output],
+    });
+    const parameters = { sourceNodeId: output.nodeId, pointer: '/body' };
+    assert.equal(
+      capability.parametersSchema.safeParse(parameters).success,
+      true,
+    );
+    assert.deepEqual(capability.nodeOutputReferences(parameters), [
+      { source: 'node-output', nodeId: output.nodeId, pointer: '/body' },
+    ]);
+    const schema = capability.outputSchema(parameters);
+    assert.equal(schema.properties.items.type, 'array');
+    assert.deepEqual(
+      schema.properties.items.items,
+      createNativeValueSchema(output, '/body'),
+    );
+    const fragment = capability.compile({
+      planned: { id: 'collect', capability: capability.name, parameters },
+      position: [0, 0],
+      apiNodeNames: {},
+      nativeOutputSources: [output],
+    });
+    assert.equal(fragment.exit.type, 'n8n-nodes-base.aggregate');
+    assert.deepEqual(fragment.bindingSources[0].schema, output.schema);
+    assert.equal(JSON.stringify(spec), before);
+  }
+});
+
+test('original OAS string and array fields support explicit derived measurements without replacing original bodies', async () => {
+  let checked = 0;
+  for (const file of files) {
+    const spec = JSON.parse(await readFile(join(directory, file), 'utf8'));
+    const before = JSON.stringify(spec);
+    const catalog = await createApiCatalog([{ id: file, spec }]);
+    const operations = await resolveApiOperations(
+      catalog,
+      catalog.operations.map((entry) => entry.key),
+    );
+    const visited = new Set();
+    for (const operation of operations) {
+      for (const pointer of listApiResponsePointers(operation).flatMap(
+        (entry) => entry.declaredPointers,
+      )) {
+        const declared = Array.isArray(pointer.type)
+          ? pointer.type
+          : [pointer.type];
+        const kind = ['string', 'array'].find(
+          (type) => declared.includes(type) && !visited.has(type),
+        );
+        if (kind === undefined) continue;
+        const body = createApiResponseObjectCapability({
+          materials: [{ callId: 'api', operation }],
+        });
+        const output = {
+          nodeId: 'original-body',
+          nodeName: 'Original body',
+          schema: body.outputSchema({
+            fields: [{ name: 'body', sourceNodeId: 'api', pointer: '' }],
+          }),
+        };
+        const capability = createNativeOutputProjectionCapability({
+          sources: [output],
+        });
+        const parameters = {
+          sourceNodeId: output.nodeId,
+          fields: [
+            { name: 'original', pointer: '/body' },
+            {
+              name: 'count',
+              pointer: '/body' + pointer.pointer,
+              measurement:
+                kind === 'string' ? 'utf16-code-units' : 'array-items',
+            },
+          ],
+        };
+        const schema = capability.outputSchema(parameters);
+        assert.deepEqual(schema.properties.count, {
+          type: 'integer',
+          minimum: 0,
+        });
+        assert.notDeepEqual(
+          schema.properties.original,
+          schema.properties.count,
+        );
+        const fragment = capability.compile({
+          planned: { id: 'measure', capability: capability.name, parameters },
+          position: [0, 0],
+          apiNodeNames: {},
+          nativeOutputSources: [output],
+        });
+        assert.equal(fragment.exit.type, 'n8n-nodes-base.set');
+        assert.deepEqual(fragment.bindingSources[0].schema, output.schema);
+        visited.add(kind);
+        checked++;
+      }
+      if (visited.size === 2) break;
+    }
+    assert.ok(
+      visited.size > 0,
+      `${file} must supply a declared string or array alternative`,
+    );
+    assert.equal(JSON.stringify(spec), before);
+  }
+  assert.ok(checked >= files.length);
+});
+
 test('private real OAS contracts compile two distinct call instances of the same operation into item-join readers', async () => {
   let count = 0;
   for (const file of files) {
@@ -3184,11 +3412,21 @@ test('original multi-service OAS response types form named output fields without
     const bodyless = createApiResponseObjectCapability({
       materials: [{ callId: 'bodyless', operation }],
     });
+    const parameters = {
+      fields: [{ name: 'body', sourceNodeId: 'bodyless', pointer: '' }],
+    };
+    assert.equal(
+      bodyless.parametersSchema.safeParse(parameters).success,
+      false,
+    );
     assert.throws(
-      () =>
-        bodyless.outputSchema({
-          fields: [{ name: 'body', sourceNodeId: 'bodyless', pointer: '' }],
-        }),
+      () => bodyless.outputSchema(parameters),
+      (error) =>
+        error instanceof z.ZodError &&
+        error.issues.some((issue) => issue.path[0] === 'fields'),
+    );
+    assert.throws(
+      () => createResponseValueSchema(operation, ''),
       /no declared response value/,
     );
   }
@@ -3338,7 +3576,8 @@ test('private real OAS arrays derive item contracts and compile singleton and li
                 apiNodeNames: { source: 'Request source' },
               });
               assert.equal(fragment.exit.type, 'n8n-nodes-base.splitOut');
-              assert.equal(fragment.bindingSources[0].operation, operation);
+              assert.deepEqual(fragment.bindingSources[0].operation, operation);
+              assert.notEqual(fragment.bindingSources[0].operation, operation);
               assert.equal(
                 fragment.entry.config.parameters.jsCode.includes(
                   'itemMatching(inputIndex)',

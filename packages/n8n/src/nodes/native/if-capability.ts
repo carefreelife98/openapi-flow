@@ -7,10 +7,13 @@ import { ifParametersSchema } from '../../schemas/native-capability-schemas.js';
 import { createIfPlanningParametersSchema } from '../../schemas/create-native-comparison-planning-schema.js';
 import { createNativeFragment } from './common/create-native-fragment.js';
 import { responseReferences } from './common/response-references.js';
-import { responseReferenceBindings } from './common/response-reference-bindings.js';
-import { conditionExpression } from './response-check-code.js';
-import { createResponseCheckReader } from './response-checks/create-response-check-reader.js';
-import { createResponseCheckGuard } from './response-checks/create-response-check-guard.js';
+import {
+  comparisonReferenceBindings,
+  comparisonNodeOutputReferences,
+} from './common/comparison-value-references.js';
+import { createComparisonConditionExpression } from './comparisons/create-comparison-evaluation-code.js';
+import { createComparisonInputReader } from './comparisons/create-comparison-input-reader.js';
+import { createComparisonInputGuard } from './comparisons/create-comparison-input-guard.js';
 
 export function createIfCapability(
   input: NativeItemExecutionOptions = {},
@@ -18,16 +21,20 @@ export function createIfCapability(
   return {
     name: 'if',
     description:
-      'n8n IF: main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions.',
+      'n8n IF: compare supplied API responses or actual native JSON outputs without conversion. main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions.',
     parametersSchema: ifParametersSchema,
-    parameterReferenceSources: ['response'],
+    parameterReferenceSources: ['response', 'node-output'],
     createPlanningParametersSchema: createIfPlanningParametersSchema,
     inputPorts: () => ['main'],
     outputPorts: () => ['true', 'false'],
     responseReferences: (parameters) =>
       responseReferences(ifParametersSchema.parse(parameters).conditions),
+    nodeOutputReferences: (parameters) =>
+      comparisonNodeOutputReferences(
+        ifParametersSchema.parse(parameters).conditions,
+      ),
     parameterReferenceBindings: (parameters) =>
-      responseReferenceBindings(
+      comparisonReferenceBindings(
         ifParametersSchema.parse(parameters).conditions,
         '/conditions',
       ),
@@ -38,15 +45,17 @@ export function createIfCapability(
       apiNodeNames,
       apiResponseContracts,
       singletonApiResponseIds,
+      nativeOutputSources,
       position,
     }) => {
       const parameters = ifParametersSchema.parse(planned.parameters);
-      const reader = createResponseCheckReader({
+      const reader = createComparisonInputReader({
         nodeId: planned.id,
         checks: parameters.conditions,
         apiNodeNames,
         apiResponseContracts,
         singletonApiResponseIds,
+        nativeOutputSources,
         linked: input.itemMode === 'linked',
       });
       const fragment = createNativeFragment(
@@ -67,9 +76,9 @@ export function createIfCapability(
                 },
                 conditions: parameters.conditions.map((check, index) => ({
                   id: `${planned.id}-${index}`,
-                  leftValue: conditionExpression(
+                  leftValue: createComparisonConditionExpression(
                     check,
-                    apiNodeNames,
+                    reader.bindingSources,
                     input.itemMode === 'linked',
                     singletonApiResponseIds,
                   ),
@@ -87,7 +96,7 @@ export function createIfCapability(
       );
       const partition = { ...fragment, partitionsInputItems: true };
       if (!reader.bindingSources.length) return partition;
-      const guard = createResponseCheckGuard({
+      const guard = createComparisonInputGuard({
         nodeId: planned.id,
         readerCode: reader.code,
         linked: input.itemMode === 'linked',

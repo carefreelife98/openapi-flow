@@ -15,7 +15,7 @@ import type {
   IncrementalConnectionDependencies,
   IncrementalConnectionState,
   IncrementalConnectionUpdate,
-  IncrementalNativeStageRuntime,
+  IncrementalConnectionStageRuntime,
 } from '../../../types/incremental-connections.js';
 import { createIncrementalConnectionSignal } from '../check-incremental-connection-budget.js';
 import { resolveIncrementalConnectionSource } from '../resolve-incremental-connection-source.js';
@@ -23,7 +23,7 @@ import { createIncrementalNativeInput } from './create-incremental-native-input.
 
 export function createIncrementalNativeStages(
   dependencies: IncrementalConnectionDependencies,
-  runtime: IncrementalNativeStageRuntime,
+  runtime: IncrementalConnectionStageRuntime,
 ) {
   function prepareNative(
     state: IncrementalConnectionState,
@@ -215,6 +215,19 @@ export function createIncrementalNativeStages(
     });
     return {
       session: extension.session,
+      ...(dependencies.revisionPlanning === undefined
+        ? {}
+        : {
+            sourceEvents: [
+              ...state.sourceEvents!,
+              {
+                kind: 'native-extension' as const,
+                beforeSession: state.session,
+                additionalNativeNodes: [result.node],
+                extension,
+              },
+            ],
+          }),
       additionalNativeNodes: [...state.additionalNativeNodes, result.node],
       materialExtensions: [
         ...state.materialExtensions,
@@ -234,7 +247,11 @@ export function createIncrementalNativeStages(
       nativeConfiguration: undefined,
       pending: undefined,
       status: 'planning',
-      nextModelStage: 'step',
+      nextModelStage:
+        dependencies.outlinePlanning === undefined ? 'step' : 'outline',
+      ...(dependencies.outlinePlanning === undefined
+        ? {}
+        : { outline: undefined, pendingBundleId: undefined }),
     };
   }
   return {

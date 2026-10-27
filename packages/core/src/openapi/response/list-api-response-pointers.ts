@@ -3,7 +3,7 @@ import type { BindingSchema } from '../../types/api-bindings.js';
 import type { ApiResponsePointerCatalog } from '../../types/api-response-pointers.js';
 import { isObject } from '../../utils/is-object.js';
 import { normalizeOasValueSchema } from '../common/normalize-oas-value-schema.js';
-import { listDeclaredSchemaPointers } from './list-declared-schema-pointers.js';
+import { listDeclaredSchemaPointers } from '../../bindings/list-declared-schema-pointers.js';
 
 /** Describe finite schema declarations, not guaranteed runtime fields or a whitelist. */
 export function listApiResponsePointers(

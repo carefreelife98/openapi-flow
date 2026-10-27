@@ -1,5 +1,270 @@
 # LangGraph 워크플로 생성 예제
 
+## 후속 API 요청값의 개별 저장 (미배포)
+
+`materialRecovery.argumentPlanning: { model, observe?, selectDeferredApiInputIds? }`를
+명시하면 Core가 실제 바인딩 수정에서 도출한 후속 요청값 작업을 API별로 실행합니다.
+이 모드의 `replan` callback은 바인딩 수정 결과만 반환하며 값까지 생성한
+`dependent-api-arguments` 제출을 함께 사용하면 오류로 종료합니다.
+
+`generateMaterialArguments`가 한 API의 값을 생성해 저장한 뒤
+`publishMaterialArguments`가 API ID·완료 수·전체 수·공유 호출 수만 알립니다.
+알림 실패 후 재개할 때 완료한 API와 원인 callback을 다시 호출하지 않습니다.
+다음 API의 전송 오류가 나도 이전 결과는 보존하지만 자동 재시도하지는 않습니다.
+모든 결과를 모은 후 Core가 원본·바인딩·타입·변경 범위를 검사해 적용합니다.
+이미 수용한 계획의 수정도 같은 경로를 쓰며 검사 전에는 기존 수용본을 유지합니다.
+
+`selectDeferredApiInputIds(inspection, proposedDeferredApiInputIds)`는 실제 생성 결과의
+입력 슬롯과 기존 제안 목록을 받아 최종 승인할 전체 ID를 반환하는 명시적 호스트
+정책입니다. 검사 대상 값과 이전 승인을 분리하며 값을 삭제하거나 임의로 채우지
+않습니다. 정책을 생략하면 기존 승인을 유지하므로 오래된 승인·미승인은 Core가
+거절합니다. callback 안에 남겨 둔 임의의 여러 호출은 이 옵션으로 자동 분리되지 않습니다.
+
+```sh
+node integration/initial-material-recovery-local-n8n.mjs --with-goal-review --with-deferred-api-input --with-argument-work --checkpoint-argument-work
+```
+
+모델 대역·고정 합성 5API의 저장/재개·SDK·격리 엔진 검사입니다. 실제 Chomsky 품질과
+원문 다섯 예제의 전체 생성 비교, Qoopilot 서버·SSE·화면 적용은 별도 작업입니다.
+
+## 수용한 부분 계획의 자동 수정 (미배포)
+
+`revisionPlanning: { model, observe? }`를 명시하면 연결 제안이 검사에서 거절됐을 때
+목표·바인딩·연결을 함께 재검토합니다. OSS의 한 번 호출 함수가 목표/연결 수정
+후보 또는 실제 원인 단계 요청을 반환하며, 예제는 공유 예산·저장·재개를 소유합니다.
+원인 단계 요청은 기존 `materialRecovery.replan`으로 실행합니다. 요청한 실행기가
+없으면 설정 이름을 명시한 오류로 종료하며 기술적 작업을 사용자에게 맡기지 않습니다.
+
+실제 바인딩·값·native 결과는 수정 후보로 저장합니다. 기존 수용본은 Core의 전체
+변경 검사와 설정한 목표 검토가 끝날 때까지 유지하며 임의 값 보정이나 단일 모드
+전환은 하지 않습니다. `initialGoalReview`를 함께 설정하면 같은 명시적 검토 모델이
+수정 목표도 채택 전에 검사합니다. 거절된 원본 후보·원문 근거를 다음 호출에 전달하고
+똑같은 후보의 검토를 반복하지 않습니다. 모델의 검토는 업무 의미를 증명하지 않습니다.
+
+새 `reviseAcceptedPlan`·`reviewRevisedGoals`·`adoptRevision`·`publishRevision` 노드가
+각 결과를 저장합니다. 알림 실패 뒤 모델이나 원인 callback을 반복하지 않고 재개합니다.
+`sourceEvents`에는 최초 복구·native 추가·수용한 수정의 Core 이력을 실제 순서로
+기록하며, `resolveIncrementalConnectionSource`가 원래 런타임 자료에서 재생·검사합니다.
+원본 OAS·요구·실제 값·보호 연결 정책을 바꾸거나 오래된 세션으로 조용히 돌아가지 않습니다.
+이 모드의 저장본에는 해당 이력이 필수이며 자동 변환하지 않습니다.
+
+```sh
+node integration/accepted-revision-local-n8n.mjs --with-goal-review
+```
+
+고정 합성 5API와 모델 대역의 검사입니다. 실제 모델 품질이나 원문 다섯 예제 전체
+생성·Qoopilot 서버/화면 적용을 대신하지 않습니다. 후속 값 호출의 개별 저장은
+위의 명시적 `argumentPlanning` 옵션으로 분리하며 실제 제품 통합·평가는 남아 있습니다.
+
+## 전역 업무 개요와 연결 작업 묶음 (미배포)
+
+`outlinePlanning: { model, selectBundle, observe? }`를 명시하면 확정 목표 뒤에
+전역 업무 개요를 한 번 계획합니다. OSS 모델 함수가 실제 노드·목표·원문 요구의
+ID로 작업 묶음을 제안하고 Core가 원본·참조·전체 포함 여부·구조 ID를 검사합니다.
+각 연결 단계도 전체 목표·계약·기존 연결을 계속 받으며 선택된 묶음 주변만 수정합니다.
+참조를 모두 포함했다는 검사로 업무 의미의 충족까지 증명한 것은 아닙니다.
+
+`selectBundle`은 Core가 계산한 진행 상태와 거절 근거를 받는 필수 호스트 함수입니다.
+기본 선택기를 숨겨 넣지 않습니다. 묶음의 배열 순서나 계획 호출 순서를 n8n 실행
+순서로 바꾸지 않으며 실제 연결과 데이터 참조가 실행 순서를 결정합니다.
+분기·합류 경계의 노드는 여러 묶음에 포함할 수 있습니다.
+
+예제의 `planOutline`·`publishOutline`이 공유 호출 예산과 결과 저장을 관리합니다.
+결과 알림이 실패하면 저장한 개요에서 알림만 재개하며 모델을 다시 호출하지 않습니다.
+native가 추가되면 기존 연결 이력은 유지하고 새 원본에 맞는 개요를 다시 계획합니다.
+기술적 오류를 API별 사용자 검토로 바꾸지 않습니다. 개요의 형식·참조·포함 검사가
+거절되면 원본 출력과 사유를 저장하고 공유 예산 안에서 개요를 다시 제안합니다.
+전송·취소·입력 변경은 재계획하지 않습니다. 모든 원인 단계 수정 경로의 통합은
+아직 남아 있습니다. 개요 사용 checkpoint에는 거절 이력이 명시적으로 있어야 하며
+이 필드가 없던 로컬 저장본을 자동 변환하지 않습니다.
+
+```sh
+node integration/initial-material-recovery-local-n8n.mjs --with-goal-review --with-deferred-api-input --with-argument-work --with-outline
+```
+
+같은 명령에 `--reject-outline`을 추가하면 목표를 빠뜨린 개요의 거절·재계획까지
+검사합니다. 거절 이력과 모델 호출 예약 수를 보존한 채 SDK·격리 엔진으로 이어집니다.
+
+이 검사는 모델 대역과 고정 합성 5API를 사용합니다. 실제 Chomsky의 품질 평가나
+원문 다섯 예제 전체 비교, Qoopilot의 실제 SSE·화면 통합 결과가 아닙니다.
+공개 0.3.18 설치본은 유지하며 이 기능을 사용하려면 별도 릴리스와 제품 통합이 필요합니다.
+
+## 원인 단계 선택과 후속 요청값 작업 (미배포)
+
+OSS가 실제 OAS 입력 소유권으로 API별 원인 단계 후보를 도출합니다. 입력이 없는
+API에는 바인딩 수정, 모든 입력이 바인딩된 API에는 독립 값 생성을 요청하지
+못하도록 모델 출력 스키마와 Core 검사를 함께 적용합니다. API 선택이나 OAS 수용
+범위를 제한하는 기능이 아닙니다. native 단계의 필요성까지 판정한 것은 아닙니다.
+
+실제 바인딩 결과에서 리터럴 입력이 새로 생기면
+`describeWorkflowConnectionMaterialRepairWork`가 기존 원문·역할·OAS·새 바인딩을
+사용한 요청값 작업을 반환합니다. 생산자만 바꾸거나 선언 순서만 바꾸면 같은 값
+생성 작업을 추가하지 않습니다. 모델이 후속 스키마나 작업을 미리 만들어내지 않습니다.
+
+호스트는 `materialRecovery.replan` 안에서 이 작업의 `generateApiArguments`를
+예약된 model과 signal로 호출하고 기존 입력 정책을 적용합니다. 그 후
+`kind: 'dependent-api-arguments'`와 `work`, `pendingReplacement`, `replacement`를
+반환할 수 있습니다. Core가 작업을 원본에서 다시 도출하고, 값 단계가 바인딩·media
+type·native·배정되지 않은 API를 바꾸지 않았는지 검사합니다. receipt에는 최초
+요청과 실제 바인딩 결과도 남습니다. 일반 replacement 반환 경로는 그대로 유지합니다.
+
+결과를 저장한 뒤 알림만 재개하는 검증과 아래 고정 5API 검증을 제공합니다.
+이 callback 내부의 여러 요청값 호출은 한 노드 안에서 실행됩니다. API별 저장이
+필요하면 위의 `argumentPlanning` 옵션을 사용하며 Qoopilot의 실제 조합·화면 적용과
+구분합니다.
+
+```sh
+node integration/initial-material-recovery-local-n8n.mjs --with-goal-review --with-deferred-api-input --with-argument-work
+```
+
+명시된 테스트 호스트의 실행 입력 정책과 모델 대역을 사용하는 검사입니다.
+실제 Chomsky나 원문 다섯 시나리오 전체 품질 평가를 대신하지 않습니다.
+계획 작업의 배열 순서를 n8n 실행 엣지나 API 호출 순서로 사용하지 않습니다.
+
+## 초기 목표·재료의 독립 검토 (미배포)
+
+`createIncrementalWorkflowConnectionGraph`에 `initialGoalReview: { model }`을
+명시하면, 초기 목표 후보를 채택하기 전에 별도의 모델 호출이 원문 전체·목표·실제
+매핑을 비교합니다. 사용자 승인이나 API별 HITL이 아닙니다. 한 요구 ID에 여러
+조건이 담긴 경우도 원문을 그대로 전달하며, 모델은 요구별 누락·모순·불확실성을
+보고합니다. 코드가 모든 요구의 검토 여부·원문 인용·실제 목표/정책 ID·결과의 출처를
+검사하고 모든 항목이 `covered`일 때만 해당 후보를 채택합니다.
+
+초기 검토 입력에는 아직 만들지 않은 실행 그래프를 넣지 않습니다. 필요한 순서와
+분기·합류가 목표에 표현됐는지, 데이터 매핑과 모순되지 않는지를 검토합니다.
+기존 보호 연결의 유지처럼 코드가 강제하는 조건은 별도 정책 근거로 전달합니다.
+비어 있는 실행 엣지를 업무 누락으로 판단해 목표만 반복 생성하지 않도록 단계의
+입력 타입과 전달 데이터를 분리했습니다.
+
+원문 의미의 충족 여부는 모델 판단입니다. 코드가 자연어를 완벽하게 증명하거나
+고정된 규칙으로 누락 조건을 복구하는 기능은 아닙니다. 원래 요구는 바꾸지 않으며
+거절된 후보와 검토 근거를 private checkpoint에 남깁니다. `materialRecovery`를 함께
+사용하면 원인 단계의 실제 재계획으로 돌아갈 수 있고, 사용하지 않으면 같은 원문과
+검토 근거로 목표를 다시 제안합니다. 호출·거절·시간 예산은 모두 기존 실행과 공유합니다.
+전송 실패·취소·잘못된 검토 출력은 업무 질문으로 바꾸지 않습니다.
+
+검토용 model은 소비자가 명시합니다. 함수를 OSS 안에서 숨겨 반복 호출하거나
+Chomsky를 패키지 정체성으로 넣지 않습니다. 이 옵션은 초기 목표·재료 검토이며
+나중의 모든 수정·최종 그래프 의미 검토와 같지 않습니다. Qoopilot 공개 설치본에는
+미적용입니다. [상세 계약](../../docs/incremental-connection-planning.md)을 참고하세요.
+
+## 최초 목표·재료 충돌의 원인 단계 복귀 (미배포)
+
+수용된 세션이 생기기 전에도 목표와 바인딩이 충돌할 수 있습니다. 선택적
+`materialRecovery`를 제공하면 이 예제가 OSS의 `planWorkflowConnectionGoalRecovery`를
+호출해 목표 수정 또는 원인 단계의 재계획 요청을 받습니다. 목표만 반복 수정하거나
+기술적 오류를 사용자 업무 질문으로 바꾸지 않습니다.
+
+호출자는 `materialRecovery.replan`에서 요청한 공개 API/native 계획 함수를
+실행하고 실제 결과를 반환합니다. `modelInvocations`에는 해당 callback에 예약할
+구조화 출력 호출 수를 명시합니다. 0은 모델 호출 없는 작업만 허용하며 양수의
+미사용 예약분은 반환하지 않습니다. 공유 모델·거절·시간 예산과 checkpoint는
+소비자 예제가 관리하고, 변경 대상·필드 소유권·OAS·원본 불변·저장 결과 재검사는
+OSS `core`가 검사합니다. 모델은 새 결과를 제안할 뿐 값을 자동 보정하지 않습니다.
+
+바인딩을 없애면 이전 응답에서 받던 필수 입력이 새로 미정이 될 수 있습니다.
+callback은 실제 재계획 결과를 `inspectWorkflowConnectionMaterialRepairInputs`에
+전달해 현재 슬롯·유지할 승인·사라진 승인·미승인 슬롯을 조회할 수 있습니다.
+이 조회는 후보 채택이나 검증 완료가 아닙니다. 기존 사용자 입력 정책에 따라 필요한
+요청값 단계를 호출하거나, 실제 값이 없으면 질문 또는 실행 입력 슬롯으로 처리합니다.
+실행 입력을 허용한 호스트만 결과의 `deferredApiInputIds`에 현재 승인할 전체 ID를
+명시합니다. 생략하면 기존 목록을 유지하며 새 슬롯을 자동 승인하지 않습니다.
+다른 API의 승인을 지우거나 사라진 ID를 유지하면 오류입니다. 원본 값은 채우지 않습니다.
+
+`node integration/initial-material-recovery-local-n8n.mjs --with-goal-review --with-deferred-api-input`는
+실행 입력을 허용한 고정 테스트 호스트의 예시입니다. 공개 템플릿 컴파일러로 값을
+지정하고 원본 응답·상세 응답·독립 입력의 ID를 다르게 해 격리 n8n 두 실행을
+검사합니다. 실제 모델 품질이나 Qoopilot 적용 검사는 아닙니다.
+
+전달된 model은 `withStructuredOutput(...).invoke(...)` 경로에서 예약량과 취소·마감
+신호를 적용합니다. 별도 client를 사용하는 임의 호스트 코드까지 가두는 sandbox는
+아닙니다. callback은 모든 호출을 await해야 합니다. 실행 옵션은 factory 생성 때
+복사하며 모델·함수·signal은 상태에 저장하지 않습니다. callback 결과를 먼저 저장한
+뒤 알림이 실패하면 같은 checkpoint에서 알림만 재개합니다.
+
+이것은 공식 사용 예시이며 Qoopilot 적용은 아닙니다. Qoopilot은 공개 0.3.18을
+유지합니다. 네 가지 원인 단계의 공통 요청 계약과 각 제품의 실제 dispatcher 구현도
+구분해야 합니다. [입력·결과와 예산의 상세 계약](../../docs/incremental-connection-planning.md)을
+참고하세요. 아래 수용된 세션의 수정 함수는 별도 경로입니다.
+
+미배포 `planWorkflowConnectionRevision`은 수용된 목표·연결을 새 후보로 수정하거나
+원래 API/native 계획 단계의 재계획을 요청하는 독립 OSS 함수입니다. 코드가 전후
+계약·변경 영향·평가 무효화를 검사하며 소비자는 반환된 `sourceUpdate`와 세션을
+함께 채택해야 합니다. 기존 자동 연결 factory가 이 함수를 스스로 호출하는 상태는
+아닙니다. 원인 단계 라우팅·공유 예산·작업 묶음 개요와 Qoopilot 적용은 남아 있습니다.
+[계약과 적용 경계](../../docs/incremental-connection-planning.md)를 참고하세요.
+
+미배포 `createWorkflowConnectionRevisionRejection`은 수정 제안의 원본 JSON과 코드의
+거절 근거를 같은 원본·세션에만 전달합니다. 전송·취소·입력 변경은 재계획 대상으로
+바꾸지 않습니다. 이 함수가 자동 반복을 추가하지는 않습니다. 수정 후보의 연결은
+정상이어도 새 업무 의미 목표의 평가가 남을 수 있으며, 이때 기존
+`createIncrementalWorkflowConnectionGraph`에 후보 세션과 누적 호출·시작 시각·
+거절 이력을 명시해 이어갈 수 있습니다. 예산을 초기화하거나 미평가 목표를 자동
+승인하지 않습니다. 해당 조합의 회귀·실제 모델/격리 엔진 검증은 Qoopilot 적용과
+구분합니다.
+
+## 요청값 자동 재계획과 책임 경계 (미배포)
+
+`createApiArgumentPlanningGraph`는 한 API 역할의 리터럴 제안이 OAS 검사에서
+거절됐을 때만 같은 원문·계약·역할로 다시 계획하는 선택적 호스트 조합입니다.
+실행 구현은 `examples/`에 있으며 importable `core`·`langchain`·`n8n` 패키지에
+숨은 반복을 넣지 않습니다. Qoopilot의 공개 설치 0.3.18에는 아직 적용하지 않았습니다.
+
+| 소유자                            | 담당 내용                                                    | 담당하지 않는 내용                            |
+| --------------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| OSS `core`                        | 원본 OAS·값·참조·필수 입력 검사                              | 호출 반복·서버 세션·화면                      |
+| OSS `langchain`                   | 한 번의 생성·검증, 같은 입력의 거절 근거 계약, `signal` 전달 | 예산 결정·사용자 interrupt·HTTP 자동 재시도   |
+| 이 예제 또는 Qoopilot 같은 소비자 | 호출 순서·예산·checkpoint·진행 알림·사용자 검토              | 값 보정·OAS 계약 복제·오류 문구로 재시도 판단 |
+
+기존 scenario 기반 생성 factory에는 다음과 같이 명시합니다. 옵션을 생략하면
+기존 한 번 호출을 유지합니다. `confirmed-only` 대화 경로는 이 옵션으로 값을
+새로 생성하지 않습니다.
+
+```ts
+const graph = createReviewableWorkflowGenerationGraph({
+  model,
+  capabilities,
+  argumentPlanning: {
+    policy: {
+      maxAttempts: 3,
+      maxRejectedProposals: 2,
+      deadlineMs: 60_000,
+    },
+    checkpointer: new MemorySaver(),
+    observe: async (progress, signal) => {
+      signal.throwIfAborted();
+      // Send only progress.callId, phase, attempts and rejectedProposals.
+    },
+  },
+});
+const result = await graph.invoke(input, {
+  configurable: { thread_id: 'host-owned-thread' },
+  signal: controller.signal,
+});
+```
+
+숫자는 호출자가 정한 사용 예시이며 기본값이나 OAS·API 개수 제한이 아닙니다.
+`maxAttempts`는 `generateApiArguments`의 예약 시도 수입니다. 선택적 enum 해석이나
+provider·호스트의 HTTP 재시도 수와 같지 않습니다. 거절 횟수와 시작 이후 경과
+시간도 별도로 검사합니다. 같은 checkpoint를 재개해도 예산을 초기화하지 않습니다.
+모델과 진행 콜백에 같은 취소·마감 신호를 전달하며 콜백도 이를 준수해야 합니다.
+
+원문·OAS·역할·바인딩·확정 입력·옵션·정책이 바뀌면 옛 결과 재사용을 거절합니다.
+거절 제안은 별도 피드백일 뿐 값의 새 출처가 아닙니다. 사용자 값이 미정인 정상
+결과는 반복하지 않고 부모의 입력 확인 경로로 반환합니다. 실제 빈 값도 보존합니다.
+전송·인증·설정·timeout·enum 단계 오류는 이 리터럴 루프에서 재계획하지 않습니다.
+실패 참조를 저장하고 원본 예외로 종료하므로 같은 실패 checkpoint의 재개가 모델을
+몰래 다시 호출하지 않습니다. 원본 예외가 런타임에서 사라지면 그 부재를 명시합니다.
+
+완료 결과 저장 뒤 진행 콜백이 실패하면 `publishOutcome`만 재개하고 모델을 반복하지
+않습니다. checkpointer를 쓰려면 `configurable.thread_id`가 필요합니다. 상태에는
+JSON 계약·결과·거절 제안·수만 저장하고 모델·콜백·signal은 넣지 않습니다.
+이 예시는 메모리 저장이며 프로세스 재시작 복구나 제공자 호출의 exactly-once를
+보장하지 않습니다. 원본 값·피드백은 비공개 상태이므로 공개 SSE로 내보내지 않습니다.
+
+일반화 fixture·공식 ChatOpenAI 전송·실제 예제 준비 진입점의 회귀로 검사합니다.
+이 검사는 실제 Chomsky·다섯 원문 시나리오·브라우저·n8n 실행 품질을 대체하지 않습니다.
+
 미배포 개발 소스의 `createIncrementalWorkflowConnectionGraph`는 확정 요구에서
 연결 목표를 한 번 해석하고, 다음 연결 묶음을 자동으로 제안·검사·적용하는 별도
 자식 그래프입니다. API별 사용자 승인은 요구하지 않습니다. 호출·거절·시간 예산은
@@ -58,6 +323,36 @@ Core 최종 조립도 같은 참조를 검사한다. 선택한 생산자가 아�
 소비자를 보류하며 무관한 출력으로 대체하지 않는다. 이 옵션은 새 노드 추가에
 적용하며 기존 노드의 설정 수정·참조 수선은 별도 API를 유지한다.
 [사용법과 검증 경계](../../docs/workflow-draft-conversation-host.md#optional-producer-choices-for-new-native-roles)를 참고한다.
+
+### 선택적 native 결손 검토·재선택 (미배포)
+
+`createNativeSelectionPlanningGraph`는 선택과 결손 검토를 별도 checkpoint로 저장하는
+독립 예제다. 모델이 설정 작업을 미지원 기능으로 오인한 경우 원래 검토와 시도 이력으로
+새 선택을 요청할 수 있다. 호출·재선택·시간 예산을 소비자가 명시해야 하며, 통신 실패는
+재선택 사유로 바꾸지 않는다. 반복된 제안은 원래 검토를 재사용하고 모든 시도를 남긴다.
+
+아래 단계별 생성 factory의 `nativePlanning.selectionReview`에
+`{ policy: { maxModelInvocations, maxReselections, deadlineMs }, observe? }`를 제공하면
+이 자식을 사용한다. 옵션이 없으면 기존 한 번 선택을 유지한다. 부모 MemorySaver가
+자식 checkpoint를 소유하며, 성공 시 `nativeSelectionPlanning`에 상태·집계·검토 receipt가
+남는다. 실제 미지원·업무 판단은 원본 선택·검토를 가진 `NativeSelectionPlanningStoppedError`로
+중단한다. 업무 질문 화면으로의 라우팅은 별도 제품 작업이다.
+
+통신·observer 실패 후 같은 런타임의 checkpoint를 재개해도 모델을 반복하지 않는다.
+원본 예외는 checkpoint나 진행 이벤트에 넣지 않으며, 그래프 런타임이 사라지면 원본 오류
+부재로 실패한다. 세션을 끝낸 호스트는 그래프 런타임도 해제해야 한다. 공개 진행 요약은
+단계·호출 집계·결손 수·검토 상태만 담고 원문·OAS·설정값은 보내지 않는다.
+
+모델 대역·두 부모·실제 격리 n8n 실행은 다음 명령으로 확인한다.
+
+```sh
+npm run build
+node integration/native-selection-planning-local-n8n.mjs
+```
+
+이는 공식 Edit Fields의 boolean 보존과 업무 판단 중단을 검사하는 합성 회귀다.
+실제 모델 품질·원문 다섯 예제·Qoopilot 화면의 검증을 대신하지 않는다.
+[상세 계약](../../docs/native-feature-planning.md)을 참고한다.
 
 ### 기존 생성 factory의 단계별 native 계획
 

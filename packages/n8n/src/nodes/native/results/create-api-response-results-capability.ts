@@ -36,6 +36,7 @@ export function createApiResponseResultsCapability(
   return defineMaterialBoundCapability({
     ...apiResponseResultsDefinition,
     parametersSchema,
+    createPlanningParametersSchema: () => parametersSchema,
     materialSources: { apiMaterials: supplied, nativeOutputs: [] },
     bindMaterialContracts: (sources) =>
       createApiResponseResultsCapability({ materials: sources.apiMaterials }),

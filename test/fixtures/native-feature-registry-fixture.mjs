@@ -66,6 +66,25 @@ const literalCheck = {
 };
 
 export const nativeFeatureParameters = {
+  [N8nNativeFeature.CollectNativeOutputValues]: {
+    sourceNodeId: 'context',
+    pointer: '/rows',
+  },
+  [N8nNativeFeature.ProjectNativeOutput]: {
+    sourceNodeId: 'context',
+    fields: [{ name: 'marker', pointer: '/marker' }],
+  },
+  [N8nNativeFeature.JoinApiResponseArraysByKey]: {
+    left: { sourceNodeId: 'left', pointer: '/rows', keyPointer: '' },
+    right: { sourceNodeId: 'right', pointer: '/rows', keyPointer: '' },
+    joinMode: 'full',
+    missingKeys: 'error',
+  },
+  [N8nNativeFeature.SelectApiResponseMapEntry]: {
+    sourceNodeId: 'left',
+    pointer: '',
+    key: 'rows',
+  },
   [N8nNativeFeature.If]: {
     combinator: 'and',
     conditions: [literalCheck],

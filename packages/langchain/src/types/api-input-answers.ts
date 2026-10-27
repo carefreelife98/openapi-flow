@@ -9,6 +9,7 @@ export interface ExtractApiInputAnswersInput {
   model: BaseChatModel;
   selectOasEnums?: boolean;
   purpose?: string;
+  signal?: AbortSignal;
 }
 
 export interface AnalyzeApiInputAnswersInput extends Omit<

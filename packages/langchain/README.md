@@ -1,5 +1,26 @@
 # @openapi-flow/langchain
 
+0.4.0 adds independent selection/goal review, scoped connection
+outlines and originating-stage recovery planners. Each call is independently
+composable; loops, budget, checkpoints and user review stay in the host. Connection
+steps select explicit start/finish intent, while code resolves a unique actual
+port and validates the whole patch. No missing edge is treated as completion.
+Custom model doubles must follow the supplied structured schema. Publication and
+accepted limitations are tracked in the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.0.md).
+
+0.4.0 source adds `reviewNativeInstanceSelection` and explicit
+`selectNativeNodeInstances({ feedback: { selection, review }, ...source })`.
+Review makes at most one model call (zero with no reported gaps), uses exact supplied
+gap IDs and producer/capability choices, and retains the original selection unchanged.
+Only `needs-reselection` feedback permits a new explicitly requested selection;
+unsupported behavior and business decisions cannot be bypassed this way. Ordinary
+selection and configuration validation still applies to the new candidate. The host
+owns budgets, checkpointing, user questions and whether to invoke either function;
+there is no hidden loop, output repair or execution approval. Classification is model
+evidence, not a proof of scenario correctness. See [native planning](../../docs/native-feature-planning.md).
+This is not part of published 0.3.18.
+
 Version **0.3.18** distinguishes independent inputs, selected response sources,
 missing requested sources and partially missing sources in the model output.
 Code constructs only the fixed fields implied by the validated decision. Invalid

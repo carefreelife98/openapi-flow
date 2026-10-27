@@ -1,0 +1,418 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { MemorySaver } from '@langchain/langgraph';
+import {
+  createNativeSelectionPlanningGraph,
+  NativeSelectionPlanningLimitError,
+} from '@openapi-flow/example-langgraph-workflow';
+import { nativeSelectionReviewFixture } from './fixtures/native-instance-selection-review-fixture.mjs';
+
+const policy = {
+  maxModelInvocations: 5,
+  maxReselections: 2,
+  deadlineMs: 30_000,
+};
+const clone = (value) => globalThis.structuredClone(value);
+
+function queueModel(outputs) {
+  const calls = [];
+  return {
+    calls,
+    withStructuredOutput(schema, options) {
+      return {
+        async invoke(messages, config) {
+          const call = {
+            name: options.name,
+            schema,
+            payload: JSON.parse(messages[1].content),
+            config,
+          };
+          const index = calls.push(call) - 1;
+          assert.ok(index < outputs.length, 'Unexpected extra model call');
+          const output = outputs[index];
+          if (output instanceof Error) throw output;
+          return typeof output === 'function' ? output(call) : clone(output);
+        },
+      };
+    },
+  };
+}
+
+async function fixture() {
+  const f = await nativeSelectionReviewFixture();
+  const { capabilities, ...source } = f.input;
+  return {
+    ...f,
+    source,
+    capabilities,
+    ready: { instances: f.proposal.instances, gaps: [] },
+  };
+}
+
+test('native selection host checkpoints reservations, review and fresh selection without overwriting the rejected original', async () => {
+  const f = await fixture();
+  const before = clone(f.source);
+  const progress = [];
+  const config = {
+    configurable: { thread_id: 'native-selection-ledger' },
+    durability: 'sync',
+  };
+  let graph;
+  const inspect = (output, count, next) => async () => {
+    const saved = await graph.getState(config);
+    assert.equal(saved.values.modelInvocations, count);
+    assert.deepEqual(saved.next, [next]);
+    assert.equal(saved.values.selections.length, count === 1 ? 0 : 1);
+    return clone(output);
+  };
+  const model = queueModel([
+    inspect(f.proposal, 1, 'selectInstances'),
+    inspect(f.reviewProposal, 2, 'reviewSelection'),
+    inspect(f.ready, 3, 'selectInstances'),
+  ]);
+  graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+    observe: (event) => progress.push(event),
+  });
+  const result = await graph.invoke({ source: f.source }, config);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 3);
+  assert.equal(result.reselections, 1);
+  assert.equal(result.selections.length, 2);
+  assert.equal(result.reviews.length, 1);
+  assert.deepEqual(result.selections[0], f.selection);
+  assert.deepEqual(result.selections[1].proposal, f.ready);
+  assert.deepEqual(f.source, before);
+  assert.deepEqual(
+    progress.map((event) => event.phase),
+    ['selected', 'reviewed', 'ready'],
+  );
+  for (const event of progress) {
+    assert.ok(!Object.hasOwn(event, 'scenario'));
+    assert.ok(!Object.hasOwn(event, 'selection'));
+    assert.ok(!Object.hasOwn(event, 'error'));
+  }
+  assert.deepEqual(
+    model.calls[2].payload.selectionFeedback.previousSelections,
+    [{ id: f.selection.id, proposal: f.proposal }],
+  );
+  assert.equal(model.calls[2].payload.scenario, f.source.scenario);
+  const { failureId, ...serializable } = result;
+  assert.equal(failureId, undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), serializable);
+  assert.equal((await graph.getState(config)).next.length, 0);
+});
+
+test('an unchanged rejected selection reuses its review and sends all attempts to the next explicit selection call', async () => {
+  const f = await fixture();
+  const model = queueModel([f.proposal, f.reviewProposal, f.proposal, f.ready]);
+  const progress = [];
+  const result = await createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+    observe: (event) => progress.push(event),
+  }).invoke({ source: f.source });
+  assert.equal(result.modelInvocations, 4);
+  assert.equal(result.reselections, 2);
+  assert.equal(result.selections.length, 3);
+  assert.equal(result.reviews.length, 1);
+  assert.deepEqual(result.selections[0], result.selections[1]);
+  assert.deepEqual(
+    progress.map((event) => event.phase),
+    ['selected', 'reviewed', 'repeated-selection', 'ready'],
+  );
+  assert.equal(
+    model.calls[3].payload.selectionFeedback.previousSelections.length,
+    2,
+  );
+});
+
+for (const [field, value, kind, outputs, expectedCalls] of [
+  ['maxModelInvocations', 2, 'model-invocations', 'reviewed', 2],
+  ['maxReselections', 0, 'reselections', 'reviewed', 2],
+  ['maxReselections', 1, 'reselections', 'repeated', 3],
+]) {
+  test(`explicit ${field}=${value} stops before dispatch and remains stopped on checkpoint resume`, async () => {
+    const f = await fixture();
+    const model = queueModel([
+      f.proposal,
+      f.reviewProposal,
+      ...(outputs === 'repeated' ? [f.proposal] : []),
+    ]);
+    const graph = createNativeSelectionPlanningGraph({
+      capabilities: f.capabilities,
+      model,
+      policy: { ...policy, [field]: value },
+      now: Date.now,
+      checkpointer: new MemorySaver(),
+    });
+    const config = { configurable: { thread_id: field + value } };
+    const check = (error) =>
+      error instanceof NativeSelectionPlanningLimitError &&
+      error.failure.kind === kind;
+    await assert.rejects(graph.invoke({ source: f.source }, config), check);
+    const saved = await graph.getState(config);
+    assert.equal(saved.values.modelInvocations, expectedCalls);
+    assert.deepEqual(saved.next, ['reserveModelCall']);
+    await assert.rejects(graph.invoke(null, config), check);
+    assert.equal(model.calls.length, expectedCalls);
+    assert.deepEqual(
+      (await graph.getState(config)).values.selections,
+      saved.values.selections,
+    );
+  });
+}
+
+for (const stage of ['selection', 'review', 'reselection', 'observer']) {
+  test(`${stage} failure is saved without a raw Error in checkpoint and does not repeat model work on resume`, async () => {
+    const f = await fixture();
+    const cause = new Error('Original private failure');
+    const outputs =
+      stage === 'selection'
+        ? [cause]
+        : stage === 'review'
+          ? [f.proposal, cause]
+          : stage === 'reselection'
+            ? [f.proposal, f.reviewProposal, cause]
+            : [f.proposal];
+    const model = queueModel(outputs);
+    const graph = createNativeSelectionPlanningGraph({
+      capabilities: f.capabilities,
+      model,
+      policy,
+      now: Date.now,
+      checkpointer: new MemorySaver(),
+      ...(stage === 'observer'
+        ? {
+            observe: () => {
+              throw cause;
+            },
+          }
+        : {}),
+    });
+    const config = { configurable: { thread_id: 'failed-' + stage } };
+    let original;
+    await assert.rejects(
+      graph.invoke({ source: f.source }, config),
+      (error) => {
+        original = error;
+        return error === cause || error.cause === cause;
+      },
+    );
+    const saved = await graph.getState(config);
+    assert.deepEqual(saved.next, ['fail']);
+    assert.equal(typeof saved.values.failureId, 'string');
+    assert.equal(JSON.stringify(saved.values).includes(cause.message), false);
+    const calls = model.calls.length;
+    await assert.rejects(
+      graph.invoke(null, config),
+      (error) => error === original,
+    );
+    assert.equal(model.calls.length, calls);
+    assert.equal((await graph.getState(config)).values.modelInvocations, calls);
+  });
+}
+
+for (const [kind, status] of [
+  ['unsupported-native-behavior', 'unavailable-native-behavior'],
+  ['business-decision', 'needs-business-decision'],
+]) {
+  test(`${kind} preserves the original gap and does not enter automatic reselection`, async () => {
+    const f = await fixture();
+    const review = clone(f.reviewProposal);
+    review.assessments[f.selection.gaps[0].id] = {
+      kind,
+      sourceQuote: 'Check pending connections against my threshold.',
+      reason: 'The original behavior still needs this decision.',
+      ...(kind === 'business-decision' ? { question: 'Which threshold?' } : {}),
+    };
+    const model = queueModel([f.proposal, review]);
+    const result = await createNativeSelectionPlanningGraph({
+      capabilities: f.capabilities,
+      model,
+      policy,
+      now: Date.now,
+    }).invoke({ source: f.source });
+    assert.equal(result.status, status);
+    assert.equal(result.reselections, 0);
+    assert.equal(model.calls.length, 2);
+    assert.deepEqual(result.selections, [f.selection]);
+    assert.equal(result.reviews[0].status, status);
+  });
+}
+
+test('an explicitly empty capability list needs no model and works with zero model-call budget', async () => {
+  const result = await createNativeSelectionPlanningGraph({
+    capabilities: [],
+    policy: { ...policy, maxModelInvocations: 0, maxReselections: 0 },
+    now: Date.now,
+  }).invoke({ source: { planId: 'empty', scenario: 'No native tasks' } });
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 0);
+  assert.deepEqual(result.selections[0].proposal, { instances: [], gaps: [] });
+});
+
+test('a deadline reached during a model call preserves its reservation and does not run review or repeat the call', async () => {
+  const f = await fixture();
+  let now = 100;
+  const model = queueModel([
+    () => {
+      now = 30_100;
+      return clone(f.proposal);
+    },
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: () => now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = { configurable: { thread_id: 'deadline' } };
+  const check = (error) =>
+    error instanceof NativeSelectionPlanningLimitError &&
+    error.failure.kind === 'deadline';
+  await assert.rejects(graph.invoke({ source: f.source }, config), check);
+  await assert.rejects(graph.invoke(null, config), check);
+  assert.equal(model.calls.length, 1);
+  assert.equal((await graph.getState(config)).values.modelInvocations, 1);
+});
+
+test('a changed source, runtime definition, or explicit policy cannot reuse an old selection ledger', async () => {
+  for (const changed of ['source', 'capability', 'policy']) {
+    const f = await fixture();
+    const model = queueModel([f.ready]);
+    const checkpointer = new MemorySaver();
+    const dependencies = {
+      capabilities: f.capabilities,
+      model,
+      policy,
+      now: Date.now,
+      checkpointer,
+    };
+    let graph = createNativeSelectionPlanningGraph(dependencies);
+    const config = { configurable: { thread_id: 'changed-' + changed } };
+    await graph.invoke({ source: f.source }, config);
+    if (changed === 'source') {
+      await graph.updateState(config, {
+        source: { ...f.source, scenario: f.source.scenario + ' changed' },
+      });
+    } else {
+      graph = createNativeSelectionPlanningGraph({
+        ...dependencies,
+        ...(changed === 'policy'
+          ? { policy: { ...policy, maxModelInvocations: 6 } }
+          : {
+              capabilities: f.capabilities.map((capability) => ({
+                ...capability,
+                description: 'Changed contract',
+              })),
+            }),
+      });
+    }
+    await assert.rejects(graph.invoke({}, config), /source or policy changed/);
+    assert.equal(model.calls.length, 1);
+  }
+});
+
+test('caller cancellation during selection cannot produce a review or become a correction retry', async () => {
+  const f = await fixture();
+  const controller = new globalThis.AbortController();
+  const cause = new Error('Explicit caller cancellation');
+  const model = queueModel([
+    ({ config }) => {
+      assert(config.signal instanceof globalThis.AbortSignal);
+      controller.abort(cause);
+      config.signal.throwIfAborted();
+    },
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+  });
+  await assert.rejects(
+    graph.invoke({ source: f.source }, { signal: controller.signal }),
+    (error) => error === cause || error.cause === cause,
+  );
+  assert.equal(model.calls.length, 1);
+});
+
+test('terminal state and consumed-call accounting cannot be fabricated from a gap-bearing checkpoint', async () => {
+  for (const update of [
+    { status: 'ready' },
+    { modelInvocations: 0 },
+    { status: 'needs-business-decision' },
+  ]) {
+    const f = await fixture();
+    const model = queueModel([f.proposal]);
+    const graph = createNativeSelectionPlanningGraph({
+      capabilities: f.capabilities,
+      model,
+      policy,
+      now: Date.now,
+      checkpointer: new MemorySaver(),
+      observe() {
+        throw new Error('Stop after first saved selection');
+      },
+    });
+    const config = { configurable: { thread_id: JSON.stringify(update) } };
+    await assert.rejects(graph.invoke({ source: f.source }, config));
+    await graph.updateState(config, update);
+    await assert.rejects(
+      graph.invoke({}, config),
+      /gap-free|consumed reservations|matching original review/,
+    );
+    assert.equal(model.calls.length, 1);
+  }
+});
+
+test('concurrent threads retain distinct original failures and a new graph runtime fails closed rather than repeating a call', async () => {
+  const f = await fixture();
+  const causes = [
+    new Error('first provider failure'),
+    new Error('second provider failure'),
+  ];
+  const model = queueModel(causes);
+  const dependencies = {
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  };
+  const graph = createNativeSelectionPlanningGraph(dependencies);
+  const configs = causes.map((_, index) => ({
+    configurable: { thread_id: 'parallel-' + index },
+  }));
+  const results = await Promise.allSettled(
+    configs.map((config) => graph.invoke({ source: f.source }, config)),
+  );
+  const errors = results.map((entry) => {
+    assert.equal(entry.status, 'rejected');
+    assert(
+      causes.includes(entry.reason) || causes.includes(entry.reason.cause),
+      entry.reason.stack,
+    );
+    return entry.reason;
+  });
+  assert.notEqual(errors[0], errors[1]);
+  for (const [index, config] of configs.entries())
+    await assert.rejects(
+      graph.invoke(null, config),
+      (error) => error === errors[index],
+    );
+  const replacement = createNativeSelectionPlanningGraph(dependencies);
+  await assert.rejects(
+    replacement.invoke(null, configs[0]),
+    /Original native selection failure is unavailable/,
+  );
+  assert.equal(model.calls.length, 2);
+});

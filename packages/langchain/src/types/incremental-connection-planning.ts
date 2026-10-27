@@ -13,12 +13,17 @@ import type {
   WorkflowConnectionUserDecision,
   WorkflowConnectionRejectedProposal,
   WorkflowConnectionStepExpectation,
+  WorkflowConnectionStepDescription,
+  WorkflowReviewedGoalCandidate,
+  WorkflowConnectionOutline,
 } from '@openapi-flow/core';
 
 export interface PlanWorkflowConnectionGoalsInput extends WorkflowConnectionSessionSource {
   model: BaseChatModel;
   /** Exact rejected output and code-owned validation feedback for this unchanged source. */
   rejectedProposals?: WorkflowConnectionGoalRejection[];
+  /** Private independent coverage judgments, not replacement requirements or code-proven semantics. */
+  rejectedGoalReviews?: WorkflowReviewedGoalCandidate[];
   signal?: AbortSignal;
 }
 export type WorkflowConnectionGoalRejection = z.infer<
@@ -31,6 +36,8 @@ export interface PlanWorkflowConnectionStepInput extends WorkflowConnectionSessi
   model: BaseChatModel;
   rejectedProposals?: WorkflowConnectionRejectedProposal[];
   signal?: AbortSignal;
+  outline?: WorkflowConnectionOutline;
+  bundleId?: string;
 }
 export type WorkflowConnectionRouteGoal = Extract<
   WorkflowConnectionGoalProposal,
@@ -65,6 +72,10 @@ export interface WorkflowConnectionPatchSelection extends Omit<
   addTerminals: WorkflowConnectionEndpointSelection[];
   removeTerminals: WorkflowConnectionEndpointSelection[];
 }
+export type WorkflowConnectionPatchContext = Pick<
+  WorkflowConnectionStepDescription,
+  'context' | 'requirements' | 'edgeCatalog' | 'rootNodeIds' | 'terminals'
+>;
 export type WorkflowConnectionCompletionRequest = Exclude<
   WorkflowConnectionStepProposal,
   WorkflowConnectionPatch
@@ -88,12 +99,17 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   schema: ZodType<Output>;
   messages: BaseMessage[];
   sourceFingerprint?: string;
+  requestFingerprint?: string;
   signal?: AbortSignal;
 }
 export interface WorkflowConnectionPlanningFailure {
   operation: string;
-  stage: 'model-output' | 'contract-validation';
-  code: 'MODEL_OUTPUT_INVALID' | 'WORKFLOW_GRAPH_PLANNING_FAILED';
+  stage: 'input-validation' | 'model-output' | 'contract-validation';
+  code:
+    | 'PLANNING_INPUT_INVALID'
+    | 'MODEL_OUTPUT_INVALID'
+    | 'WORKFLOW_GRAPH_PLANNING_FAILED';
   output: unknown;
   sourceFingerprint?: string;
+  requestFingerprint?: string;
 }

@@ -13,7 +13,13 @@ export function countIncrementalConnectionRejections(
     );
   // Optional on older completed-goal checkpoints: that version never retried a rejected goal.
   return (
-    state.rejectedProposals.length + (state.rejectedGoalProposals?.length ?? 0)
+    state.rejectedProposals.length +
+    (state.rejectedGoalProposals?.length ?? 0) +
+    (state.rejectedOutlineProposals?.length ?? 0) +
+    (state.rejectedRevisions?.length ?? 0) +
+    (state.rejectedRevisionReviews?.length ?? 0) +
+    (state.goalReviews?.filter((candidate) => !candidate.review.accepted)
+      .length ?? 0)
   );
 }
 

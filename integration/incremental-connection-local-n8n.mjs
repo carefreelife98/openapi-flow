@@ -331,9 +331,24 @@ if (
           ),
         },
       ];
+  const rejectReverseGoal = process.argv.includes('--reject-reverse-goal');
+  if (rejectReverseGoal)
+    outputs.unshift({
+      goals: [
+        {
+          kind: 'precedence',
+          before: 'summary',
+          after: 'source',
+          factIds: ['intent'],
+          reason: 'Deliberately contradict the selected response dependencies.',
+        },
+      ],
+    });
   let calls = 0;
   const directory = await verifyIncrementalConnectionRuntime({
-    label: 'scripted-model-not-Chomsky',
+    label: rejectReverseGoal
+      ? 'scripted-reverse-goal-replanning-not-Chomsky'
+      : 'scripted-model-not-Chomsky',
     ...(augmentNative
       ? {
           nativeAugmentation: {
@@ -352,6 +367,24 @@ if (
         return {
           async invoke(messages) {
             assert.ok(calls < outputs.length);
+            if (rejectReverseGoal && calls === 1) {
+              const feedback = JSON.parse(
+                messages[1].content,
+              ).rejectedProposals;
+              assert.equal(feedback.length, 1);
+              assert(
+                feedback[0].constraints.conflicts.some(
+                  (conflict) =>
+                    conflict.code === 'DEPENDENCY_CYCLE' &&
+                    conflict.dependencies.some(
+                      (edge) => edge.origin.kind === 'value-reference',
+                    ) &&
+                    conflict.dependencies.some(
+                      (edge) => edge.origin.kind === 'goal',
+                    ),
+                ),
+              );
+            }
             const output = outputs[calls++];
             return globalThis.structuredClone(
               typeof output === 'function'
@@ -363,6 +396,6 @@ if (
       },
     },
   });
-  assert.equal(calls, augmentNative ? 5 : 3);
+  assert.equal(calls, outputs.length);
   console.log(directory.pathname);
 }

@@ -3,6 +3,7 @@ import {
   validateApiCallBindingPlan,
   assembleApiBindingPlan,
   runOpenApiFlowOperation,
+  isOpenApiFlowError,
 } from '@openapi-flow/core';
 import type { ApiBindingPlan, ApiCallBindingPlan } from '@openapi-flow/core';
 import type { PlanApiBindingsByCallInput } from '../types/api-call-binding-planning.js';
@@ -81,7 +82,17 @@ export async function planApiBindingsByCall(
           await input.onCallPlanned(structuredClone(result));
         results.set(result.callId, result);
       } catch (error) {
-        if (!failed) failure = error;
+        if (!failed) {
+          // This aggregate API historically returns the caller's exact cancellation reason.
+          // A late structured result must not change that public cancellation contract.
+          failure =
+            input.signal?.aborted &&
+            isOpenApiFlowError(error) &&
+            error.diagnostic.code === 'MODEL_ABORTED' &&
+            error.cause === input.signal.reason
+              ? input.signal.reason
+              : error;
+        }
         failed = true;
       }
     }

@@ -220,6 +220,19 @@ export type * from './types/api-binding-planning.js';
 export type * from './types/native-node-planning.js';
 export type * from './types/workflow-connection-planning.js';
 export type * from './types/workflow-connection-session.js';
+export type {
+  WorkflowPlanningDependency,
+  WorkflowPlanningConflict,
+  WorkflowPlanningConstraintInspection,
+  InspectWorkflowPlanningConstraintsInput,
+} from './types/workflow-planning-constraints.js';
+export {
+  workflowPlanningDependencySchema,
+  workflowPlanningConflictSchema,
+  workflowPlanningConstraintInspectionSchema,
+} from './schemas/workflow-planning-constraint-schema.js';
+export { inspectWorkflowPlanningConstraints } from './workflow/connections/constraints/inspect-workflow-planning-constraints.js';
+export { WorkflowPlanningConstraintError } from './workflow/connections/constraints/workflow-planning-constraint-error.js';
 export {
   workflowConnectionSessionSchema,
   workflowConnectionGoalProposalSchema,
@@ -263,6 +276,7 @@ export { createNativeNodePlan } from './workflow/planning/create-native-node-pla
 export {
   resolveNativeInstanceSelection,
   describeNativeInstanceSelection,
+  validateNativeInstanceSelection,
 } from './workflow/planning/resolve-native-instance-selection.js';
 export {
   describeNativeNodeConfiguration,
@@ -314,9 +328,17 @@ export { createApiResponseSchema } from './openapi/response/create-api-response-
 export { apiResponseValidationValue } from './openapi/response/api-response-validation-value.js';
 export type * from './types/api-response.js';
 export { createResponseArrayItemSchema } from './openapi/response/create-response-array-item-schema.js';
+export { createResponseArrayItemValueSchema } from './openapi/response/create-response-array-item-value-schema.js';
 export { createNativeArrayItemSchema } from './bindings/create-native-array-item-schema.js';
+export { createNativeValueSchema } from './bindings/create-native-value-schema.js';
+export { pointerTokens } from './bindings/json-pointer.js';
+export { createNativeObjectProjectionSchema } from './bindings/create-native-object-projection-schema.js';
+export { createNativeOutputPointerSelectionSchema } from './schemas/create-native-output-pointer-selection-schema.js';
 export { createResponseValueSchema } from './openapi/response/create-response-value-schema.js';
+export { createResponseObjectEntrySchema } from './openapi/response/create-response-object-entry-schema.js';
 export { listApiResponsePointers } from './openapi/response/list-api-response-pointers.js';
+export { createApiResponsePointerSelectionSchema } from './schemas/create-api-response-pointer-selection-schema.js';
+export { isSchemaProvablyEmpty } from './bindings/is-schema-provably-empty.js';
 export type * from './types/api-response-pointers.js';
 export type * from './types/workflow-review-suggestions.js';
 export type * from './types/workflow-review-feedback.js';
@@ -340,3 +362,70 @@ export {
   workflowReviewSuggestionOptionsSchema,
 } from './schemas/workflow-review-suggestion-settings-schema.js';
 export * from './errors-api.js';
+export {
+  applyWorkflowConnectionRevision,
+  validateWorkflowConnectionRevision,
+} from './workflow/connections/revisions/apply-workflow-connection-revision.js';
+export { describeWorkflowConnectionRevision } from './workflow/connections/revisions/describe-workflow-connection-revision.js';
+export { WorkflowConnectionRevisionError } from './workflow/connections/revisions/workflow-connection-revision-error.js';
+export {
+  validateWorkflowConnectionMaterialRepairRequest,
+  validateWorkflowConnectionMaterialRepairReceipt,
+} from './workflow/connections/revisions/validate-workflow-connection-material-repair.js';
+export {
+  workflowConnectionRevisionProposalSchema,
+  workflowConnectionRevisionImpactSchema,
+  workflowConnectionRevisionViolationsSchema,
+  workflowConnectionMaterialRepairTargetSchema,
+  workflowConnectionMaterialRepairRequestSchema,
+  workflowConnectionMaterialRepairReceiptSchema,
+} from './schemas/workflow-connection-revision-schema.js';
+export type * from './types/workflow-connection-revision.js';
+export type * from './types/workflow-connection-material-repair.js';
+export type * from './types/workflow-connection-outline.js';
+export {
+  workflowConnectionOutlineSchema,
+  workflowConnectionOutlineProposalSchema,
+  workflowConnectionOutlineBundleProposalSchema,
+} from './schemas/workflow-connection-outline-schema.js';
+export {
+  createWorkflowConnectionOutline,
+  describeWorkflowConnectionOutline,
+  describeWorkflowConnectionOutlineBundle,
+  applyWorkflowConnectionOutlineStep,
+} from './workflow/connections/outline/workflow-connection-outline.js';
+export { inspectWorkflowConnectionMaterialRepairInputs } from './workflow/connections/materials/inspect-workflow-connection-material-repair-inputs.js';
+export { describeWorkflowConnectionMaterialRepairWork } from './workflow/connections/materials/describe-workflow-connection-material-repair-work.js';
+export type * from './types/workflow-connection-goal-review.js';
+export type * from './types/native-instance-selection-review.js';
+export { createNativeInstanceSelectionReviewSchema } from './schemas/native-instance-selection-review-schema.js';
+export {
+  describeNativeInstanceSelectionReview,
+  createNativeInstanceSelectionReview,
+  validateNativeInstanceSelectionReview,
+  describeNativeInstanceSelectionFeedback,
+} from './workflow/planning/native-selection/review-native-instance-selection.js';
+export {
+  describeWorkflowConnectionGoalReview,
+  createWorkflowConnectionGoalReview,
+  validateWorkflowConnectionGoalReview,
+} from './workflow/connections/requirements/workflow-connection-goal-review.js';
+export {
+  workflowConnectionGoalAssessmentSchema,
+  workflowConnectionGoalReviewPolicySchema,
+  workflowConnectionGoalReviewSchema,
+  workflowReviewedGoalCandidateSchema,
+} from './schemas/workflow-connection-goal-review-schema.js';
+export { describeWorkflowConnectionConflictMaterials } from './workflow/connections/materials/describe-workflow-connection-conflict-materials.js';
+export { selectWorkflowConnectionArgumentValues } from './workflow/connections/materials/select-workflow-connection-argument-values.js';
+export {
+  applyWorkflowConnectionMaterialRepair,
+  applyWorkflowConnectionMaterialRepairWork,
+  replayWorkflowConnectionMaterialRepair,
+  validateWorkflowConnectionSourceRepairRequest,
+} from './workflow/connections/materials/apply-workflow-connection-material-repair.js';
+export {
+  workflowConnectionSourceRepairRequestSchema,
+  workflowConnectionSourceRepairReceiptSchema,
+  workflowConnectionMaterialReplacementSchema,
+} from './schemas/workflow-connection-material-repair-schema.js';

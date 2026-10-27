@@ -3,10 +3,7 @@ import {
   listApiOperations,
   resolveApiOperations,
 } from '@openapi-flow/core';
-import {
-  selectApiOperations,
-  generateApiArguments,
-} from '@openapi-flow/langchain';
+import { selectApiOperations } from '@openapi-flow/langchain';
 import { createHttpRequestNode } from '@openapi-flow/n8n';
 import type { N8nNativeOutputSource } from '@openapi-flow/n8n';
 import type {
@@ -18,6 +15,8 @@ import type {
 import { createApiBindingMaterials } from './prepare-api-binding-materials.js';
 import { deploymentsSchema } from '../schemas/configuration-schema.js';
 import type { SelectionGapHandler } from '../types/workflow-review.js';
+import type { RunnableConfig } from '@langchain/core/runnables';
+import { generatePreparedApiArguments } from './arguments/generate-prepared-api-arguments.js';
 
 export function createApiPreparationStages(
   dependencies: ApiPreparationDependencies,
@@ -75,7 +74,10 @@ export function createApiPreparationStages(
         trace: [...state.trace, 'resolve'],
       };
     },
-    async generateArguments(state: WorkflowState): Promise<WorkflowUpdate> {
+    async generateArguments(
+      state: WorkflowState,
+      config?: RunnableConfig,
+    ): Promise<WorkflowUpdate> {
       if (!state.contracts?.length)
         throw new Error('generateArguments requires a resolved contract');
       const calls: NonNullable<WorkflowState['arguments']> = [];
@@ -90,20 +92,24 @@ export function createApiPreparationStages(
         );
         if (state.bindingPlan && !boundCall)
           throw new Error(`bindingPlan is missing ${callId}`);
-        const args = await generateApiArguments({
-          callId,
-          operation,
-          purpose,
-          requestMediaType,
-          scenario: state.scenario,
-          model: dependencies.model,
-          bindings: boundCall ? boundCall.bindings : [],
-          includeExplanations:
-            dependencies.argumentOptions?.includeExplanations,
-          selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
-          trackRequestedInputs:
-            dependencies.argumentOptions?.trackRequestedInputs,
-        });
+        const args = await generatePreparedApiArguments(
+          {
+            callId,
+            operation,
+            purpose,
+            requestMediaType,
+            scenario: state.scenario,
+            model: dependencies.model,
+            bindings: boundCall ? boundCall.bindings : [],
+            includeExplanations:
+              dependencies.argumentOptions?.includeExplanations,
+            selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
+            trackRequestedInputs:
+              dependencies.argumentOptions?.trackRequestedInputs,
+          },
+          dependencies.argumentPlanning,
+          config,
+        );
         if (args.unresolvedInputs.length)
           throw new Error(
             `Request inputs need user clarification: ${JSON.stringify(args.unresolvedInputs)}`,

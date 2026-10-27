@@ -62,20 +62,23 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
             });
           if (options.name === 'generate_api_arguments') {
             assert.ok(schema.shape.requestedInputs);
-            assert.ok(schema.shape.literalSources);
+            assert.ok(schema.shape.literalInputs);
             const id =
               payload.purpose === '첫 번째 조회 역할'
                 ? 'fixture-first'
                 : 'fixture-second';
             return schema.parse({
-              values: { path: { id } },
-              literalSources: [
-                {
-                  targetPointer: '/path/id',
-                  sourceFormat: 'json',
-                  sourceText: JSON.stringify(id),
-                },
-              ],
+              literalInputs: {
+                state: 'provided',
+                values: { path: { id } },
+                literalSources: [
+                  {
+                    targetPointer: '/path/id',
+                    sourceFormat: 'json',
+                    sourceText: JSON.stringify(id),
+                  },
+                ],
+              },
               requestedInputs: ['/query/sort'],
               explanation: { reason: '이 역할의 원문 식별자만 복사했습니다.' },
             });

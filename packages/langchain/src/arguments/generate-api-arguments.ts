@@ -8,6 +8,7 @@ import {
   resolveApiLiteralProposalSources,
   runOpenApiFlowOperation,
   runOpenApiFlowAsyncOperation,
+  isOpenApiFlowError,
 } from '@openapi-flow/core';
 import type { ApiCallArguments } from '@openapi-flow/core';
 import type {
@@ -18,89 +19,150 @@ import {
   apiLiteralGenerationOptionsSchema,
   createApiLiteralGenerationOutputSchema,
 } from '../schemas/api-literal-generation-output-schema.js';
-import { apiArgumentsPrompt } from '../prompts/api-arguments-prompt.js';
+import {
+  apiArgumentsPrompt,
+  apiArgumentReplanningPrompt,
+} from '../prompts/api-arguments-prompt.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { interpretApiArgumentEnums } from './interpret-api-argument-enums.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
+import { resolveApiLiteralGenerationOutput } from './resolve-api-literal-generation-output.js';
+import { apiArgumentRejectionsSchema } from '../schemas/api-argument-rejection-schema.js';
+import { fingerprintApiArgumentSource } from './fingerprint-api-argument-source.js';
+import { rethrowApiArgumentPlanningError } from './api-argument-planning-error.js';
+import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
 ): Promise<ApiCallArguments> {
-  const { options, snapshot, contract, context, trackInputs, schema } =
-    runOpenApiFlowOperation(
-      {
-        owner: 'langchain',
-        operation: 'generateApiArguments',
-        stage: 'input-validation',
-        code: 'PLANNING_INPUT_INVALID',
-      },
-      () => {
-        if (
-          input.model !== undefined &&
-          (!input.model ||
-            typeof input.model.withStructuredOutput !== 'function')
-        )
-          throw new Error(
-            'generateApiArguments.model must support structured output when supplied',
-          );
-        if (typeof input.callId !== 'string' || !input.callId.trim())
-          throw new Error('callId must be non-empty');
-        const options = apiLiteralGenerationOptionsSchema.parse({
-          includeExplanations: input.includeExplanations,
-          selectOasEnums: input.selectOasEnums,
-          trackRequestedInputs: input.trackRequestedInputs,
-        });
-        const {
-          input: snapshot,
-          contract,
-          context,
-        } = describeApiLiteralGeneration(input);
-        const trackInputs =
-          options.trackRequestedInputs === true ||
-          options.selectOasEnums === true;
-        const schema = createApiLiteralGenerationOutputSchema(
-          contract,
-          options.includeExplanations === true,
-          trackInputs ? createApiRequestSchema(snapshot) : undefined,
+  const {
+    options,
+    snapshot,
+    contract,
+    context,
+    trackInputs,
+    schema,
+    sourceFingerprint,
+    rejectedProposals,
+  } = runOpenApiFlowOperation(
+    {
+      owner: 'langchain',
+      operation: 'generateApiArguments',
+      stage: 'input-validation',
+      code: 'PLANNING_INPUT_INVALID',
+    },
+    () => {
+      modelSignalSchema.parse(input.signal);
+      if (
+        input.model !== undefined &&
+        (!input.model || typeof input.model.withStructuredOutput !== 'function')
+      )
+        throw new Error(
+          'generateApiArguments.model must support structured output when supplied',
         );
-        if (contract.hasLiteralInputs && !input.model)
-          throw new Error(
-            'generateApiArguments.model must support structured output when literal inputs remain',
-          );
-        return { options, snapshot, contract, context, trackInputs, schema };
-      },
-    );
-  let proposed: ApiLiteralGenerationOutput = {
-    values: {},
-    ...(trackInputs ? { requestedInputs: [], literalSources: [] } : {}),
-  };
+      if (typeof input.callId !== 'string' || !input.callId.trim())
+        throw new Error('callId must be non-empty');
+      const options = apiLiteralGenerationOptionsSchema.parse({
+        includeExplanations: input.includeExplanations,
+        selectOasEnums: input.selectOasEnums,
+        trackRequestedInputs: input.trackRequestedInputs,
+      });
+      const {
+        input: snapshot,
+        contract,
+        context,
+      } = describeApiLiteralGeneration(input);
+      const trackInputs =
+        options.trackRequestedInputs === true ||
+        options.selectOasEnums === true;
+      const schema = createApiLiteralGenerationOutputSchema(
+        contract,
+        options.includeExplanations === true,
+        trackInputs ? createApiRequestSchema(snapshot) : undefined,
+      );
+      const sourceFingerprint = fingerprintApiArgumentSource(snapshot, options);
+      const rejectedProposals =
+        input.rejectedProposals === undefined
+          ? undefined
+          : apiArgumentRejectionsSchema.parse(input.rejectedProposals);
+      if (
+        rejectedProposals?.some(
+          (item) => item.sourceFingerprint !== sourceFingerprint,
+        )
+      )
+        throw new Error(
+          'API argument rejection feedback belongs to a different source',
+        );
+      if (!contract.hasLiteralInputs && rejectedProposals?.length)
+        throw new Error(
+          'API argument rejection feedback requires a literal model decision',
+        );
+      if (contract.hasLiteralInputs && !input.model)
+        throw new Error(
+          'generateApiArguments.model must support structured output when literal inputs remain',
+        );
+      return {
+        options,
+        snapshot,
+        contract,
+        context,
+        trackInputs,
+        schema,
+        sourceFingerprint,
+        rejectedProposals,
+      };
+    },
+  );
+  let proposed: ApiLiteralGenerationOutput = trackInputs
+    ? { literalInputs: { state: 'not-provided' }, requestedInputs: [] }
+    : { values: {} };
   if (contract.hasLiteralInputs) {
     const model = input.model;
     if (!model || typeof model.withStructuredOutput !== 'function')
       throw new Error(
         'generateApiArguments.model must support structured output when literal inputs remain',
       );
-    proposed = await invokeStructuredModel<ApiLiteralGenerationOutput>({
-      model,
-      schema,
-      operation: 'generateApiArguments',
-      name: 'generate_api_arguments',
-      method: 'functionCalling',
-      // Preserve the existing provider-default strictness of literal generation.
-      strict: undefined,
-      messages: [
-        new SystemMessage(apiArgumentsPrompt),
-        new HumanMessage(
-          JSON.stringify({
-            ...context,
-            ...(options.selectOasEnums === true
-              ? { selectOasEnums: true }
-              : {}),
-          }),
-        ),
-      ],
-    });
+    try {
+      proposed = await invokeStructuredModel<ApiLiteralGenerationOutput>({
+        model,
+        schema,
+        operation: 'generateApiArguments',
+        name: 'generate_api_arguments',
+        method: 'functionCalling',
+        // Preserve the existing provider-default strictness of literal generation.
+        strict: undefined,
+        signal: input.signal,
+        messages: [
+          new SystemMessage(
+            rejectedProposals === undefined
+              ? apiArgumentsPrompt
+              : [apiArgumentsPrompt, apiArgumentReplanningPrompt].join('\n'),
+          ),
+          new HumanMessage(
+            JSON.stringify({
+              ...context,
+              ...(rejectedProposals === undefined ? {} : { rejectedProposals }),
+              ...(options.selectOasEnums === true
+                ? { selectOasEnums: true }
+                : {}),
+            }),
+          ),
+        ],
+      });
+    } catch (error) {
+      const cause = isOpenApiFlowError(error) ? error.cause : undefined;
+      // The parser's documented raw output is retained as-is, never parsed/repaired from its message.
+      const output =
+        typeof cause === 'object' &&
+        cause !== null &&
+        Object.getOwnPropertyDescriptor(cause, 'lc_error_code')?.value ===
+          'OUTPUT_PARSING_FAILURE'
+          ? Object.getOwnPropertyDescriptor(cause, 'llmOutput')?.value
+          : undefined;
+      rethrowApiArgumentPlanningError(error, sourceFingerprint, output);
+    }
   }
+  let interpretingEnums = false;
   return runOpenApiFlowAsyncOperation(
     {
       owner: 'langchain',
@@ -109,19 +171,19 @@ export async function generateApiArguments(
       code: 'API_ARGUMENT_VALIDATION_FAILED',
     },
     async () => {
-      const parsed = parseStructuredOutput<ApiLiteralGenerationOutput>(
+      const output = parseStructuredOutput<ApiLiteralGenerationOutput>(
         schema,
         proposed,
         `model arguments for ${snapshot.callId}`,
       );
+      const parsed = resolveApiLiteralGenerationOutput(output);
       const values = applyConfirmedApiInputs({
         ...snapshot,
         values: parsed.values,
       });
-      const requestedInputs =
-        'requestedInputs' in parsed ? parsed.requestedInputs : undefined;
+      const requestedInputs = parsed.requestedInputs;
       const literalSources =
-        'literalSources' in parsed
+        parsed.literalSources !== undefined
           ? resolveApiLiteralProposalSources({
               callId: snapshot.callId,
               values: parsed.values,
@@ -153,7 +215,7 @@ export async function generateApiArguments(
           ? {
               literalGeneration: createApiLiteralGenerationRecord({
                 ...snapshot,
-                ...('explanation' in parsed
+                ...(parsed.explanation !== undefined
                   ? {
                       proposal: { values: parsed.values },
                       reason: parsed.explanation.reason,
@@ -168,6 +230,7 @@ export async function generateApiArguments(
           throw new Error(
             'generateApiArguments enum interpretation requires source-verified literalSources',
           );
+        interpretingEnums = true;
         return interpretApiArgumentEnums({
           ...snapshot,
           ...options,
@@ -175,9 +238,13 @@ export async function generateApiArguments(
           proposal: { values: parsed.values },
           literalSources,
           model: input.model,
+          signal: input.signal,
         });
       }
       return result;
     },
-  );
+  ).catch((error: unknown) => {
+    if (interpretingEnums || !contract.hasLiteralInputs) throw error;
+    rethrowApiArgumentPlanningError(error, sourceFingerprint, proposed);
+  });
 }

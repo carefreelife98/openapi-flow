@@ -103,7 +103,8 @@ function compileN8nWorkflowTemplateSource(
     throw new Error(inputs.issues.map((issue) => issue.message).join('; '));
   const nativeInputs = inspectNativeRuntimeInputs({
     nativeNodes: input.draft.nativeNodes,
-    capabilities: input.context.capabilities,
+    // Values use current material-bound contracts; original declarations still own draft receipts above.
+    capabilities: materialSnapshot.capabilities,
     inputValues: nativeValues,
   });
   if (nativeInputs.status === 'invalid-input')

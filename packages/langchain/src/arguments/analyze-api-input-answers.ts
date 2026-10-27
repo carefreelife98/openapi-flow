@@ -25,6 +25,7 @@ import { apiInputAnswersPrompt } from '../prompts/api-input-answers-prompt.js';
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
+import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 
 export async function analyzeApiInputAnswers(
   input: AnalyzeApiInputAnswersInput,
@@ -37,6 +38,7 @@ export async function analyzeApiInputAnswers(
       code: 'PLANNING_INPUT_INVALID',
     },
     () => {
+      modelSignalSchema.parse(input.signal);
       const options = apiInputAnswerExplanationOptionsSchema.parse({
         includeExplanations: input.includeExplanations,
         selectOasEnums: input.selectOasEnums,
@@ -110,6 +112,7 @@ export async function analyzeApiInputAnswers(
     name: 'extract_api_input_answers',
     method: 'functionCalling',
     strict: true,
+    signal: input.signal,
     messages: [
       new SystemMessage(apiInputAnswersPrompt),
       new HumanMessage(

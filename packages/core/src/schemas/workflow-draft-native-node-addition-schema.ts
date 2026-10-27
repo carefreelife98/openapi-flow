@@ -62,7 +62,8 @@ export function createWorkflowDraftNativeNodeAdditionSchema(
       : validateWorkflowDraftNativeNodeParameterOwnershipContract(input);
   const contract = createNativeParameterGenerationContract({
     nodeId: description.nodeId,
-    capability: { ...capability, parametersSchema },
+    capability,
+    planningParametersSchema: parametersSchema,
     runtimeParameters: ownership?.runtimeParameters,
   });
   const values = contract.valuesSchema;

@@ -1,5 +1,30 @@
 # Registered n8n feature selection
 
+Local unreleased source adds `CollectNativeOutputValues`
+(`collect-native-output-values`). It requires actual native output contracts and
+reuses official Aggregate through the same compiler as `CollectApiResponses`.
+The model selects only the producer and pointer. See the
+[collection contract](native-feature-planning.md). Source inventory is 17 families:
+six ready and eleven context-dependent without supplied materials. Default planning
+excludes explicit-only `ComposeApiResponses`, so it exposes sixteen registrations;
+fifteen have planning definitions when no host literal producer was supplied.
+These counts describe the working tree, not the installed public 0.3.18.
+
+Unreleased `ProjectNativeOutput` also supports explicitly requested derived string
+UTF-16 length and array item counts through official Edit Fields expressions.
+Original values remain available as unchanged copy fields. This does not add a
+family, infer a counting policy, or provide arbitrary transformations. The detailed
+[measurement contract](native-feature-planning.md) separates synthetic/live-model
+verification from original-scenario quality and the still-published 0.3.18 install.
+
+Unreleased IF/assertion changes do not add a feature family. Both implementations
+now declare API-response and native-JSON parameter references. The supplied
+completed native output contracts specialize the value schema; selected future
+roles are not treated as already configured data. See the
+[native comparison contract](native-feature-planning.md).
+The historical published-version inventory below is not a claim that this change
+is present in 0.3.18.
+
 `resolveN8nNativePlanningFeatures` exposes stable definitions before producer
 instances exist, while retaining missing context separately. The canonical host
 opts in with `nativeFeatures`; see [planning and prerequisites](native-feature-planning.md).

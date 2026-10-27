@@ -15,7 +15,9 @@ export function createNativeNodePlanningContract(
     createNativeNodeParameterContract(capability, allowRuntimeParameters),
   );
   const nodes = contracts.flatMap((contract) => contract.schemas);
-  const nodeSchema = z.union([nodes[0], ...nodes.slice(1)]);
+  const [first, ...rest] = nodes;
+  const nodeSchema =
+    first === undefined ? undefined : z.union([first, ...rest]);
   const gaps = z
     .array(
       z.strictObject({
@@ -27,9 +29,16 @@ export function createNativeNodePlanningContract(
     .describe(
       'Blocking unmet native behavior only. Return [] when requested native behavior is representable. Selected OAS API calls are implemented separately; their bindings, request arguments and connections belong to later stages, not these gaps. Never invent missing data or substitute a capability.',
     );
-  const schema = includeExplanations
-    ? z.strictObject({
-        decision: z.union([
+  const noAdditions = z.strictObject({
+    noAdditionalNodesReason: nativeNodePlanningReasonSchema.describe(
+      'Why no NEW native instance is proposed, including when prepared nodes suffice or only unmet native requirements remain. Do not repeat supplied nodes or generate a fixed empty node array.',
+    ),
+    gaps,
+  });
+  const explainedDecision =
+    nodeSchema === undefined
+      ? noAdditions
+      : z.union([
           z.strictObject({
             additions: z
               .array(
@@ -44,22 +53,22 @@ export function createNativeNodePlanningContract(
               ),
             gaps,
           }),
-          z.strictObject({
-            noAdditionalNodesReason: nativeNodePlanningReasonSchema.describe(
-              'Why no NEW native instance is proposed, including when prepared nodes suffice or only unmet native requirements remain. Do not repeat supplied nodes or generate a fixed empty node array.',
-            ),
-            gaps,
-          }),
-        ]),
+          noAdditions,
+        ]);
+  const schema = includeExplanations
+    ? z.strictObject({
+        decision: explainedDecision,
       })
-    : z.strictObject({
-        nativeNodes: z
-          .array(nodeSchema)
-          .describe(
-            'Only new instances required by the scenario, with values following the supplied implementation schema. No ports, output schemas, code or n8n JSON.',
-          ),
-        gaps,
-      });
+    : nodeSchema === undefined
+      ? z.strictObject({ gaps })
+      : z.strictObject({
+          nativeNodes: z
+            .array(nodeSchema)
+            .describe(
+              'Only new instances required by the scenario, with values following the supplied implementation schema. No ports, output schemas, code or n8n JSON.',
+            ),
+          gaps,
+        });
   return {
     schema,
     capabilities: contracts.map((contract) => contract.material),

@@ -3,21 +3,48 @@ import type {
   ApiLiteralGenerationInput,
   ApiCallArguments,
   ApiArgumentProposal,
-  ApiArgumentGenerationContract,
-  ApiArgumentProposalSchemaShape,
-  createApiRequestInputPointerSchema,
   ApiLiteralProposalSource,
+  OpenApiFlowError,
 } from '@openapi-flow/core';
 import type { z } from 'zod';
-import type { createApiLiteralGenerationOutputSchema } from '../schemas/api-literal-generation-output-schema.js';
 import type { apiLiteralGenerationReasonSchema } from '../schemas/api-literal-generation-output-schema.js';
 import type { apiLiteralGenerationSourcesSchema } from '../schemas/api-literal-generation-output-schema.js';
+import type { apiLiteralNotProvidedSchema } from '../schemas/api-literal-generation-output-schema.js';
+import type {
+  createApiLiteralProvidedSchema,
+  createApiTrackedLiteralGenerationSchema,
+  createApiExplainedTrackedLiteralGenerationSchema,
+} from '../schemas/api-literal-generation-output-schema.js';
+import type { apiLiteralGenerationOptionsSchema } from '../schemas/api-literal-generation-output-schema.js';
+import type { apiArgumentRejectionSchema } from '../schemas/api-argument-rejection-schema.js';
 
 export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
   model?: BaseChatModel;
   includeExplanations?: boolean;
   selectOasEnums?: boolean;
   trackRequestedInputs?: boolean;
+  /** Exact, private rejection feedback for the same source; no library-owned retries. */
+  rejectedProposals?: ApiArgumentRejection[];
+  signal?: AbortSignal;
+}
+
+export type ApiArgumentRejection = z.infer<typeof apiArgumentRejectionSchema>;
+
+export interface CreateApiArgumentRejectionInput extends Omit<
+  GenerateApiArgumentsInput,
+  'model' | 'rejectedProposals' | 'signal'
+> {
+  error: unknown;
+}
+
+export type ApiLiteralGenerationOptions = z.infer<
+  typeof apiLiteralGenerationOptionsSchema
+>;
+
+export interface ApiArgumentPlanningFailure {
+  error: OpenApiFlowError;
+  sourceFingerprint: string;
+  output: unknown;
 }
 
 export interface InterpretApiArgumentEnumsInput extends GenerateApiArgumentsInput {
@@ -26,34 +53,33 @@ export interface InterpretApiArgumentEnumsInput extends GenerateApiArgumentsInpu
   literalSources: ApiLiteralProposalSource[];
 }
 
-export type ApiLiteralGenerationOutput = z.infer<
-  ReturnType<typeof createApiLiteralGenerationOutputSchema>
+export type ApiLiteralProvidedDecision = z.infer<
+  ReturnType<typeof createApiLiteralProvidedSchema>
 >;
 
-export type ApiLiteralGenerationRequestedShape = {
-  requestedInputs: z.ZodArray<
-    ReturnType<typeof createApiRequestInputPointerSchema>
-  >;
-  literalSources: typeof apiLiteralGenerationSourcesSchema;
-};
+export type ApiLiteralAvailabilityDecision =
+  z.infer<typeof apiLiteralNotProvidedSchema> | ApiLiteralProvidedDecision;
 
-export type ApiLiteralGenerationExplanationShape = {
-  explanation: typeof apiLiteralGenerationReasonSchema;
-};
+export type ApiTrackedLiteralGenerationOutput =
+  | z.infer<ReturnType<typeof createApiTrackedLiteralGenerationSchema>>
+  | z.infer<
+      ReturnType<typeof createApiExplainedTrackedLiteralGenerationSchema>
+    >;
+
+export interface ApiExplainedLiteralGenerationOutput extends ApiArgumentProposal {
+  explanation: z.infer<typeof apiLiteralGenerationReasonSchema>;
+}
+
+export type ApiLiteralGenerationOutput =
+  | ApiArgumentProposal
+  | ApiExplainedLiteralGenerationOutput
+  | ApiTrackedLiteralGenerationOutput;
 
 export type ApiLiteralGenerationOutputSchema =
-  | ApiArgumentGenerationContract['schema']
-  | z.ZodObject<
-      ApiArgumentProposalSchemaShape & ApiLiteralGenerationRequestedShape,
-      z.core.$strict
-    >
-  | z.ZodObject<
-      ApiArgumentProposalSchemaShape & ApiLiteralGenerationExplanationShape,
-      z.core.$strict
-    >
-  | z.ZodObject<
-      ApiArgumentProposalSchemaShape &
-        ApiLiteralGenerationRequestedShape &
-        ApiLiteralGenerationExplanationShape,
-      z.core.$strict
-    >;
+  z.ZodType<ApiLiteralGenerationOutput>;
+
+export interface ResolvedApiLiteralGenerationOutput extends ApiArgumentProposal {
+  requestedInputs?: string[];
+  literalSources?: z.infer<typeof apiLiteralGenerationSourcesSchema>;
+  explanation?: z.infer<typeof apiLiteralGenerationReasonSchema>;
+}

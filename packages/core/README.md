@@ -1,5 +1,69 @@
 # @openapi-flow/core
 
+0.4.0 contracts: constraints, explicit boundary intent, scoped outlines and
+source-bound review/recovery contracts. Publication is tracked in the
+[release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.0.md).
+The development additions below target this version, not the older public 0.3.18.
+
+Migration: callers of `createNativeParameterGenerationContract` must explicitly
+provide `planningParametersSchema` as well as the executable `capability`. The
+candidate schema describes current model choices; the executable capability keeps
+its original runtime validator. Do not replace one with the other. High-level
+native configuration APIs own this composition. No missing-schema substitution,
+value default or silent data repair is introduced.
+
+0.4.0 `createWorkflowConnectionOutline` validates proposed work bundles and
+assigns identities from the actual source/session/goals and structural membership.
+`describeWorkflowConnectionOutline` reports current pending work;
+`describeWorkflowConnectionOutlineBundle` retains the global graph context plus
+transitive producers and crossing edges. `applyWorkflowConnectionOutlineStep`
+enforces local write ownership before the existing global patch checks. These
+functions do not select a model, schedule execution, infer business order or prove
+semantic requirement coverage. See the
+[outline contract](../../docs/incremental-connection-planning.md#unreleased-global-outline-and-scoped-connection-bundles).
+
+0.4.0 `materialRepairStages` restricts primary API repair choices to their
+actual OAS ownership. `describeWorkflowConnectionMaterialRepairWork` derives
+dependent literal tasks after binding changes; `applyWorkflowConnectionMaterialRepairWork`
+rechecks that work and retains its original request/pending result on receipt
+replay. Neither function invokes a model, fills missing values or manages host
+checkpoint/retry policy. See the [work contract](../../docs/incremental-connection-planning.md).
+
+0.4.0 goal-coverage review preserves the original requirements separately
+from candidate goals/material. Core checks every fact row, actual goal references,
+exact quotes and source-bound review receipts, and derives acceptance from the
+supplied judgments. It does not prove those semantic judgments or call a model.
+See [independent initial review](../../docs/incremental-connection-planning.md).
+
+0.4.0 initial-material recovery is available independently of an accepted
+connection session. `describeWorkflowConnectionConflictMaterials` exposes actual
+execution mappings and original contracts. Source-bound requests and replacements
+are checked by `validateWorkflowConnectionSourceRepairRequest` and
+`applyWorkflowConnectionMaterialRepair`, then rechecked on receipt replay with
+`replayWorkflowConnectionMaterialRepair`. OAS, requirements, identities and unrelated
+material stay unchanged; binding/argument field ownership is enforced. Declaration
+order alone is not progress, while literal-array order is preserved. These functions
+never invoke a model or dispatch a host stage. See the
+[recovery contract](../../docs/incremental-connection-planning.md).
+
+`inspectWorkflowConnectionMaterialRepairInputs` inspects a pending replacement's
+actual request slots before adoption. The host can then explicitly supply the
+complete `replacement.deferredApiInputIds` policy; new slots are never approved
+automatically and unrelated API approvals cannot be revoked. Application and receipt
+replay still enforce OAS, bindings and readiness. An absent versus empty optional
+requested-input list alone is not execution progress. These APIs remain unreleased.
+
+0.4.0 source adds accepted connection-session revision, explicit original-edge
+baseline updates, causal impact/assessment invalidation and replay validation.
+Material repair requests are validated against their actual owning API/native
+stage. Runtime registries and loop policies stay with the consumer. See the
+[connection revision guide](../../docs/incremental-connection-planning.md).
+
+Revision descriptions inspect the current graph against replacement contracts and
+bind both source epochs plus the accepted session history. Rejected candidate
+graphs expose private typed `WorkflowConnectionRevisionError.violations`; public
+error JSON still contains only the diagnostic. This does not add a host retry loop.
+
 Version **0.3.18** aligns with LangChain's typed per-call source decisions.
 Core's source-selection contracts, original OAS checks and cycle validation are
 unchanged. See the
@@ -10,6 +74,12 @@ operation into the existing discovery contract without changing its OAS or
 filtering candidates. Detailed contracts remain available for later generation
 and validation. See the
 [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.3.17.md).
+
+0.4.0 source adds `inspectWorkflowPlanningConstraints` and typed
+`WorkflowPlanningConstraintError` evidence for conflicts between selected data
+dependencies and proposed goals. It checks necessary ordering only, does not infer
+business order from OAS, and never replaces the final route/completion checks or
+host-owned replanning policy. These additions are not in published 0.3.18.
 
 Version **0.3.16** adds serializable incremental connection sessions, atomic
 bundle application, source/revision guards, native-only extension and complete
@@ -183,6 +253,8 @@ source additions provide `inspectApiArgumentRequirements`, `validateApiInputAnsw
 Engine-independent OpenAPI catalog, full operation contract lookup, OAS-derived Zod request schemas and argument validation. Version `0.2.0` is published; `0.1.0` has a different API.
 
 `createWorkflowPlanningCapabilities({ capabilities, apiCallIds })` specializes only capabilities that explicitly provide `createPlanningParametersSchema(context)`. Existing runtime schemas and capability objects are not mutated; custom definitions without the hook retain their schema. `validateNativeApiResponseReferences({ nativeNodes, capabilities, apiCallIds })` checks the API identities declared by each implementation's `responseReferences` and per-port `inputReferences`. It does not inspect arbitrary JSON field names, validate native-output identities as API IDs, infer a missing producer or repair a reference. These functions establish early planning boundaries; execution order and response contract validation remain separate.
+
+0.4.0 source hardening: `createApiInputSourceSelectionSchema` exports a bounded ID grammar instead of enumerating every position in the input text. Its original Zod schema still checks membership in the exact supplied catalog. `resolveApiInputSourceSelections` independently reconstructs that catalog and validates identity, ordered boundaries and a single original text segment before copying values. The serialized JSON Schema alone is not a catalog-membership validator. Preserve the local Zod/core resolution step; do not trust a model-provided ID merely because it matches the wire grammar. No source text is truncated, coerced or substituted.
 
 `createApiArgumentGenerationContract({ operation, bindings, requestMediaType })` is the shared literal-generation boundary. It returns the Zod `schema`, its matching `literalInputSchema` JSON Schema, and `hasLiteralInputs`. Bound paths have no original value definition and are forbidden (including through open additional properties); unbound OAS-approved fields stay available. Fully bound closed nested objects have no remaining literal decision. Open objects can still accept additional scenario values, so binding every named property does not close that OAS contract. The original operation and complete runtime request schema remain unchanged.
 

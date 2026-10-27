@@ -24,6 +24,7 @@ export function createNativeNodeParameterContract(
     capability,
     allowRuntimeParameters,
   );
+  if (material.hasProvablyEmptyParameters) return { schemas: [], material };
   if (allowRuntimeParameters && capability.supportsRuntimeParameters === true) {
     schemas.push(
       z.strictObject({

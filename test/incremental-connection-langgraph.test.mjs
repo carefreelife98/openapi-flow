@@ -578,7 +578,10 @@ test('the host graph applies two coherent bundles automatically and publishes on
     ),
   );
   assert.equal(
-    Object.keys(topology.nodes).some((id) => /interrupt|review/.test(id)),
+    // Optional model coverage review is automatic, not a human interrupt.
+    Object.keys(topology.nodes).some((id) =>
+      /interrupt|await.*human|human.*review/i.test(id),
+    ),
     false,
   );
 });
@@ -637,6 +640,64 @@ test('an invalid initial goal is retained and re-planned automatically before a 
   assert.deepEqual(
     model.requests[1].context.rejectedProposals,
     result.rejectedGoalProposals,
+  );
+  assert.deepEqual(source.materials, before);
+  assert.deepEqual(result.plan.edges, plan.edges);
+});
+
+test('a goal contradicting actual response dependencies is rejected before edges and automatically re-planned with its causal evidence', async () => {
+  const { source, goals, plan } = fixture();
+  const invalid = {
+    goals: [
+      {
+        kind: 'precedence',
+        before: 'summary',
+        after: 'source',
+        factIds: ['intent'],
+        reason: 'An incorrect reverse interpretation.',
+      },
+    ],
+  };
+  const before = globalThis.structuredClone(source.materials);
+  const progress = [];
+  const model = queueModel([invalid, { goals }, ...twoBundles(source, plan)]);
+  const result = await createIncrementalWorkflowConnectionGraph(
+    dependencies(source, model, { observe: (event) => progress.push(event) }),
+  ).invoke({});
+  assert.equal(result.status, 'complete');
+  assert.equal(result.modelInvocations, 4);
+  assert.equal(result.session.revision, 2);
+  assert.equal(result.rejectedGoalProposals.length, 1);
+  const rejection = result.rejectedGoalProposals[0];
+  assert.deepEqual(rejection.output, invalid);
+  assert(
+    rejection.constraints.conflicts.some(
+      (conflict) =>
+        conflict.code === 'DEPENDENCY_CYCLE' &&
+        conflict.dependencies.some((edge) => edge.origin.kind === 'goal') &&
+        conflict.dependencies.some(
+          (edge) => edge.origin.kind === 'value-reference',
+        ),
+    ),
+  );
+  assert.deepEqual(model.requests[1].context.rejectedProposals, [rejection]);
+  assert.equal(model.requests[0].context.constraints.conflicts.length, 0);
+  assert(
+    model.requests[0].context.constraints.dependencies.some(
+      (edge) =>
+        edge.from === 'source' &&
+        edge.to === 'detail' &&
+        edge.origin.pointer === '/id',
+    ),
+  );
+  assert.deepEqual(
+    model.requests.slice(0, 2).map((request) => request.options.name),
+    ['plan_workflow_connection_goals', 'plan_workflow_connection_goals'],
+  );
+  assert.equal(result.rejectedProposals.length, 0);
+  assert.equal(
+    progress.some((event) => event.phase === 'needs-user-decision'),
+    false,
   );
   assert.deepEqual(source.materials, before);
   assert.deepEqual(result.plan.edges, plan.edges);
@@ -718,7 +779,16 @@ test('a zero rejection budget preserves the rejected proposal and does not ask a
   const { source, goals } = fixture();
   const model = queueModel([
     { goals },
-    { decision: modelPatch(source, patch({})) },
+    {
+      decision: modelPatch(
+        source,
+        patch({
+          addEdges: [
+            { from: 'source', output: 'main', to: 'source', input: 'main' },
+          ],
+        }),
+      ),
+    },
   ]);
   const graph = createIncrementalWorkflowConnectionGraph(
     dependencies(source, model, {
@@ -734,10 +804,7 @@ test('a zero rejection budget preserves the rejected proposal and does not ask a
       error.failure.kind === 'rejected-proposals',
   );
   const saved = await graph.getState(config);
-  assert.equal(
-    saved.values.rejectedProposals[0].violations[0].code,
-    'NO_PROGRESS',
-  );
+  assert.equal(saved.values.rejectedProposals[0].violations[0].code, 'CYCLE');
   assert.equal(saved.values.session.revision, 0);
   assert.equal(saved.values.status, 'planning');
   assert.equal(model.requests.length, 2);
@@ -786,7 +853,16 @@ test('native material requests return to a parent without HITL; the parent can e
   };
   const model = queueModel([
     { goals: reducedGoals },
-    { decision: modelPatch(source, patch({})) },
+    {
+      decision: modelPatch(
+        source,
+        patch({
+          addEdges: [
+            { from: 'source', output: 'main', to: 'source', input: 'main' },
+          ],
+        }),
+      ),
+    },
     { decision: modelPatch(source, first) },
     { decision: material },
     twoBundles({ ...source, nativeNodes: additionalNativeNodes }, plan)[1],
@@ -851,7 +927,14 @@ test('the host policy, not LangGraph default recursion depth, controls a long ex
   const model = queueModel([
     { goals },
     ...Array.from({ length: 26 }, () => ({
-      decision: modelPatch(source, patch({})),
+      decision: modelPatch(
+        source,
+        patch({
+          addEdges: [
+            { from: 'source', output: 'main', to: 'source', input: 'main' },
+          ],
+        }),
+      ),
     })),
     { decision: modelPatch(source, full) },
   ]);

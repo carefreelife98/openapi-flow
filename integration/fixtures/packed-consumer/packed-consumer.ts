@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import './review-feedback-consumer.js';
 import './error-contract-consumer.js';
+import './hierarchical-planning-consumer.js';
 import { verifyConsumerApiBindingAssembly } from './api-call-bindings-consumer.js';
 import { verifyConsumerIncrementalConnections } from './incremental-connections-consumer.js';
 import { verifyConsumerApiChoices } from './api-selection-consumer.js';

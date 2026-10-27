@@ -5,6 +5,10 @@ import {
   applyWorkflowConnectionStep,
   inspectWorkflowConnectionCompletion,
   finalizeWorkflowConnectionSession,
+  describeWorkflowConnectionGoals,
+  validateWorkflowConnectionGoalReview,
+  describeWorkflowConnectionOutline,
+  applyWorkflowConnectionOutlineStep,
 } from '@openapi-flow/core';
 import {
   planWorkflowConnectionGoals,
@@ -25,6 +29,15 @@ import {
 } from './check-incremental-connection-budget.js';
 import { resolveIncrementalConnectionSource } from './resolve-incremental-connection-source.js';
 import { createIncrementalNativeStages } from './native/create-incremental-native-stages.js';
+import { createIncrementalOutlineStages } from './create-incremental-outline-stages.js';
+import { createIncrementalRevisionStages } from './create-incremental-revision-stages.js';
+import { replayIncrementalConnectionSourceEvents } from './replay-incremental-connection-source-events.js';
+import { createIncrementalMaterialRecoveryStages } from './create-incremental-material-recovery-stages.js';
+import { createMaterialArgumentStages } from './arguments/create-material-argument-stages.js';
+import {
+  createIncrementalGoalReviewStages,
+  stageInitialConnectionGoalCandidate,
+} from './create-incremental-goal-review-stages.js';
 
 export function createIncrementalConnectionStages(
   dependencies: IncrementalConnectionDependencies,
@@ -67,6 +80,82 @@ export function createIncrementalConnectionStages(
     if (state.session !== undefined) {
       check(state);
       if (
+        dependencies.revisionPlanning === undefined &&
+        state.sourceEvents !== undefined
+      )
+        throw new Error(
+          'Revision checkpoint requires its explicit runtime policy',
+        );
+      if (
+        dependencies.revisionPlanning !== undefined &&
+        (!state.sourceEvents ||
+          !state.pendingRevisionRepairs ||
+          !state.rejectedRevisions ||
+          !state.rejectedRevisionReviews)
+      )
+        throw new Error(
+          'Revision resume requires its ordered source and rejection/candidate histories',
+        );
+      const replay =
+        dependencies.revisionPlanning === undefined
+          ? undefined
+          : replayIncrementalConnectionSourceEvents(dependencies, state);
+      if (
+        dependencies.outlinePlanning === undefined &&
+        (state.outline !== undefined ||
+          state.outlineHistory !== undefined ||
+          state.rejectedOutlineProposals !== undefined ||
+          state.pendingBundleId !== undefined)
+      )
+        throw new Error(
+          'Outline checkpoint requires its explicit runtime policy',
+        );
+      if (dependencies.outlinePlanning !== undefined) {
+        if (
+          !state.outlineHistory ||
+          !state.rejectedOutlineProposals ||
+          (!state.outline && state.nextModelStage !== 'outline')
+        )
+          throw new Error(
+            'Outline resumption requires its checked outline/history or an explicitly pending outline stage',
+          );
+        if (state.outline)
+          describeWorkflowConnectionOutline({
+            ...source(state),
+            session: state.session,
+            outline: state.outline,
+          });
+      }
+      const reviewedRevision = state.sourceEvents?.some(
+        (event) =>
+          event.kind === 'accepted-revision' &&
+          event.revision.session.id === state.session!.id &&
+          event.review?.accepted,
+      );
+      if (dependencies.initialGoalReview !== undefined && !reviewedRevision) {
+        const candidate = state.goalReviews?.find(
+          (item) =>
+            item.session.id === state.session!.id && item.review.accepted,
+        );
+        if (!candidate)
+          throw new Error(
+            'Initial goal review resume requires its accepted original candidate and receipt',
+          );
+        const reviewSource =
+          replay === undefined
+            ? source({ ...state, additionalNativeNodes: [] })
+            : replay.epochs.get(candidate.review.sourceFingerprint);
+        if (!reviewSource)
+          throw new Error(
+            'Original reviewed material epoch is unavailable in the source ledger',
+          );
+        validateWorkflowConnectionGoalReview({
+          ...reviewSource,
+          session: candidate.session,
+          review: candidate.review,
+        });
+      }
+      if (
         dependencies.nativeAugmentation !== undefined &&
         (!state.additionalNativeNodes || !state.materialExtensions)
       )
@@ -81,7 +170,15 @@ export function createIncrementalConnectionStages(
         status: 'planning',
         pending: undefined,
         plan: undefined,
-        nextModelStage: 'step',
+        nextModelStage:
+          dependencies.revisionPlanning !== undefined &&
+          state.revisionPhase !== undefined &&
+          state.revisionPhase !== 'adopted'
+            ? state.nextModelStage
+            : dependencies.outlinePlanning !== undefined &&
+                state.outline === undefined
+              ? 'outline'
+              : 'step',
         failureId: undefined,
       };
     }
@@ -89,7 +186,22 @@ export function createIncrementalConnectionStages(
       state.startedAt !== undefined ||
       state.modelInvocations !== undefined ||
       state.rejectedProposals !== undefined ||
-      state.rejectedGoalProposals !== undefined
+      state.rejectedGoalProposals !== undefined ||
+      state.pendingGoalSession !== undefined ||
+      state.goalReviews !== undefined ||
+      state.outline !== undefined ||
+      state.outlineHistory !== undefined ||
+      state.rejectedOutlineProposals !== undefined ||
+      state.pendingBundleId !== undefined ||
+      state.sourceEvents !== undefined ||
+      state.pendingRevisionRepairs !== undefined ||
+      state.rejectedRevisions !== undefined ||
+      state.rejectedRevisionReviews !== undefined ||
+      state.pendingRevision !== undefined ||
+      state.pendingRevisionMaterialRequest !== undefined ||
+      state.pendingRevisionReview !== undefined ||
+      state.revisionPhase !== undefined ||
+      state.pendingMaterialArgumentWork !== undefined
     )
       throw new Error(
         'A fresh connection run must not contain previous accounting without its session',
@@ -103,6 +215,29 @@ export function createIncrementalConnectionStages(
       nextModelStage: 'goals',
       additionalNativeNodes: [],
       materialExtensions: [],
+      ...(dependencies.outlinePlanning === undefined
+        ? {}
+        : { outlineHistory: [], rejectedOutlineProposals: [] }),
+      ...(dependencies.initialGoalReview === undefined
+        ? {}
+        : { goalReviews: [] }),
+      ...(dependencies.revisionPlanning === undefined
+        ? {}
+        : {
+            sourceEvents: [],
+            pendingRevisionRepairs: [],
+            rejectedRevisions: [],
+            rejectedRevisionReviews: [],
+          }),
+      ...(dependencies.materialRecovery === undefined &&
+      dependencies.revisionPlanning === undefined
+        ? {}
+        : {
+            materialSourceFingerprint: describeWorkflowConnectionGoals(
+              dependencies.source(),
+            ).sourceFingerprint,
+            materialRepairs: [],
+          }),
     };
   }
   function reserve(
@@ -112,13 +247,24 @@ export function createIncrementalConnectionStages(
     check(state, config);
     if (state.modelInvocations === undefined)
       throw new Error('Model reservation requires invocation accounting');
-    if (state.modelInvocations >= dependencies.policy.maxModelInvocations)
+    const reservations =
+      state.nextModelStage === 'material-replan'
+        ? dependencies.materialRecovery?.modelInvocations
+        : 1;
+    if (reservations === undefined)
+      throw new Error(
+        'Originating-stage reservation requires materialRecovery.modelInvocations',
+      );
+    if (
+      state.modelInvocations + reservations >
+      dependencies.policy.maxModelInvocations
+    )
       throw new IncrementalConnectionLimitError({
         kind: 'model-invocations',
         limit: dependencies.policy.maxModelInvocations,
         observed: state.modelInvocations,
       });
-    return { modelInvocations: state.modelInvocations + 1 };
+    return { modelInvocations: state.modelInvocations + reservations };
   }
   async function goals(
     state: IncrementalConnectionState,
@@ -129,10 +275,24 @@ export function createIncrementalConnectionStages(
       if (state.rejectedGoalProposals === undefined)
         throw new Error('Goal planning requires its rejection history');
       try {
+        const current = source(state);
+        const fingerprint =
+          describeWorkflowConnectionGoals(current).sourceFingerprint;
         const session = await planWorkflowConnectionGoals({
-          ...source(state),
+          ...current,
           model: dependencies.model,
-          rejectedProposals: state.rejectedGoalProposals,
+          rejectedProposals: state.rejectedGoalProposals.filter(
+            (item) => item.sourceFingerprint === fingerprint,
+          ),
+          ...(dependencies.initialGoalReview === undefined
+            ? {}
+            : {
+                rejectedGoalReviews: state.goalReviews?.filter(
+                  (candidate) =>
+                    !candidate.review.accepted &&
+                    candidate.review.sourceFingerprint === fingerprint,
+                ),
+              }),
           signal: createIncrementalConnectionSignal({
             state,
             policy: dependencies.policy,
@@ -140,7 +300,7 @@ export function createIncrementalConnectionStages(
           }),
         });
         check(state, config);
-        return { session, nextModelStage: 'step' };
+        return stageInitialConnectionGoalCandidate(dependencies, session);
       } catch (error) {
         const rejection = createWorkflowConnectionGoalRejection({
           ...source(state),
@@ -150,7 +310,13 @@ export function createIncrementalConnectionStages(
         check(state, config);
         return {
           rejectedGoalProposals: [...state.rejectedGoalProposals, rejection],
-          nextModelStage: 'goals',
+          nextModelStage:
+            dependencies.materialRecovery !== undefined &&
+            rejection.stage === 'contract-validation' &&
+            rejection.constraints !== undefined &&
+            rejection.constraints.conflicts.length > 0
+              ? 'goal-recovery'
+              : 'goals',
         };
       }
     });
@@ -165,10 +331,33 @@ export function createIncrementalConnectionStages(
         throw new Error(
           'Connection proposal requires a session and rejection history',
         );
+      let bundleId: string | undefined;
+      if (dependencies.outlinePlanning !== undefined) {
+        if (!state.outline)
+          throw new Error(
+            'Outline connection proposal requires its checked global outline',
+          );
+        const planning = describeWorkflowConnectionOutline({
+          ...source(state),
+          session: state.session,
+          outline: state.outline,
+        });
+        bundleId = dependencies.outlinePlanning.selectBundle({
+          ...planning,
+          rejectedProposals: structuredClone(state.rejectedProposals),
+        });
+        if (!planning.outline.bundles.some((bundle) => bundle.id === bundleId))
+          throw new Error(
+            'outlinePlanning.selectBundle must return an actual bundle ID',
+          );
+      }
       const pending = await planWorkflowConnectionStep({
         ...source(state),
         session: state.session,
         model: dependencies.model,
+        ...(bundleId === undefined
+          ? {}
+          : { outline: state.outline!, bundleId }),
         // Keep all rejections for budget accounting; only this material epoch is model feedback.
         rejectedProposals: state.rejectedProposals.filter(
           (item) =>
@@ -182,7 +371,7 @@ export function createIncrementalConnectionStages(
         }),
       });
       check(state, config);
-      return { pending };
+      return { pending, pendingBundleId: bundleId };
     });
   }
   function apply(
@@ -211,12 +400,27 @@ export function createIncrementalConnectionStages(
       return { status: 'needs-native-material' };
     if (decision.kind === 'require-user-decision')
       return { status: 'needs-user-decision' };
-    const result = applyWorkflowConnectionStep({
+    if (
+      dependencies.outlinePlanning !== undefined &&
+      (!state.outline || !state.pendingBundleId)
+    )
+      throw new Error(
+        'Outline application requires its saved outline and selected bundle ID',
+      );
+    const application = {
       ...source(state),
       session: state.session,
       expected,
       proposal: decision,
-    });
+    };
+    const result =
+      dependencies.outlinePlanning === undefined
+        ? applyWorkflowConnectionStep(application)
+        : applyWorkflowConnectionOutlineStep({
+            ...application,
+            outline: state.outline!,
+            bundleId: state.pendingBundleId!,
+          });
     if (result.status === 'rejected')
       return {
         rejectedProposals: [
@@ -224,6 +428,9 @@ export function createIncrementalConnectionStages(
           { expected, proposal: decision, violations: result.violations },
         ],
         pending: undefined,
+        ...(dependencies.revisionPlanning === undefined
+          ? {}
+          : { nextModelStage: 'revision' as const }),
       };
     return { session: result.session, pending: undefined };
   }
@@ -262,7 +469,7 @@ export function createIncrementalConnectionStages(
   }
   function route(
     state: IncrementalConnectionState,
-  ): 'propose' | 'finalize' | 'stop' | 'prepare-native' {
+  ): 'propose' | 'finalize' | 'stop' | 'prepare-native' | 'publish-revision' {
     check(state);
     if (
       state.status === 'needs-native-material' &&
@@ -276,6 +483,23 @@ export function createIncrementalConnectionStages(
       return 'stop';
     if (!state.session)
       throw new Error('Connection completion inspection requires a session');
+    if (
+      dependencies.revisionPlanning !== undefined &&
+      state.revisionPhase !== undefined &&
+      state.revisionPhase !== 'adopted'
+    )
+      return 'publish-revision';
+    if (state.nextModelStage === 'revision') return 'propose';
+    if (
+      dependencies.outlinePlanning !== undefined &&
+      state.outline === undefined
+    ) {
+      if (state.nextModelStage !== 'outline')
+        throw new Error(
+          'Missing outline requires an explicit outline planning stage',
+        );
+      return 'propose';
+    }
     return inspectWorkflowConnectionCompletion({
       ...source(state),
       session: state.session,
@@ -299,6 +523,10 @@ export function createIncrementalConnectionStages(
     };
   }
   return {
+    ...createIncrementalRevisionStages(dependencies, {
+      check,
+      invokeModelStage,
+    }),
     initialize,
     reserve,
     goals,
@@ -309,5 +537,18 @@ export function createIncrementalConnectionStages(
     finalize,
     fail,
     ...createIncrementalNativeStages(dependencies, { check, invokeModelStage }),
+    ...createIncrementalOutlineStages(dependencies, {
+      check,
+      invokeModelStage,
+    }),
+    ...createIncrementalGoalReviewStages(dependencies, {
+      check,
+      invokeModelStage,
+    }),
+    ...createIncrementalMaterialRecoveryStages(dependencies, {
+      check,
+      invokeModelStage,
+    }),
+    ...createMaterialArgumentStages(dependencies, { check, invokeModelStage }),
   };
 }

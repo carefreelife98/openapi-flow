@@ -6,6 +6,8 @@ import {
   describeConversationGraph,
   conversationGraphDocument,
   describeIncrementalConnectionGraph,
+  describeApiArgumentPlanningGraph,
+  describeNativeSelectionPlanningGraph,
 } from '../scripts/update-workflow-conversation-graph.mjs';
 import { draftConversationWorkKindSchema } from '../examples/langgraph-workflow/dist/schemas/workflow-draft-conversation-work-kind-schema.js';
 
@@ -45,14 +47,68 @@ test('the new automatic child graph has explicit loop and failure destinations w
     '__end__',
     'finalize',
     'prepareNative',
+    'publishRevision',
     'reserveModelCall',
   ]);
   assert.deepEqual(targets('proposeBundle'), ['applyBundle', 'fail']);
+  assert.deepEqual(targets('planOutline'), [
+    'fail',
+    'publishOutline',
+    'reserveModelCall',
+  ]);
+  assert.deepEqual(targets('publishOutline'), ['publishProgress']);
+  assert.deepEqual(targets('reviseAcceptedPlan'), ['fail', 'publishRevision']);
+  assert.deepEqual(targets('reviewRevisedGoals'), ['fail', 'publishRevision']);
+  assert.deepEqual(targets('adoptRevision'), ['publishRevision']);
+  assert.deepEqual(targets('publishRevision'), [
+    'adoptRevision',
+    'publishMaterialRecovery',
+    'publishProgress',
+    'reserveModelCall',
+  ]);
   assert.deepEqual(targets('fail'), ['__end__']);
   assert.deepEqual(targets('generateNativeParameters'), [
     'applyNativeMaterial',
     'fail',
   ]);
+  assert.deepEqual(targets('replanOriginMaterial'), [
+    'fail',
+    'publishMaterialRecovery',
+  ]);
+  assert.deepEqual(targets('generateMaterialArguments'), [
+    'fail',
+    'publishMaterialArguments',
+  ]);
+  assert.deepEqual(targets('publishMaterialArguments'), [
+    'finishMaterialArguments',
+    'reserveModelCall',
+  ]);
+  assert.deepEqual(targets('finishMaterialArguments'), [
+    'publishMaterialRecovery',
+  ]);
+  assert.deepEqual(targets('publishMaterialRecovery'), [
+    'applyOriginMaterial',
+    'reserveModelCall',
+  ]);
+  assert.ok(graph.nodes.some((node) => node.id === 'recoverGoalMaterial'));
+  assert.deepEqual(targets('reviewInitialGoals'), [
+    'fail',
+    'publishProgress',
+    'reserveModelCall',
+  ]);
+  assert.ok(graph.nodes.every((node) => node.label.includes(' / ')));
+});
+
+test('API argument correction graph exposes only the actual optional host loop', async () => {
+  const graph = await describeApiArgumentPlanningGraph();
+  assert.equal(graph.nodes.length, 8);
+  assert.deepEqual(
+    graph.edges
+      .filter((edge) => edge.source === 'publishOutcome')
+      .map((edge) => edge.target)
+      .sort(),
+    ['__end__', 'reserveAttempt'],
+  );
   assert.ok(graph.nodes.every((node) => node.label.includes(' / ')));
 });
 
@@ -61,4 +117,27 @@ test('the Korean current-graph document is reproducible from actual graph regist
     await readFile(conversationGraphDocument, 'utf8'),
     await buildConversationGraphDocument(),
   );
+});
+
+test('native selection child exposes the actual bounded selection/review loop and failure-only resume', async () => {
+  const graph = await describeNativeSelectionPlanningGraph();
+  const targets = (id) =>
+    graph.edges
+      .filter((edge) => edge.source === id)
+      .map((edge) => edge.target)
+      .sort();
+  assert.equal(graph.nodes.length, 8);
+  assert.deepEqual(targets('reserveModelCall'), [
+    'reviewSelection',
+    'selectInstances',
+  ]);
+  assert.deepEqual(targets('selectInstances'), ['fail', 'publishOutcome']);
+  assert.deepEqual(targets('reviewSelection'), ['fail', 'publishOutcome']);
+  assert.deepEqual(targets('publishOutcome'), [
+    '__end__',
+    'fail',
+    'reserveModelCall',
+  ]);
+  assert.deepEqual(targets('fail'), ['__end__']);
+  assert(graph.nodes.every((node) => node.label.includes(' / ')));
 });

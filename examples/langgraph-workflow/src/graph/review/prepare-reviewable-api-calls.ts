@@ -1,4 +1,6 @@
-import { planApiBindings, generateApiArguments } from '@openapi-flow/langchain';
+import { planApiBindings } from '@openapi-flow/langchain';
+import type { RunnableConfig } from '@langchain/core/runnables';
+import { generatePreparedApiArguments } from '../arguments/generate-prepared-api-arguments.js';
 import {
   createNativeOutputContracts,
   inspectApiArgumentRequirements,
@@ -27,11 +29,13 @@ import type { ApiInputRequirement } from '@openapi-flow/core';
 export async function prepareReviewableApiCalls(
   state: WorkflowState,
   dependencies: PlannedGraphDependencies,
+  config?: RunnableConfig,
 ): Promise<WorkflowUpdate> {
   const result = await prepareReviewableApiMaterials(
     state,
     dependencies,
     'scenario',
+    config,
   );
   if (result.requirements.length)
     throw new Error(
@@ -50,6 +54,7 @@ export async function prepareReviewableApiMaterials(
   state: WorkflowState,
   dependencies: PlannedGraphDependencies,
   literalInputMode: ApiLiteralInputMode,
+  config?: RunnableConfig,
 ): Promise<PreparedApiMaterials> {
   if (!['scenario', 'confirmed-only'].includes(literalInputMode))
     throw new Error('API preparation requires an explicit literal input mode');
@@ -117,17 +122,21 @@ export async function prepareReviewableApiMaterials(
     }
     const args: ApiCallArguments =
       literalInputMode === 'scenario'
-        ? await generateApiArguments({
-            ...material,
-            bindings: call.bindings,
-            scenario: state.scenario,
-            model: dependencies.model,
-            includeExplanations:
-              dependencies.argumentOptions?.includeExplanations,
-            selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
-            trackRequestedInputs:
-              dependencies.argumentOptions?.trackRequestedInputs,
-          })
+        ? await generatePreparedApiArguments(
+            {
+              ...material,
+              bindings: call.bindings,
+              scenario: state.scenario,
+              model: dependencies.model,
+              includeExplanations:
+                dependencies.argumentOptions?.includeExplanations,
+              selectOasEnums: dependencies.argumentOptions?.selectOasEnums,
+              trackRequestedInputs:
+                dependencies.argumentOptions?.trackRequestedInputs,
+            },
+            dependencies.argumentPlanning,
+            config,
+          )
         : {
             callId: material.callId,
             values: {},

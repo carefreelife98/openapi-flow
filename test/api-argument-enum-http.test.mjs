@@ -59,7 +59,10 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
     );
     const output =
       wire.name === 'generate_api_arguments'
-        ? { values: {}, requestedInputs: ['/query/sort'], literalSources: [] }
+        ? {
+            literalInputs: { state: 'not-provided' },
+            requestedInputs: ['/query/sort'],
+          }
         : {
             answers: [
               {

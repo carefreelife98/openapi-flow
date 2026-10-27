@@ -7,6 +7,10 @@ import {
   finalizeWorkflowConnectionSession,
   extendWorkflowConnectionSession,
   describeApiOperationCandidate,
+  inspectWorkflowPlanningConstraints,
+  createWorkflowConnectionOutline,
+  describeWorkflowConnectionOutlineBundle,
+  applyWorkflowConnectionOutlineStep,
 } from '@openapi-flow/core';
 import type {
   ReadyWorkflowApiMaterial,
@@ -62,9 +66,42 @@ export function verifyConsumerIncrementalConnections(
       },
     ],
   });
-  const first = applyWorkflowConnectionStep({
+  assert.equal(
+    inspectWorkflowPlanningConstraints({ ...source, goals: [] }).conflicts
+      .length,
+    0,
+  );
+  const outline = createWorkflowConnectionOutline({
     ...source,
     session,
+    proposal: {
+      purpose: scenario,
+      bundles: [
+        {
+          purpose: 'Place the supplied independent call',
+          nodeIds: [material.arguments.callId],
+          goalIds: session.goals.map((goal) => goal.id),
+          factIds: ['intent'],
+          reason: 'Explicit consumer fixture, not a model business judgment',
+        },
+      ],
+    },
+  });
+  const bundle = outline.bundles[0];
+  assert.ok(bundle);
+  const scoped = describeWorkflowConnectionOutlineBundle({
+    ...source,
+    session,
+    outline,
+    bundleId: bundle.id,
+  });
+  assert.equal(scoped.bundle.id, bundle.id);
+  assert.equal(scoped.step.context.nodes.length, 1);
+  const first = applyWorkflowConnectionOutlineStep({
+    ...source,
+    session,
+    outline,
+    bundleId: bundle.id,
     expected: describeWorkflowConnectionStep({ ...source, session }).expected,
     proposal: {
       kind: 'patch',

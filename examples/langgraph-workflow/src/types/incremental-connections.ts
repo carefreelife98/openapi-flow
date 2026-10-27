@@ -1,7 +1,12 @@
-import type { BaseCheckpointSaver } from '@langchain/langgraph';
+import type {
+  BaseCheckpointSaver,
+  CompiledStateGraph,
+} from '@langchain/langgraph';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { z } from 'zod';
+import type { IncrementalConnectionRevisionPlanning } from './incremental-revisions.js';
+import type { IncrementalMaterialArgumentPlanning } from './incremental-material-arguments.js';
 import type {
   WorkflowConnectionSessionSource,
   WorkflowConnectionSession,
@@ -14,6 +19,12 @@ import type {
   WorkflowConnectionMaterialRequest,
   WorkflowConnectionMaterialExtension,
   WorkflowConnectionStepExpectation,
+  WorkflowConnectionSourceRepairRequest,
+  WorkflowConnectionMaterialReplacement,
+  WorkflowConnectionMaterialRepairWorkSubmission,
+  WorkflowConnectionOutline,
+  WorkflowConnectionOutlineDescription,
+  WorkflowConnectionRejectedProposal,
 } from '@openapi-flow/core';
 import type {
   incrementalConnectionPolicySchema,
@@ -27,6 +38,13 @@ export type IncrementalConnectionState =
   typeof incrementalConnectionStateSchema.State;
 export type IncrementalConnectionUpdate =
   typeof incrementalConnectionStateSchema.Update;
+export type IncrementalConnectionGraph = CompiledStateGraph<
+  IncrementalConnectionState,
+  IncrementalConnectionUpdate,
+  string,
+  typeof incrementalConnectionStateSchema,
+  typeof incrementalConnectionStateSchema
+>;
 
 export interface IncrementalConnectionDependencies {
   model: BaseChatModel;
@@ -36,6 +54,55 @@ export interface IncrementalConnectionDependencies {
   checkpointer?: BaseCheckpointSaver;
   observe?: (progress: IncrementalConnectionProgress) => void | Promise<void>;
   nativeAugmentation?: IncrementalNativeAugmentationPolicy;
+  materialRecovery?: IncrementalConnectionMaterialRecovery;
+  /** Independent initial goal/material coverage judgment, not final graph correctness proof. */
+  initialGoalReview?: IncrementalInitialGoalReview;
+  outlinePlanning?: IncrementalConnectionOutlinePlanning;
+  revisionPlanning?: IncrementalConnectionRevisionPlanning;
+}
+export interface IncrementalOutlineSelectionInput extends WorkflowConnectionOutlineDescription {
+  rejectedProposals: WorkflowConnectionRejectedProposal[];
+}
+export interface IncrementalConnectionOutlinePlanning {
+  model: BaseChatModel;
+  /** Host-owned planning-task scheduling, never execution edges or API order. */
+  selectBundle: (input: IncrementalOutlineSelectionInput) => string;
+  observe?: (outline: WorkflowConnectionOutline) => void | Promise<void>;
+}
+export interface IncrementalInitialGoalReview {
+  model: BaseChatModel;
+}
+export interface IncrementalConnectionMaterialRecoveryInput {
+  source: WorkflowConnectionSessionSource;
+  request: WorkflowConnectionSourceRepairRequest;
+  model: BaseChatModel;
+  signal: AbortSignal;
+}
+export interface IncrementalConnectionRecoveryProgress {
+  phase: 'requested' | 'replanned' | 'applied';
+  targets: WorkflowConnectionSourceRepairRequest['request']['targets'];
+  modelInvocations: number;
+  rejectedProposals: number;
+}
+export interface IncrementalConnectionMaterialRecovery {
+  /** Optional per-API dependent-value stages after the callback returns its binding replacement. */
+  argumentPlanning?: IncrementalMaterialArgumentPlanning;
+  /** Explicit structured-output invocation lease, charged to the shared run budget before dispatch. */
+  modelInvocations: number;
+  replan: (
+    input: IncrementalConnectionMaterialRecoveryInput,
+  ) => Promise<
+    | WorkflowConnectionMaterialReplacement
+    | WorkflowConnectionMaterialRepairWorkSubmission
+  >;
+  observe?: (
+    progress: IncrementalConnectionRecoveryProgress,
+  ) => void | Promise<void>;
+}
+export interface IncrementalConnectionModelLease {
+  model: BaseChatModel;
+  usedInvocations: () => number;
+  close: () => void;
 }
 export interface IncrementalNativeAugmentationPolicy {
   /** Explicit host ownership policy. Literal means plan-time settings, not guessed API data. */
@@ -57,7 +124,7 @@ export interface IncrementalNativePlanningInput {
   request: WorkflowConnectionMaterialRequest;
   expected: WorkflowConnectionStepExpectation;
 }
-export interface IncrementalNativeStageRuntime {
+export interface IncrementalConnectionStageRuntime {
   check: (state: IncrementalConnectionState, config?: RunnableConfig) => void;
   invokeModelStage: (
     execute: () => Promise<IncrementalConnectionUpdate>,

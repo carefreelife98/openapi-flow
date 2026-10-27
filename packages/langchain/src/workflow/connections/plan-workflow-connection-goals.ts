@@ -1,4 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { isDeepStrictEqual } from 'node:util';
 import {
   describeWorkflowConnectionGoals,
   createWorkflowConnectionSession,
@@ -13,15 +14,19 @@ import { createWorkflowConnectionGoalsSchema } from '../../schemas/workflow-conn
 import { workflowConnectionGoalRejectionSchema } from '../../schemas/workflow-connection-goal-rejection-schema.js';
 import { workflowConnectionGoalsPrompt } from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
-import { resolveConnectionPortSelection } from './resolve-connection-port-selection.js';
-import { validateConnectionProposal } from './workflow-connection-planning-error.js';
+import { resolveConnectionGoalSelections } from './resolve-connection-selections.js';
+import {
+  validateConnectionProposal,
+  WorkflowConnectionPlanningError,
+} from './workflow-connection-planning-error.js';
+import { validateWorkflowGoalReviewFeedback } from './validate-workflow-goal-review-feedback.js';
 
 /** One semantic interpretation; code validates coverage/identities and creates the initial session. */
 export async function planWorkflowConnectionGoals(
   input: PlanWorkflowConnectionGoalsInput,
 ): Promise<WorkflowConnectionSession> {
   const operation = 'planWorkflowConnectionGoals';
-  const { description, schema } = runOpenApiFlowOperation(
+  const { description, schema, rejectedGoalReviews } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
       operation,
@@ -43,10 +48,43 @@ export async function planWorkflowConnectionGoals(
       }
       return {
         description,
+        rejectedGoalReviews: validateWorkflowGoalReviewFeedback(input),
         schema: createWorkflowConnectionGoalsSchema(description),
       };
     },
   );
+  const checkCurrent = (output: unknown, originalFailure?: unknown): void =>
+    validateConnectionProposal(
+      {
+        operation,
+        stage: 'input-validation',
+        code: 'PLANNING_INPUT_INVALID',
+        output,
+        sourceFingerprint: description.sourceFingerprint,
+      },
+      () => {
+        try {
+          if (
+            describeWorkflowConnectionGoals(input).sourceFingerprint !==
+              description.sourceFingerprint ||
+            !isDeepStrictEqual(
+              validateWorkflowGoalReviewFeedback(input),
+              rejectedGoalReviews,
+            )
+          )
+            throw new Error(
+              'Connection goal source or review evidence changed during model invocation',
+            );
+        } catch (error) {
+          if (originalFailure === undefined) throw error;
+          throw new AggregateError(
+            [originalFailure, error],
+            'Connection goal source or review evidence changed during malformed model output',
+            { cause: error },
+          );
+        }
+      },
+    );
   const output = await invokeConnectionPlanningModel({
     model: input.model,
     operation,
@@ -61,11 +99,22 @@ export async function planWorkflowConnectionGoals(
           ...(input.rejectedProposals === undefined
             ? {}
             : { rejectedProposals: input.rejectedProposals }),
+          ...(input.rejectedGoalReviews === undefined
+            ? {}
+            : { rejectedGoalReviews }),
         }),
       ),
     ],
     ...(input.signal === undefined ? {} : { signal: input.signal }),
+  }).catch((error: unknown) => {
+    if (
+      error instanceof WorkflowConnectionPlanningError &&
+      error.diagnostic.stage === 'model-output'
+    )
+      checkCurrent(error.output, error);
+    throw error;
   });
+  checkCurrent(output);
   return validateConnectionProposal(
     {
       operation,
@@ -75,30 +124,11 @@ export async function planWorkflowConnectionGoals(
       sourceFingerprint: description.sourceFingerprint,
     },
     () => {
-      if (
-        describeWorkflowConnectionGoals(input).sourceFingerprint !==
-        description.sourceFingerprint
-      )
-        throw new Error(
-          'Connection goal source changed during model invocation',
+      const goals: WorkflowConnectionGoalProposal[] =
+        resolveConnectionGoalSelections(
+          output.goals,
+          description.context.nodes,
         );
-      const goals: WorkflowConnectionGoalProposal[] = output.goals.map(
-        (goal) =>
-          goal.kind !== 'route'
-            ? goal
-            : {
-                kind: goal.kind,
-                from: goal.source.nodeId,
-                to: goal.to,
-                factIds: goal.factIds,
-                reason: goal.reason,
-                output: resolveConnectionPortSelection(
-                  goal.source,
-                  description.context.nodes,
-                  'outputs',
-                ),
-              },
-      );
       return createWorkflowConnectionSession({ ...input, goals });
     },
   );

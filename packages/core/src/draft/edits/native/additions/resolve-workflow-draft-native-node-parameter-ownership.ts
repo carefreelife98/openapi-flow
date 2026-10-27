@@ -68,7 +68,8 @@ export function resolveWorkflowDraftNativeNodeParameterOwnership(
         : undefined;
   const contract = createNativeParameterGenerationContract({
     nodeId: description.nodeId,
-    capability: { ...capability, parametersSchema },
+    capability,
+    planningParametersSchema: parametersSchema,
     runtimeParameters,
   });
   const fields = {

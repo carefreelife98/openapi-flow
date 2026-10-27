@@ -5,7 +5,12 @@ import type {
 } from '../../../types/workflow-connection-session.js';
 import type { WorkflowPlanNodeContract } from '../../../types/workflow-plan.js';
 import { workflowConnectionGoalProposalSchema } from '../../../schemas/workflow-connection-session-schema.js';
-import { connectionValueFingerprint } from './connection-graph-identity.js';
+import {
+  connectionValueFingerprint,
+  workflowConnectionEdgeId,
+} from './connection-graph-identity.js';
+import { inspectWorkflowNodeConstraints } from '../constraints/inspect-workflow-node-constraints.js';
+import { WorkflowPlanningConstraintError } from '../constraints/workflow-planning-constraint-error.js';
 
 export function resolveConnectionGoals(
   input: WorkflowConnectionSessionSource,
@@ -16,7 +21,6 @@ export function resolveConnectionGoals(
     throw new Error('Connection goals must cover the supplied requirements');
   const facts = new Set(input.requirements.map((item) => item.id));
   const covered = new Set<string>();
-  const nodes = new Map(contracts.map((node) => [node.id, node]));
   const goals = proposals.map((value) => {
     const decision = workflowConnectionGoalProposalSchema.parse(value);
     if (
@@ -27,37 +31,21 @@ export function resolveConnectionGoals(
         'Connection goal references unknown or duplicate requirements',
       );
     decision.factIds.forEach((id) => covered.add(id));
-    const ids =
-      decision.kind === 'semantic'
-        ? []
-        : decision.kind === 'precedence'
-          ? [decision.before, decision.after]
-          : decision.kind === 'route'
-            ? [decision.from, decision.to]
-            : decision.kind === 'join'
-              ? [decision.nodeId, ...decision.producerIds]
-              : decision.nodeIds;
-    if (new Set(ids).size !== ids.length || ids.some((id) => !nodes.has(id)))
-      throw new Error(
-        'Connection goal references unknown, repeated or self nodes',
-      );
-    if (
-      decision.kind === 'route' &&
-      !nodes.get(decision.from)!.outputs.includes(decision.output)
-    )
-      throw new Error('Connection goal references an unknown output port');
-    if (
-      decision.kind === 'join' &&
-      !nodes.get(decision.nodeId)!.waitsForAllInputs
-    )
-      throw new Error(
-        'Connection join goal requires a registered all-input join',
-      );
     return { id: `goal-${connectionValueFingerprint(decision)}`, decision };
   });
   if ([...facts].some((id) => !covered.has(id)))
     throw new Error('Connection goals omit a confirmed requirement');
   if (new Set(goals.map((goal) => goal.id)).size !== goals.length)
     throw new Error('Duplicate connection goals');
+  const inspection = inspectWorkflowNodeConstraints({
+    contracts,
+    goals: goals.map((goal) => goal.decision),
+    protectedEdges: (input.edges === undefined ? [] : input.edges).filter(
+      (edge) =>
+        !input.editableEdgeIds?.includes(workflowConnectionEdgeId(edge)),
+    ),
+  });
+  if (inspection.conflicts.length)
+    throw new WorkflowPlanningConstraintError(inspection);
   return goals;
 }

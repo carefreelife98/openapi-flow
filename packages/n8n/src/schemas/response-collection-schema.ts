@@ -15,13 +15,9 @@ export const responseCollectionParametersSchema = z.strictObject({
 });
 
 export function createResponseCollectionParametersSchema(callIds: string[]) {
-  if (!callIds.length)
-    throw new Error('collection parameters require API callIds');
   return responseCollectionParametersSchema.extend({
-    sourceNodeId: z
-      .enum(callIds)
-      .describe(
-        'Only a supplied API callId. Code derives response schemas and validates each source.',
-      ),
+    sourceNodeId: (callIds.length ? z.enum(callIds) : z.never()).describe(
+      'Only a supplied API callId. Code derives response schemas and validates each source.',
+    ),
   });
 }

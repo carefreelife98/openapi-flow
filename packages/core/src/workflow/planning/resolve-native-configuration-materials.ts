@@ -19,6 +19,8 @@ import type {
   WorkflowCapability,
 } from '../../types/workflow-plan.js';
 import { createWorkflowNodeContracts } from '../create-workflow-node-contracts.js';
+import { isSchemaProvablyEmpty } from '../../bindings/is-schema-provably-empty.js';
+import { z } from 'zod';
 
 /** Actual implementation references must equal the prior choice; unused or substituted producers are not repairs. */
 export function validateNativeNodeProducerReferences(
@@ -93,6 +95,7 @@ function prepareNativeConfigurationMaterials(
   const planning = createWorkflowPlanningCapabilities({
     capabilities: materials.capabilities,
     apiCallIds: snapshot.apiMaterials.map((material) => material.callId),
+    nativeOutputs: materials.outputs,
   });
   for (const node of configured) {
     const capability = planning.find((entry) => entry.name === node.capability);
@@ -100,9 +103,17 @@ function prepareNativeConfigurationMaterials(
       throw new Error(
         `Configured native instance ${node.id} has no supplied capability`,
       );
+    const runtimeCapability = materials.capabilities.find(
+      (entry) => entry.name === capability.name,
+    );
+    if (!runtimeCapability)
+      throw new Error(
+        `Configured native instance ${node.id} has no executable capability ${capability.name}`,
+      );
     const contract = createNativeParameterGenerationContract({
       nodeId: node.id,
-      capability,
+      capability: runtimeCapability,
+      planningParametersSchema: capability.parametersSchema,
       runtimeParameters: node.runtimeParameters,
     });
     const values = contract.valuesSchema.parse(node.parameters);
@@ -113,7 +124,7 @@ function prepareNativeConfigurationMaterials(
     if (dependencies !== undefined)
       validateNativeNodeProducerReferences(
         node,
-        capability,
+        runtimeCapability,
         dependencies.proposal.sourcesByNodeId[node.id].sourceNodeIds,
       );
   }
@@ -216,15 +227,21 @@ export function resolveNativeConfigurationMaterials(
   const [capability] = createWorkflowPlanningCapabilities({
     capabilities: [bound],
     apiCallIds: sources.apiMaterials.map((material) => material.callId),
+    nativeOutputs: sources.nativeOutputs,
   });
   const contract = createNativeParameterGenerationContract({
     nodeId: materials.instance.id,
-    capability,
+    capability: bound,
+    planningParametersSchema: capability.parametersSchema,
     runtimeParameters: materials.instance.runtimeParameters,
   });
+  if (isSchemaProvablyEmpty(z.toJSONSchema(capability.parametersSchema)))
+    throw new Error(
+      `Native instance ${input.nodeId}: current source contracts permit no parameter value for ${capability.name}`,
+    );
   return {
     ...materials,
-    capability,
+    capability: bound,
     contract,
     instance: {
       ...materials.instance,

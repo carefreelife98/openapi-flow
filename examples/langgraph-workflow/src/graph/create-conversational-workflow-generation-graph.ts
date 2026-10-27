@@ -1,4 +1,5 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { listApiOperations } from '@openapi-flow/core';
 import { analyzeApiSelection } from '@openapi-flow/langchain';
 import type { NativePlanningGraphDependencies } from '../types/native-planning.js';
@@ -50,6 +51,7 @@ export function createConversationalWorkflowGenerationGraph(
       state.confirmedInputs ||
       state.selectionAnalysis ||
       state.nativeSelection !== undefined ||
+      state.nativeSelectionPlanning !== undefined ||
       state.nativeDependencies !== undefined ||
       state.nativeConfigurations !== undefined ||
       state.nativePlanningStatus !== undefined ||
@@ -105,6 +107,7 @@ export function createConversationalWorkflowGenerationGraph(
   const nativeStages = createStagedNativePlanningStages(dependencies);
   async function prepare(
     state: ConversationState,
+    config?: RunnableConfig,
   ): Promise<ConversationUpdate> {
     if (!state.nativePlan)
       throw new Error('argument preparation requires native plan');
@@ -117,6 +120,7 @@ export function createConversationalWorkflowGenerationGraph(
         preparedNativeNodes: state.nativePlan.nativeNodes,
       },
       'confirmed-only',
+      config,
     );
     return {
       ...prepared,
@@ -147,6 +151,7 @@ export function createConversationalWorkflowGenerationGraph(
     )
     .addNode('planNativeNodes', natives)
     .addNode('selectNativeInstances', nativeStages.select)
+    .addNode('stopNativeSelectionPlanning', nativeStages.stopSelection)
     .addNode('planNativeDependencies', nativeStages.planDependencies)
     .addNode('scheduleNativeConfiguration', (state): ConversationUpdate => {
       const result = nativeStages.schedule(state);
@@ -201,11 +206,21 @@ export function createConversationalWorkflowGenerationGraph(
         : 'planNativeNodes',
     )
     .addEdge('planNativeNodes', 'prepareCalls')
-    .addConditionalEdges('selectNativeInstances', () =>
-      dependencies.nativePlanning?.planDependencies === true
-        ? 'planNativeDependencies'
-        : 'scheduleNativeConfiguration',
+    .addConditionalEdges(
+      'selectNativeInstances',
+      (state) =>
+        state.nativePlanningStatus === 'selection-blocked'
+          ? 'stopNativeSelectionPlanning'
+          : dependencies.nativePlanning?.planDependencies === true
+            ? 'planNativeDependencies'
+            : 'scheduleNativeConfiguration',
+      [
+        'stopNativeSelectionPlanning',
+        'planNativeDependencies',
+        'scheduleNativeConfiguration',
+      ],
     )
+    .addEdge('stopNativeSelectionPlanning', END)
     .addEdge('planNativeDependencies', 'scheduleNativeConfiguration')
     .addConditionalEdges(
       'scheduleNativeConfiguration',

@@ -19,6 +19,7 @@ import type {
   N8nNativeInputTemplate,
 } from '@openapi-flow/n8n';
 import type { HostNativeConfigurationTask } from '../types/native-planning.js';
+import type { NativeSelectionPlanningReceipt } from '../types/native-selection-planning.js';
 import type {
   ResolvedApiRequestMediaType,
   NativeWorkflowMaterialPlan,
@@ -45,11 +46,20 @@ export const workflowStateSchema = new StateSchema({
   reviewPlan: z.custom<ReviewableWorkflowGraphPlan>().optional(),
   nativePlan: z.custom<NativeWorkflowMaterialPlan>().optional(),
   nativeSelection: z.custom<NativeInstanceSelection>().optional(),
+  nativeSelectionPlanning: z
+    .custom<NativeSelectionPlanningReceipt>()
+    .optional(),
   nativeDependencies: z.custom<NativeInstanceDependencyPlan>().optional(),
   nativeConfigurations: z.custom<HostNativeConfigurationTask[]>().optional(),
   activeNativeNodeId: z.string().optional(),
   nativePlanningStatus: z
-    .enum(['working', 'awaiting-input', 'ready', 'cancelled'])
+    .enum([
+      'working',
+      'awaiting-input',
+      'ready',
+      'cancelled',
+      'selection-blocked',
+    ])
     .optional(),
   nativeReplyIssues: z.array(z.string()).optional(),
   nativeInputTemplate: z.custom<N8nNativeInputTemplate>().optional(),
