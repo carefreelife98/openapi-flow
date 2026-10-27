@@ -7,7 +7,7 @@ import type {
   NativeInstanceSelectionFeedback,
   NativeInstanceSelectionFeedbackDescription,
   NativeInstanceSelectionReviewInput,
-  NativeInstanceRoleAssessment,
+  NativeInstanceRoleAssessmentProposal,
 } from '../../../types/native-instance-selection-review.js';
 import {
   createNativeInstanceSelectionReviewSchema,
@@ -15,6 +15,7 @@ import {
 } from '../../../schemas/native-instance-selection-review-schema.js';
 import { validateNativeInstanceSelection } from '../resolve-native-instance-selection.js';
 import { jsonValuesEqual } from '../../../utils/json-values-equal.js';
+import { resolveNativeReviewExplanation } from './resolve-native-review-explanation.js';
 
 export function describeNativeInstanceSelectionReview(
   input: NativeInstanceSelectionReviewInput,
@@ -45,14 +46,15 @@ export function createNativeInstanceSelectionReview(
   input: CreateNativeInstanceSelectionReviewInput,
 ): NativeInstanceSelectionReview {
   const description = describeNativeInstanceSelectionReview(input);
-  const proposal = createNativeInstanceSelectionReviewSchema(description).parse(
-    input.proposal,
-  );
+  const proposal = createNativeInstanceSelectionReviewSchema(
+    description,
+    false,
+  ).parse(input.proposal);
   if (!jsonValuesEqual(proposal, input.proposal))
     throw new Error(
       'Native selection review must preserve the complete original proposal',
     );
-  let roles: NativeInstanceRoleAssessment[] = [];
+  let roles: NativeInstanceRoleAssessmentProposal[] = [];
   if (description.reviewInstances === true) {
     if (proposal.instanceAssessments === undefined)
       throw new Error(
@@ -74,10 +76,6 @@ export function createNativeInstanceSelectionReview(
     ...coverage,
   ];
   for (const assessment of assessments) {
-    if (!description.context.scenario.includes(assessment.sourceQuote))
-      throw new Error(
-        'Native selection review.sourceQuote must be an exact quote from the original scenario',
-      );
     const references =
       assessment.kind === 'api-planning'
         ? assessment.callIds
@@ -94,7 +92,34 @@ export function createNativeInstanceSelectionReview(
       ? { reviewInstances: true as const }
       : {}),
     selectionId: description.selectionId,
-    proposal: structuredClone(proposal),
+    source: { id: 'scenario', text: description.context.scenario },
+    proposal: {
+      assessments: Object.fromEntries(
+        Object.entries(proposal.assessments).map(([id, assessment]) => [
+          id,
+          resolveNativeReviewExplanation(assessment),
+        ]),
+      ),
+      ...(proposal.instanceAssessments === undefined
+        ? {}
+        : {
+            instanceAssessments: Object.fromEntries(
+              Object.entries(proposal.instanceAssessments).map(
+                ([id, assessment]) => [
+                  id,
+                  resolveNativeReviewExplanation(assessment),
+                ],
+              ),
+            ),
+          }),
+      ...(proposal.coverageAssessment === undefined
+        ? {}
+        : {
+            coverageAssessment: resolveNativeReviewExplanation(
+              proposal.coverageAssessment,
+            ),
+          }),
+    },
     status:
       assessments.length === 0
         ? 'no-gaps'

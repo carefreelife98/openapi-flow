@@ -13,6 +13,7 @@ import { requestMediaSelectionOptionsSchema } from '../schemas/request-media-sel
 import { apiRequestMediaTypePrompt } from '../prompts/api-request-media-type-prompt.js';
 import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 /** One assessment call only for multiple formats; code owns resolution and sources. */
 export async function analyzeApiRequestMediaType(
@@ -39,11 +40,14 @@ export async function analyzeApiRequestMediaType(
     options.includeExplanations === true,
   );
   const proposed = await input.model
-    .withStructuredOutput<ApiRequestMediaTypeOutput>(schema, {
-      name: 'select_api_request_media_type',
-      method: 'functionCalling',
-      strict: true,
-    })
+    .withStructuredOutput<ApiRequestMediaTypeOutput>(
+      serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+      {
+        name: 'select_api_request_media_type',
+        method: 'functionCalling',
+        strict: true,
+      },
+    )
     .invoke([
       new SystemMessage(apiRequestMediaTypePrompt),
       new HumanMessage(
@@ -57,7 +61,11 @@ export async function analyzeApiRequestMediaType(
       ),
     ]);
   const assessment = parseStructuredOutput(
-    schema,
+    createApiRequestMediaTypeSchema(
+      context.mediaTypes,
+      options.includeExplanations === true,
+      false,
+    ),
     proposed,
     'model API request media type',
   );

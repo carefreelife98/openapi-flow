@@ -30,14 +30,14 @@ export function createApiLiteralGenerationRecord(
       'Literal generation proposal is required when literal inputs remain',
     );
   const proposal = contract.schema.parse(input.proposal);
-  const reason = planningEvidenceTextSchema.parse(input.reason);
+  const reason = planningEvidenceTextSchema.safeParse(input.reason);
   return {
     kind: 'proposed-literals',
     callId: snapshot.callId,
     operation: structuredClone(snapshot.operation.key),
     proposedValues: structuredClone(proposal.values),
     explanation: {
-      reason,
+      ...(reason.success ? { reason: reason.data } : {}),
       evidence: [
         {
           kind: 'scenario',

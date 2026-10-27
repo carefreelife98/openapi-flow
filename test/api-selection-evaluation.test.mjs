@@ -219,7 +219,7 @@ function scriptedModel(observer, outputs) {
               ],
             ],
           });
-          return schema.parse(output);
+          return output;
         },
       };
     },

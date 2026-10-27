@@ -109,3 +109,5 @@ export type * from './types/workflow-connection-native-repair.js';
 export { planWorkflowConnectionNativeDependencies } from './workflow/connections/plan-workflow-connection-native-dependencies.js';
 export { generateWorkflowConnectionNativeParameters } from './workflow/connections/generate-workflow-connection-native-parameters.js';
 export { WorkflowConnectionNativeRepairError } from './workflow/connections/workflow-connection-native-repair-error.js';
+export type * from './types/workflow-intent.js';
+export { planWorkflowIntent } from './workflow/plan-workflow-intent.js';

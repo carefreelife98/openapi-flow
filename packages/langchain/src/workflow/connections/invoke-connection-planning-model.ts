@@ -42,7 +42,11 @@ export async function invokeConnectionPlanningModel<Output extends object>(
         : { requestFingerprint: input.requestFingerprint }),
     },
     () => {
-      const parsed = input.schema.parse(output);
+      const receiver =
+        input.validationSchema === undefined
+          ? input.schema
+          : input.validationSchema;
+      const parsed = receiver.parse(output);
       if (!isDeepStrictEqual(parsed, output))
         throw new Error(
           'Connection output schema must not default, coerce or transform model data',

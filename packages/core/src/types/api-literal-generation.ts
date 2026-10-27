@@ -6,7 +6,6 @@ import type {
   ApiArgumentValues,
 } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
-import type { WorkflowDecisionExplanation } from './workflow-clarification.js';
 import type { WorkflowSourceMessage } from './workflow-draft.js';
 
 export interface ApiLiteralSourceContext {
@@ -60,8 +59,13 @@ export type ApiLiteralGenerationRecord =
       callId: string;
       operation: ApiOperationKey;
       proposedValues: ApiArgumentValues;
-      explanation: WorkflowDecisionExplanation<ApiLiteralGenerationEvidence>;
+      explanation: ApiLiteralGenerationExplanation;
     };
+
+export interface ApiLiteralGenerationExplanation {
+  reason?: string;
+  evidence: ApiLiteralGenerationEvidence[];
+}
 
 export interface CreateApiLiteralGenerationRecordInput extends ApiLiteralGenerationInput {
   proposal?: ApiArgumentProposal;

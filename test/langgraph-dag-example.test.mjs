@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import { URL } from 'node:url';
 import { node } from '@n8n/workflow-sdk';
 import { createDagWorkflowGenerationGraph } from '@openapi-flow/example-langgraph-workflow';
+
+const require = createRequire(
+  new URL('../packages/core/package.json', import.meta.url),
+);
+const { Ajv2020 } = require('ajv/dist/2020.js');
 
 const paths = ['/item', '/price', '/prices', '/items', '/prices-by-list'];
 const spec = {
@@ -58,7 +65,9 @@ function model(missingValue = false) {
           }
           assert.equal(options.method, 'functionCalling');
           assert.equal(
-            schema.safeParse({ values: { query: { id: 123 } } }).success,
+            new Ajv2020({ strict: false }).compile(schema)({
+              values: { query: { id: 123 } },
+            }),
             false,
           );
           return { values: missingValue ? {} : { query: { id: 'item-1' } } };

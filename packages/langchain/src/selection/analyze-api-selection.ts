@@ -18,6 +18,7 @@ import { assertSelectionInput } from '../legacy/planning/select-operation.js';
 import { selectApiOperations } from './select-api-operations.js';
 import { resolveApiSelectionOptions } from './resolve-api-selection-options.js';
 import { apiSelectionExplanationPrompt } from '../prompts/api-selection-explanation-prompt.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 /** Additive clarification boundary; the existing selector keeps its output contract. */
 export async function analyzeApiSelection(
@@ -44,11 +45,14 @@ export async function analyzeApiSelection(
     includeExplanations,
   );
   const proposed = await input.model
-    .withStructuredOutput<ApiSelectionAnalysisOutput>(schema, {
-      name: 'analyze_api_selection',
-      method: 'jsonSchema',
-      strict: true,
-    })
+    .withStructuredOutput<ApiSelectionAnalysisOutput>(
+      serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+      {
+        name: 'analyze_api_selection',
+        method: 'jsonSchema',
+        strict: true,
+      },
+    )
     .invoke([
       new SystemMessage(
         `${apiSelectionAnalysisPrompt}\n${apiSelectionExplanationPrompt}`,
@@ -58,7 +62,11 @@ export async function analyzeApiSelection(
       ),
     ]);
   const parsed = parseStructuredOutput(
-    schema,
+    createApiSelectionAnalysisSchema(
+      candidates.map((candidate) => candidate.candidateId),
+      includeExplanations,
+      false,
+    ),
     proposed,
     'model API selection analysis',
   );
@@ -70,7 +78,7 @@ export async function analyzeApiSelection(
     return {
       key: structuredClone(candidate.key),
       purpose: item.purpose,
-      ...('explanation' in item
+      ...('explanation' in item && item.explanation !== undefined
         ? {
             explanation: createApiSelectionExplanation({
               context,
@@ -113,7 +121,7 @@ export async function analyzeApiSelection(
         message: question.message,
         purpose: question.purpose,
         candidates: alternatives,
-        ...('explanation' in question
+        ...('explanation' in question && question.explanation !== undefined
           ? {
               explanation: createApiSelectionExplanation({
                 context,
@@ -147,7 +155,7 @@ export async function analyzeApiSelection(
       gaps: parsed.gaps.map((gap) => ({
         kind: 'missing_operation',
         description: gap.description,
-        ...('explanation' in gap
+        ...('explanation' in gap && gap.explanation !== undefined
           ? {
               explanation: createApiSelectionExplanation({
                 context,

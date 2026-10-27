@@ -1,5 +1,20 @@
 # API 입력 연결 계획의 이유와 근거
 
+## 2026-10-27 로컬 후보: API별 계획의 표시 정보 분리
+
+`selectApiBindingSources`·`planApiCallBindings`·`planApiBindingsByCall` 경로는
+설명을 요청하더라도 유효한 출처·필드 연결을 설명 누락 때문에 거절하지 않습니다.
+모델에는 설명을 포함한 strict JSON Schema를 보내고, 수신 후에는 실행 필드와
+표시 정보를 따로 검사합니다. LangChain이 요청용 Zod 스키마로 수신값을 먼저
+거절하지 않도록 전송에는 명시적으로 직렬화한 JSON Schema를 사용합니다.
+
+비어 있거나 잘못된 표시용 `reason`은 실행 값으로 대체하지 않고 생략합니다.
+`bindingPlanning.calls[].reason`은 선택적이며, 기록에는 이유가 없어도 코드가
+소유한 실제 call ID와 연결이 남습니다. 출처·대상 포인터·중복 ID·순환·원본 계약
+검사는 유지합니다. 이 처리는 명시된 표시 필드에만 적용하며 요청·응답 본문의
+같은 이름 필드를 바꾸지 않습니다. 아래 기존 `planApiBindings` 경로까지 모두
+동일하게 변경했다는 뜻은 아닙니다. 로컬 후보이며 아직 공개 배포·제품 적용 전입니다.
+
 이 기능은 미배포 소스에 있으며 npm `0.2.0`에는 없습니다.
 
 `planApiBindings`에 `includeExplanations: true`를 주면 같은 모델 호출에서 각 API

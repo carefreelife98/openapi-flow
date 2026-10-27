@@ -1,5 +1,25 @@
 # 연결 계획의 이유와 원본 근거
 
+## 2026-10-27 미배포 수정: 설명과 실행 검사의 분리
+
+`planWorkflowConnections`는 표시용 `reason`이 없거나 잘못된 경우에도 실행 필드를
+따로 검사합니다. 노드·포트·필수 연결·전체 DAG가 유효하면 계획을 반환하며,
+설명 기록 대신 `connectionExplanationIssues`에 해당 필드 경로와 오류 분류를
+남깁니다. 이유를 임의 문장으로 채우거나 모델을 다시 호출하지 않습니다. 정상적인
+설명은 기존 `connectionPlanning`에 보존합니다. API/native 선택 등 다른 계획 함수의
+설명 계약까지 모두 바뀐 것은 아닙니다.
+
+독립 목표 검토인 `reviewWorkflowConnectionGoals`도 원문을 모델에게 복사시키지
+않습니다. 모델은 제공된 fact ID별 판단·목표/정책 ID·짧은 설명만 반환하고,
+Core가 원래 요구사항 텍스트를 `sourceQuotes`에 첨부합니다. Core의 검토 제안 입력에는
+`sourceQuotes`를 넣지 않습니다. 결과의 `explanationStatus`는 `provided` 또는
+`unavailable`이며 설명 누락은 `accepted`를 바꾸지 않습니다. `uncertain`, 실제 요구
+누락·모순, 없는 fact/goal/policy ID는 계속 검사합니다. 별도 검토를 켜는 호스트 정책도
+그대로입니다.
+
+이 변경은 아직 공개 `0.4.1`에 없습니다. 새 검토 기록 형식과 이전 부분 실행의
+체크포인트를 자동 변환하지 않으므로 릴리스·호스트 적용 시 호환성을 확인해야 합니다.
+
 이 기능은 현재 작업 트리의 미배포 소스입니다. npm `0.2.0`에는 없습니다.
 
 ## 사용 범위

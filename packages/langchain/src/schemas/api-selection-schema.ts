@@ -4,6 +4,7 @@ import { withApiSelectionExplanation } from './with-api-selection-explanation.js
 export function createApiSelectionSchema(
   candidateIds: string[],
   includeExplanations = false,
+  requireExplanations = true,
 ) {
   if (candidateIds.length === 0)
     throw new Error('operations must contain candidates for model selection');
@@ -28,6 +29,7 @@ export function createApiSelectionSchema(
               })
               .strict(),
             includeExplanations,
+            requireExplanations,
           ),
         )
         .describe(
@@ -46,6 +48,7 @@ export function createApiSelectionSchema(
             })
             .strict(),
           includeExplanations,
+          requireExplanations,
         ),
       ),
     })

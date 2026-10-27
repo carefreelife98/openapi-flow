@@ -1,5 +1,14 @@
 # @openapi-flow/core
 
+0.4.2 adds `resolveWorkflowIntent`, `validateWorkflowIntent` and
+`formatWorkflowIntentScenario` for source-bound business scope before concrete
+material planning. Core validates references and assigns identities; it does not
+infer business meaning from OAS or choose execution edges. Optional planning
+reasons are presentation only. Native/goal review source text is attached by code,
+not copied by a model. Literal-value provenance, OAS, ownership, source drift and
+DAG validation remain functional requirements. Review wire contracts and optional
+reason types change; see the [0.4.2 record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.2.md).
+
 0.4.0 contracts: constraints, explicit boundary intent, scoped outlines and
 source-bound review/recovery contracts. Publication is tracked in the
 [release record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.0.md).

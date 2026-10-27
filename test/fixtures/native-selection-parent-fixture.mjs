@@ -52,7 +52,6 @@ export function nativeSelectionParentFixture(name, blocked = false) {
                     ...(blocked
                       ? { question: 'Which business behavior do you want?' }
                       : { capability: 'confirmed-context' }),
-                    sourceQuote: 'Keep enabled false.',
                     reason: 'Use only the supplied setting and implementation.',
                   },
                 ]),

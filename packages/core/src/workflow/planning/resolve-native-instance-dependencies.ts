@@ -17,6 +17,7 @@ import {
   selectNativeParameterProducers,
 } from './select-native-parameter-producers.js';
 import type { NativeParameterProducerCandidate } from '../../types/native-producer-eligibility.js';
+import { nativeDependencyExecutionProposal } from './native-planning-execution-proposal.js';
 
 /** Future role IDs are candidates, not evidence of ready output contracts. */
 export function describeNativeInstanceDependencies(
@@ -87,10 +88,15 @@ export function resolveNativeInstanceDependencies(
   input: ResolveNativeInstanceDependenciesInput,
 ): NativeInstanceDependencyPlan {
   const context = describeNativeInstanceDependencies(input);
-  const proposal = createNativeInstanceDependenciesSchema(input).parse(
+  const proposal = createNativeInstanceDependenciesSchema(input, false).parse(
     input.proposal,
   );
-  if (!jsonValuesEqual(proposal, input.proposal))
+  if (
+    !jsonValuesEqual(
+      nativeDependencyExecutionProposal(proposal),
+      nativeDependencyExecutionProposal(input.proposal),
+    )
+  )
     throw new Error(
       'Native dependency choices cannot be coerced, defaulted or transformed',
     );

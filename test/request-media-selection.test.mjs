@@ -76,10 +76,10 @@ test('only an ambiguous choice uses the OAS default; explicit and invalid choice
   const contract = await operation();
   for (const choice of [null, 'text/json', 'application/xml', undefined]) {
     const model = {
-      withStructuredOutput(schema) {
+      withStructuredOutput() {
         return {
           async invoke() {
-            return schema.parse({ requestMediaType: choice });
+            return { requestMediaType: choice };
           },
         };
       },
@@ -162,7 +162,7 @@ for (const selection of ['application/json', null])
                 break;
               case 'select_api_request_media_type':
                 assert.deepEqual(
-                  schema.shape.requestMediaType.unwrap().options,
+                  schema.properties.requestMediaType.anyOf[0].enum,
                   Object.keys(content),
                 );
                 assert.deepEqual(input.operation.requestBody.content, content);
@@ -195,7 +195,14 @@ for (const selection of ['application/json', null])
               default:
                 throw new Error('Unexpected stage ' + options.name);
             }
-            if (options.name === 'plan_reviewable_workflow_graph')
+            if (
+              [
+                'plan_reviewable_workflow_graph',
+                'select_api_operations',
+                'select_api_request_media_type',
+                'generate_api_arguments',
+              ].includes(options.name)
+            )
               return output;
             return schema.parse(output);
           },

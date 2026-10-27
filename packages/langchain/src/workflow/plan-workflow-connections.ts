@@ -11,7 +11,11 @@ import type {
   ResolvedWorkflowConnectionOutput,
 } from '../types/workflow-orchestration.js';
 import { createWorkflowConnectionSelectionSchema } from '../schemas/workflow-connection-selection-schema.js';
-import type { WorkflowConnectionSelectionOutput } from '../types/workflow-connection-selection.js';
+import { createWorkflowConnectionExecutionSchema } from '../schemas/workflow-connection-execution-schema.js';
+import type {
+  WorkflowConnectionExecutionOutput,
+  WorkflowConnectionSelectionOutput,
+} from '../types/workflow-connection-selection.js';
 import { resolveWorkflowConnectionSelection } from './resolve-workflow-connection-selection.js';
 import { resolveWorkflowConnectionOutput } from './resolve-workflow-connection-output.js';
 import { workflowConnectionsPrompt } from '../prompts/workflow-connections-prompt.js';
@@ -33,7 +37,6 @@ export async function planWorkflowConnections(
     context,
     sources,
   } = describeWorkflowConnectionPlanning(input);
-  const readyIds = context.readyCallIds;
   const schema = createWorkflowConnectionSelectionSchema(
     context,
     options.includeExplanations === true,
@@ -53,8 +56,11 @@ export async function planWorkflowConnections(
     ]);
   let resolved: ResolvedWorkflowConnectionOutput;
   try {
-    const parsed = parseStructuredOutput<WorkflowConnectionSelectionOutput>(
-      schema,
+    const parsed = parseStructuredOutput<WorkflowConnectionExecutionOutput>(
+      createWorkflowConnectionExecutionSchema(
+        context,
+        options.includeExplanations === true,
+      ),
       output,
       'model workflow connections',
     );
@@ -63,12 +69,8 @@ export async function planWorkflowConnections(
         'connection model schema must validate without defaults, coercion or transformation',
       );
     resolved = resolveWorkflowConnectionOutput(
-      resolveWorkflowConnectionSelection(
-        parsed,
-        context,
-        options.includeExplanations === true,
-      ),
-      readyIds.length,
+      resolveWorkflowConnectionSelection(parsed, context),
+      options.includeExplanations === true,
     );
   } catch (error) {
     if (!(error instanceof Error)) throw error;
@@ -90,17 +92,15 @@ export async function planWorkflowConnections(
       ...snapshot,
       proposal: resolved.proposal,
     });
-    if (options.includeExplanations === true) {
-      if (!resolved.decision)
-        throw new Error(
-          'model workflow connections are missing the explanation decision',
-        );
+    if (resolved.decision !== undefined) {
       plan.connectionPlanning = createWorkflowConnectionPlanningRecord({
         ...snapshot,
         plan,
         decision: resolved.decision,
       });
     }
+    if (resolved.explanationIssues !== undefined)
+      plan.connectionExplanationIssues = resolved.explanationIssues;
     return plan;
   } catch (error) {
     if (!(error instanceof Error)) throw error;

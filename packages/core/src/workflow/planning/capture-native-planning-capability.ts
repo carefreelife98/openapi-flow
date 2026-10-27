@@ -12,6 +12,7 @@ export function captureNativePlanningCapability(
   createNativePlanningCapabilityMaterial(capability, false);
   for (const field of [
     'createPlanningParametersSchema',
+    'parametersFromProducerDependencies',
     'nodeOutputReferences',
     'parameterReferenceBindings',
     'bindMaterialContracts',
@@ -56,6 +57,12 @@ export function captureNativePlanningCapability(
       : {
           nodeOutputReferences:
             capability.nodeOutputReferences.bind(capability),
+        }),
+    ...(capability.parametersFromProducerDependencies === undefined
+      ? {}
+      : {
+          parametersFromProducerDependencies:
+            capability.parametersFromProducerDependencies.bind(capability),
         }),
     ...(capability.parameterReferenceBindings === undefined
       ? {}

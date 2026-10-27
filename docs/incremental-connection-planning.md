@@ -1,5 +1,36 @@
 # Incremental connection planning (0.3.17)
 
+## 0.4.2 candidate: business intent before material planning
+
+`planWorkflowIntent` is an independently callable upstream semantic planner. It
+reads the original scenario and explicit user messages before any API/native
+selection. It returns a current objective, task roles classified as `required`,
+`conditional`, or `excluded`, and business sequence/parallel/collection intentions.
+It does not invent concrete API/native IDs, request values, ports, response paths,
+or executable edges. Source IDs are selected from supplied messages; Core attaches
+unchanged source text and derives role identities. No quotations are regenerated.
+
+Core validates source and role references and prevents inactive roles from being
+activated by an overview flow. These structural checks do not prove that the model
+understood the business meaning. `validateWorkflowIntent` verifies a saved receipt
+against its original input. `formatWorkflowIntentScenario` creates shared planning
+context for API selection, native planning, binding and connection stages; it is
+never an original literal-value source. Actual OAS/native contract and whole-graph
+checks still run after concrete materials are available.
+
+```ts
+const intent = await planWorkflowIntent({ scenario, messages, model });
+const planningScenario = formatWorkflowIntentScenario({ scenario, messages, plan: intent });
+```
+
+The host owns where this one semantic call runs, its checkpoint, human feedback,
+and explicit replanning after requirements change. Keep the original messages in
+the separate request-value source channel. This overview is distinct from the
+existing connection outline, which groups already prepared material. It adds no
+explanation-only call and makes neither connection mode automatically superior.
+Qoopilot integration requires a new public release; this local source addition is
+not evidence of a fresh end-to-end generation or UI result.
+
 ## Unreleased: checkpointed dependent API arguments
 
 The consumer example accepts explicit `materialRecovery.argumentPlanning` with

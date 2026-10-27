@@ -1,14 +1,14 @@
 import type { WorkflowConnectionPlanningContext } from '@openapi-flow/core';
-import type { WorkflowConnectionSelectionOutput } from '../types/workflow-connection-selection.js';
-import type { WorkflowConnectionPlanningOutput } from '../types/workflow-orchestration.js';
-import { createReviewableWorkflowGraphSchema } from '../schemas/reviewable-workflow-graph-schema.js';
+import type {
+  WorkflowConnectionExecutionOutput,
+  ResolvedWorkflowConnectionSelection,
+} from '../types/workflow-connection-selection.js';
 
 /** Resolve explicit new-gap references. Never repair, alias or approximate a supplied node ID. */
 export function resolveWorkflowConnectionSelection(
-  output: WorkflowConnectionSelectionOutput,
+  output: WorkflowConnectionExecutionOutput,
   context: WorkflowConnectionPlanningContext,
-  includeExplanations: boolean,
-): WorkflowConnectionPlanningOutput {
+): ResolvedWorkflowConnectionSelection {
   const known = new Set(context.nodes.map((node) => node.id));
   const gaps = new Set(output.additionalGaps.map((gap) => gap.id));
   for (const edge of output.edges)
@@ -32,9 +32,5 @@ export function resolveWorkflowConnectionSelection(
       to: typeof edge.to === 'string' ? edge.to : edge.to.gapId,
     })),
   };
-  return createReviewableWorkflowGraphSchema(
-    [],
-    context.readyCallIds,
-    includeExplanations ? 'connections' : 'none',
-  ).parse(canonical);
+  return canonical;
 }

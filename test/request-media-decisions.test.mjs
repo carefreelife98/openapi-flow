@@ -151,7 +151,7 @@ test('invalid/missing output never activates the default and is not retried or r
   );
 });
 
-test('enabled explanations require a nonempty reason and reject model-generated evidence', async () => {
+test('missing or invalid display explanations do not replace or reject a declared media decision', async () => {
   const f = await requestMediaDecisionFixture();
   for (const explanation of [
     undefined,
@@ -165,10 +165,14 @@ test('enabled explanations require a nonempty reason and reject model-generated 
       requestMediaType: null,
       ...(explanation === undefined ? {} : { explanation }),
     });
-    await assert.rejects(
-      analyzeApiRequestMediaType({ ...f, model, includeExplanations: true }),
-      /model API request media type is invalid/,
-    );
+    const result = await analyzeApiRequestMediaType({
+      ...f,
+      model,
+      includeExplanations: true,
+    });
+    assert.equal(result.kind, 'documented-default');
+    assert.equal(result.requestMediaType, 'application/json');
+    assert.equal(Object.hasOwn(result.assessment, 'explanation'), false);
     assert.equal(model.calls.length, 1);
   }
 });
@@ -185,7 +189,7 @@ test('disabled explanation fields are absent, and the original selector retains 
       includeExplanations: enabled,
     });
     assert.equal(
-      Object.hasOwn(model.calls[0].schema.shape, 'explanation'),
+      Object.hasOwn(model.calls[0].schema.properties, 'explanation'),
       false,
     );
     assert.equal(Object.hasOwn(result.assessment, 'explanation'), false);

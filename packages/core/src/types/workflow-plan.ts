@@ -49,6 +49,10 @@ export interface WorkflowCapability {
   createPlanningParametersSchema?: (
     context: WorkflowCapabilityPlanningContext,
   ) => z.ZodType<JsonValueObject>;
+  /** Opt-in pure implementation contract: selected producers fully determine plan-time parameters. No pointer/value inference. */
+  parametersFromProducerDependencies?: (
+    sourceNodeIds: readonly string[],
+  ) => JsonValueObject;
   inputPorts: (parameters: JsonValueObject) => string[];
   outputPorts: (parameters: JsonValueObject) => string[];
   responseReferences: (

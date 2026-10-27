@@ -6,6 +6,7 @@ import type {
 } from '../types/api-request-media-type-decision.js';
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
 import { planningEvidenceTextSchema } from './planning-evidence-schema.js';
+import { optionalPlanningExplanationObjectSchema } from './optional-planning-explanation-schema.js';
 
 export const apiRequestMediaTypeContextSchema = z.strictObject({
   scenario: planningEvidenceTextSchema,
@@ -21,9 +22,7 @@ export const apiRequestMediaTypeContextSchema = z.strictObject({
 
 export const apiRequestMediaTypeAssessmentProposalSchema = z.strictObject({
   requestMediaType: z.string().min(1).nullable(),
-  explanation: z
-    .strictObject({ reason: planningEvidenceTextSchema })
-    .optional(),
+  explanation: optionalPlanningExplanationObjectSchema,
 }) satisfies z.ZodType<ProposedApiRequestMediaTypeAssessment>;
 
 const explanationSchema = z.strictObject({

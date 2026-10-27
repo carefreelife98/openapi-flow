@@ -21,12 +21,6 @@ export function resolveApiBindingSourceSelection(
     throw new Error(
       'binding source selection contains duplicate, self or unknown source IDs',
     );
-  if (
-    input.includeExplanations === true
-      ? proposal.reason === undefined || !proposal.reason.trim()
-      : proposal.reason !== undefined
-  )
-    throw new Error('binding source reason does not match includeExplanations');
   validateApiBindingGaps({
     ...description.input,
     plan: {
@@ -35,7 +29,11 @@ export function resolveApiBindingSourceSelection(
     },
   });
   return {
-    ...structuredClone(proposal),
+    sourceNodeIds: structuredClone(proposal.sourceNodeIds),
+    gaps: structuredClone(proposal.gaps),
+    ...(input.includeExplanations === true && proposal.reason !== undefined
+      ? { reason: proposal.reason }
+      : {}),
     fingerprint: description.fingerprint,
     callId: description.input.callId,
   };

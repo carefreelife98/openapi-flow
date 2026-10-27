@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type {
-  NativeInstanceGapAssessment,
+  NativeInstanceGapAssessmentProposal,
   NativeInstanceSelectionReviewDescription,
   NativeInstanceSelectionReviewProposal,
 } from '../types/native-instance-selection-review.js';
@@ -12,25 +12,22 @@ export const nativeInstanceSelectionReviewOptionsSchema = z.strictObject({
 /** Only a real supplied reference may explain which separate stage owns a reported issue. */
 export function createNativeInstanceSelectionReviewSchema(
   description: NativeInstanceSelectionReviewDescription,
+  requireExplanations = true,
 ): z.ZodType<NativeInstanceSelectionReviewProposal> {
   nativeInstanceSelectionReviewOptionsSchema.parse({
     reviewInstances: description.reviewInstances,
   });
   const evidence = {
-    sourceQuote: z
-      .string()
-      .regex(/\S/u)
-      .describe(
-        'Exact unchanged quote from context.scenario supporting this assessment.',
-      ),
-    reason: z
-      .string()
-      .regex(/\S/u)
-      .describe(
-        'Short evidence-based routing reason, not private reasoning or a claim of execution success.',
-      ),
+    reason: requireExplanations
+      ? z
+          .string()
+          .regex(/\S/u)
+          .describe(
+            'Short user-facing explanation, not private reasoning or a claim of execution success.',
+          )
+      : z.unknown().optional(),
   };
-  const choices: z.ZodType<NativeInstanceGapAssessment>[] = [
+  const choices: z.ZodType<NativeInstanceGapAssessmentProposal>[] = [
     z.strictObject({
       kind: z
         .literal('not-required')

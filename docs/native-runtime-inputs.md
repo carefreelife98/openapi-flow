@@ -1,5 +1,42 @@
 # Native runtime inputs (unreleased)
 
+## 0.4.2 candidate: selection and configuration display isolation
+
+Native instance selection, producer selection and per-instance configuration ask
+for concise reasons only when enabled. Receivers do not reject valid functional
+decisions solely because those presentation fields are missing or malformed.
+Only the declared metadata path is omitted; a native parameter named `reason`
+remains an ordinary typed parameter. Capability choices, exact producer IDs,
+ownership, original contracts, input drift, parameter schemas and DAG checks stay
+mandatory. Fully determined registered producer-owned settings still avoid an
+unnecessary model call. The wire schema and receiving validator are separate so
+LangChain does not apply the display requirement before functional validation.
+
+The same separation applies to API selection, request media decisions and literal
+argument generation. Literal-source verification is functional provenance and is
+not removed. Argument generation records retain code-owned source/contract
+evidence even when their display `reason` is absent. No value, type, default,
+candidate or source is supplied to repair an invalid execution proposal.
+
+## Native selection review source and presentation (2026-10-27 candidate)
+
+Native review proposals no longer contain `sourceQuote`. Core attaches the exact
+supplied scenario as `review.source = { id: 'scenario', text }`; the model does not
+copy text or regenerate this fixed ID. This is a source receipt, not proof that a
+model's business judgment is correct. Changing the source, selection, review scope
+or derived routing status still invalidates the receipt.
+
+The model is asked for short reasons, but missing or malformed presentation text
+does not reject valid decisions. Returned assessment reasons are optional strings.
+Actual capability, call and node references and complete assessment coverage remain
+validated. Old review proposals/checkpoints that contain model-authored quotes are
+not silently migrated into this changed contract.
+
+The source tree supports `reviewInstances: true`, including gap-free selections.
+The installed public `0.4.1` has gap review only and cannot consume that scope merely
+by receiving another flag. Qoopilot integration requires a verified new public
+release; local source support is not evidence of installed support.
+
 These source additions are not in npm 0.2.0. They extend the existing API input
 slots to explicitly declared native parameter objects and fields. They do not create dummy
 values or make every native configuration editable at execution time.
@@ -146,6 +183,16 @@ transfer ownership during later edits.
 ## Planning and validation
 
 ### Independent role selection and typed values
+
+Unreleased change (2026-10-27): a capability may explicitly register
+`parametersFromProducerDependencies(sourceNodeIds)` when the validated producer
+selection determines **all** plan-time parameters. `generateNativeNodeParameters`
+then copies the selected IDs through that implementation and validates the complete
+result without invoking a model. The registered API-response gatherer uses this
+contract. Other capabilities are not inferred from names, fields or matching types;
+pointer choices and remaining literal settings still require their own planning.
+Invalid derived settings or substituted producers fail validation. Execution-owned
+fields cannot be overwritten through this hook.
 
 ```ts
 import {

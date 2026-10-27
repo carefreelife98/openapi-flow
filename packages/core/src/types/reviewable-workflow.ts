@@ -1,7 +1,10 @@
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiOperationKey } from './api-catalog.js';
 import type { OutputBinding } from './api-arguments.js';
-import type { WorkflowConnectionPlanningRecord } from './workflow-connection-planning.js';
+import type {
+  WorkflowConnectionPlanningRecord,
+  WorkflowConnectionExplanationIssue,
+} from './workflow-connection-planning.js';
 import type { WorkflowApiInputDeferral } from './workflow-api-input-readiness.js';
 import type {
   WorkflowApiMaterial,
@@ -59,6 +62,8 @@ export interface ReviewableWorkflowGraphPlan extends WorkflowGraphPlan {
   blockedCalls: BlockedWorkflowCall[];
   /** Optional original connection-only decision and supplied-material evidence. */
   connectionPlanning?: WorkflowConnectionPlanningRecord;
+  /** A valid plan may lack display explanations; callers can present these diagnostics separately. */
+  connectionExplanationIssues?: WorkflowConnectionExplanationIssue[];
 }
 
 export interface ReviewableWorkflowPlanningContext extends WorkflowApiInputDeferral {

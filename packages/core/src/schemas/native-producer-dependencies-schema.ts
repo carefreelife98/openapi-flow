@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import type { NativeProducerDependencySchemaInput } from '../types/native-producer-dependencies.js';
 import type { NativeInstanceDependencyProposal } from '../types/native-instance-dependencies.js';
+import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 /** Code supplies identities; model output contains only exact producer choices and optional reasons. */
 export function createNativeProducerDependenciesSchema(
   input: NativeProducerDependencySchemaInput,
+  requireExplanations = true,
 ): z.ZodType<NativeInstanceDependencyProposal> {
-  return z.strictObject({
+  const schema = z.strictObject({
     sourcesByNodeId: z.strictObject(
       Object.fromEntries(
         input.targets.map((target) => [
@@ -24,20 +26,33 @@ export function createNativeProducerDependenciesSchema(
                 .describe(
                   'Exact producer IDs referenced by this instance configuration. Empty means independent. Not execution edges or scheduling preferences. Future roles do not yet have output schemas.',
                 ),
-              ...(input.includeExplanations && target.sourceNodeIds.length
-                ? {
-                    reason: z
-                      .string()
-                      .min(1)
-                      .describe(
-                        'Short reason grounded in the supplied request and original role/source contracts.',
-                      ),
-                  }
-                : {}),
+              ...(!requireExplanations
+                ? { reason: optionalPlanningExplanationSchema }
+                : input.includeExplanations && target.sourceNodeIds.length
+                  ? {
+                      reason: z
+                        .string()
+                        .min(1)
+                        .describe(
+                          'Short reason grounded in the supplied request and original role/source contracts.',
+                        ),
+                    }
+                  : {}),
             })
             .describe(target.description),
         ]),
       ),
     ),
   }) as z.ZodType<NativeInstanceDependencyProposal>;
+  if (requireExplanations) return schema;
+  return schema.transform((proposal) => ({
+    sourcesByNodeId: Object.fromEntries(
+      Object.entries(proposal.sourcesByNodeId).map(([id, source]) => {
+        const choice = { ...source };
+        if (!input.includeExplanations || choice.reason === undefined)
+          delete choice.reason;
+        return [id, choice];
+      }),
+    ),
+  }));
 }

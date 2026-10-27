@@ -18,6 +18,7 @@ import {
   validateNativeNodeProducerReferences,
 } from './resolve-native-configuration-materials.js';
 import { nativeParameterQuestionIdentity } from './native-parameter-question-identity.js';
+import { nativeNodeParameterExecutionProposal } from './native-planning-execution-proposal.js';
 
 export function describeNativeNodeConfiguration(
   input: NativeNodeConfigurationInput,
@@ -86,7 +87,7 @@ export function describeNativeNodeConfiguration(
       throw new Error(
         `Native configuration replies[${index}].question is stale, out of order or belongs to another instance/material revision`,
       );
-    const proposal = createNativeNodeParametersSchema(input).parse(
+    const proposal = createNativeNodeParametersSchema(input, false).parse(
       reply.question.proposal,
     );
     if (
@@ -121,10 +122,15 @@ export function resolveNativeNodeParameters(
     throw new Error(
       'Native parameter generation fingerprint is stale; no automatic rebase',
     );
-  const proposal = createNativeNodeParametersSchema(input).parse(
+  const proposal = createNativeNodeParametersSchema(input, false).parse(
     input.proposal,
   );
-  if (!jsonValuesEqual(proposal, input.proposal))
+  if (
+    !jsonValuesEqual(
+      nativeNodeParameterExecutionProposal(proposal),
+      nativeNodeParameterExecutionProposal(input.proposal),
+    )
+  )
     throw new Error(
       'Native parameters must validate without defaults, coercion or transformation',
     );

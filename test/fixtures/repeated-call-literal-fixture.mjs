@@ -61,13 +61,13 @@ export function repeatedCallLiteralModel() {
           const payload = JSON.parse(messages[1].content);
           calls.push({ name: options.name, schema, payload });
           if (options.name === 'select_api_operations')
-            return schema.parse({
+            return {
               operations: [
                 { candidateId: 'candidate-1', purpose: '첫 번째 조회 역할' },
                 { candidateId: 'candidate-1', purpose: '두 번째 조회 역할' },
               ],
               gaps: [],
-            });
+            };
           if (options.name === 'plan_api_bindings') {
             assert.deepEqual(
               payload.materials.map((material) => material.purpose),
@@ -87,7 +87,7 @@ export function repeatedCallLiteralModel() {
                 payload.purpose,
               ),
             );
-            return schema.parse({
+            return {
               values: {
                 path: {
                   id:
@@ -99,7 +99,7 @@ export function repeatedCallLiteralModel() {
               explanation: {
                 reason: '이 호출 역할에 명시된 식별자를 사용했습니다.',
               },
-            });
+            };
           }
           if (options.name === 'plan_reviewable_workflow_graph') {
             assert.deepEqual(

@@ -9,6 +9,7 @@ import type {
 import { describeNativeInstanceSelection } from '../workflow/planning/resolve-native-instance-selection.js';
 import { resolveNativeConfigurationMaterials } from '../workflow/planning/resolve-native-configuration-materials.js';
 import { createNativeNodeParameterProposalSchema } from './create-native-node-parameter-proposal-schema.js';
+import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 /** User answers are data, not model output and not permission to change the selected role. */
 export const nativeNodeConfigurationRepliesSchema = z.array(
@@ -38,6 +39,7 @@ export const nativeNodeConfigurationRepliesSchema = z.array(
 
 export function createNativeInstanceSelectionSchema(
   input: NativeInstanceSelectionInput,
+  requireExplanations = true,
 ): z.ZodType<NativeInstanceSelectionProposal> {
   if (
     input.includeExplanations !== undefined &&
@@ -45,8 +47,11 @@ export function createNativeInstanceSelectionSchema(
   )
     throw new Error('native instance includeExplanations must be a boolean');
   const { context } = describeNativeInstanceSelection(input);
-  const reasons =
-    input.includeExplanations === true ? { reason: z.string().min(1) } : {};
+  const reasons = requireExplanations
+    ? input.includeExplanations === true
+      ? { reason: z.string().min(1) }
+      : {}
+    : { reason: optionalPlanningExplanationSchema };
   const choices: z.ZodType[] = context.capabilities.flatMap((capability) => {
     const fields = {
       capability: z.literal(capability.name).describe(capability.description),
@@ -94,7 +99,7 @@ export function createNativeInstanceSelectionSchema(
       );
     return variants;
   });
-  return z.strictObject({
+  const schema = z.strictObject({
     instances: z
       .array(choices.length ? z.union(choices) : z.never())
       .describe(
@@ -116,14 +121,31 @@ export function createNativeInstanceSelectionSchema(
       ),
     ...reasons,
   }) as z.ZodType<NativeInstanceSelectionProposal>;
+  if (requireExplanations) return schema;
+  return schema.transform((proposal) => {
+    const result = {
+      ...proposal,
+      instances: proposal.instances.map((choice) => {
+        const instance = { ...choice };
+        if (input.includeExplanations !== true || instance.reason === undefined)
+          delete instance.reason;
+        return instance;
+      }),
+    };
+    if (input.includeExplanations !== true || result.reason === undefined)
+      delete result.reason;
+    return result;
+  }) as z.ZodType<NativeInstanceSelectionProposal>;
 }
 
 export function createNativeNodeParametersSchema(
   input: NativeNodeConfigurationInput,
+  requireExplanations = true,
 ): z.ZodType<NativeNodeParameterProposal> {
   const { contract } = resolveNativeConfigurationMaterials(input);
   return createNativeNodeParameterProposalSchema(
     contract,
     input.includeExplanations === true,
+    requireExplanations,
   );
 }

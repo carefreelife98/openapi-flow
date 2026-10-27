@@ -16,6 +16,7 @@ import { parseStructuredOutput } from '../legacy/planning/parse-structured-outpu
 import { resolveApiSelectionOptions } from './resolve-api-selection-options.js';
 import { apiSelectionExplanationPrompt } from '../prompts/api-selection-explanation-prompt.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 export async function selectApiOperations(
   input: SelectApiOperationsInput,
@@ -65,7 +66,7 @@ export async function selectApiOperations(
   );
   const proposed = await invokeStructuredModel<ApiSelectionOutput>({
     model,
-    schema,
+    schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
     operation: 'selectApiOperations',
     name: 'select_api_operations',
     method: 'jsonSchema',
@@ -86,7 +87,11 @@ export async function selectApiOperations(
     },
     () => {
       const selection = parseStructuredOutput(
-        schema,
+        createApiSelectionSchema(
+          candidates.map((candidate) => candidate.candidateId),
+          includeExplanations,
+          false,
+        ),
         proposed,
         'model API selection',
       );
@@ -105,7 +110,7 @@ export async function selectApiOperations(
           return {
             key: { ...candidate.key },
             purpose: item.purpose,
-            ...('explanation' in item
+            ...('explanation' in item && item.explanation !== undefined
               ? {
                   explanation: createApiSelectionExplanation({
                     context,
@@ -119,7 +124,7 @@ export async function selectApiOperations(
         gaps: selection.gaps.map((gap) => ({
           kind: 'missing_operation',
           description: gap.description,
-          ...('explanation' in gap
+          ...('explanation' in gap && gap.explanation !== undefined
             ? {
                 explanation: createApiSelectionExplanation({
                   context,

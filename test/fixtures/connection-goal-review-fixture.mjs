@@ -10,7 +10,6 @@ export function connectionGoalReviewOutput(description, status = 'covered') {
               ? description.goals.map((goal) => goal.id)
               : [],
           policyIds: [],
-          sourceQuotes: [fact.text],
           reason:
             status === 'covered'
               ? 'The fixture judgment covers the original clauses.'

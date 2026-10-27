@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   createApiRequestInputPointerSchema,
   apiInputLiteralSourceSchema,
+  optionalPlanningExplanationObjectSchema,
 } from '@openapi-flow/core';
 import type {
   ApiArgumentGenerationContract,
@@ -111,13 +112,16 @@ export function createApiExplainedTrackedLiteralGenerationSchema(
   contract: ApiArgumentGenerationContract,
   requestSchema: JsonObject,
   messages?: WorkflowSourceMessage[],
+  requireExplanations = true,
 ) {
   return createApiTrackedLiteralGenerationSchema(
     contract,
     requestSchema,
     messages,
   ).extend({
-    explanation: apiLiteralGenerationReasonSchema,
+    explanation: requireExplanations
+      ? apiLiteralGenerationReasonSchema
+      : optionalPlanningExplanationObjectSchema,
   });
 }
 
@@ -127,6 +131,7 @@ export function createApiLiteralGenerationOutputSchema(
   includeExplanations: boolean,
   requestSchema?: JsonObject,
   messages?: WorkflowSourceMessage[],
+  requireExplanations = true,
 ): ApiLiteralGenerationOutputSchema {
   z.boolean().parse(includeExplanations);
   if (requestSchema !== undefined)
@@ -135,6 +140,7 @@ export function createApiLiteralGenerationOutputSchema(
           contract,
           requestSchema,
           messages,
+          requireExplanations,
         )
       : createApiTrackedLiteralGenerationSchema(
           contract,
@@ -142,6 +148,10 @@ export function createApiLiteralGenerationOutputSchema(
           messages,
         );
   return includeExplanations && contract.hasLiteralInputs
-    ? contract.schema.extend({ explanation: apiLiteralGenerationReasonSchema })
+    ? contract.schema.extend({
+        explanation: requireExplanations
+          ? apiLiteralGenerationReasonSchema
+          : optionalPlanningExplanationObjectSchema,
+      })
     : contract.schema;
 }

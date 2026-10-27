@@ -17,6 +17,7 @@ import { apiBindingSourcesPrompt } from '../prompts/api-call-bindings-prompt.js'
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 export async function selectApiBindingSources(
   input: SelectApiBindingSourcesInput,
@@ -55,7 +56,7 @@ export async function selectApiBindingSources(
   const schema = createApiBindingSourceDecisionSchema(description);
   const output = await invokeStructuredModel<ApiBindingSourceDecisionOutput>({
     model: input.model,
-    schema,
+    schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
     operation: 'selectApiBindingSources',
     name: 'select_api_binding_sources',
     method: 'functionCalling',
@@ -105,7 +106,11 @@ export async function selectApiBindingSources(
       return resolveApiBindingSourceSelection({
         ...description.input,
         proposal: createApiBindingSourceProposal(
-          parseStructuredOutput(schema, output, 'API binding source decision'),
+          parseStructuredOutput(
+            createApiBindingSourceDecisionSchema(description, false),
+            output,
+            'API binding source decision',
+          ),
         ),
       });
     },

@@ -52,7 +52,7 @@ export function createApiLiteralGenerationRecordSchema(
       operation: apiOperationKeySchema,
       proposedValues: valuesSchema,
       explanation: z.strictObject({
-        reason: planningEvidenceTextSchema,
+        reason: planningEvidenceTextSchema.optional(),
         evidence: z.array(
           z.discriminatedUnion('kind', [
             z.strictObject({

@@ -40,11 +40,10 @@ export function assembleApiBindingPlan(
     plan.bindingPlanning = createApiBindingPlanningRecord({
       ...input,
       plan,
-      reasons: input.results.map((result) => {
-        if (result.reason === undefined)
-          throw new Error(`binding call ${result.callId} is missing reason`);
-        return { callId: result.callId, reason: result.reason };
-      }),
+      reasons: input.results.map((result) => ({
+        callId: result.callId,
+        ...(result.reason === undefined ? {} : { reason: result.reason }),
+      })),
     });
   }
   return plan;

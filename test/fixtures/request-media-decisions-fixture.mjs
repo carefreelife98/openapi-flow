@@ -171,7 +171,7 @@ export function requestMediaConversationModel(choice) {
               ],
             };
           if (call.name === 'select_api_request_media_type') {
-            const withReason = Object.hasOwn(schema.shape, 'explanation');
+            const withReason = Object.hasOwn(schema.properties, 'explanation');
             return {
               requestMediaType: choice,
               ...(withReason

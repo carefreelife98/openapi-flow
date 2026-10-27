@@ -35,6 +35,7 @@ import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
 import { attributeApiLiteralGenerationSources } from './attribute-api-literal-generation-sources.js';
 import { assertApiArgumentGenerationSource } from './assert-api-argument-generation-source.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -46,6 +47,7 @@ export async function generateApiArguments(
     context,
     trackInputs,
     schema,
+    validationSchema,
     sourceFingerprint,
     rejectedProposals,
     materialRepair,
@@ -96,6 +98,13 @@ export async function generateApiArguments(
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         snapshot.literalSourceMessages,
       );
+      const validationSchema = createApiLiteralGenerationOutputSchema(
+        contract,
+        options.includeExplanations === true,
+        trackInputs ? createApiRequestSchema(snapshot) : undefined,
+        snapshot.literalSourceMessages,
+        false,
+      );
       const sourceFingerprint = fingerprintApiArgumentSource(
         snapshot,
         options,
@@ -128,6 +137,7 @@ export async function generateApiArguments(
         context,
         trackInputs,
         schema,
+        validationSchema,
         sourceFingerprint,
         rejectedProposals,
         materialRepair,
@@ -146,7 +156,7 @@ export async function generateApiArguments(
     try {
       proposed = await invokeStructuredModel<ApiLiteralGenerationOutput>({
         model,
-        schema,
+        schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
         operation: 'generateApiArguments',
         name: 'generate_api_arguments',
         method: 'functionCalling',
@@ -201,7 +211,7 @@ export async function generateApiArguments(
     async () => {
       assertApiArgumentGenerationSource(input, snapshot, materialRepair);
       const output = parseStructuredOutput<ApiLiteralGenerationOutput>(
-        schema,
+        validationSchema,
         proposed,
         `model arguments for ${snapshot.callId}`,
       );
@@ -247,10 +257,12 @@ export async function generateApiArguments(
           ? {
               literalGeneration: createApiLiteralGenerationRecord({
                 ...snapshot,
-                ...(parsed.explanation !== undefined
+                ...(contract.hasLiteralInputs
                   ? {
                       proposal: { values: parsed.values },
-                      reason: parsed.explanation.reason,
+                      ...(parsed.explanation === undefined
+                        ? {}
+                        : { reason: parsed.explanation.reason }),
                     }
                   : {}),
               }),

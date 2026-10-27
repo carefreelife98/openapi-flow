@@ -18,6 +18,7 @@ import { apiCallBindingsPrompt } from '../prompts/api-call-bindings-prompt.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
+import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
 export async function planApiCallBindings(
   input: PlanApiCallBindingsInput,
@@ -73,7 +74,7 @@ export async function planApiCallBindings(
   );
   const output = await invokeStructuredModel<ApiCallBindingProposal>({
     model: input.model,
-    schema,
+    schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
     operation: 'planApiCallBindings',
     name: 'plan_api_call_bindings',
     method: 'functionCalling',
@@ -138,7 +139,15 @@ export async function planApiCallBindings(
       return resolveApiCallBindingPlan({
         ...description.input,
         sources,
-        proposal: parseStructuredOutput(schema, output, 'API call bindings'),
+        proposal: parseStructuredOutput(
+          createApiCallBindingPlanSchema(
+            description,
+            sources.sourceNodeIds,
+            false,
+          ),
+          output,
+          'API call bindings',
+        ),
       });
     },
   );

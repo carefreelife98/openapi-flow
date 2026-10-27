@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { MemorySaver, Command } from '@langchain/langgraph';
 import {
   createNativeInstanceDependenciesSchema,
@@ -60,6 +61,165 @@ function modelReply(output, calls = [], inspect) {
     },
   };
 }
+
+test('display dependency reasons do not change producer selection or weaken DAG checks', async () => {
+  const f = nativeDependencyFixture({ explanations: true });
+  for (const reason of [undefined, null, '', 7, { reason: 'not text' }]) {
+    const proposal = globalThis.structuredClone(f.proposal);
+    for (const row of Object.values(proposal.sourcesByNodeId)) {
+      delete row.reason;
+      if (reason !== undefined) row.reason = reason;
+    }
+    const calls = [];
+    const result = await planNativeInstanceDependencies({
+      ...selectedInput(f),
+      model: modelReply(proposal, calls),
+    });
+    for (const [id, row] of Object.entries(result.proposal.sourcesByNodeId)) {
+      assert.deepEqual(
+        row.sourceNodeIds,
+        f.proposal.sourcesByNodeId[id].sourceNodeIds,
+      );
+      assert.equal(Object.hasOwn(row, 'reason'), false);
+    }
+    assert.equal(calls.length, 1);
+  }
+  const invalid = globalThis.structuredClone(f.proposal);
+  invalid.sourcesByNodeId[f.child.id].sourceNodeIds = ['unknown-producer'];
+  await assert.rejects(
+    planNativeInstanceDependencies({
+      ...selectedInput(f),
+      model: modelReply(invalid),
+    }),
+  );
+});
+
+test('registered producer-owned settings copy the chosen original IDs without a second model decision', async () => {
+  const { apiMaterials } = await nativeFeatureRegistryFixture();
+  const capabilities = resolveN8nNativePlanningFeatures({
+    features: [N8nNativeFeature.GatherApiResponses],
+  }).planningCapabilities;
+  const input = {
+    planId: 'producer-owned-results',
+    scenario: 'Gather complete original responses from the two supplied calls.',
+    apiMaterials,
+    capabilities,
+  };
+  const selection = resolveNativeInstanceSelection({
+    ...input,
+    proposal: {
+      instances: [
+        {
+          capability: N8nNativeFeature.GatherApiResponses,
+          purpose: 'Original results',
+          parameterSource: 'literal',
+        },
+      ],
+      gaps: [],
+    },
+  });
+  const nodeId = selection.instances[0].id;
+  const dependencies = resolveNativeInstanceDependencies({
+    ...input,
+    selection,
+    proposal: {
+      sourcesByNodeId: { [nodeId]: { sourceNodeIds: ['right', 'left'] } },
+    },
+  });
+  const before = globalThis.structuredClone(dependencies);
+  const calls = [];
+  const result = await generateNativeNodeParameters({
+    ...input,
+    selection,
+    dependencies,
+    nodeId,
+    model: modelReply(new Error('No value choice remains'), calls),
+  });
+  assert.equal(result.status, 'ready');
+  assert.deepEqual(result.node.parameters, {
+    sourceNodeIds: ['right', 'left'],
+  });
+  assert.deepEqual(dependencies, before);
+  assert.equal(calls.length, 0);
+});
+
+test('producer-owned settings use the registered contract, not a capability or parameter name convention', async () => {
+  const { apiMaterials } = await nativeFeatureRegistryFixture();
+  const parametersSchema = z.strictObject({
+    chosen: z.array(z.string()).min(1),
+  });
+  for (const invalid of [false, true]) {
+    const capability = {
+      name: 'custom-producer-collector',
+      description: 'Use the explicitly selected complete responses.',
+      parametersSchema,
+      parametersFromProducerDependencies: (ids) => ({
+        chosen: invalid ? ['left'] : [...ids],
+      }),
+      parameterReferenceSources: ['response'],
+      parameterReferenceBindings: (parameters) =>
+        parametersSchema.parse(parameters).chosen.map((nodeId, index) => ({
+          nodeIdPointer: `/chosen/${index}`,
+          reference: { source: 'response', nodeId, pointer: '' },
+        })),
+      responseReferences: (parameters) =>
+        parametersSchema.parse(parameters).chosen.map((nodeId) => ({
+          source: 'response',
+          nodeId,
+          pointer: '',
+        })),
+      inputPorts: (parameters) =>
+        parametersSchema
+          .parse(parameters)
+          .chosen.map((_, index) => `input${index + 1}`),
+      outputPorts: () => ['main'],
+      waitsForAllInputs: true,
+      exclusiveOutputPorts: false,
+    };
+    const input = {
+      planId: `custom-producer-${invalid}`,
+      scenario: 'Gather both complete supplied responses.',
+      apiMaterials,
+      capabilities: [capability],
+    };
+    const selection = resolveNativeInstanceSelection({
+      ...input,
+      proposal: {
+        instances: [
+          {
+            capability: capability.name,
+            purpose: 'Original results',
+            parameterSource: 'literal',
+          },
+        ],
+        gaps: [],
+      },
+    });
+    const nodeId = selection.instances[0].id;
+    const dependencies = resolveNativeInstanceDependencies({
+      ...input,
+      selection,
+      proposal: {
+        sourcesByNodeId: { [nodeId]: { sourceNodeIds: ['right', 'left'] } },
+      },
+    });
+    const calls = [];
+    const execute = () =>
+      generateNativeNodeParameters({
+        ...input,
+        selection,
+        dependencies,
+        nodeId,
+        model: modelReply(new Error('No model decision remains'), calls),
+      });
+    if (invalid) await assert.rejects(execute, /exactly match/);
+    else
+      assert.deepEqual((await execute()).node.parameters, {
+        chosen: ['right', 'left'],
+      });
+    assert.equal(calls.length, 0);
+  }
+});
 
 test('dependency row keys and source enums contain only actual original IDs, with no future output schemas', () => {
   const f = nativeDependencyFixture({ withPrepared: true, explanations: true });

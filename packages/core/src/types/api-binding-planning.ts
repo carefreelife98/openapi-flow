@@ -37,11 +37,11 @@ export interface ApiBindingPlanningDescription {
 
 export interface ApiBindingCallReason {
   callId: string;
-  reason: string;
+  reason?: string;
 }
 
 export interface ExplainedApiBindingCall extends PlannedApiBindings {
-  reason: string;
+  reason?: string;
 }
 
 export interface ApiBindingPlanningRecord {

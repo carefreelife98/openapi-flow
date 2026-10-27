@@ -15,6 +15,7 @@ import { describeWorkflowConnectionGoals } from '../incremental/describe-workflo
 import { describeWorkflowConnectionStep } from '../incremental/describe-workflow-connection-step.js';
 import { describeWorkflowConnectionConflictMaterials } from '../materials/describe-workflow-connection-conflict-materials.js';
 import { workflowConnectionEdgeId } from '../incremental/connection-graph-identity.js';
+import { planningEvidenceTextSchema } from '../../../schemas/planning-evidence-schema.js';
 
 /** Coverage judgment is model evidence, not a code proof of natural-language meaning or a final graph assessment. */
 export function describeWorkflowConnectionGoalReview(
@@ -110,16 +111,24 @@ export function createWorkflowConnectionGoalReview(
           throw new Error(
             `Covered requirement ${fact.id} needs actual goal or code-policy evidence`,
           );
-        if (assessment.sourceQuotes.some((quote) => !fact.text.includes(quote)))
-          throw new Error(
-            `Goal review quote is not an exact part of requirement ${fact.id}`,
-          );
       }
       return {
         sessionId: description.sessionId,
         sourceFingerprint: description.sourceFingerprint,
         goalFingerprint: description.goalFingerprint,
-        assessments: structuredClone(proposal.assessments),
+        assessments: proposal.assessments.map(({ reason, ...assessment }) => {
+          const explanation = planningEvidenceTextSchema.safeParse(reason);
+          return {
+            ...structuredClone(assessment),
+            sourceQuotes: [facts.get(assessment.factId)!.text],
+            ...(explanation.success
+              ? {
+                  explanationStatus: 'provided' as const,
+                  reason: explanation.data,
+                }
+              : { explanationStatus: 'unavailable' as const }),
+          };
+        }),
         accepted: proposal.assessments.every(
           (item) => item.status === 'covered',
         ),
@@ -143,7 +152,17 @@ export function validateWorkflowConnectionGoalReview(
       const review = workflowConnectionGoalReviewSchema.parse(input.review);
       const checked = createWorkflowConnectionGoalReview({
         ...input,
-        proposal: { assessments: review.assessments },
+        proposal: {
+          assessments: review.assessments.map(
+            ({ factId, status, goalIds, policyIds, reason }) => ({
+              factId,
+              status,
+              goalIds,
+              policyIds,
+              ...(reason === undefined ? {} : { reason }),
+            }),
+          ),
+        },
       });
       if (
         !isDeepStrictEqual(review, input.review) ||

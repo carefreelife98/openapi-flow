@@ -1,35 +1,41 @@
-import { projectWorkflowConnectionDecision } from '@openapi-flow/core';
-import type {
-  ResolvedWorkflowConnectionOutput,
-  WorkflowConnectionPlanningOutput,
-} from '../types/workflow-orchestration.js';
-import { completeReviewableWorkflowGraphProposal } from './complete-reviewable-workflow-graph-proposal.js';
+import { workflowConnectionDecisionSchema } from '@openapi-flow/core';
+import type { ResolvedWorkflowConnectionOutput } from '../types/workflow-orchestration.js';
+import type { ResolvedWorkflowConnectionSelection } from '../types/workflow-connection-selection.js';
 
 /** Fill only context-fixed omissions, then separate reasons from executable edges. */
 export function resolveWorkflowConnectionOutput(
-  output: WorkflowConnectionPlanningOutput,
-  readyCallCount: number,
+  output: ResolvedWorkflowConnectionSelection,
+  includeExplanations: boolean,
 ): ResolvedWorkflowConnectionOutput {
-  const completed = completeReviewableWorkflowGraphProposal(
-    output,
-    0,
-    readyCallCount,
-  );
-  if ('reason' in output) {
-    const decision = {
-      reason: output.reason,
-      edges: output.edges,
-      additionalGaps: output.additionalGaps,
-      blockedCalls:
-        output.blockedCalls === undefined ? [] : output.blockedCalls,
-    };
-    return { proposal: projectWorkflowConnectionDecision(decision), decision };
-  }
+  const proposal = {
+    edges: output.edges.map(({ from, output, to, input }) => ({
+      from,
+      output,
+      to,
+      input,
+    })),
+    additionalGaps: structuredClone(output.additionalGaps),
+    blockedCalls:
+      output.blockedCalls === undefined
+        ? []
+        : output.blockedCalls.map(({ callId, gapIds }) => ({
+            callId,
+            gapIds: structuredClone(gapIds),
+          })),
+  };
+  if (!includeExplanations) return { proposal };
+  const presentation = workflowConnectionDecisionSchema.safeParse({
+    ...output,
+    blockedCalls: output.blockedCalls === undefined ? [] : output.blockedCalls,
+  });
+  if (presentation.success) return { proposal, decision: presentation.data };
   return {
-    proposal: {
-      edges: structuredClone(completed.edges),
-      additionalGaps: structuredClone(completed.additionalGaps),
-      blockedCalls: structuredClone(completed.blockedCalls),
-    },
+    proposal,
+    explanationIssues: presentation.error.issues.map((issue) => ({
+      path: issue.path.map((segment) =>
+        typeof segment === 'symbol' ? String(segment) : segment,
+      ),
+      code: issue.code,
+    })),
   };
 }

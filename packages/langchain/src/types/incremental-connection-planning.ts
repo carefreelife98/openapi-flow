@@ -97,6 +97,8 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   operation: string;
   name: string;
   schema: ZodType<Output>;
+  /** Optional distinct receiver validation when display-only fields must not gate execution. */
+  validationSchema?: ZodType<Output>;
   messages: BaseMessage[];
   sourceFingerprint?: string;
   requestFingerprint?: string;

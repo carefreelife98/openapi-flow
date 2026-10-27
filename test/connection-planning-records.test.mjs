@@ -185,22 +185,52 @@ test('newly blocked calls retain their own reason while supplied and additional 
   });
 });
 
-test('wrong/missing reasons and extra execution fields fail without a second call or output repair', async () => {
+test('missing or malformed display reasons preserve valid execution and expose separate diagnostics without another call', async () => {
+  const { input, proposal } = connectionPlanningFixture();
+  const expected = await planWorkflowConnections({
+    ...input,
+    model: connectionPlanningModel(proposal),
+  });
+  for (const change of [
+    (output) => {
+      delete output.reason;
+    },
+    (output) => {
+      output.reason = ' ';
+    },
+    (output) => {
+      delete output.edges[0].reason;
+    },
+    (output) => {
+      output.edges[0].reason = 42;
+    },
+  ]) {
+    const output = explainConnections(proposal);
+    change(output);
+    const original = globalThis.structuredClone(output);
+    const model = connectionPlanningModel(output);
+    const result = await planWorkflowConnections({
+      ...input,
+      model,
+      includeExplanations: true,
+    });
+    const { connectionExplanationIssues, ...execution } = result;
+    assert.deepEqual(execution, expected);
+    assert.ok(connectionExplanationIssues.length > 0);
+    assert.ok(
+      connectionExplanationIssues.every((issue) =>
+        issue.path.includes('reason'),
+      ),
+    );
+    assert.deepEqual(output, original);
+    assert.equal(model.calls, 1);
+  }
+});
+
+test('extra execution fields still fail with original output and no second call', async () => {
   const { input, proposal } = connectionPlanningFixture();
   const samples = [];
   for (const change of [
-    (o) => {
-      delete o.reason;
-    },
-    (o) => {
-      o.reason = ' ';
-    },
-    (o) => {
-      delete o.edges[0].reason;
-    },
-    (o) => {
-      o.edges[0].reason = 42;
-    },
     (o) => {
       o.starts = ['source'];
     },

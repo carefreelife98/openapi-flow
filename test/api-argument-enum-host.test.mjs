@@ -38,7 +38,7 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
           const payload = JSON.parse(messages[1].content);
           calls.push({ name: options.name, payload });
           if (options.name === 'select_api_operations')
-            return schema.parse({
+            return {
               operations: [
                 { candidateId: 'candidate-1', purpose: '첫 번째 조회 역할' },
                 ...(repeated
@@ -51,7 +51,7 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
                   : []),
               ],
               gaps: [],
-            });
+            };
           if (options.name === 'plan_api_bindings')
             return schema.parse({
               calls: payload.materials.map((material) => ({
@@ -61,13 +61,13 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
               gaps: [],
             });
           if (options.name === 'generate_api_arguments') {
-            assert.ok(schema.shape.requestedInputs);
-            assert.ok(schema.shape.literalInputs);
+            assert.ok(schema.properties.requestedInputs);
+            assert.ok(schema.properties.literalInputs);
             const id =
               payload.purpose === '첫 번째 조회 역할'
                 ? 'fixture-first'
                 : 'fixture-second';
-            return schema.parse({
+            return {
               literalInputs: {
                 state: 'provided',
                 values: { path: { id } },
@@ -81,7 +81,7 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
               },
               requestedInputs: ['/query/sort'],
               explanation: { reason: '이 역할의 원문 식별자만 복사했습니다.' },
-            });
+            };
           }
           if (options.name === 'extract_api_input_answers') {
             assert.equal(payload.questions.length, 1);

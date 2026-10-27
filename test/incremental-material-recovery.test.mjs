@@ -60,6 +60,22 @@ function createGraph(fixture, outputs, recovery, extra = {}) {
   return { model, graph };
 }
 
+test('an unused material reservation is released rather than charged as model work', async () => {
+  const fixture = initialConnectionRecoveryFixture();
+  const { graph, model } = createGraph(
+    fixture,
+    successfulOutputs(fixture),
+    {
+      modelInvocations: 2,
+    },
+    { policy: { ...policy, maxModelInvocations: 4 } },
+  );
+  const state = await graph.invoke({});
+  assert.equal(state.status, 'complete');
+  assert.equal(model.requests.length, 4);
+  assert.equal(state.modelInvocations, 4);
+});
+
 test('a wrong initial binding is automatically reconsidered, replaced and checkpointed before the original goals and DAG can complete', async () => {
   const fixture = initialConnectionRecoveryFixture();
   const before = globalThis.structuredClone({

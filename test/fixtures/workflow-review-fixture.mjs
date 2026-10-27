@@ -200,6 +200,8 @@ export function scriptedReviewModel(mode = 'selection-gap') {
           } else throw new Error('Unexpected model call: ' + options.name);
           if (
             mode !== 'invalid-selection' &&
+            options.name !== 'select_api_operations' &&
+            options.name !== 'generate_api_arguments' &&
             options.name !== 'plan_workflow_graph' &&
             options.name !== 'plan_reviewable_workflow_graph'
           )

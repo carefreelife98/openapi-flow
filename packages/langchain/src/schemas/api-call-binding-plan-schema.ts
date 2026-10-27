@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { createApiRequestInputPointerSchema } from '@openapi-flow/core';
+import {
+  createApiRequestInputPointerSchema,
+  optionalPlanningExplanationSchema,
+} from '@openapi-flow/core';
 import type {
   ApiCallBindingProposal,
   ApiCallBindingPlanningDescription,
@@ -28,6 +31,7 @@ function callGapsSchema(description: ApiCallBindingPlanningDescription) {
 
 export function createApiBindingSourceDecisionSchema(
   description: ApiCallBindingPlanningDescription,
+  requireExplanations = true,
 ) {
   const ids = description.sourceCandidates.map((candidate) => candidate.nodeId);
   const independent = z.strictObject({
@@ -67,6 +71,8 @@ export function createApiBindingSourceDecisionSchema(
     // Distinct literal kinds keep these branches exclusive; union emits strict-provider-compatible anyOf.
     decision: z.union([independent, missing, ...available]),
   });
+  if (!requireExplanations)
+    return schema.extend({ reason: optionalPlanningExplanationSchema });
   return description.input.includeExplanations === true
     ? schema.extend({ reason: apiBindingCallReasonSchema })
     : schema;
@@ -75,6 +81,7 @@ export function createApiBindingSourceDecisionSchema(
 export function createApiCallBindingPlanSchema(
   description: ApiCallBindingPlanningDescription,
   sourceNodeIds: string[],
+  requireExplanations = true,
 ): z.ZodType<ApiCallBindingProposal> {
   if (!sourceNodeIds.length)
     throw new Error('field planning requires selected source contracts');
@@ -98,6 +105,8 @@ export function createApiCallBindingPlanSchema(
     ),
     gaps: callGapsSchema(description),
   });
+  if (!requireExplanations)
+    return schema.extend({ reason: optionalPlanningExplanationSchema });
   return description.input.includeExplanations === true
     ? schema.extend({ reason: apiBindingCallReasonSchema })
     : schema;

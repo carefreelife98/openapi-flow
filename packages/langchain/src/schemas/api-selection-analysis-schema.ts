@@ -5,6 +5,7 @@ import { withApiSelectionExplanation } from './with-api-selection-explanation.js
 export function createApiSelectionAnalysisSchema(
   candidateIds: string[],
   includeExplanations = false,
+  requireExplanations = true,
 ) {
   const single = z.strictObject({
     kind: z
@@ -56,13 +57,25 @@ export function createApiSelectionAnalysisSchema(
         'Maximum selections allowed by the user and offered candidate count. Must be at least minSelections.',
       ),
   });
-  return createApiSelectionSchema(candidateIds, includeExplanations).extend({
+  return createApiSelectionSchema(
+    candidateIds,
+    includeExplanations,
+    requireExplanations,
+  ).extend({
     questions: z
       .array(
         // Literal kinds remain disjoint; z.union emits the provider-supported anyOf.
         z.union([
-          withApiSelectionExplanation(single, includeExplanations),
-          withApiSelectionExplanation(multiple, includeExplanations),
+          withApiSelectionExplanation(
+            single,
+            includeExplanations,
+            requireExplanations,
+          ),
+          withApiSelectionExplanation(
+            multiple,
+            includeExplanations,
+            requireExplanations,
+          ),
         ]),
       )
       .describe(

@@ -65,7 +65,12 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
         baseURL: `http://127.0.0.1:${server.address().port}/v1`,
       },
     });
-    for (const mode of ['disabled', 'explained', 'native-only']) {
+    for (const mode of [
+      'disabled',
+      'explained',
+      'native-only',
+      'missing-display',
+    ]) {
       let { input, proposal } = connectionPlanningFixture();
       if (mode === 'native-only') {
         const fixture = nativePlanningRecordFixture();
@@ -79,6 +84,7 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
       const enabled = mode !== 'disabled';
       input.entrypoint = describeN8nManualTrigger();
       output = enabled ? explainConnections(proposal) : proposal;
+      if (mode === 'missing-display') delete output.edges[0].reason;
       const result = await planWorkflowConnections({
         ...input,
         model,
@@ -107,7 +113,11 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
         JSON.stringify(ajv.errors),
       );
       const validate = ajv.compile(wire.parameters);
-      assert.equal(validate(output), true, JSON.stringify(validate.errors));
+      assert.equal(
+        validate(output),
+        mode !== 'missing-display',
+        JSON.stringify(validate.errors),
+      );
       for (const field of [
         'starts',
         'nativeNodes',
@@ -145,13 +155,20 @@ test('actual ChatOpenAI connection wire asks only for optional decision reasons,
         delete missing.reason;
         assert.equal(validate(missing), false);
       }
-      assert.equal(Object.hasOwn(result, 'connectionPlanning'), enabled);
+      assert.equal(
+        Object.hasOwn(result, 'connectionPlanning'),
+        enabled && mode !== 'missing-display',
+      );
+      if (mode === 'missing-display') {
+        assert.ok(result.connectionExplanationIssues.length > 0);
+        assert.deepEqual(result.edges, connectionPlanningFixture().plan.edges);
+      }
       assert.equal(
         JSON.parse(request.messages[1].content).scenario,
         input.scenario,
       );
     }
-    assert.equal(requests.length, 3);
+    assert.equal(requests.length, 4);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

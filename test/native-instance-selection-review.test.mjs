@@ -95,7 +95,6 @@ test('explicit instance review can reject an unrequested role even when the prop
     assessments: {},
     coverageAssessment: {
       kind: 'needs-reselection',
-      sourceQuote: f.input.scenario,
       reason: 'The selected role is outside the requested work.',
     },
     instanceAssessments: {
@@ -188,14 +187,12 @@ test('full role review retains required roles and business questions without con
         assessments: {},
         coverageAssessment: {
           kind: 'covered',
-          sourceQuote: f.input.scenario,
           reason:
             'The supplied native role implements this controlled request.',
         },
         instanceAssessments: {
           [id]: {
             kind,
-            sourceQuote: 'Check pending connections against my threshold.',
             reason:
               'The reviewer retains the original request as scope evidence.',
             ...(kind === 'business-decision'
@@ -231,7 +228,6 @@ test('full role review retains required roles and business questions without con
         instanceAssessments: {},
         coverageAssessment: {
           kind: 'covered',
-          sourceQuote: outside.input.scenario,
           reason: 'Only the existing single API response is requested.',
         },
       },
@@ -246,7 +242,6 @@ test('full role review retains required roles and business questions without con
     instanceAssessments: {},
     coverageAssessment: {
       kind: 'covered',
-      sourceQuote: outside.input.scenario,
       reason: 'Only the existing single API response is requested.',
     },
   });
@@ -260,7 +255,6 @@ test('review mode changes during a model call preserve failure rather than accep
     ...f.reviewProposal,
     coverageAssessment: {
       kind: 'needs-reselection',
-      sourceQuote: f.input.scenario,
       reason: 'A fresh selection is required for the original scope.',
     },
     instanceAssessments: Object.fromEntries(
@@ -285,7 +279,7 @@ test('review mode changes during a model call preserve failure rather than accep
   );
 });
 
-test('outside-scope review keeps exact-source, closed-shape and source-identity validation', async () => {
+test('outside-scope review keeps closed-shape and source-identity validation without model-authored quotes', async () => {
   const { input, selection, reviewProposal } =
     await nativeOutsideScopeReviewFixture();
   const id = selection.gaps[0].id;
@@ -298,9 +292,6 @@ test('outside-scope review keeps exact-source, closed-shape and source-identity 
   for (const alter of [
     (value) => {
       value.assessments[id].sourceQuote = 'An invented exclusion';
-    },
-    (value) => {
-      value.assessments[id].reason = ' ';
     },
     (value) => {
       value.assessments[id].callIds = ['metrics'];
@@ -317,6 +308,17 @@ test('outside-scope review keeps exact-source, closed-shape and source-identity 
     assert.throws(() => create(changed));
   }
   const review = create(reviewProposal);
+  assert.deepEqual(review.source, { id: 'scenario', text: input.scenario });
+  assert.throws(() =>
+    validateNativeInstanceSelectionReview({
+      ...input,
+      selection,
+      review: {
+        ...review,
+        source: { ...review.source, text: 'Changed source' },
+      },
+    }),
+  );
   assert.throws(
     () =>
       validateNativeInstanceSelectionReview({
@@ -327,6 +329,80 @@ test('outside-scope review keeps exact-source, closed-shape and source-identity 
       }),
     /stale|modified/,
   );
+});
+
+test('native review preserves original Markdown spacing without asking the model to reproduce source text', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const input = {
+    ...f.input,
+    scenario: '| original       | unchanged |\n\n' + f.input.scenario,
+  };
+  const selection = resolveNativeInstanceSelection({
+    ...input,
+    proposal: f.proposal,
+  });
+  const review = await reviewNativeInstanceSelection({
+    ...input,
+    selection,
+    model: model(f.reviewProposal, ({ schema }) => {
+      assert.equal(JSON.stringify(schema).includes('sourceQuote'), false);
+      assert.equal(JSON.stringify(schema).includes('sourceId'), false);
+    }),
+  });
+  assert.equal(review.status, 'needs-reselection');
+  assert.equal(review.source.text, input.scenario);
+  assert.equal(
+    Object.hasOwn(
+      review.proposal.assessments[selection.gaps[0].id],
+      'sourceQuote',
+    ),
+    false,
+  );
+  validateNativeInstanceSelectionReview({ ...input, selection, review });
+});
+
+test('native review decisions survive absent or malformed display text without weakening real references', async () => {
+  const f = await nativeSelectionReviewFixture();
+  for (const reason of [
+    undefined,
+    '',
+    ' ',
+    3,
+    false,
+    null,
+    [],
+    { text: 'display only' },
+  ]) {
+    const proposal = clone(f.reviewProposal);
+    for (const assessment of Object.values(proposal.assessments)) {
+      delete assessment.reason;
+      if (reason !== undefined) assessment.reason = reason;
+    }
+    const before = clone(proposal);
+    const review = await reviewNativeInstanceSelection({
+      ...f.input,
+      selection: f.selection,
+      model: model(proposal),
+    });
+    assert.equal(review.status, 'needs-reselection');
+    assert.deepEqual(proposal, before);
+    for (const assessment of Object.values(review.proposal.assessments))
+      assert.equal(Object.hasOwn(assessment, 'reason'), false);
+    validateNativeInstanceSelectionReview({
+      ...f.input,
+      selection: f.selection,
+      review,
+    });
+    const invalid = clone(proposal);
+    invalid.assessments[f.selection.gaps[1].id].callIds = ['not-supplied'];
+    assert.throws(() =>
+      createNativeInstanceSelectionReview({
+        ...f.input,
+        selection: f.selection,
+        proposal: invalid,
+      }),
+    );
+  }
 });
 
 test('an outside-scope judgment cannot bypass another unsupported need or genuine business decision', async () => {
@@ -353,7 +429,6 @@ test('an outside-scope judgment cannot bypass another unsupported need or genuin
           [outside.id]: outsideAssessment,
           [required.id]: {
             kind,
-            sourceQuote: 'Collect the metrics API response unchanged.',
             reason:
               'Independent required work is not removed by the other assessment.',
             ...(kind === 'business-decision'
@@ -516,7 +591,6 @@ test('unsupported behavior and genuine business decisions remain explicit blocke
     const proposal = clone(reviewProposal);
     proposal.assessments[id] = {
       kind,
-      sourceQuote: 'Check pending connections against my threshold.',
       reason: 'Explicit independent reviewer judgment',
       ...(kind === 'business-decision'
         ? { question: 'Which business check is intended?' }

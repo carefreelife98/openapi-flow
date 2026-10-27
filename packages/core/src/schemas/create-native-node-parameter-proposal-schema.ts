@@ -3,14 +3,20 @@ import type {
   NativeNodeParameterProposal,
   NativeParameterGenerationContract,
 } from '../types/native-node-planning.js';
+import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 /** One shared value/question wire contract for initial configuration and existing-instance repair. */
 export function createNativeNodeParameterProposalSchema(
   contract: NativeParameterGenerationContract,
   includeExplanations: boolean,
+  requireExplanations = true,
 ): z.ZodType<NativeNodeParameterProposal> {
-  const reasons = includeExplanations ? { reason: z.string().min(1) } : {};
-  return z
+  const reasons = requireExplanations
+    ? includeExplanations
+      ? { reason: z.string().min(1) }
+      : {}
+    : { reason: optionalPlanningExplanationSchema };
+  const schema = z
     .strictObject({
       decision: z.union([
         z.strictObject({
@@ -35,4 +41,11 @@ export function createNativeNodeParameterProposalSchema(
     .meta({
       $defs: contract.definitions,
     }) as z.ZodType<NativeNodeParameterProposal>;
+  if (requireExplanations) return schema;
+  return schema.transform((proposal) => {
+    const decision = { ...proposal.decision };
+    if (!includeExplanations || decision.reason === undefined)
+      delete decision.reason;
+    return { decision };
+  }) as z.ZodType<NativeNodeParameterProposal>;
 }

@@ -11,6 +11,7 @@ import { createNativeParameterGenerationContract } from '../../schemas/create-na
 import { describeNativeNodePlanning } from './describe-native-node-planning.js';
 import { jsonValuesEqual } from '../../utils/json-values-equal.js';
 import { createNativePlanningCapabilityMaterial } from './create-native-planning-capability-material.js';
+import { nativeInstanceSelectionExecutionProposal } from './native-planning-execution-proposal.js';
 
 /** The same capability material owns both model context and field-ownership alternatives. */
 export function describeNativeInstanceSelection(
@@ -45,10 +46,15 @@ export function resolveNativeInstanceSelection(
     context,
     planningCapabilities,
   } = describeNativeInstanceSelection(input);
-  const proposal = createNativeInstanceSelectionSchema(input).parse(
+  const proposal = createNativeInstanceSelectionSchema(input, false).parse(
     input.proposal,
   );
-  if (!jsonValuesEqual(proposal, input.proposal))
+  if (
+    !jsonValuesEqual(
+      nativeInstanceSelectionExecutionProposal(proposal),
+      nativeInstanceSelectionExecutionProposal(input.proposal),
+    )
+  )
     throw new Error(
       'Native instance selection must preserve original model values',
     );

@@ -12,6 +12,9 @@ export const apiResponseResultsDefinition: NativeMaterialFeatureDefinition = {
   parametersSchema: apiResponseResultsParametersSchema,
   createPlanningParametersSchema: ({ apiCallIds }) =>
     createApiResponseResultsParametersSchema(apiCallIds),
+  parametersFromProducerDependencies: (sourceNodeIds) => ({
+    sourceNodeIds: [...sourceNodeIds],
+  }),
   parameterReferenceSources: ['response'],
   referenceStructureSchema: apiResponseResultsParametersSchema,
   parameterReferenceBindings: (value) =>

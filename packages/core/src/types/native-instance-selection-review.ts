@@ -3,10 +3,10 @@ import type {
   NativeInstanceSelection,
   SelectedNativeInstance,
 } from './native-node-planning.js';
+import type { WorkflowSourceMessage } from './workflow-draft.js';
 
 export interface NativeInstanceGapReviewEvidence {
-  sourceQuote: string;
-  reason: string;
+  reason?: string;
 }
 
 export type NativeInstanceGapAssessment = NativeInstanceGapReviewEvidence &
@@ -44,10 +44,31 @@ export type NativeInstanceSelectionReviewInput = NativeSelectedPlanningInput &
   NativeInstanceSelectionReviewOptions;
 
 export interface NativeInstanceSelectionReviewProposal {
-  assessments: Record<string, NativeInstanceGapAssessment>;
+  assessments: Record<string, NativeInstanceGapAssessmentProposal>;
   /** Required only when reviewInstances is explicitly enabled. */
-  instanceAssessments?: Record<string, NativeInstanceRoleAssessment>;
+  instanceAssessments?: Record<string, NativeInstanceRoleAssessmentProposal>;
   /** Full review also examines omitted required processing, including an empty selection. */
+  coverageAssessment?: NativeInstanceSelectionCoverageAssessmentProposal;
+}
+
+/** Untrusted display text cannot authorize or reject a functional review decision. */
+export interface NativeInstanceReviewExplanationProposal {
+  reason?: unknown;
+}
+
+export type NativeInstanceReviewProposalAssessment<T> = T extends unknown
+  ? Omit<T, 'reason'> & NativeInstanceReviewExplanationProposal
+  : never;
+export type NativeInstanceGapAssessmentProposal =
+  NativeInstanceReviewProposalAssessment<NativeInstanceGapAssessment>;
+export type NativeInstanceRoleAssessmentProposal =
+  NativeInstanceReviewProposalAssessment<NativeInstanceRoleAssessment>;
+export type NativeInstanceSelectionCoverageAssessmentProposal =
+  NativeInstanceReviewProposalAssessment<NativeInstanceSelectionCoverageAssessment>;
+
+export interface NativeInstanceSelectionReviewedProposal {
+  assessments: Record<string, NativeInstanceGapAssessment>;
+  instanceAssessments?: Record<string, NativeInstanceRoleAssessment>;
   coverageAssessment?: NativeInstanceSelectionCoverageAssessment;
 }
 
@@ -64,7 +85,9 @@ export interface NativeInstanceSelectionReviewDescription extends NativeInstance
 /** Model judgments are evidence for routing, never approval to delete a gap or mutate the selection. */
 export interface NativeInstanceSelectionReview extends NativeInstanceSelectionReviewOptions {
   selectionId: string;
-  proposal: NativeInstanceSelectionReviewProposal;
+  /** The only scenario source is supplied by code, never copied back by the model. */
+  source: WorkflowSourceMessage;
+  proposal: NativeInstanceSelectionReviewedProposal;
   status:
     | 'no-gaps'
     | 'unavailable-native-behavior'

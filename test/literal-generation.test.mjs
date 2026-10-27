@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import { URL } from 'node:url';
 import { resolveHttpRequestNodeConfiguration } from '../packages/n8n/dist/nodes/request/resolve-http-request-node-configuration.js';
 import {
   createApiLiteralGenerationRecord,
@@ -20,6 +22,11 @@ import {
   literalGenerationFixture,
   literalGenerationModel,
 } from './fixtures/literal-generation-fixture.mjs';
+
+const require = createRequire(
+  new URL('../packages/core/package.json', import.meta.url),
+);
+const { Ajv2020 } = require('ajv/dist/2020.js');
 
 test('same-call literal reason is attached only to the proposal, never attributed to merged confirmed inputs', async () => {
   const input = await literalGenerationFixture();
@@ -163,22 +170,45 @@ test('disabled metadata preserves existing output shape and rejects an unrequest
     });
     assert.equal(Object.hasOwn(result, 'literalGeneration'), false);
     assert.equal(
-      model.calls[0].schema.safeParse({
+      new Ajv2020({ strict: false }).compile(model.calls[0].schema)({
         values: {},
         explanation: { reason: 'extra' },
-      }).success,
+      }),
       false,
     );
   }
 });
 
-test('enabled reasons cannot be missing/blank or contain generated sources, and invalid literal values are not repaired', async () => {
+test('display reasons can be absent without losing original values or code-owned evidence', async () => {
   const input = await literalGenerationFixture();
   for (const output of [
     { values: {} },
     { values: {}, explanation: { reason: '' } },
     { values: {}, explanation: { reason: ' ' } },
     { values: {}, explanation: { reason: 'why', evidence: [] } },
+  ]) {
+    const model = literalGenerationModel(output);
+    const result = await generateApiArguments({
+      ...input,
+      model,
+      includeExplanations: true,
+    });
+    assert.deepEqual(result.values, { body: { id: 'confirmed-original' } });
+    assert.equal(
+      Object.hasOwn(result.literalGeneration.explanation, 'reason'),
+      false,
+    );
+    validateApiLiteralGenerationRecord({
+      ...input,
+      record: result.literalGeneration,
+    });
+    assert.equal(model.calls.length, 1);
+  }
+});
+
+test('invalid literal types and confirmed input ownership remain errors', async () => {
+  const input = await literalGenerationFixture();
+  for (const output of [
     {
       values: { body: { quantity: '2' } },
       explanation: { reason: 'wrong type' },

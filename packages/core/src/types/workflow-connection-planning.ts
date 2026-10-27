@@ -103,6 +103,12 @@ export interface WorkflowConnectionDecision {
   additionalGaps: ReviewableWorkflowGraphProposal['additionalGaps'];
 }
 
+/** Display-only validation findings; never permission to accept invalid executable fields. */
+export interface WorkflowConnectionExplanationIssue {
+  path: (string | number)[];
+  code: string;
+}
+
 export type WorkflowConnectionPlanningResult = Pick<
   ReviewableWorkflowGraphPlan,
   'nativeNodes' | 'edges' | 'gaps' | 'blockedCalls' | 'starts'

@@ -166,6 +166,52 @@ test('real ChatOpenAI wire requires only a short reason when enabled; sources ar
       }
     }
     assert.equal(requests.length, 6);
+    for (const explanation of [
+      undefined,
+      { reason: { text: 'display only' } },
+    ]) {
+      for (const analyze of [false, true]) {
+        const display = explanation === undefined ? {} : { explanation };
+        output = {
+          operations: [
+            { candidateId: 'candidate-1', purpose: '회원 조회', ...display },
+          ],
+          gaps: [{ description: '환불 API가 없다.', ...display }],
+          ...(analyze
+            ? {
+                questions: [
+                  {
+                    kind: 'single-choice',
+                    message: '어느 범위인가요?',
+                    purpose: '범위 선택',
+                    candidateIds: ['candidate-1', 'candidate-2'],
+                    ...display,
+                  },
+                ],
+              }
+            : {}),
+        };
+        const result = await (
+          analyze ? analyzeApiSelection : selectApiOperations
+        )({ ...context, model, includeExplanations: true });
+        const selection = analyze ? result.selection : result;
+        assert.deepEqual(
+          selection.operations[0].key,
+          context.operations[0].key,
+        );
+        for (const item of [
+          ...selection.operations,
+          ...selection.gaps,
+          ...(analyze ? result.questions : []),
+        ])
+          assert.equal(Object.hasOwn(item, 'explanation'), false);
+      }
+    }
+    output.operations[0].candidateId = 'not-supplied';
+    await assert.rejects(
+      analyzeApiSelection({ ...context, model, includeExplanations: true }),
+    );
+    assert.equal(requests.length, 11, 'No retry or extra explanation call');
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

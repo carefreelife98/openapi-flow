@@ -14,16 +14,16 @@ test('same API in JSON and form roles keeps each supplied role through media and
           const payload = JSON.parse(messages[1].content);
           calls.push({ name: options.name, payload });
           if (options.name === 'select_api_operations')
-            return schema.parse({
+            return {
               operations: [
                 { candidateId: 'candidate-1', purpose: 'JSON role' },
                 { candidateId: 'candidate-1', purpose: 'form role' },
               ],
               gaps: [],
-            });
+            };
           if (options.name === 'select_api_request_media_type') {
             assert.ok(['JSON role', 'form role'].includes(payload.purpose));
-            return schema.parse({
+            return {
               requestMediaType:
                 payload.purpose === 'JSON role'
                   ? 'application/json'
@@ -31,7 +31,7 @@ test('same API in JSON and form roles keeps each supplied role through media and
               explanation: {
                 reason: 'Use the explicitly supplied format for this role.',
               },
-            });
+            };
           }
           if (options.name === 'plan_api_bindings')
             return schema.parse({
@@ -48,12 +48,12 @@ test('same API in JSON and form roles keeps each supplied role through media and
                 ? 'application/json'
                 : 'application/x-www-form-urlencoded',
             );
-            return schema.parse({
+            return {
               values: { body: { label: 'fixture-label', count: 3 } },
               explanation: {
                 reason: 'Use the supplied literals for this role.',
               },
-            });
+            };
           }
           if (options.name === 'plan_reviewable_workflow_graph')
             return {

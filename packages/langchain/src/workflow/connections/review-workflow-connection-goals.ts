@@ -59,6 +59,10 @@ export async function reviewWorkflowConnectionGoals(
     operation,
     name: 'review_workflow_connection_goals',
     schema: createWorkflowConnectionGoalReviewSchema(description),
+    validationSchema: createWorkflowConnectionGoalReviewSchema(
+      description,
+      false,
+    ),
     sourceFingerprint: description.sourceFingerprint,
     messages: [
       new SystemMessage(workflowConnectionGoalReviewPrompt),

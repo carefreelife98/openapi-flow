@@ -71,14 +71,12 @@ export async function nativeSelectionReviewFixture() {
       [threshold]: {
         kind: 'native-configuration',
         capability: 'if',
-        sourceQuote: 'Check pending connections against my threshold.',
         reason:
           'The supplied IF implementation needs the actual threshold in its value stage.',
       },
       [request]: {
         kind: 'api-planning',
         callIds: ['metrics'],
-        sourceQuote: 'Fetch the metrics API.',
         reason:
           'The selected OAS call is implemented separately from native roles.',
       },
@@ -107,7 +105,6 @@ export async function nativeOutsideScopeReviewFixture() {
     assessments: {
       [selection.gaps[0].id]: {
         kind: 'not-required',
-        sourceQuote: 'Do not classify health or compare a threshold.',
         reason:
           'The original request excludes this behavior; review requests a fresh selection, not approval or removal of the original gap.',
       },

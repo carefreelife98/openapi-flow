@@ -29,12 +29,6 @@ export function resolveApiCallBindingPlan(
       'binding sources differ from the original call, scenario or source contracts',
     );
   const proposal = apiCallBindingProposalSchema.parse(input.proposal);
-  if (
-    input.includeExplanations === true
-      ? proposal.reason === undefined || !proposal.reason.trim()
-      : proposal.reason !== undefined
-  )
-    throw new Error('binding call reason does not match includeExplanations');
   const bindings = proposal.bindings.map((binding) => ({
     ...binding,
     kind: 'node-output' as const,
@@ -64,6 +58,8 @@ export function resolveApiCallBindingPlan(
     sources,
     bindings,
     gaps,
-    ...(proposal.reason === undefined ? {} : { reason: proposal.reason }),
+    ...(input.includeExplanations === true && proposal.reason !== undefined
+      ? { reason: proposal.reason }
+      : {}),
   };
 }

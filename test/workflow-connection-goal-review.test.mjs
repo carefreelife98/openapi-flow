@@ -43,6 +43,39 @@ function proposal(description, status = 'covered') {
   };
 }
 
+test('model review selects fact keys only; code attaches Markdown source text unchanged and uncertain remains rejected', async () => {
+  const { input } = context();
+  const original =
+    '사용 OAS       | 원본 타입과 값을 유지해 주세요.\n| --- | --- |';
+  input.requirements[0].text = original;
+  input.requirements[0].sources = [
+    { kind: 'message', messageId: 'request', quote: original },
+  ];
+  // Session material must match the changed source before review.
+  input.session = createWorkflowConnectionSession({
+    ...input,
+    goals: input.session.goals.map((goal) => goal.decision),
+  });
+  const model = recoveryQueueModel([
+    ({ payload, schema }) => {
+      const fact = payload.requirements[0];
+      assert.equal(
+        Object.hasOwn(
+          schema.properties.assessments.properties[fact.id].properties,
+          'sourceQuotes',
+        ),
+        false,
+      );
+      return connectionGoalReviewOutput(payload, 'uncertain');
+    },
+  ]);
+  const review = await reviewWorkflowConnectionGoals({ ...input, model });
+  assert.deepEqual(review.assessments[0].sourceQuotes, [original]);
+  assert.equal(review.accepted, false);
+  assert.equal(model.requests.length, 1);
+  validateWorkflowConnectionGoalReview({ ...input, review });
+});
+
 test('goal coverage review retains every original clause and actual mapping, and code derives non-acceptance separately from structural validity', () => {
   const { input, description } = context();
   assert.equal(
@@ -81,6 +114,28 @@ test('goal coverage review retains every original clause and actual mapping, and
     true,
     'Model coverage remains model judgment, not deterministic proof of natural-language meaning',
   );
+});
+
+test('display-only review reasons cannot turn a valid coverage judgment into a planning error', async () => {
+  for (const reason of [undefined, '', ' ', 42]) {
+    const { input } = context();
+    const model = recoveryQueueModel([
+      ({ payload }) => {
+        const output = connectionGoalReviewOutput(payload);
+        for (const row of Object.values(output.assessments)) {
+          if (reason === undefined) delete row.reason;
+          else row.reason = reason;
+        }
+        return output;
+      },
+    ]);
+    const review = await reviewWorkflowConnectionGoals({ ...input, model });
+    assert.equal(review.accepted, true);
+    assert.equal(review.assessments[0].explanationStatus, 'unavailable');
+    assert.equal(Object.hasOwn(review.assessments[0], 'reason'), false);
+    validateWorkflowConnectionGoalReview({ ...input, review });
+    assert.equal(model.requests.length, 1);
+  }
 });
 
 test('all fact identities, actual goal evidence, exact quotes and source receipts are required without normalizing data', () => {
@@ -189,10 +244,14 @@ test('multiple original requirements each need their own row and quotes cannot b
       }),
     /exactly once/,
   );
-  proposed.assessments[1].sourceQuotes = [source.requirements[0].text];
+  const review = createWorkflowConnectionGoalReview({
+    ...input,
+    proposal: proposed,
+  });
+  review.assessments[1].sourceQuotes = [source.requirements[0].text];
   assert.throws(
-    () => createWorkflowConnectionGoalReview({ ...input, proposal: proposed }),
-    /not an exact part/,
+    () => validateWorkflowConnectionGoalReview({ ...input, review }),
+    /differs/,
   );
 });
 

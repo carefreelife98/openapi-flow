@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import { URL } from 'node:url';
 import {
   describeApiSelectionContext,
   createApiSelectionExplanation,
@@ -198,11 +200,18 @@ test('disabled or omitted explanations leave both model output schemas and retur
       gaps: [],
     });
     const { schema } = model.calls[0];
-    assert.equal(schema.safeParse(selectedProposal()).success, false);
+    const require = createRequire(
+      new URL('../packages/core/package.json', import.meta.url),
+    );
+    const { Ajv2020 } = require('ajv/dist/2020.js');
+    assert.equal(
+      new Ajv2020({ strict: false }).compile(schema)(selectedProposal()),
+      false,
+    );
   }
 });
 
-test('enabled reasons are required, cannot be blank/null, and cannot contain model-generated evidence', async () => {
+test('missing or malformed display reasons do not reject valid API selection or adopt generated evidence', async () => {
   const { context } = await apiSelectionExplanationsFixture();
   for (const invalid of [
     undefined,
@@ -219,15 +228,18 @@ test('enabled reasons are required, cannot be blank/null, and cannot contain mod
     if (invalid === undefined) delete proposal.operations[0].explanation;
     else proposal.operations[0].explanation = invalid;
     const model = apiSelectionExplanationModel(proposal);
-    await assert.rejects(
-      selectApiOperations({ ...context, model, includeExplanations: true }),
-      /model API selection is invalid/,
-    );
+    const result = await selectApiOperations({
+      ...context,
+      model,
+      includeExplanations: true,
+    });
+    assert.deepEqual(result.operations[0].key, context.operations[0].key);
+    assert.equal(Object.hasOwn(result.operations[0], 'explanation'), false);
     assert.equal(model.calls.length, 1);
   }
 });
 
-test('question and gap explanations are also required when enabled', async () => {
+test('valid questions and gaps survive missing display explanations when enabled', async () => {
   const { context } = await apiSelectionExplanationsFixture();
   for (const proposal of [
     { operations: [], gaps: [{ description: 'missing' }], questions: [] },
@@ -243,15 +255,17 @@ test('question and gap explanations are also required when enabled', async () =>
         },
       ],
     },
-  ])
-    await assert.rejects(
-      analyzeApiSelection({
-        ...context,
-        model: apiSelectionExplanationModel(proposal),
-        includeExplanations: true,
-      }),
-      /model API selection analysis is invalid/,
-    );
+  ]) {
+    const result = await analyzeApiSelection({
+      ...context,
+      model: apiSelectionExplanationModel(proposal),
+      includeExplanations: true,
+    });
+    assert.equal(result.questions.length, proposal.questions.length);
+    assert.equal(result.selection.gaps.length, proposal.gaps.length);
+    for (const entry of [...result.questions, ...result.selection.gaps])
+      assert.equal(Object.hasOwn(entry, 'explanation'), false);
+  }
 });
 
 test('invalid feature options and missing/mismatched/duplicate candidate identities fail before a model call', async () => {

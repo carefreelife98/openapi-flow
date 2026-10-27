@@ -270,6 +270,11 @@ export { prepareWorkflowConnectionMaterials } from './workflow/connections/prepa
 export { describeWorkflowConnectionPlanning } from './workflow/connections/describe-workflow-connection-planning.js';
 export { createWorkflowConnectionPlan } from './workflow/connections/create-workflow-connection-plan.js';
 export { projectWorkflowConnectionDecision } from './workflow/connections/project-workflow-connection-decision.js';
+export { resolveNativeProducerParameters } from './workflow/planning/resolve-native-producer-parameters.js';
+export {
+  workflowConnectionDecisionSchema,
+  workflowConnectionProposalSchema,
+} from './schemas/workflow-connection-planning-schema.js';
 export { createWorkflowConnectionPlanningRecord } from './workflow/connections/create-workflow-connection-planning-record.js';
 export { validateWorkflowConnectionPlanningRecord } from './workflow/connections/validate-workflow-connection-planning-record.js';
 export { describeNativeNodePlanning } from './workflow/planning/describe-native-node-planning.js';
@@ -416,6 +421,10 @@ export {
 export type * from './types/workflow-connection-goal-review.js';
 export type * from './types/native-instance-selection-review.js';
 export {
+  optionalPlanningExplanationSchema,
+  optionalPlanningExplanationObjectSchema,
+} from './schemas/optional-planning-explanation-schema.js';
+export {
   createNativeInstanceSelectionReviewSchema,
   nativeInstanceSelectionReviewOptionsSchema,
 } from './schemas/native-instance-selection-review-schema.js';
@@ -449,3 +458,13 @@ export {
   workflowConnectionSourceRepairReceiptSchema,
   workflowConnectionMaterialReplacementSchema,
 } from './schemas/workflow-connection-material-repair-schema.js';
+export type * from './types/workflow-intent.js';
+export {
+  workflowIntentInputSchema,
+  createWorkflowIntentProposalSchema,
+} from './schemas/workflow-intent-schema.js';
+export {
+  resolveWorkflowIntent,
+  validateWorkflowIntent,
+} from './workflow/intent/resolve-workflow-intent.js';
+export { formatWorkflowIntentScenario } from './workflow/intent/format-workflow-intent-scenario.js';

@@ -6,6 +6,7 @@ import type {
   WorkflowConnectionProposal,
   ExplainedWorkflowBlockedCall,
   ExplainedWorkflowConnection,
+  WorkflowConnectionExplanationIssue,
 } from '@openapi-flow/core';
 import type { ReviewableWorkflowGraphOutput } from './reviewable-workflow-planning.js';
 
@@ -34,4 +35,5 @@ export type WorkflowConnectionPlanningOutput =
 export interface ResolvedWorkflowConnectionOutput {
   proposal: WorkflowConnectionProposal;
   decision?: WorkflowConnectionDecision;
+  explanationIssues?: WorkflowConnectionExplanationIssue[];
 }

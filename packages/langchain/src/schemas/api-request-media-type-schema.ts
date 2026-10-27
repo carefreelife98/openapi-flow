@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { optionalPlanningExplanationObjectSchema } from '@openapi-flow/core';
 
 export function createApiRequestMediaTypeSchema(
   mediaTypes: string[],
   includeExplanations = false,
+  requireExplanations = true,
 ) {
   z.boolean().parse(includeExplanations);
   if (mediaTypes.length < 2)
@@ -17,6 +19,10 @@ export function createApiRequestMediaTypeSchema(
         'Exact OAS requestBody.content key matching an explicitly requested format, or null when the scenario leaves the format unspecified or ambiguous so code can apply the documented default. This is the request Content-Type, not the response format.',
       ),
   });
+  if (!requireExplanations)
+    return schema.extend({
+      explanation: optionalPlanningExplanationObjectSchema,
+    });
   return includeExplanations
     ? schema.extend({
         explanation: z.strictObject({

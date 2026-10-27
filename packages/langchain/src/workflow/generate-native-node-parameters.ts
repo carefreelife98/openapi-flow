@@ -3,6 +3,7 @@ import {
   createNativeNodeParametersSchema,
   describeNativeNodeConfiguration,
   resolveNativeNodeParameters,
+  resolveNativeProducerParameters,
 } from '@openapi-flow/core';
 import type {
   NativeNodeParameterProposal,
@@ -25,6 +26,8 @@ export async function generateNativeNodeParameters(
     throw new Error(
       'generateNativeNodeParameters.model must support structured output when supplied',
     );
+  const derived = resolveNativeProducerParameters(input);
+  if (derived !== undefined) return derived;
   const description = describeNativeNodeConfiguration(input);
   if (!description.instance.hasLiteralParameters)
     return resolveNativeNodeParameters({
@@ -48,6 +51,7 @@ export async function generateNativeNodeParameters(
       'generateNativeNodeParameters.model must support structured output for remaining values',
     );
   const schema = createNativeNodeParametersSchema(input);
+  const validationSchema = createNativeNodeParametersSchema(input, false);
   const capability = description.context.capabilities.find(
     (entry) => entry.name === description.instance.capability,
   );
@@ -98,7 +102,7 @@ export async function generateNativeNodeParameters(
   input.signal?.throwIfAborted();
   try {
     // Validate output separately so callers can distinguish a malformed reply from stale source material.
-    schema.parse(output);
+    validationSchema.parse(output);
   } catch (cause) {
     if (!(cause instanceof Error)) throw cause;
     throw new NativeNodePlanningError(

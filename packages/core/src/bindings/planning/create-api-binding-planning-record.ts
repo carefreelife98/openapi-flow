@@ -32,7 +32,9 @@ export function createApiBindingPlanningRecord(
     calls: input.plan.calls.map((call) => ({
       callId: call.callId,
       bindings: structuredClone(call.bindings),
-      reason: byId.get(call.callId)!,
+      ...(byId.get(call.callId) === undefined
+        ? {}
+        : { reason: byId.get(call.callId)! }),
     })),
     gaps: structuredClone(input.plan.gaps),
     evidence: { kind: 'supplied-binding-contracts', context },

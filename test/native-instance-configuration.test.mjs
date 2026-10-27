@@ -502,6 +502,127 @@ test('optional reasons stay outside execution parameters and are validated at bo
   assert.equal(Object.hasOwn(result.node, 'reason'), false);
 });
 
+test('native selection and configuration accept missing or malformed display text while preserving ownership and values', async () => {
+  const input = { ...fixture(), includeExplanations: true };
+  for (const reason of [
+    undefined,
+    '',
+    ' ',
+    3,
+    false,
+    null,
+    [],
+    { text: 'display only' },
+  ]) {
+    const original = proposal();
+    if (reason !== undefined) {
+      original.reason = reason;
+      original.instances[0].reason = reason;
+    }
+    const before = globalThis.structuredClone(original);
+    const selected = await selectNativeNodeInstances({
+      ...input,
+      model: fakeModel(original),
+    });
+    assert.deepEqual(original, before);
+    assert.equal(Object.hasOwn(selected.proposal, 'reason'), false);
+    assert.equal(Object.hasOwn(selected.instances[0], 'reason'), false);
+    assert.deepEqual(selected.instances[0].runtimeParameters, {
+      pointers: ['/count', '/nested/value'],
+    });
+    const configurationInput = configuration(input, selected);
+    for (const status of ['provided', 'needs-clarification']) {
+      const decision =
+        status === 'provided'
+          ? { status, parameters: { enabled: false } }
+          : { status, message: 'Which enabled value should be used?' };
+      if (reason !== undefined) decision.reason = reason;
+      const output = { decision };
+      const previous = globalThis.structuredClone(output);
+      const result = await generateNativeNodeParameters({
+        ...configurationInput,
+        model: fakeModel(output),
+      });
+      assert.deepEqual(output, previous);
+      assert.equal(Object.hasOwn(result.proposal.decision, 'reason'), false);
+      if (status === 'provided')
+        assert.deepEqual(result.node.parameters, { enabled: false });
+      else assert.equal(result.status, 'needs-clarification');
+    }
+    await assert.rejects(
+      generateNativeNodeParameters({
+        ...configurationInput,
+        model: fakeModel({
+          decision: {
+            status: 'provided',
+            parameters: { enabled: 'false' },
+            reason,
+          },
+        }),
+      }),
+      NativeNodePlanningError,
+    );
+  }
+});
+
+test('a native parameter named reason remains required executable data, not display metadata', async () => {
+  const input = {
+    planId: 'parameter-named-reason',
+    scenario: 'Use the supplied string reason as actual JSON data.',
+    includeExplanations: true,
+    capabilities: [
+      createJsonOutputCapability({
+        name: 'context-with-reason',
+        description: 'Preserve actual reason data',
+        parametersSchema: z.strictObject({
+          reason: z.string(),
+          enabled: z.boolean(),
+        }),
+      }),
+    ],
+  };
+  const selected = resolveNativeInstanceSelection({
+    ...input,
+    proposal: {
+      instances: [
+        {
+          capability: 'context-with-reason',
+          purpose: 'Use original data',
+          parameterSource: 'literal',
+        },
+      ],
+      gaps: [],
+    },
+  });
+  const configurationInput = configuration(input, selected);
+  const result = await generateNativeNodeParameters({
+    ...configurationInput,
+    model: fakeModel({
+      decision: {
+        status: 'provided',
+        parameters: { reason: 'actual original value', enabled: false },
+        reason: [],
+      },
+    }),
+  });
+  assert.deepEqual(result.node.parameters, {
+    reason: 'actual original value',
+    enabled: false,
+  });
+  await assert.rejects(
+    generateNativeNodeParameters({
+      ...configurationInput,
+      model: fakeModel({
+        decision: {
+          status: 'provided',
+          parameters: { enabled: false },
+        },
+      }),
+    }),
+    NativeNodePlanningError,
+  );
+});
+
 test('an actual LangGraph checkpoint resumes parameter generation without repeating completed selection', async () => {
   const input = fixture(),
     selectionCalls = [],

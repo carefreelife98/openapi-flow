@@ -1,5 +1,27 @@
 # openapi-flow
 
+## 0.4.2 candidate
+
+This candidate separates optional presentation text from functional planning
+validation. Missing/malformed reasons no longer invalidate otherwise valid API
+selection, request-format/value generation, native instance/dependency/settings,
+API-by-call bindings or connection decisions. Actual OAS types, source provenance,
+identities, ownership and graph checks remain mandatory. Original API data fields
+named `reason` are not presentation metadata.
+
+`planWorkflowIntent` describes the whole business objective, current/conditional/
+excluded roles and branching/collection intent before choosing concrete material.
+Core attaches original source text by supplied message IDs and creates identities;
+the host retains this context through later planning stages. It is distinct from
+the existing prepared-material connection outline and does not prove semantic
+correctness. See the [upstream intent contract](docs/incremental-connection-planning.md#042-candidate-business-intent-before-material-planning).
+
+Native/goal reviews no longer ask the model to copy quotations. Review receipts
+remain source-bound, and display reasons are optional. This changes internal wire
+shapes and some optional metadata types; see [0.4.2 notes](docs/releases/0.4.2-notes.md).
+Publication, installed-host integration and end-to-end model quality are separate
+states tracked in the [release record](docs/releases/0.4.2.md).
+
 ## 0.4.0 contracts
 
 The contracts below target 0.4.0. Source, tag, npm and GitHub publication are tracked

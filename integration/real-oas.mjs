@@ -1351,7 +1351,7 @@ test('original private OAS discovery selections retain code-owned provenance wit
   let calls = 0;
   for (const analyze of [false, true]) {
     const model = {
-      withStructuredOutput(schema) {
+      withStructuredOutput() {
         return {
           async invoke(messages) {
             calls++;
@@ -1361,7 +1361,7 @@ test('original private OAS discovery selections retain code-owned provenance wit
               Object.hasOwn(payload.candidates[0], 'effective'),
               false,
             );
-            return schema.parse({
+            return {
               operations: [
                 {
                   candidateId: 'candidate-1',
@@ -1373,7 +1373,7 @@ test('original private OAS discovery selections retain code-owned provenance wit
               ],
               gaps: [],
               ...(analyze ? { questions: [] } : {}),
-            });
+            };
           },
         };
       },

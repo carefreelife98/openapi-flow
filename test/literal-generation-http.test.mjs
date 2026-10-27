@@ -249,7 +249,36 @@ test('real ChatOpenAI literal schema preserves OAS value types/ownership and ask
         includeExplanations,
       );
     }
-    assert.equal(requests.length, 2);
+    for (const explanation of [
+      undefined,
+      null,
+      { reason: 3 },
+      { reason: 'why', evidence: [] },
+    ]) {
+      output = {
+        values: { body: { quantity: 2, enabled: false } },
+        ...(explanation === undefined ? {} : { explanation }),
+      };
+      const result = await generateApiArguments({
+        ...input,
+        model,
+        includeExplanations: true,
+      });
+      assert.deepEqual(result.values.body, {
+        id: 'confirmed-original',
+        quantity: 2,
+        enabled: false,
+      });
+      assert.equal(
+        Object.hasOwn(result.literalGeneration.explanation, 'reason'),
+        false,
+      );
+    }
+    output = { values: { body: { quantity: '2' } } };
+    await assert.rejects(
+      generateApiArguments({ ...input, model, includeExplanations: true }),
+    );
+    assert.equal(requests.length, 7);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

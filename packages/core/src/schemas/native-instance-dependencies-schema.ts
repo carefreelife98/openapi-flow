@@ -7,14 +7,18 @@ import { createNativeProducerDependenciesSchema } from './native-producer-depend
 /** All row keys and candidates come from the original selection; the model chooses only actual source roles. */
 export function createNativeInstanceDependenciesSchema(
   input: NativeSelectedPlanningInput,
+  requireExplanations = true,
 ): z.ZodType<NativeInstanceDependencyProposal> {
   const context = describeNativeInstanceDependencies(input);
-  return createNativeProducerDependenciesSchema({
-    targets: context.instances.map((instance) => ({
-      nodeId: instance.id,
-      description: `Producer choices for ${instance.capability}: ${instance.purpose}`,
-      sourceNodeIds: context.sourceCandidatesByNodeId[instance.id],
-    })),
-    includeExplanations: input.includeExplanations === true,
-  });
+  return createNativeProducerDependenciesSchema(
+    {
+      targets: context.instances.map((instance) => ({
+        nodeId: instance.id,
+        description: `Producer choices for ${instance.capability}: ${instance.purpose}`,
+        sourceNodeIds: context.sourceCandidatesByNodeId[instance.id],
+      })),
+      includeExplanations: input.includeExplanations === true,
+    },
+    requireExplanations,
+  );
 }

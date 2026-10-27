@@ -64,9 +64,9 @@ test('explicit original messages separate literal attribution from JSON prompt c
     source.literalSourceMessages,
   );
   assert.equal(model.calls[0].payload.scenario, source.scenario);
-  const provided = model.calls[0].schema.shape.literalInputs.options[1];
+  const provided = model.calls[0].schema.properties.literalInputs.anyOf[1];
   assert.equal(
-    'messageId' in provided.shape.literalSources.element.shape,
+    'messageId' in provided.properties.literalSources.items.properties,
     false,
   );
   validateApiLiteralGenerationRecord({

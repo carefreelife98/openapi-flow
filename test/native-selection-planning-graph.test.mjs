@@ -106,7 +106,6 @@ test('explicit full review examines a gap-free selection and reselects an unrequ
       assessments: {},
       coverageAssessment: {
         kind: 'needs-reselection',
-        sourceQuote: source.scenario,
         reason:
           'Remove the optional check while preserving the original API response.',
       },
@@ -123,7 +122,6 @@ test('explicit full review examines a gap-free selection and reselects an unrequ
       instanceAssessments: {},
       coverageAssessment: {
         kind: 'covered',
-        sourceQuote: source.scenario,
         reason:
           'The original request needs only the existing single API response.',
       },
@@ -162,7 +160,6 @@ test('full-review readiness requires its original matching role review and canno
       assessments: {},
       coverageAssessment: {
         kind: 'covered',
-        sourceQuote: f.source.scenario,
         reason:
           'The provided comparison covers the explicit native requirement.',
       },
@@ -171,7 +168,6 @@ test('full-review readiness requires its original matching role review and canno
           role.id,
           {
             kind: 'required',
-            sourceQuote: 'Check pending connections against my threshold.',
             reason: 'The original request requires this comparison.',
           },
         ]),
@@ -223,7 +219,6 @@ test('full review examines missing processing in an empty proposal instead of tr
       instanceAssessments: {},
       coverageAssessment: {
         kind: 'needs-reselection',
-        sourceQuote: 'Check pending connections against my threshold.',
         reason:
           'The supplied IF supports the requested comparison, but the empty selection omitted it.',
       },
@@ -236,14 +231,12 @@ test('full review examines missing processing in an empty proposal instead of tr
           role.id,
           {
             kind: 'required',
-            sourceQuote: 'Check pending connections against my threshold.',
             reason: 'The role implements the explicit comparison.',
           },
         ]),
       ),
       coverageAssessment: {
         kind: 'covered',
-        sourceQuote: f.source.scenario,
         reason: 'The requested comparison now has its implementation.',
       },
     }),
@@ -624,7 +617,6 @@ for (const [kind, status] of [
     const review = clone(f.reviewProposal);
     review.assessments[f.selection.gaps[0].id] = {
       kind,
-      sourceQuote: 'Check pending connections against my threshold.',
       reason: 'The original behavior still needs this decision.',
       ...(kind === 'business-decision' ? { question: 'Which threshold?' } : {}),
     };

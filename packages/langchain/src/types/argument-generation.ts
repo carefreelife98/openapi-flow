@@ -75,7 +75,7 @@ export type ApiTrackedLiteralGenerationOutput =
     >;
 
 export interface ApiExplainedLiteralGenerationOutput extends ApiArgumentProposal {
-  explanation: z.infer<typeof apiLiteralGenerationReasonSchema>;
+  explanation?: z.infer<typeof apiLiteralGenerationReasonSchema>;
 }
 
 export type ApiLiteralGenerationOutput =

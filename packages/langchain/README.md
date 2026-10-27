@@ -1,11 +1,19 @@
 # @openapi-flow/langchain
 
+0.4.2 adds `planWorkflowIntent`, one independently callable semantic overview
+stage before API/native selection. Its roles distinguish current work, conditional
+possibilities and exclusions without concrete API IDs, values or ports. The host
+owns scheduling, checkpoints and requirement revisions. Presentation reasons are
+requested in the same planning call but are not a gate for valid execution fields.
+Actual literal provenance and contract checks stay intact. See the
+[0.4.2 record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.2.md).
+
 ## Unreleased: scope and full native-selection review
 
 `reviewNativeInstanceSelection` can classify a reported gap as `not-required`
 when it concerns unrequested, expressly excluded or only optional future work.
-Code requires an exact original scenario quote and a reason, keeps the original
-selection and derives `needs-reselection`, never execution approval. Other
+Code attaches the unchanged scenario, keeps the original selection and derives
+`needs-reselection`, never execution approval. A display reason is optional. Other
 unsupported needs and business decisions retain their existing blocking priority.
 The host must explicitly request a fresh selection and charge it to its budget.
 The new union member is not part of public 0.4.1; exhaustive assessment switches
@@ -16,7 +24,7 @@ selected instance ID and one `coverageAssessment` of the entire selection. This
 includes gap-free and empty selections: dropping all roles cannot skip the review.
 Roles are assessed as required, not required or requiring a business decision;
 coverage distinguishes covered, reselection, unsupported behavior and a business
-decision. Code checks closed IDs, complete maps, exact original quotes and unchanged
+decision. Code checks closed IDs, complete maps and unchanged
 source. These checks do not prove the model's interpretation of user intent.
 
 Without that option, the existing reported-gap shape and zero-model-call behavior
@@ -33,7 +41,8 @@ empty-selection shortcut, but one detail-model run still exhausted its six-call,
 two-reselection budget. An explicitly configured planning-model control on the same
 scenario and API contracts passed native selection/review in two calls. Neither run
 is a full-workflow or five-scenario quality result. No model-routing default or
-installed Qoopilot package was changed. These APIs remain unreleased after 0.4.1.
+installed Qoopilot package was changed in those diagnostics. These APIs are included
+in the 0.4.2 candidate; publication is tracked separately in its release record.
 
 0.4.0 adds independent selection/goal review, scoped connection
 outlines and originating-stage recovery planners. Each call is independently

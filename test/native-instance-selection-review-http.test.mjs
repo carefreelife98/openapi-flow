@@ -34,6 +34,8 @@ test('the actual strict LangChain wire supports outside-scope review without inv
       const wire = body.response_format.json_schema;
       assert.equal(wire.strict, true);
       assert.equal(wire.name, 'review_native_instance_selection');
+      assert.equal(JSON.stringify(wire.schema).includes('sourceQuote'), false);
+      assert.equal(JSON.stringify(wire.schema).includes('sourceId'), false);
       const ajv = new Ajv2020({ strict: false });
       assert.equal(ajv.validateSchema(wire.schema), true);
       const validate = ajv.compile(wire.schema);
@@ -46,7 +48,6 @@ test('the actual strict LangChain wire supports outside-scope review without inv
               ...reviewProposal,
               coverageAssessment: {
                 kind: 'needs-reselection',
-                sourceQuote: input.scenario,
                 reason:
                   'The selected comparison is not in the original request.',
               },
@@ -117,6 +118,7 @@ test('the actual strict LangChain wire supports outside-scope review without inv
       model,
     });
     assert.equal(review.status, 'needs-reselection');
+    assert.deepEqual(review.source, { id: 'scenario', text: input.scenario });
     assert.deepEqual(review.proposal, reviewProposal);
     assert.deepEqual(selection, before);
     assert.deepEqual(failures, []);

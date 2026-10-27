@@ -1,5 +1,11 @@
 # @openapi-flow/n8n
 
+0.4.2 declares that `gather-api-responses` settings are fully determined by its
+explicitly selected producer IDs. Core can copy that registered contract without
+a second model value decision. This is opt-in capability behavior, not field-name
+inference, arbitrary defaulting, or a replacement for the official execution node.
+See the [0.4.2 record](https://github.com/carefreelife98/openapi-flow/blob/main/docs/releases/0.4.2.md).
+
 0.4.0 adds original native-output projection/measurement/collection,
 explicit API map selection and typed key joins, and official SDK node metadata,
 configuration validation and construction helpers. Execution reuses the official

@@ -41,7 +41,7 @@ export const apiBindingMaterialRoleSchema = z.strictObject({
 export const apiBindingCallReasonsSchema = z.array(
   z.strictObject({
     callId: planningEvidenceTextSchema,
-    reason: planningEvidenceTextSchema,
+    reason: planningEvidenceTextSchema.optional(),
   }),
 );
 
@@ -65,7 +65,7 @@ export const apiBindingPlanningRecordSchema = z.strictObject({
           sourcePointer: z.string(),
         }),
       ),
-      reason: planningEvidenceTextSchema,
+      reason: planningEvidenceTextSchema.optional(),
     }),
   ),
   gaps: z.array(

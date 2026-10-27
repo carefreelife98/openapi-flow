@@ -102,7 +102,15 @@ export function createIncrementalMaterialRecoveryStages(
     state: IncrementalConnectionState,
     config?: RunnableConfig,
   ): Promise<IncrementalConnectionUpdate> {
-    return runtime.invokeModelStage(async () => {
+    if (
+      state.modelInvocations === undefined ||
+      dependencies.materialRecovery === undefined
+    )
+      throw new Error(
+        'Material replan requires its reserved invocation accounting',
+      );
+    let usedInvocations = 0;
+    const update = await runtime.invokeModelStage(async () => {
       runtime.check(state, config);
       if (!dependencies.materialRecovery || !state.pendingMaterialRepair)
         throw new Error(
@@ -149,6 +157,7 @@ export function createIncrementalMaterialRecoveryStages(
           signal,
         });
       } finally {
+        usedInvocations = lease.usedInvocations();
         lease.close();
       }
       runtime.check(state, config);
@@ -198,6 +207,13 @@ export function createIncrementalMaterialRecoveryStages(
         recoveryPhase: 'replanned',
       };
     });
+    return {
+      ...update,
+      modelInvocations:
+        state.modelInvocations -
+        dependencies.materialRecovery.modelInvocations +
+        usedInvocations,
+    };
   }
   function applyMaterial(
     state: IncrementalConnectionState,

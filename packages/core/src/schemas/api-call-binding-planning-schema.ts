@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 export const apiCallBindingOptionsSchema = z.object({
   callId: z
@@ -16,7 +17,7 @@ export const apiCallBindingGapSchema = z.strictObject({
 export const apiBindingSourceProposalSchema = z.strictObject({
   sourceNodeIds: z.array(z.string().min(1)),
   gaps: z.array(apiCallBindingGapSchema),
-  reason: z.string().min(1).optional(),
+  reason: optionalPlanningExplanationSchema,
 });
 
 export const apiCallBindingProposalSchema = z.strictObject({
@@ -28,7 +29,7 @@ export const apiCallBindingProposalSchema = z.strictObject({
     }),
   ),
   gaps: z.array(apiCallBindingGapSchema),
-  reason: z.string().min(1).optional(),
+  reason: optionalPlanningExplanationSchema,
 });
 
 export const apiBindingSourceSelectionSchema =

@@ -14,14 +14,22 @@ export const workflowConnectionGoalAssessmentSchema = z.strictObject({
   goalIds: z.array(text),
   policyIds: z.array(workflowConnectionGoalReviewPolicySchema),
   sourceQuotes: z.array(text).min(1),
-  reason: text,
+  reason: text.optional(),
+  explanationStatus: z.enum(['provided', 'unavailable']),
 });
 export const workflowConnectionGoalReviewProposalSchema = z.strictObject({
-  assessments: z.array(workflowConnectionGoalAssessmentSchema).min(1),
+  assessments: z
+    .array(
+      workflowConnectionGoalAssessmentSchema
+        .omit({ sourceQuotes: true, explanationStatus: true })
+        .extend({ reason: z.unknown().optional() }),
+    )
+    .min(1),
 });
 export const workflowConnectionGoalReviewSchema =
   workflowConnectionGoalReviewProposalSchema
     .extend({
+      assessments: z.array(workflowConnectionGoalAssessmentSchema).min(1),
       sessionId: workflowConnectionStepExpectationSchema.shape.sessionId,
       sourceFingerprint:
         workflowConnectionStepExpectationSchema.shape.sourceFingerprint,

@@ -13,7 +13,7 @@ const require = createRequire(
 );
 const { Ajv2020 } = require('ajv/dist/2020.js');
 
-test('real ChatOpenAI sends valid per-call tool schemas and retrieved original sources over HTTP', async () => {
+async function runBindingHttpTest(presentation) {
   const validator = new Ajv2020({ strict: false });
   let requests = 0;
   let serverFailure;
@@ -42,6 +42,9 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
       );
       assert.ok(target);
       const reason = 'Only original response data is bound to this target.';
+      assert.equal(tool.parameters.properties.reason.type, 'string');
+      assert(tool.parameters.required.includes('reason'));
+      const display = presentation === undefined ? { reason } : presentation;
       const output =
         tool.name === 'select_api_binding_sources'
           ? createApiBindingSourceDecisionFixture({
@@ -51,7 +54,7 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
                 ),
               ],
               gaps: [],
-              reason,
+              ...display,
             })
           : {
               bindings: target.bindings.map(
@@ -62,7 +65,7 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
                 }),
               ),
               gaps: [],
-              reason,
+              ...display,
             };
       if (tool.name === 'plan_api_call_bindings') {
         assert.ok(
@@ -140,4 +143,13 @@ test('real ChatOpenAI sends valid per-call tool schemas and retrieved original s
       server.close((error) => (error ? reject(error) : resolve())),
     );
   }
-});
+}
+
+for (const [label, presentation] of [
+  ['provided display', undefined],
+  ['missing display', {}],
+  ['invalid display', { reason: { text: 'not executable data' } }],
+]) {
+  test(`real ChatOpenAI sends valid strict per-call schemas and preserves bindings with ${label}`, () =>
+    runBindingHttpTest(presentation));
+}

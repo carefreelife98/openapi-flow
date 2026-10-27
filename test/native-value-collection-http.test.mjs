@@ -28,6 +28,7 @@ test('actual ChatOpenAI tool and jsonSchema wires constrain native collection to
   const requests = [],
     failures = [];
   let output;
+  let invalidDisplay = false;
   const server = createServer(async (request, response) => {
     try {
       let raw = '';
@@ -59,8 +60,22 @@ test('actual ChatOpenAI tool and jsonSchema wires constrain native collection to
         message = { role: 'assistant', content: JSON.stringify(output) };
       }
       const validate = new Ajv2020({ strict: false }).compile(wire);
-      assert.equal(validate(output), true, JSON.stringify(validate.errors));
-      const wrong = globalThis.structuredClone(output);
+      const schemaExample = invalidDisplay
+        ? {
+            ...output,
+            decision: {
+              ...output.decision,
+              reason: 'Valid schema example only',
+            },
+          }
+        : output;
+      assert.equal(
+        validate(schemaExample),
+        true,
+        JSON.stringify(validate.errors),
+      );
+      if (invalidDisplay) assert.equal(validate(output), false);
+      const wrong = globalThis.structuredClone(schemaExample);
       const parameters =
         tool === undefined
           ? wrong.decision.parameters
@@ -166,6 +181,43 @@ test('actual ChatOpenAI tool and jsonSchema wires constrain native collection to
     assert.equal(staged.status, 'ready');
     assert.deepEqual(staged.node.parameters, oneCall.nativeNodes[0].parameters);
     assert.equal(requests.length, 2);
+    assert.deepEqual(failures, []);
+    const explainedInput = { ...input, includeExplanations: true };
+    const explainedSelection = resolveNativeInstanceSelection({
+      ...explainedInput,
+      proposal: selection.proposal,
+    });
+    const explainedNodeId = explainedSelection.instances[0].id;
+    const explainedDependencies = resolveNativeInstanceDependencies({
+      ...explainedInput,
+      selection: explainedSelection,
+      proposal: {
+        sourcesByNodeId: {
+          [explainedNodeId]: { sourceNodeIds: [f.source.nodeId] },
+        },
+      },
+    });
+    invalidDisplay = true;
+    for (const reason of [undefined, { text: 'not execution data' }]) {
+      output = {
+        decision: {
+          status: 'provided',
+          parameters,
+          ...(reason === undefined ? {} : { reason }),
+        },
+      };
+      const result = await generateNativeNodeParameters({
+        ...explainedInput,
+        selection: explainedSelection,
+        dependencies: explainedDependencies,
+        nodeId: explainedNodeId,
+        model,
+      });
+      assert.equal(result.status, 'ready');
+      assert.deepEqual(result.node.parameters, parameters);
+      assert.equal(Object.hasOwn(result.proposal.decision, 'reason'), false);
+    }
+    assert.equal(requests.length, 4);
     assert.deepEqual(failures, []);
   } finally {
     server.closeAllConnections();

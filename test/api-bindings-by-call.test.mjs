@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout } from 'node:timers/promises';
-import { z } from 'zod';
+import { createRequire } from 'node:module';
+import { URL } from 'node:url';
 import {
   assembleApiBindingPlan,
   createApiCatalog,
@@ -26,11 +27,11 @@ import {
 const scenario =
   'Use the original source ID for detail, price and stock, then send their original fields, arrays and objects to summary.';
 
-function bindingModel(plan, inspect = async () => {}) {
+function bindingModel(plan, inspect = async () => {}, presentation) {
   return {
     withStructuredOutput(schema, options) {
       assert.equal(options.strict, true);
-      const properties = z.toJSONSchema(schema).properties;
+      const properties = schema.properties;
       assert.equal(Object.hasOwn(properties, 'calls'), false);
       assert.equal(Object.hasOwn(properties, 'callId'), false);
       return {
@@ -51,9 +52,9 @@ function bindingModel(plan, inspect = async () => {}) {
               description,
             }));
           const reason = Object.hasOwn(properties, 'reason')
-            ? {
+            ? (presentation ?? {
                 reason: `Use only the declared dependencies for ${call.callId}.`,
-              }
+              })
             : {};
           if (options.name === 'select_api_binding_sources') {
             assert.equal(Object.hasOwn(context, 'materials'), false);
@@ -67,17 +68,15 @@ function bindingModel(plan, inspect = async () => {}) {
               JSON.stringify(context.sourceCandidates).includes('"responses"'),
               false,
             );
-            return schema.parse(
-              createApiBindingSourceDecisionFixture({
-                sourceNodeIds: [
-                  ...new Set(
-                    call.bindings.map((binding) => binding.sourceNodeId),
-                  ),
-                ],
-                gaps,
-                ...reason,
-              }),
-            );
+            return createApiBindingSourceDecisionFixture({
+              sourceNodeIds: [
+                ...new Set(
+                  call.bindings.map((binding) => binding.sourceNodeId),
+                ),
+              ],
+              gaps,
+              ...reason,
+            });
           }
           assert.equal(options.name, 'plan_api_call_bindings');
           const wanted = new Set(
@@ -91,7 +90,7 @@ function bindingModel(plan, inspect = async () => {}) {
             ),
             wanted,
           );
-          return schema.parse({
+          return {
             bindings: call.bindings.map(
               ({ targetPointer, sourceNodeId, sourcePointer }) => ({
                 targetPointer,
@@ -101,12 +100,52 @@ function bindingModel(plan, inspect = async () => {}) {
             ),
             gaps: [],
             ...reason,
-          });
+          };
         },
       };
     },
   };
 }
+
+test('optional binding display failures do not reject executable per-call plans or their aggregate record', async () => {
+  for (const reason of [
+    undefined,
+    '',
+    ' ',
+    false,
+    7,
+    null,
+    [],
+    { text: 'display only' },
+  ]) {
+    const plan = await planApiBindingsByCall({
+      scenario,
+      materials,
+      concurrency: 2,
+      includeExplanations: true,
+      model: bindingModel(
+        bindingPlan,
+        async ({ schema }) => {
+          assert.equal(schema.properties.reason.type, 'string');
+          assert(schema.required.includes('reason'));
+        },
+        reason === undefined ? {} : { reason },
+      ),
+    });
+    assert.deepEqual(plan.calls, bindingPlan.calls);
+    assert.deepEqual(plan.gaps, []);
+    assert.equal(plan.bindingPlanning.calls.length, bindingPlan.calls.length);
+    for (const call of plan.bindingPlanning.calls)
+      if (call.bindings.length > 0)
+        assert.equal(Object.hasOwn(call, 'reason'), false);
+    validateApiBindingPlanningRecord({
+      scenario,
+      materials,
+      plan,
+      record: plan.bindingPlanning,
+    });
+  }
+});
 
 test('independent required inputs leave source lists and gaps to code, without a field-planning model call', async () => {
   const input = {
@@ -127,7 +166,7 @@ test('independent required inputs leave source lists and gaps to code, without a
     model: {
       withStructuredOutput(schema, options) {
         assert.equal(options.name, 'select_api_binding_sources');
-        const json = z.toJSONSchema(schema);
+        const json = schema;
         assert.deepEqual(Object.keys(json.properties), ['decision']);
         return {
           invoke: async () => {
@@ -244,22 +283,25 @@ test('an empty producer inventory excludes provided-source decisions rather than
   });
   assert.deepEqual(sources.sourceNodeIds, []);
   assert.equal(
-    JSON.stringify(z.toJSONSchema(schema)).includes(
-      'selected-response-sources',
-    ),
+    JSON.stringify(schema).includes('selected-response-sources'),
     false,
   );
+  const require = createRequire(
+    new URL('../packages/core/package.json', import.meta.url),
+  );
+  const { Ajv2020 } = require('ajv/dist/2020.js');
+  const validate = new Ajv2020({ strict: false }).compile(schema);
   assert.equal(
-    schema.safeParse({
+    validate({
       decision: {
         kind: 'selected-response-sources',
         sourceNodeIds: ['detail'],
       },
-    }).success,
+    }),
     false,
   );
   assert.equal(
-    schema.safeParse({
+    validate({
       decision: {
         kind: 'missing-response-sources',
         gaps: [
@@ -269,7 +311,7 @@ test('an empty producer inventory excludes provided-source decisions rather than
           },
         ],
       },
-    }).success,
+    }),
     true,
   );
 });

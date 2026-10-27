@@ -116,7 +116,33 @@ test('real ChatOpenAI media wire constrains only declared choice/null and option
         includeExplanations,
       );
     }
-    assert.equal(requests.length, 2);
+    for (const explanation of [
+      undefined,
+      null,
+      { reason: 10 },
+      { reason: 'why', evidence: [] },
+    ]) {
+      output = {
+        requestMediaType: 'application/x-www-form-urlencoded',
+        ...(explanation === undefined ? {} : { explanation }),
+      };
+      const result = await analyzeApiRequestMediaType({
+        ...f,
+        model,
+        includeExplanations: true,
+      });
+      assert.equal(result.kind, 'model-selection');
+      assert.equal(
+        result.requestMediaType,
+        'application/x-www-form-urlencoded',
+      );
+      assert.equal(Object.hasOwn(result.assessment, 'explanation'), false);
+    }
+    output = { requestMediaType: 'application/xml' };
+    await assert.rejects(
+      analyzeApiRequestMediaType({ ...f, model, includeExplanations: true }),
+    );
+    assert.equal(requests.length, 7);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
