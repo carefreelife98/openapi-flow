@@ -47,6 +47,9 @@ export function createNativeSelectionPlanningStages(
     return {
       source: structuredClone(state.source!),
       context: describeNativeInstanceSelection(input).context,
+      ...(dependencies.reviewOptions === undefined
+        ? {}
+        : { reviewOptions: structuredClone(dependencies.reviewOptions) }),
     };
   }
   function assertSource(state: NativeSelectionPlanningState): void {
@@ -81,7 +84,12 @@ export function createNativeSelectionPlanningStages(
       );
       if (!selection)
         throw new Error('Native review checkpoint has no original selection');
-      validateNativeInstanceSelectionReview({ ...input, selection, review });
+      validateNativeInstanceSelectionReview({
+        ...input,
+        ...dependencies.reviewOptions,
+        selection,
+        review,
+      });
     }
     if (
       state.modelInvocations <
@@ -100,6 +108,23 @@ export function createNativeSelectionPlanningStages(
       throw new Error(
         'Ready native selection checkpoint requires its gap-free original selection',
       );
+    if (
+      state.status === 'ready' &&
+      last &&
+      dependencies.reviewOptions?.reviewInstances === true
+    ) {
+      const review = state.reviews.findLast(
+        (entry) => entry.selectionId === last.id,
+      );
+      if (
+        !review ||
+        review.status !== 'no-gaps' ||
+        review.reviewInstances !== true
+      )
+        throw new Error(
+          'Ready native selection checkpoint requires its matching full instance review',
+        );
+    }
     if (
       state.status === 'unavailable-native-behavior' ||
       state.status === 'needs-business-decision'
@@ -299,9 +324,11 @@ export function createNativeSelectionPlanningStages(
           throw new Error(
             'Repeated native selection requires its preserved reselection review',
           );
-        const status = selection.gaps.length
-          ? ('planning' as const)
-          : ('ready' as const);
+        const status =
+          selection.gaps.length ||
+          dependencies.reviewOptions?.reviewInstances === true
+            ? ('planning' as const)
+            : ('ready' as const);
         return {
           selections: [...state.selections!, selection],
           status,
@@ -327,10 +354,17 @@ export function createNativeSelectionPlanningStages(
       return invoke(async () => {
         check(state, config);
         const selection = state.selections!.at(-1);
-        if (!selection || !selection.gaps.length)
-          throw new Error('Native gap review requires a reported original gap');
+        if (
+          !selection ||
+          (!selection.gaps.length &&
+            dependencies.reviewOptions?.reviewInstances !== true)
+        )
+          throw new Error(
+            'Native review requires its original selection and a declared review target',
+          );
         const input = {
           ...source(state),
+          ...dependencies.reviewOptions,
           selection,
           model: dependencies.model,
           signal: signal(state, config),

@@ -18,7 +18,10 @@ import {
   generateNativeNodeParameters,
   NativeInstanceSelectionReviewError,
 } from '@openapi-flow/langchain';
-import { nativeSelectionReviewFixture } from './fixtures/native-instance-selection-review-fixture.mjs';
+import {
+  nativeSelectionReviewFixture,
+  nativeOutsideScopeReviewFixture,
+} from './fixtures/native-instance-selection-review-fixture.mjs';
 
 const require = createRequire(
   new URL('../packages/core/package.json', import.meta.url),
@@ -34,6 +37,345 @@ const model = (output, inspect = () => {}) => ({
       },
     };
   },
+});
+
+test('an outside-scope assessment requests a new selection without approving or deleting the old proposal', async () => {
+  const { input, selection, reviewProposal } =
+    await nativeOutsideScopeReviewFixture();
+  const before = clone(selection);
+  const review = createNativeInstanceSelectionReview({
+    ...input,
+    selection,
+    proposal: reviewProposal,
+  });
+  assert.equal(review.status, 'needs-reselection');
+  assert.deepEqual(review.proposal, reviewProposal);
+  assert.deepEqual(selection, before);
+  assert.equal(selection.gaps.length, 1);
+  const feedback = { selection, review, previousSelections: [selection] };
+  const context = describeNativeInstanceSelectionFeedback(input, feedback);
+  assert.deepEqual(context.reportedGaps, before.gaps);
+  assert.deepEqual(context.assessments, reviewProposal.assessments);
+  let calls = 0;
+  const next = await selectNativeNodeInstances({
+    ...input,
+    feedback,
+    model: model({ instances: [], gaps: [] }, ({ messages }) => {
+      calls++;
+      const sent = JSON.parse(messages[1].content);
+      assert.equal(sent.scenario, input.scenario);
+      assert.deepEqual(sent.selectionFeedback.assessments, context.assessments);
+      assert.deepEqual(sent.selectionFeedback.reportedGaps, before.gaps);
+    }),
+  });
+  assert.equal(calls, 1);
+  assert.equal(next.gaps.length, 0);
+  assert.equal(next.instances.length, 0);
+  assert.deepEqual(selection, before);
+  assert.throws(
+    () =>
+      validateNativeInstanceSelectionReview({
+        ...input,
+        selection,
+        review: { ...review, status: 'no-gaps' },
+      }),
+    /stale|routing status/,
+  );
+});
+
+test('explicit instance review can reject an unrequested role even when the proposal has no reported gaps', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const selection = resolveNativeInstanceSelection({
+    ...f.input,
+    proposal: { ...f.proposal, gaps: [] },
+  });
+  const before = clone(selection);
+  const role = selection.instances[0];
+  const proposal = {
+    assessments: {},
+    coverageAssessment: {
+      kind: 'needs-reselection',
+      sourceQuote: f.input.scenario,
+      reason: 'The selected role is outside the requested work.',
+    },
+    instanceAssessments: {
+      [role.id]: Object.values(f.reviewProposal.assessments)[0],
+    },
+  };
+  let calls = 0;
+  const review = await reviewNativeInstanceSelection({
+    ...f.input,
+    selection,
+    reviewInstances: true,
+    model: model(proposal, ({ messages }) => {
+      calls++;
+      const sent = JSON.parse(messages[1].content);
+      assert.equal(sent.reviewInstances, true);
+      assert.equal(sent.gaps.length, 0);
+      assert.equal(sent.instances[0].id, role.id);
+    }),
+  });
+  assert.equal(calls, 1);
+  assert.equal(review.reviewInstances, true);
+  assert.equal(review.status, 'needs-reselection');
+  assert.deepEqual(selection, before);
+  const feedback = describeNativeInstanceSelectionFeedback(f.input, {
+    selection,
+    review,
+  });
+  assert.equal(feedback.reviewInstances, true);
+  assert.deepEqual(feedback.instanceAssessments, proposal.instanceAssessments);
+  assert.throws(() =>
+    validateNativeInstanceSelectionReview({ ...f.input, selection, review }),
+  );
+  assert.throws(() =>
+    createNativeInstanceSelectionReview({
+      ...f.input,
+      selection,
+      reviewInstances: false,
+      proposal,
+    }),
+  );
+  for (const alter of [
+    (value) => {
+      delete value.coverageAssessment;
+    },
+    (value) => {
+      value.coverageAssessment.sourceQuote = 'Invented scope';
+    },
+    (value) => {
+      delete value.instanceAssessments[role.id];
+    },
+    (value) => {
+      value.instanceAssessments.invented = clone(
+        value.instanceAssessments[role.id],
+      );
+    },
+    (value) => {
+      value.instanceAssessments[role.id].sourceQuote =
+        'Invented original role requirement';
+    },
+    (value) => {
+      value.instanceAssessments[role.id].kind = 'unsupported-native-behavior';
+    },
+  ]) {
+    const invalid = clone(proposal);
+    alter(invalid);
+    assert.throws(() =>
+      createNativeInstanceSelectionReview({
+        ...f.input,
+        selection,
+        reviewInstances: true,
+        proposal: invalid,
+      }),
+    );
+  }
+});
+
+test('full role review retains required roles and business questions without converting either to an implicit selection', async () => {
+  const f = await nativeSelectionReviewFixture();
+  const selection = resolveNativeInstanceSelection({
+    ...f.input,
+    proposal: { ...f.proposal, gaps: [] },
+  });
+  const id = selection.instances[0].id;
+  for (const kind of ['required', 'business-decision']) {
+    const review = createNativeInstanceSelectionReview({
+      ...f.input,
+      selection,
+      reviewInstances: true,
+      proposal: {
+        assessments: {},
+        coverageAssessment: {
+          kind: 'covered',
+          sourceQuote: f.input.scenario,
+          reason:
+            'The supplied native role implements this controlled request.',
+        },
+        instanceAssessments: {
+          [id]: {
+            kind,
+            sourceQuote: 'Check pending connections against my threshold.',
+            reason:
+              'The reviewer retains the original request as scope evidence.',
+            ...(kind === 'business-decision'
+              ? { question: 'Which business permission applies?' }
+              : {}),
+          },
+        },
+      },
+    });
+    assert.equal(
+      review.status,
+      kind === 'required' ? 'no-gaps' : 'needs-business-decision',
+    );
+    assert.throws(
+      () =>
+        describeNativeInstanceSelectionFeedback(f.input, { selection, review }),
+      /cannot automatically bypass/,
+    );
+  }
+  let calls = 0;
+  const outside = await nativeOutsideScopeReviewFixture();
+  const empty = resolveNativeInstanceSelection({
+    ...outside.input,
+    proposal: { instances: [], gaps: [] },
+  });
+  const review = await reviewNativeInstanceSelection({
+    ...outside.input,
+    selection: empty,
+    reviewInstances: true,
+    model: model(
+      {
+        assessments: {},
+        instanceAssessments: {},
+        coverageAssessment: {
+          kind: 'covered',
+          sourceQuote: outside.input.scenario,
+          reason: 'Only the existing single API response is requested.',
+        },
+      },
+      () => {
+        calls++;
+      },
+    ),
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(review.proposal, {
+    assessments: {},
+    instanceAssessments: {},
+    coverageAssessment: {
+      kind: 'covered',
+      sourceQuote: outside.input.scenario,
+      reason: 'Only the existing single API response is requested.',
+    },
+  });
+  assert.equal(review.status, 'no-gaps');
+});
+
+test('review mode changes during a model call preserve failure rather than accepting a stale role judgment', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const input = { ...f.input, selection: f.selection, reviewInstances: true };
+  const proposal = {
+    ...f.reviewProposal,
+    coverageAssessment: {
+      kind: 'needs-reselection',
+      sourceQuote: f.input.scenario,
+      reason: 'A fresh selection is required for the original scope.',
+    },
+    instanceAssessments: Object.fromEntries(
+      f.selection.instances.map((role) => [
+        role.id,
+        Object.values(f.reviewProposal.assessments)[0],
+      ]),
+    ),
+  };
+  const valid = await reviewNativeInstanceSelection({
+    ...input,
+    model: model(proposal),
+  });
+  assert.equal(valid.reviewInstances, true);
+  const mutable = { ...input };
+  mutable.model = model(proposal, () => {
+    delete mutable.reviewInstances;
+  });
+  await assert.rejects(
+    reviewNativeInstanceSelection(mutable),
+    /source changed/,
+  );
+});
+
+test('outside-scope review keeps exact-source, closed-shape and source-identity validation', async () => {
+  const { input, selection, reviewProposal } =
+    await nativeOutsideScopeReviewFixture();
+  const id = selection.gaps[0].id;
+  const create = (proposal) =>
+    createNativeInstanceSelectionReview({
+      ...input,
+      selection,
+      proposal,
+    });
+  for (const alter of [
+    (value) => {
+      value.assessments[id].sourceQuote = 'An invented exclusion';
+    },
+    (value) => {
+      value.assessments[id].reason = ' ';
+    },
+    (value) => {
+      value.assessments[id].callIds = ['metrics'];
+    },
+    (value) => {
+      delete value.assessments[id];
+    },
+    (value) => {
+      value.assessments.extra = clone(value.assessments[id]);
+    },
+  ]) {
+    const changed = clone(reviewProposal);
+    alter(changed);
+    assert.throws(() => create(changed));
+  }
+  const review = create(reviewProposal);
+  assert.throws(
+    () =>
+      validateNativeInstanceSelectionReview({
+        ...input,
+        scenario: input.scenario + ' changed',
+        selection,
+        review,
+      }),
+    /stale|modified/,
+  );
+});
+
+test('an outside-scope judgment cannot bypass another unsupported need or genuine business decision', async () => {
+  const { input, proposal, reviewProposal } =
+    await nativeOutsideScopeReviewFixture();
+  const selection = resolveNativeInstanceSelection({
+    ...input,
+    proposal: {
+      ...proposal,
+      gaps: [
+        ...proposal.gaps,
+        { description: 'An independent required behavior remains unresolved.' },
+      ],
+    },
+  });
+  const [outside, required] = selection.gaps;
+  const outsideAssessment = Object.values(reviewProposal.assessments)[0];
+  for (const kind of ['unsupported-native-behavior', 'business-decision']) {
+    const review = createNativeInstanceSelectionReview({
+      ...input,
+      selection,
+      proposal: {
+        assessments: {
+          [outside.id]: outsideAssessment,
+          [required.id]: {
+            kind,
+            sourceQuote: 'Collect the metrics API response unchanged.',
+            reason:
+              'Independent required work is not removed by the other assessment.',
+            ...(kind === 'business-decision'
+              ? { question: 'Which permitted business behavior is required?' }
+              : {}),
+          },
+        },
+      },
+    });
+    assert.equal(
+      review.status,
+      kind === 'business-decision'
+        ? 'needs-business-decision'
+        : 'unavailable-native-behavior',
+    );
+    assert.throws(
+      () =>
+        describeNativeInstanceSelectionFeedback(input, { selection, review }),
+      /cannot automatically bypass/,
+    );
+    assert.equal(selection.gaps.length, 2);
+  }
 });
 
 test('native gap review binds every assessment to the actual source and preserves the original selection unchanged', async () => {

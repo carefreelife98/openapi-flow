@@ -86,3 +86,32 @@ export async function nativeSelectionReviewFixture() {
   };
   return { input, selection, proposal, reviewProposal };
 }
+
+/** The old proposal added an expressly excluded check; review is not permission to erase it. */
+export async function nativeOutsideScopeReviewFixture() {
+  const original = await nativeSelectionReviewFixture();
+  const input = {
+    ...original.input,
+    planId: 'native-outside-scope',
+    scenario:
+      'Collect the metrics API response unchanged. Do not classify health or compare a threshold. Threshold checks are future work, not part of this workflow.',
+  };
+  const proposal = {
+    instances: original.proposal.instances,
+    gaps: [
+      { description: 'No threshold is available for health classification.' },
+    ],
+  };
+  const selection = resolveNativeInstanceSelection({ ...input, proposal });
+  const reviewProposal = {
+    assessments: {
+      [selection.gaps[0].id]: {
+        kind: 'not-required',
+        sourceQuote: 'Do not classify health or compare a threshold.',
+        reason:
+          'The original request excludes this behavior; review requests a fresh selection, not approval or removal of the original gap.',
+      },
+    },
+  };
+  return { input, selection, proposal, reviewProposal };
+}

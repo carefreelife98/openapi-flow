@@ -43,7 +43,7 @@ export async function reviewNativeInstanceSelection(
     requestFingerprint,
     rejectedProposals: input.rejectedProposals,
   });
-  if (!description.gaps.length)
+  if (!description.gaps.length && description.reviewInstances !== true)
     return createNativeInstanceSelectionReview({
       ...input,
       proposal: { assessments: {} },
@@ -61,7 +61,7 @@ export async function reviewNativeInstanceSelection(
         typeof input.model.withStructuredOutput !== 'function'
       )
         throw new Error(
-          'reviewNativeInstanceSelection.model must support structured output for reported gaps',
+          'reviewNativeInstanceSelection.model must support structured output for the requested review',
         );
       return input.model;
     },

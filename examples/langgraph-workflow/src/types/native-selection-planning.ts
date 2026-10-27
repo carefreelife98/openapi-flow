@@ -6,6 +6,7 @@ import type {
   NativeInstanceSelectionContext,
   NativeInstanceSelection,
   NativeInstanceSelectionReview,
+  NativeInstanceSelectionReviewOptions,
   WorkflowCapability,
 } from '@openapi-flow/core';
 import type {
@@ -20,6 +21,7 @@ export type NativeSelectionPlanningSource = Omit<
 export interface NativeSelectionPlanningSnapshot {
   source: NativeSelectionPlanningSource;
   context: NativeInstanceSelectionContext;
+  reviewOptions?: NativeInstanceSelectionReviewOptions;
 }
 export type NativeSelectionPlanningPolicy = z.infer<
   typeof nativeSelectionPlanningPolicySchema
@@ -44,6 +46,7 @@ export interface NativeSelectionPlanningProgress {
 }
 export interface NativeSelectionPlanningOptions {
   policy: NativeSelectionPlanningPolicy;
+  reviewOptions?: NativeInstanceSelectionReviewOptions;
   observe?: NativeSelectionPlanningObserver;
 }
 export type NativeSelectionPlanningObserver = (

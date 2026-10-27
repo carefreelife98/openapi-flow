@@ -1,5 +1,40 @@
 # @openapi-flow/langchain
 
+## Unreleased: scope and full native-selection review
+
+`reviewNativeInstanceSelection` can classify a reported gap as `not-required`
+when it concerns unrequested, expressly excluded or only optional future work.
+Code requires an exact original scenario quote and a reason, keeps the original
+selection and derives `needs-reselection`, never execution approval. Other
+unsupported needs and business decisions retain their existing blocking priority.
+The host must explicitly request a fresh selection and charge it to its budget.
+The new union member is not part of public 0.4.1; exhaustive assessment switches
+must handle it when adopting a release that includes this change.
+
+With explicit `reviewInstances: true`, review also requires an assessment of every
+selected instance ID and one `coverageAssessment` of the entire selection. This
+includes gap-free and empty selections: dropping all roles cannot skip the review.
+Roles are assessed as required, not required or requiring a business decision;
+coverage distinguishes covered, reselection, unsupported behavior and a business
+decision. Code checks closed IDs, complete maps, exact original quotes and unchanged
+source. These checks do not prove the model's interpretation of user intent.
+
+Without that option, the existing reported-gap shape and zero-model-call behavior
+for a gap-free selection remain. Full review always makes one explicit model call;
+there is no automatic retry. The example graph accepts
+`reviewOptions: { reviewInstances: true }`, includes it in the checkpoint fingerprint
+and requires a matching full review before readiness. Changing review mode cannot
+reuse a checkpoint. Selection, review and reselection all consume the host's
+existing shared budget; an exhausted budget never becomes readiness.
+
+Actual-model diagnostics on one original scenario exposed both an unrequested role
+and loss of required collection after reselection. The full review prevented that
+empty-selection shortcut, but one detail-model run still exhausted its six-call,
+two-reselection budget. An explicitly configured planning-model control on the same
+scenario and API contracts passed native selection/review in two calls. Neither run
+is a full-workflow or five-scenario quality result. No model-routing default or
+installed Qoopilot package was changed. These APIs remain unreleased after 0.4.1.
+
 0.4.0 adds independent selection/goal review, scoped connection
 outlines and originating-stage recovery planners. Each call is independently
 composable; loops, budget, checkpoints and user review stay in the host. Connection

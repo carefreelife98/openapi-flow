@@ -5,7 +5,10 @@ import {
   createNativeSelectionPlanningGraph,
   NativeSelectionPlanningLimitError,
 } from '@openapi-flow/example-langgraph-workflow';
-import { nativeSelectionReviewFixture } from './fixtures/native-instance-selection-review-fixture.mjs';
+import {
+  nativeSelectionReviewFixture,
+  nativeOutsideScopeReviewFixture,
+} from './fixtures/native-instance-selection-review-fixture.mjs';
 
 const policy = {
   maxModelInvocations: 5,
@@ -48,6 +51,283 @@ async function fixture() {
     ready: { instances: f.proposal.instances, gaps: [] },
   };
 }
+
+test('an outside-scope gap goes through a fresh budgeted selection without changing the original or interrupting a human', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const { capabilities, ...source } = f.input;
+  const before = clone(f.selection);
+  const model = queueModel([
+    f.proposal,
+    f.reviewProposal,
+    { instances: [], gaps: [] },
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities,
+    model,
+    policy,
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = {
+    configurable: { thread_id: 'outside-scope-fresh-selection' },
+  };
+  const result = await graph.invoke({ source }, config);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 3);
+  assert.equal(result.reselections, 1);
+  assert.equal(result.selections.length, 2);
+  assert.deepEqual(result.selections[0], before);
+  assert.equal(result.selections[1].gaps.length, 0);
+  assert.deepEqual(
+    model.calls.map((call) => call.name),
+    [
+      'select_native_node_instances',
+      'review_native_instance_selection',
+      'select_native_node_instances',
+    ],
+  );
+  assert.deepEqual(
+    model.calls[2].payload.selectionFeedback.assessments,
+    f.reviewProposal.assessments,
+  );
+  const saved = await graph.getState(config);
+  assert.deepEqual(saved.next, []);
+  assert.equal(saved.tasks.flatMap((entry) => entry.interrupts).length, 0);
+  assert.deepEqual(f.selection, before);
+});
+
+test('explicit full review examines a gap-free selection and reselects an unrequested role before readiness', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const { capabilities, ...source } = f.input;
+  const original = { ...f.proposal, gaps: [] };
+  const model = queueModel([
+    original,
+    ({ payload }) => ({
+      assessments: {},
+      coverageAssessment: {
+        kind: 'needs-reselection',
+        sourceQuote: source.scenario,
+        reason:
+          'Remove the optional check while preserving the original API response.',
+      },
+      instanceAssessments: Object.fromEntries(
+        payload.instances.map((role) => [
+          role.id,
+          Object.values(f.reviewProposal.assessments)[0],
+        ]),
+      ),
+    }),
+    { instances: [], gaps: [] },
+    {
+      assessments: {},
+      instanceAssessments: {},
+      coverageAssessment: {
+        kind: 'covered',
+        sourceQuote: source.scenario,
+        reason:
+          'The original request needs only the existing single API response.',
+      },
+    },
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities,
+    model,
+    policy,
+    reviewOptions: { reviewInstances: true },
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = { configurable: { thread_id: 'full-native-scope-review' } };
+  const result = await graph.invoke({ source }, config);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 4);
+  assert.equal(result.reselections, 1);
+  assert.equal(result.selections[0].gaps.length, 0);
+  assert.equal(result.selections[0].instances.length, 1);
+  assert.equal(result.selections[1].instances.length, 0);
+  assert.equal(result.reviews[0].reviewInstances, true);
+  assert.equal(model.calls[1].payload.reviewInstances, true);
+  assert.deepEqual(
+    model.calls[2].payload.selectionFeedback.instanceAssessments,
+    result.reviews[0].proposal.instanceAssessments,
+  );
+  assert.deepEqual((await graph.getState(config)).next, []);
+});
+
+test('full-review readiness requires its original matching role review and cannot be resumed under another review mode', async () => {
+  const f = await fixture();
+  const model = queueModel([
+    f.ready,
+    ({ payload }) => ({
+      assessments: {},
+      coverageAssessment: {
+        kind: 'covered',
+        sourceQuote: f.source.scenario,
+        reason:
+          'The provided comparison covers the explicit native requirement.',
+      },
+      instanceAssessments: Object.fromEntries(
+        payload.instances.map((role) => [
+          role.id,
+          {
+            kind: 'required',
+            sourceQuote: 'Check pending connections against my threshold.',
+            reason: 'The original request requires this comparison.',
+          },
+        ]),
+      ),
+    }),
+  ]);
+  const options = {
+    capabilities: f.capabilities,
+    model,
+    policy,
+    reviewOptions: { reviewInstances: true },
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  };
+  const graph = createNativeSelectionPlanningGraph(options);
+  const saved = await graph.invoke(
+    { source: f.source },
+    { configurable: { thread_id: 'required-role' } },
+  );
+  assert.equal(saved.status, 'ready');
+  assert.equal(saved.modelInvocations, 2);
+  assert.equal(saved.reviews[0].status, 'no-gaps');
+  await assert.rejects(
+    graph.invoke(
+      { ...saved, reviews: [] },
+      { configurable: { thread_id: 'missing-role-review' } },
+    ),
+    /matching full instance review/,
+  );
+  const legacy = createNativeSelectionPlanningGraph({
+    ...options,
+    reviewOptions: undefined,
+  });
+  await assert.rejects(
+    legacy.invoke(saved, {
+      configurable: { thread_id: 'changed-role-review-mode' },
+    }),
+    /source or policy changed/,
+  );
+  assert.equal(model.calls.length, 2);
+});
+
+test('full review examines missing processing in an empty proposal instead of treating it as ready', async () => {
+  const f = await fixture();
+  const model = queueModel([
+    { instances: [], gaps: [] },
+    {
+      assessments: {},
+      instanceAssessments: {},
+      coverageAssessment: {
+        kind: 'needs-reselection',
+        sourceQuote: 'Check pending connections against my threshold.',
+        reason:
+          'The supplied IF supports the requested comparison, but the empty selection omitted it.',
+      },
+    },
+    f.ready,
+    ({ payload }) => ({
+      assessments: {},
+      instanceAssessments: Object.fromEntries(
+        payload.instances.map((role) => [
+          role.id,
+          {
+            kind: 'required',
+            sourceQuote: 'Check pending connections against my threshold.',
+            reason: 'The role implements the explicit comparison.',
+          },
+        ]),
+      ),
+      coverageAssessment: {
+        kind: 'covered',
+        sourceQuote: f.source.scenario,
+        reason: 'The requested comparison now has its implementation.',
+      },
+    }),
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    reviewOptions: { reviewInstances: true },
+    now: Date.now,
+  });
+  const result = await graph.invoke({ source: f.source });
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 4);
+  assert.equal(result.selections[0].instances.length, 0);
+  assert.equal(result.reviews[0].status, 'needs-reselection');
+  assert.equal(result.reviews[1].status, 'no-gaps');
+  assert.deepEqual(
+    model.calls[2].payload.selectionFeedback.coverageAssessment,
+    result.reviews[0].proposal.coverageAssessment,
+  );
+});
+
+test('empty selections cannot skip the full-review budget or claim readiness without the coverage receipt', async () => {
+  const f = await fixture();
+  const model = queueModel([{ instances: [], gaps: [] }]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy: { ...policy, maxModelInvocations: 1 },
+    reviewOptions: { reviewInstances: true },
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = {
+    configurable: { thread_id: 'empty-selection-coverage-budget' },
+  };
+  await assert.rejects(
+    graph.invoke({ source: f.source }, config),
+    NativeSelectionPlanningLimitError,
+  );
+  const saved = (await graph.getState(config)).values;
+  assert.equal(saved.status, 'planning');
+  assert.equal(saved.selections[0].instances.length, 0);
+  assert.equal(saved.reviews.length, 0);
+  await assert.rejects(
+    graph.invoke(
+      { ...saved, status: 'ready' },
+      { configurable: { thread_id: 'forged-empty-selection-ready' } },
+    ),
+    /matching full instance review/,
+  );
+  assert.equal(model.calls.length, 1);
+});
+
+test('an outside-scope review cannot become ready without reserving its fresh selection call', async () => {
+  const f = await nativeOutsideScopeReviewFixture();
+  const { capabilities, ...source } = f.input;
+  const model = queueModel([f.proposal, f.reviewProposal]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities,
+    model,
+    policy: { ...policy, maxModelInvocations: 2 },
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = { configurable: { thread_id: 'outside-scope-budget' } };
+  await assert.rejects(
+    graph.invoke({ source }, config),
+    (error) =>
+      error instanceof NativeSelectionPlanningLimitError &&
+      error.failure.kind === 'model-invocations',
+  );
+  const saved = await graph.getState(config);
+  assert.equal(saved.values.status, 'planning');
+  assert.equal(saved.values.selections[0].gaps.length, 1);
+  assert.equal(saved.values.modelInvocations, 2);
+  assert.equal(model.calls.length, 2);
+  await assert.rejects(
+    graph.invoke(null, config),
+    NativeSelectionPlanningLimitError,
+  );
+  assert.equal(model.calls.length, 2);
+});
 
 test('native selection host checkpoints reservations, review and fresh selection without overwriting the rejected original', async () => {
   const f = await fixture();

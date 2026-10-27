@@ -1,4 +1,5 @@
 import { END, START, StateGraph } from '@langchain/langgraph';
+import { nativeInstanceSelectionReviewOptionsSchema } from '@openapi-flow/core';
 import type { NativeSelectionPlanningDependencies } from '../types/native-selection-planning.js';
 import {
   nativeSelectionPlanningPolicySchema,
@@ -15,6 +16,8 @@ export function createNativeSelectionPlanningGraph(
   if (typeof input.now !== 'function')
     throw new Error('Native selection planning.now is required');
   const policy = nativeSelectionPlanningPolicySchema.parse(input.policy);
+  if (input.reviewOptions !== undefined)
+    nativeInstanceSelectionReviewOptionsSchema.parse(input.reviewOptions);
   const recursionLimit =
     (policy.maxModelInvocations + policy.maxReselections + 1) * 4 + 8;
   if (!Number.isSafeInteger(recursionLimit))

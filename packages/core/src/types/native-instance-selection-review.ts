@@ -11,6 +11,7 @@ export interface NativeInstanceGapReviewEvidence {
 
 export type NativeInstanceGapAssessment = NativeInstanceGapReviewEvidence &
   (
+    | { kind: 'not-required' }
     | { kind: 'unsupported-native-behavior' }
     | { kind: 'native-configuration'; capability: string }
     | { kind: 'api-planning'; callIds: string[] }
@@ -18,11 +19,39 @@ export type NativeInstanceGapAssessment = NativeInstanceGapReviewEvidence &
     | { kind: 'business-decision'; question: string }
   );
 
-export interface NativeInstanceSelectionReviewProposal {
-  assessments: Record<string, NativeInstanceGapAssessment>;
+export type NativeInstanceRoleAssessment = NativeInstanceGapReviewEvidence &
+  (
+    | { kind: 'required' }
+    | { kind: 'not-required' }
+    | { kind: 'business-decision'; question: string }
+  );
+
+export type NativeInstanceSelectionCoverageAssessment =
+  NativeInstanceGapReviewEvidence &
+    (
+      | { kind: 'covered' }
+      | { kind: 'needs-reselection' }
+      | { kind: 'unsupported-native-behavior' }
+      | { kind: 'business-decision'; question: string }
+    );
+
+export interface NativeInstanceSelectionReviewOptions {
+  /** Opt into reviewing every selected role, including selections with no gaps. */
+  reviewInstances?: true;
 }
 
-export interface NativeInstanceSelectionReviewDescription {
+export type NativeInstanceSelectionReviewInput = NativeSelectedPlanningInput &
+  NativeInstanceSelectionReviewOptions;
+
+export interface NativeInstanceSelectionReviewProposal {
+  assessments: Record<string, NativeInstanceGapAssessment>;
+  /** Required only when reviewInstances is explicitly enabled. */
+  instanceAssessments?: Record<string, NativeInstanceRoleAssessment>;
+  /** Full review also examines omitted required processing, including an empty selection. */
+  coverageAssessment?: NativeInstanceSelectionCoverageAssessment;
+}
+
+export interface NativeInstanceSelectionReviewDescription extends NativeInstanceSelectionReviewOptions {
   selectionId: string;
   context: NativeInstanceSelection['context'];
   instances: Pick<
@@ -33,7 +62,7 @@ export interface NativeInstanceSelectionReviewDescription {
 }
 
 /** Model judgments are evidence for routing, never approval to delete a gap or mutate the selection. */
-export interface NativeInstanceSelectionReview {
+export interface NativeInstanceSelectionReview extends NativeInstanceSelectionReviewOptions {
   selectionId: string;
   proposal: NativeInstanceSelectionReviewProposal;
   status:
@@ -43,11 +72,11 @@ export interface NativeInstanceSelectionReview {
     | 'needs-reselection';
 }
 
-export interface CreateNativeInstanceSelectionReviewInput extends NativeSelectedPlanningInput {
+export interface CreateNativeInstanceSelectionReviewInput extends NativeInstanceSelectionReviewInput {
   proposal: NativeInstanceSelectionReviewProposal;
 }
 
-export interface ValidateNativeInstanceSelectionReviewInput extends NativeSelectedPlanningInput {
+export interface ValidateNativeInstanceSelectionReviewInput extends NativeInstanceSelectionReviewInput {
   review: NativeInstanceSelectionReview;
 }
 
@@ -58,10 +87,12 @@ export interface NativeInstanceSelectionFeedback {
   previousSelections?: NativeInstanceSelection[];
 }
 
-export interface NativeInstanceSelectionFeedbackDescription {
+export interface NativeInstanceSelectionFeedbackDescription extends NativeInstanceSelectionReviewOptions {
   selectionId: string;
   selectedInstances: NativeInstanceSelectionReviewDescription['instances'];
   reportedGaps: NativeInstanceSelection['gaps'];
   assessments: NativeInstanceSelectionReviewProposal['assessments'];
+  instanceAssessments?: NativeInstanceSelectionReviewProposal['instanceAssessments'];
+  coverageAssessment?: NativeInstanceSelectionReviewProposal['coverageAssessment'];
   previousSelections?: Pick<NativeInstanceSelection, 'id' | 'proposal'>[];
 }

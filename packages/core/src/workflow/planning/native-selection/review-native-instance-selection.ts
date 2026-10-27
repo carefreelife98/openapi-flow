@@ -1,7 +1,4 @@
-import type {
-  NativeSelectedPlanningInput,
-  NativeInstanceSelectionInput,
-} from '../../../types/native-node-planning.js';
+import type { NativeInstanceSelectionInput } from '../../../types/native-node-planning.js';
 import type {
   CreateNativeInstanceSelectionReviewInput,
   ValidateNativeInstanceSelectionReviewInput,
@@ -9,16 +6,27 @@ import type {
   NativeInstanceSelectionReviewDescription,
   NativeInstanceSelectionFeedback,
   NativeInstanceSelectionFeedbackDescription,
+  NativeInstanceSelectionReviewInput,
+  NativeInstanceRoleAssessment,
 } from '../../../types/native-instance-selection-review.js';
-import { createNativeInstanceSelectionReviewSchema } from '../../../schemas/native-instance-selection-review-schema.js';
+import {
+  createNativeInstanceSelectionReviewSchema,
+  nativeInstanceSelectionReviewOptionsSchema,
+} from '../../../schemas/native-instance-selection-review-schema.js';
 import { validateNativeInstanceSelection } from '../resolve-native-instance-selection.js';
 import { jsonValuesEqual } from '../../../utils/json-values-equal.js';
 
 export function describeNativeInstanceSelectionReview(
-  input: NativeSelectedPlanningInput,
+  input: NativeInstanceSelectionReviewInput,
 ): NativeInstanceSelectionReviewDescription {
+  const options = nativeInstanceSelectionReviewOptionsSchema.parse({
+    reviewInstances: input.reviewInstances,
+  });
   const selection = validateNativeInstanceSelection(input);
   return structuredClone({
+    ...(options.reviewInstances === true
+      ? { reviewInstances: true as const }
+      : {}),
     selectionId: selection.id,
     context: selection.context,
     instances: selection.instances.map(
@@ -44,7 +52,27 @@ export function createNativeInstanceSelectionReview(
     throw new Error(
       'Native selection review must preserve the complete original proposal',
     );
-  const assessments = Object.values(proposal.assessments);
+  let roles: NativeInstanceRoleAssessment[] = [];
+  if (description.reviewInstances === true) {
+    if (proposal.instanceAssessments === undefined)
+      throw new Error(
+        'Native selection review requires instanceAssessments for reviewInstances',
+      );
+    roles = Object.values(proposal.instanceAssessments);
+    if (proposal.coverageAssessment === undefined)
+      throw new Error(
+        'Native selection review requires coverageAssessment for reviewInstances',
+      );
+  }
+  const coverage =
+    proposal.coverageAssessment === undefined
+      ? []
+      : [proposal.coverageAssessment];
+  const assessments = [
+    ...Object.values(proposal.assessments),
+    ...roles,
+    ...coverage,
+  ];
   for (const assessment of assessments) {
     if (!description.context.scenario.includes(assessment.sourceQuote))
       throw new Error(
@@ -59,7 +87,12 @@ export function createNativeInstanceSelectionReview(
     if (new Set(references).size !== references.length)
       throw new Error('Native selection review references must be unique');
   }
+  // A not-required judgment requests a fresh selection. It does not erase the
+  // old proposal or override independent blockers; required roles are not execution proof.
   return {
+    ...(description.reviewInstances === true
+      ? { reviewInstances: true as const }
+      : {}),
     selectionId: description.selectionId,
     proposal: structuredClone(proposal),
     status:
@@ -71,7 +104,12 @@ export function createNativeInstanceSelectionReview(
           ? 'unavailable-native-behavior'
           : assessments.some((entry) => entry.kind === 'business-decision')
             ? 'needs-business-decision'
-            : 'needs-reselection',
+            : assessments.some(
+                  (entry) =>
+                    entry.kind !== 'required' && entry.kind !== 'covered',
+                )
+              ? 'needs-reselection'
+              : 'no-gaps',
   };
 }
 
@@ -100,10 +138,15 @@ export function describeNativeInstanceSelectionFeedback(
     throw new Error(
       'Native selection feedback must contain its original selection and review',
     );
+  if (!feedback.review || typeof feedback.review !== 'object')
+    throw new Error('Native selection feedback.review is required');
   const source = { ...input, selection: feedback.selection };
   const description = describeNativeInstanceSelectionReview(source);
   const review = validateNativeInstanceSelectionReview({
     ...source,
+    ...(feedback.review.reviewInstances === true
+      ? { reviewInstances: true as const }
+      : {}),
     review: feedback.review,
   });
   if (review.status !== 'needs-reselection')
@@ -126,6 +169,13 @@ export function describeNativeInstanceSelectionFeedback(
     selectedInstances: description.instances,
     reportedGaps: description.gaps,
     assessments: review.proposal.assessments,
+    ...(review.reviewInstances === true
+      ? {
+          reviewInstances: true as const,
+          instanceAssessments: review.proposal.instanceAssessments,
+          coverageAssessment: review.proposal.coverageAssessment,
+        }
+      : {}),
     ...(previousSelections === undefined ? {} : { previousSelections }),
   });
 }

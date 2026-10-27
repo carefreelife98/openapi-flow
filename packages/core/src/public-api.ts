@@ -415,7 +415,10 @@ export {
 } from './workflow/connections/materials/native/workflow-connection-native-parameters.js';
 export type * from './types/workflow-connection-goal-review.js';
 export type * from './types/native-instance-selection-review.js';
-export { createNativeInstanceSelectionReviewSchema } from './schemas/native-instance-selection-review-schema.js';
+export {
+  createNativeInstanceSelectionReviewSchema,
+  nativeInstanceSelectionReviewOptionsSchema,
+} from './schemas/native-instance-selection-review-schema.js';
 export {
   describeNativeInstanceSelectionReview,
   createNativeInstanceSelectionReview,
