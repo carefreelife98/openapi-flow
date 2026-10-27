@@ -1,8 +1,8 @@
 # openapi-flow
 
-## 0.4.2 candidate
+## 0.4.2
 
-This candidate separates optional presentation text from functional planning
+This version separates optional presentation text from functional planning
 validation. Missing/malformed reasons no longer invalidate otherwise valid API
 selection, request-format/value generation, native instance/dependency/settings,
 API-by-call bindings or connection decisions. Actual OAS types, source provenance,
