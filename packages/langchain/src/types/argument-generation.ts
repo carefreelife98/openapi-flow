@@ -6,10 +6,10 @@ import type {
   ApiLiteralProposalSource,
   OpenApiFlowError,
   WorkflowConnectionApiRepairContext,
+  ApiInputLiteralSource,
 } from '@openapi-flow/core';
 import type { z } from 'zod';
 import type { apiLiteralGenerationReasonSchema } from '../schemas/api-literal-generation-output-schema.js';
-import type { apiLiteralGenerationSourcesSchema } from '../schemas/api-literal-generation-output-schema.js';
 import type { apiLiteralNotProvidedSchema } from '../schemas/api-literal-generation-output-schema.js';
 import type {
   createApiLiteralProvidedSchema,
@@ -28,6 +28,12 @@ export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
   rejectedProposals?: ApiArgumentRejection[];
   signal?: AbortSignal;
   materialRepair?: WorkflowConnectionApiRepairContext;
+}
+
+export interface ApiLiteralGenerationSource extends ApiInputLiteralSource {
+  targetPointer: string;
+  /** Selected only when more than one original message is supplied. */
+  messageId?: string;
 }
 
 export type ApiArgumentRejection = z.infer<typeof apiArgumentRejectionSchema>;
@@ -82,6 +88,6 @@ export type ApiLiteralGenerationOutputSchema =
 
 export interface ResolvedApiLiteralGenerationOutput extends ApiArgumentProposal {
   requestedInputs?: string[];
-  literalSources?: z.infer<typeof apiLiteralGenerationSourcesSchema>;
+  literalSources?: ApiLiteralGenerationSource[];
   explanation?: z.infer<typeof apiLiteralGenerationReasonSchema>;
 }

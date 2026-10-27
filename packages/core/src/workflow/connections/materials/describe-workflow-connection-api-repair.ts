@@ -10,6 +10,7 @@ import { describeWorkflowConnectionMaterialRepairWork } from './describe-workflo
 import { describeApiCallBindingPlanning } from '../../../bindings/planning/describe-api-call-binding-planning.js';
 import { describeApiLiteralGeneration } from '../../../arguments/generation/describe-api-literal-generation.js';
 import { connectionValueFingerprint } from '../incremental/connection-graph-identity.js';
+import { apiLiteralSourceContextSchema } from '../../../schemas/api-literal-generation-schema.js';
 
 /** Validate the actual originating planner input, not just a model's repair label. No material is adopted. */
 export function describeWorkflowConnectionApiRepair(
@@ -37,6 +38,10 @@ export function describeWorkflowConnectionApiRepair(
         )
           throw new Error(`API materialRepair.${field} must be supplied`);
       const { source, request, pendingReplacement } = input.repair;
+      const literalContext =
+        input.repair.literalContext === undefined
+          ? undefined
+          : apiLiteralSourceContextSchema.parse(input.repair.literalContext);
       validateWorkflowConnectionSourceRepairRequest({ source, request });
       if (input.stage !== 'api-bindings' && input.stage !== 'api-arguments')
         throw new Error(
@@ -45,6 +50,10 @@ export function describeWorkflowConnectionApiRepair(
       if (input.stage === 'api-bindings' && pendingReplacement !== undefined)
         throw new Error(
           'Pending binding work belongs to the API argument stage',
+        );
+      if (input.stage === 'api-bindings' && literalContext !== undefined)
+        throw new Error(
+          'literalContext belongs only to the API argument stage',
         );
       const work =
         pendingReplacement === undefined
@@ -113,7 +122,9 @@ export function describeWorkflowConnectionApiRepair(
           );
         const expected = describeApiLiteralGeneration({
           callId: target.nodeId,
-          scenario: description.input.scenario,
+          ...(literalContext === undefined
+            ? { scenario: description.input.scenario }
+            : literalContext),
           operation: material.operation,
           bindings:
             task === undefined
@@ -144,6 +155,7 @@ export function describeWorkflowConnectionApiRepair(
         repairFingerprint: connectionValueFingerprint({
           request,
           ...(pendingReplacement === undefined ? {} : { pendingReplacement }),
+          ...(literalContext === undefined ? {} : { literalContext }),
         }),
         target,
         reason: request.request.reason,

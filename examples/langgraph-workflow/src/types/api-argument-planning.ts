@@ -2,7 +2,10 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { GenerateApiArgumentsInput } from '@openapi-flow/langchain';
-import type { ApiCallArguments } from '@openapi-flow/core';
+import type {
+  ApiCallArguments,
+  WorkflowConnectionApiRepairDescription,
+} from '@openapi-flow/core';
 import type { z } from 'zod';
 import type {
   apiArgumentPlanningStateSchema,
@@ -13,6 +16,12 @@ export type ApiArgumentPlanningSource = Omit<
   GenerateApiArgumentsInput,
   'model' | 'signal' | 'rejectedProposals'
 >;
+export interface ApiArgumentPlanningSourceSnapshot extends Omit<
+  ApiArgumentPlanningSource,
+  'materialRepair'
+> {
+  materialRepairDescription?: WorkflowConnectionApiRepairDescription;
+}
 export type ApiArgumentPlanningPolicy = z.infer<
   typeof apiArgumentPlanningPolicySchema
 >;

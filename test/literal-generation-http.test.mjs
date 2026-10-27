@@ -12,6 +12,116 @@ const require = createRequire(
 );
 const { Ajv2020 } = require('ajv/dist/2020.js');
 
+test('real ChatOpenAI wire schema selects source IDs only for multiple explicit messages', async () => {
+  const requests = [];
+  let output;
+  const server = createServer(async (request, response) => {
+    let raw = '';
+    for await (const chunk of request) raw += chunk;
+    const body = JSON.parse(raw);
+    requests.push(body);
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(
+      JSON.stringify({
+        id: 'literal-message-fixture',
+        object: 'chat.completion',
+        created: 1,
+        model: 'gpt-4o',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'tool_calls',
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'literal-message',
+                  type: 'function',
+                  function: {
+                    name: body.tools[0].function.name,
+                    arguments: JSON.stringify(output),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const model = new ChatOpenAI({
+      model: 'gpt-4o',
+      apiKey: 'local-fixture-only',
+      maxRetries: 0,
+      configuration: {
+        baseURL: `http://127.0.0.1:${server.address().port}/v1`,
+      },
+    });
+    const fixture = await literalGenerationFixture();
+    for (const count of [1, 2]) {
+      const literalSourceMessages = [
+        { id: 'request', text: 'Use quantity 2.' },
+        ...(count === 2
+          ? [{ id: 'answer', text: 'Keep all other values absent.' }]
+          : []),
+      ];
+      output = {
+        literalInputs: {
+          state: 'provided',
+          values: { body: { quantity: 2 } },
+          literalSources: [
+            {
+              targetPointer: '/body/quantity',
+              sourceFormat: 'json',
+              sourceText: '2',
+              ...(count === 2 ? { messageId: 'request' } : {}),
+            },
+          ],
+        },
+        requestedInputs: [],
+      };
+      const result = await generateApiArguments({
+        ...fixture,
+        scenario: JSON.stringify({
+          requests: literalSourceMessages.map((item) => item.text),
+        }),
+        literalSourceMessages,
+        model,
+      });
+      const wire = requests.at(-1).tools[0].function.parameters;
+      const ajv = new Ajv2020({ strict: false });
+      assert.equal(ajv.validateSchema(wire), true, JSON.stringify(ajv.errors));
+      const validate = ajv.compile(wire);
+      assert.equal(validate(output), true, JSON.stringify(validate.errors));
+      const changed = globalThis.structuredClone(output);
+      changed.literalInputs.literalSources[0].messageId = 'invented';
+      assert.equal(validate(changed), false);
+      if (count === 2) {
+        delete changed.literalInputs.literalSources[0].messageId;
+        assert.equal(validate(changed), false);
+      }
+      assert.equal(result.literalSources[0].messageId, 'request');
+      assert.deepEqual(result.values.body, {
+        id: 'confirmed-original',
+        quantity: 2,
+      });
+      assert.deepEqual(
+        JSON.parse(requests.at(-1).messages[1].content).literalSourceMessages,
+        literalSourceMessages,
+      );
+    }
+    assert.equal(requests.length, 2);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test('real ChatOpenAI literal schema preserves OAS value types/ownership and asks only for values plus an optional short reason', async () => {
   const requests = [];
   let output;

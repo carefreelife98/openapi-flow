@@ -7,10 +7,17 @@ import type {
 } from './api-arguments.js';
 import type { JsonObject } from './openapi.js';
 import type { WorkflowDecisionExplanation } from './workflow-clarification.js';
+import type { WorkflowSourceMessage } from './workflow-draft.js';
 
-export interface ApiLiteralGenerationInput extends ApiArgumentGenerationInput {
-  callId: string;
+export interface ApiLiteralSourceContext {
   scenario: string;
+  /** Original literal-value sources, separate from formatted scenario context. No JSON unwrapping. */
+  literalSourceMessages?: WorkflowSourceMessage[];
+}
+
+export interface ApiLiteralGenerationInput
+  extends ApiArgumentGenerationInput, ApiLiteralSourceContext {
+  callId: string;
   /** Supplied call-instance role; never inferred from its array position or API path. */
   purpose?: string;
 }
@@ -23,8 +30,7 @@ export interface ApiLiteralGenerationOperation {
   description?: string;
 }
 
-export interface ApiLiteralGenerationContext {
-  scenario: string;
+export interface ApiLiteralGenerationContext extends ApiLiteralSourceContext {
   purpose?: string;
   operation: ApiLiteralGenerationOperation;
   literalInputSchema: JsonObject;
@@ -39,6 +45,7 @@ export interface ApiLiteralGenerationDescription {
 
 export type ApiLiteralGenerationEvidence =
   | { kind: 'scenario'; text: string; purpose?: string }
+  | { kind: 'literal-source-messages'; messages: WorkflowSourceMessage[] }
   | {
       kind: 'literal-input-contract';
       operation: ApiLiteralGenerationOperation;

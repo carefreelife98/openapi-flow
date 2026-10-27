@@ -2,7 +2,7 @@ import { StateSchema } from '@langchain/langgraph';
 import { z } from 'zod';
 import { apiArgumentRejectionSchema } from '@openapi-flow/langchain';
 import type { ApiCallArguments } from '@openapi-flow/core';
-import type { ApiArgumentPlanningSource } from '../types/api-argument-planning.js';
+import type { ApiArgumentPlanningSourceSnapshot } from '../types/api-argument-planning.js';
 
 export const apiArgumentPlanningPolicySchema = z.strictObject({
   /** Counts generateApiArguments calls, not provider HTTP retries or its optional enum stage. */
@@ -13,7 +13,7 @@ export const apiArgumentPlanningPolicySchema = z.strictObject({
 });
 
 export const apiArgumentPlanningStateSchema = new StateSchema({
-  source: z.custom<ApiArgumentPlanningSource>().optional(),
+  source: z.custom<ApiArgumentPlanningSourceSnapshot>().optional(),
   policy: apiArgumentPlanningPolicySchema.optional(),
   startedAt: z.int().nonnegative().optional(),
   attempts: z.int().nonnegative().optional(),

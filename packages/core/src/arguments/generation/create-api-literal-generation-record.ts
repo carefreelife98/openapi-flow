@@ -46,6 +46,14 @@ export function createApiLiteralGenerationRecord(
             ? {}
             : { purpose: context.purpose }),
         },
+        ...(context.literalSourceMessages === undefined
+          ? []
+          : [
+              {
+                kind: 'literal-source-messages' as const,
+                messages: context.literalSourceMessages,
+              },
+            ]),
         {
           kind: 'literal-input-contract',
           operation: context.operation,

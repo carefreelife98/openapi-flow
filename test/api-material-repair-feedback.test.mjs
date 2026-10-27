@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'node:http';
 import { ChatOpenAI } from '@langchain/openai';
+import { MemorySaver } from '@langchain/langgraph';
+import { createApiArgumentPlanningGraph } from '@openapi-flow/example-langgraph-workflow';
 import {
   describeWorkflowConnectionApiRepair,
   describeWorkflowConnectionGoals,
@@ -90,6 +92,189 @@ function literalOutput(value) {
     requestedInputs: ['/query/id'],
   };
 }
+
+test('API argument recovery binds an explicit original literal context without changing connection intent or source contracts', async () => {
+  const original = literalFixture();
+  const literalContext = {
+    scenario: JSON.stringify({
+      requests: ['Use price identifier "request-only-7".'],
+    }),
+    literalSourceMessages: [
+      {
+        id: 'original-request',
+        text: 'Use price identifier "request-only-7".',
+      },
+    ],
+  };
+  const input = {
+    ...original.literalInput,
+    ...literalContext,
+    materialRepair: { ...original.repair, literalContext },
+  };
+  const before = describeWorkflowConnectionApiRepair({
+    stage: 'api-arguments',
+    planning: input,
+    repair: input.materialRepair,
+  });
+  const model = recoveryQueueModel([literalOutput('request-only-7')]);
+  const result = await generateApiArguments({ ...input, model });
+  assert.deepEqual(
+    describeWorkflowConnectionApiRepair({
+      stage: 'api-arguments',
+      planning: input,
+      repair: input.materialRepair,
+    }),
+    before,
+  );
+  assert.equal(result.values.query.id, 'request-only-7');
+  assert.equal(result.literalSources[0].messageId, 'original-request');
+  assert.equal(model.requests.length, 1);
+  assert.equal(model.requests[0].payload.scenario, literalContext.scenario);
+  assert.deepEqual(
+    model.requests[0].payload.literalSourceMessages,
+    literalContext.literalSourceMessages,
+  );
+  assert.notEqual(original.broken.scenario, literalContext.scenario);
+  assert.equal(
+    Object.hasOwn(model.requests[0].payload.materialRepair, 'literalContext'),
+    false,
+  );
+  await assert.rejects(
+    generateApiArguments({
+      ...input,
+      literalSourceMessages: [
+        { id: 'different', text: 'Use price identifier "request-only-7".' },
+      ],
+      model: recoveryQueueModel([]),
+    }),
+    /differs/,
+  );
+  await assert.rejects(
+    generateApiArguments({
+      ...input,
+      materialRepair: {
+        ...input.materialRepair,
+        literalContext: {
+          ...literalContext,
+          operation: original.literalInput.operation,
+        },
+      },
+      model: recoveryQueueModel([]),
+    }),
+  );
+});
+
+test('literal recovery context cannot be used for API binding planning or mutated during a request', async () => {
+  const original = literalFixture();
+  const literalContext = {
+    scenario: 'Read the requested API.',
+    literalSourceMessages: [
+      { id: 'request', text: 'Use price identifier "request-only-7".' },
+    ],
+  };
+  assert.throws(
+    () =>
+      describeWorkflowConnectionApiRepair({
+        stage: 'api-bindings',
+        repair: {
+          ...original.repair,
+          pendingReplacement: undefined,
+          literalContext,
+        },
+        planning: original.bindingInput,
+      }),
+    /literalContext belongs/,
+  );
+  const model = {
+    withStructuredOutput() {
+      return {
+        async invoke() {
+          literalContext.literalSourceMessages[0].text = 'changed';
+          return literalOutput('request-only-7');
+        },
+      };
+    },
+  };
+  await assert.rejects(
+    generateApiArguments({
+      ...original.literalInput,
+      ...globalThis.structuredClone(literalContext),
+      materialRepair: { ...original.repair, literalContext },
+      model,
+    }),
+    /differs|changed/,
+  );
+});
+
+test('example argument recovery checkpoints source receipts, preserves repair feedback and resumes completed values without another model call', async () => {
+  const original = literalFixture();
+  const literalContext = {
+    scenario: JSON.stringify({
+      requests: ['Use price identifier "request-only-7".'],
+    }),
+    literalSourceMessages: [
+      { id: 'request', text: 'Use price identifier "request-only-7".' },
+    ],
+  };
+  const source = {
+    ...original.literalInput,
+    ...literalContext,
+    materialRepair: { ...original.repair, literalContext },
+  };
+  const model = recoveryQueueModel([
+    literalOutput('not-provided'),
+    literalOutput('request-only-7'),
+  ]);
+  const progress = [];
+  const observerFailure = new Error('local progress observer unavailable');
+  let blocked = true;
+  const graph = createApiArgumentPlanningGraph({
+    source: () => source,
+    model,
+    policy: { maxAttempts: 2, maxRejectedProposals: 1, deadlineMs: 30_000 },
+    checkpointer: new MemorySaver(),
+    observe(event) {
+      progress.push(event);
+      if (event.phase === 'completed' && blocked) throw observerFailure;
+    },
+  });
+  const config = { configurable: { thread_id: 'explicit-recovery-context' } };
+  await assert.rejects(
+    graph.invoke({}, config),
+    (error) => error === observerFailure,
+  );
+  const checkpoint = await graph.getState(config);
+  assert.equal(checkpoint.values.status, 'complete');
+  assert.equal(checkpoint.values.attempts, 2);
+  assert.equal(checkpoint.values.rejectedProposals.length, 1);
+  assert.equal(
+    Object.hasOwn(checkpoint.values.source, 'materialRepair'),
+    false,
+  );
+  assert(checkpoint.values.source.materialRepairDescription.repairFingerprint);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(checkpoint.values.source)),
+    checkpoint.values.source,
+  );
+  blocked = false;
+  const completed = await graph.invoke(null, config);
+  assert.equal(completed.arguments.values.query.id, 'request-only-7');
+  assert.equal(completed.arguments.literalSources[0].messageId, 'request');
+  assert.equal(model.requests.length, 2);
+  for (const request of model.requests)
+    assert.deepEqual(
+      request.payload.materialRepair,
+      checkpoint.values.source.materialRepairDescription,
+    );
+  assert.equal(model.requests[1].payload.rejectedProposals.length, 1);
+  assert.equal(JSON.stringify(progress).includes('request-only-7'), false);
+  source.materialRepair.literalContext.literalSourceMessages[0].id = 'changed';
+  await assert.rejects(
+    graph.invoke({}, config),
+    /differs|source or policy changed/,
+  );
+  assert.equal(model.requests.length, 2);
+});
 
 test('Core derives feedback only for the exact requested stage, actual OAS, role, inventory and original scenario', () => {
   const { repair, bindingInput } = fixture();

@@ -13,10 +13,11 @@ import { apiOperationKeySchema } from '../../schemas/api-operation-key-schema.js
 export function describeApiLiteralGeneration(
   input: ApiLiteralGenerationInput,
 ): ApiLiteralGenerationDescription {
-  const { callId, scenario, purpose } =
+  const { callId, scenario, purpose, literalSourceMessages } =
     apiLiteralGenerationIdentitySchema.parse({
       callId: input.callId,
       scenario: input.scenario,
+      literalSourceMessages: input.literalSourceMessages,
       purpose: input.purpose,
     });
   if (
@@ -29,6 +30,9 @@ export function describeApiLiteralGeneration(
   const snapshot: ApiLiteralGenerationInput = {
     callId,
     scenario,
+    ...(literalSourceMessages === undefined
+      ? {}
+      : { literalSourceMessages: structuredClone(literalSourceMessages) }),
     operation: structuredClone(input.operation),
     bindings: structuredClone(input.bindings),
     ...(purpose === undefined ? {} : { purpose }),
@@ -42,6 +46,9 @@ export function describeApiLiteralGeneration(
   const contract = createApiArgumentGenerationContract(snapshot);
   const context = apiLiteralGenerationContextSchema.parse({
     scenario,
+    ...(snapshot.literalSourceMessages === undefined
+      ? {}
+      : { literalSourceMessages: snapshot.literalSourceMessages }),
     ...(snapshot.purpose === undefined ? {} : { purpose: snapshot.purpose }),
     operation: {
       key: snapshot.operation.key,

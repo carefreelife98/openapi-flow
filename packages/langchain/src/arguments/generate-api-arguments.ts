@@ -34,6 +34,7 @@ import { fingerprintApiArgumentSource } from './fingerprint-api-argument-source.
 import { rethrowApiArgumentPlanningError } from './api-argument-planning-error.js';
 import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
+import { attributeApiLiteralGenerationSources } from './attribute-api-literal-generation-sources.js';
 
 export async function generateApiArguments(
   input: GenerateApiArgumentsInput,
@@ -87,11 +88,13 @@ export async function generateApiArguments(
       const trackInputs =
         options.trackRequestedInputs === true ||
         options.selectOasEnums === true ||
+        snapshot.literalSourceMessages !== undefined ||
         materialRepair !== undefined;
       const schema = createApiLiteralGenerationOutputSchema(
         contract,
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
+        snapshot.literalSourceMessages,
       );
       const sourceFingerprint = fingerprintApiArgumentSource(
         snapshot,
@@ -197,6 +200,16 @@ export async function generateApiArguments(
     },
     async () => {
       if (
+        snapshot.literalSourceMessages !== undefined &&
+        !isDeepStrictEqual(
+          snapshot.literalSourceMessages,
+          input.literalSourceMessages,
+        )
+      )
+        throw new Error(
+          'literalSourceMessages changed during argument generation',
+        );
+      if (
         materialRepair !== undefined &&
         (input.materialRepair === undefined ||
           !isDeepStrictEqual(
@@ -227,11 +240,14 @@ export async function generateApiArguments(
           ? resolveApiLiteralProposalSources({
               callId: snapshot.callId,
               values: parsed.values,
-              sources: parsed.literalSources.map((source) => ({
-                ...source,
-                messageId: 'scenario',
-              })),
-              messages: [{ id: 'scenario', text: snapshot.scenario }],
+              sources: attributeApiLiteralGenerationSources(
+                snapshot,
+                parsed.literalSources,
+              ),
+              messages:
+                snapshot.literalSourceMessages === undefined
+                  ? [{ id: 'scenario', text: snapshot.scenario }]
+                  : snapshot.literalSourceMessages,
             })
           : undefined;
       const inspection = inspectApiArgumentRequirements({

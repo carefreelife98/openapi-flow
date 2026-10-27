@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
   describeApiLiteralGeneration,
   inspectApiArgumentRequirements,
+  describeWorkflowConnectionApiRepair,
 } from '@openapi-flow/core';
 import type { ApiCallArguments } from '@openapi-flow/core';
 import {
@@ -13,7 +14,7 @@ import {
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type {
   ApiArgumentPlanningDependencies,
-  ApiArgumentPlanningSource,
+  ApiArgumentPlanningSourceSnapshot,
   ApiArgumentPlanningState,
   ApiArgumentPlanningUpdate,
   ApiArgumentPlanningRuntimeFailure,
@@ -27,7 +28,7 @@ import { publishApiArgumentProgress } from './publish-api-argument-progress.js';
 
 function readSource(
   dependencies: ApiArgumentPlanningDependencies,
-): ApiArgumentPlanningSource {
+): ApiArgumentPlanningSourceSnapshot {
   const supplied = dependencies.source();
   const { input } = describeApiLiteralGeneration(supplied);
   const options = apiLiteralGenerationOptionsSchema.parse({
@@ -37,6 +38,15 @@ function readSource(
   });
   return {
     ...input,
+    ...(supplied.materialRepair === undefined
+      ? {}
+      : {
+          materialRepairDescription: describeWorkflowConnectionApiRepair({
+            stage: 'api-arguments',
+            repair: supplied.materialRepair,
+            planning: supplied,
+          }),
+        }),
     ...(options.includeExplanations === undefined
       ? {}
       : { includeExplanations: options.includeExplanations }),
@@ -168,9 +178,17 @@ export function createApiArgumentPlanningStages(
           policy: dependencies.policy,
         });
         let result: ApiCallArguments;
+        const source = { ...state.source };
+        delete source.materialRepairDescription;
+        // Executable native contracts stay runtime-owned, never in checkpoint data.
+        const materialRepair = dependencies.source().materialRepair;
+        const generation = {
+          ...source,
+          ...(materialRepair === undefined ? {} : { materialRepair }),
+        };
         try {
           result = await generateApiArguments({
-            ...state.source,
+            ...generation,
             model: dependencies.model,
             rejectedProposals: state.rejectedProposals,
             signal,
@@ -178,7 +196,7 @@ export function createApiArgumentPlanningStages(
         } catch (error) {
           check(state, config, error);
           const rejection = createApiArgumentRejection({
-            ...state.source,
+            ...generation,
             error,
           });
           if (rejection === undefined) throw error;

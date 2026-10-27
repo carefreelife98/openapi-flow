@@ -5,13 +5,27 @@ import type {
   ApiLiteralGenerationRecord,
 } from '../types/api-literal-generation.js';
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
-import { planningEvidenceTextSchema } from './planning-evidence-schema.js';
+import {
+  planningEvidenceTextSchema,
+  workflowSourceMessagesSchema,
+} from './planning-evidence-schema.js';
 
-export const apiLiteralGenerationIdentitySchema = z.strictObject({
-  callId: planningEvidenceTextSchema,
+export const apiLiteralSourceMessagesSchema =
+  workflowSourceMessagesSchema.refine(
+    (messages) => messages.length > 0,
+    'literalSourceMessages must not be empty',
+  );
+
+export const apiLiteralSourceContextSchema = z.strictObject({
   scenario: planningEvidenceTextSchema,
-  purpose: planningEvidenceTextSchema.optional(),
+  literalSourceMessages: apiLiteralSourceMessagesSchema.optional(),
 });
+
+export const apiLiteralGenerationIdentitySchema =
+  apiLiteralSourceContextSchema.extend({
+    callId: planningEvidenceTextSchema,
+    purpose: planningEvidenceTextSchema.optional(),
+  });
 
 export const apiLiteralGenerationOperationSchema = z.strictObject({
   key: apiOperationKeySchema,
@@ -21,13 +35,13 @@ export const apiLiteralGenerationOperationSchema = z.strictObject({
   description: z.string().optional(),
 });
 
-export const apiLiteralGenerationContextSchema = z.strictObject({
-  scenario: planningEvidenceTextSchema,
-  purpose: planningEvidenceTextSchema.optional(),
-  operation: apiLiteralGenerationOperationSchema,
-  literalInputSchema: z.record(z.string(), z.unknown()),
-  requestMediaType: planningEvidenceTextSchema.optional(),
-}) satisfies z.ZodType<ApiLiteralGenerationContext>;
+export const apiLiteralGenerationContextSchema =
+  apiLiteralSourceContextSchema.extend({
+    purpose: planningEvidenceTextSchema.optional(),
+    operation: apiLiteralGenerationOperationSchema,
+    literalInputSchema: z.record(z.string(), z.unknown()),
+    requestMediaType: planningEvidenceTextSchema.optional(),
+  }) satisfies z.ZodType<ApiLiteralGenerationContext>;
 
 export function createApiLiteralGenerationRecordSchema(
   valuesSchema: z.ZodType<ApiArgumentValues>,
@@ -51,6 +65,10 @@ export function createApiLiteralGenerationRecordSchema(
               kind: z.literal('scenario'),
               text: z.string(),
               purpose: planningEvidenceTextSchema.optional(),
+            }),
+            z.strictObject({
+              kind: z.literal('literal-source-messages'),
+              messages: apiLiteralSourceMessagesSchema,
             }),
             z.strictObject({
               kind: z.literal('literal-input-contract'),

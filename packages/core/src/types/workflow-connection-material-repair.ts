@@ -16,7 +16,10 @@ import type { NativeOutputContract } from './node-output.js';
 import type { NativePlanningCapabilityMaterial } from './native-node-planning.js';
 import type { DeferredApiInputSlot } from './deferred-api-inputs.js';
 import type { WorkflowConnectionMaterialRepairTarget } from './workflow-connection-revision.js';
-import type { ApiLiteralGenerationInput } from './api-literal-generation.js';
+import type {
+  ApiLiteralGenerationInput,
+  ApiLiteralSourceContext,
+} from './api-literal-generation.js';
 import type { ApiCallBindingPlanningInput } from './api-call-binding-planning.js';
 import type { OutputBinding } from './api-arguments.js';
 import type { WorkflowRequirementFact } from './workflow-clarification.js';
@@ -25,6 +28,8 @@ import type { WorkflowRequirementFact } from './workflow-clarification.js';
 export interface WorkflowConnectionApiRepairContext extends ValidateWorkflowConnectionSourceRepairRequestInput {
   /** Binding work is rederived and checked before exposing newly released literal inputs. */
   pendingReplacement?: WorkflowConnectionMaterialReplacement;
+  /** Host-owned original value-generation context, separate from the connection scenario and repair feedback. */
+  literalContext?: ApiLiteralSourceContext;
 }
 
 export type DescribeWorkflowConnectionApiRepairInput =

@@ -17,7 +17,10 @@ export function describeApiArgumentEnumContext(
     callId: snapshot.callId,
     values: proposal.values,
     sources: input.literalSources,
-    messages: [{ id: 'scenario', text: snapshot.scenario }],
+    messages:
+      snapshot.literalSourceMessages === undefined
+        ? [{ id: 'scenario', text: snapshot.scenario }]
+        : snapshot.literalSourceMessages,
   });
   const values = applyConfirmedApiInputs({
     ...snapshot,

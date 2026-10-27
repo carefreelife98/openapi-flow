@@ -133,6 +133,7 @@ import type {
   ApiSelectionExplanation,
   ApiRequestMediaTypeDecision,
   ApiLiteralGenerationRecord,
+  ApiLiteralSourceContext,
   ApiBindingPlanningRecord,
   ApiBindingPlan,
   NativeNodePlanningRecord,
@@ -1041,6 +1042,40 @@ validateApiLiteralGenerationRecord({
   ...literalAuditInput,
   record: literalAudit,
 });
+const originalLiteralContext: ApiLiteralSourceContext = {
+  scenario: JSON.stringify({ requests: ['Use the original supplied values.'] }),
+  literalSourceMessages: [
+    { id: 'original-values', text: JSON.stringify(proposal.values) },
+  ],
+};
+const originalLiteralInput = {
+  ...literalAuditInput,
+  ...originalLiteralContext,
+};
+const originalLiteralDescription =
+  describeApiLiteralGeneration(originalLiteralInput);
+assert.deepEqual(
+  originalLiteralDescription.context.literalSourceMessages,
+  originalLiteralContext.literalSourceMessages,
+);
+const originalLiteralRecord = createApiLiteralGenerationRecord({
+  ...originalLiteralInput,
+  ...(originalLiteralDescription.contract.hasLiteralInputs
+    ? {
+        proposal,
+        reason:
+          'Original supplied literal sources remain separate from JSON context.',
+      }
+    : {}),
+});
+validateApiLiteralGenerationRecord({
+  ...originalLiteralInput,
+  record: originalLiteralRecord,
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(originalLiteralRecord)),
+  originalLiteralRecord,
+);
 const auditedArgs: ApiCallArguments = {
   ...args,
   literalGeneration: literalAudit,
@@ -3023,6 +3058,7 @@ console.log(
     selectionExplanations: 'passed',
     requestMediaDecisions: 'passed',
     literalGenerationRecord: 'passed',
+    explicitLiteralSourceContext: 'passed',
     bindingPlanningRecord: 'passed',
     nativePlanningRecord: 'passed',
     stagedNativeConfiguration: 'passed',
