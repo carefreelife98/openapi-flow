@@ -1,5 +1,6 @@
 import { StateSchema } from '@langchain/langgraph';
 import { z } from 'zod';
+import { nativePlanningRejectionSchema } from '@openapi-flow/langchain';
 import type {
   NativeInstanceSelection,
   NativeInstanceSelectionReview,
@@ -25,6 +26,7 @@ export const nativeSelectionPlanningStateSchema = new StateSchema({
   reselections: z.int().nonnegative().optional(),
   selections: z.array(z.custom<NativeInstanceSelection>()).optional(),
   reviews: z.array(z.custom<NativeInstanceSelectionReview>()).optional(),
+  rejectedProposals: z.array(nativePlanningRejectionSchema).optional(),
   nextAction: z.enum(['select', 'review']).optional(),
   status: z
     .enum([

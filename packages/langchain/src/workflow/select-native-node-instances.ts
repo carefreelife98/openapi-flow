@@ -2,9 +2,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { isDeepStrictEqual } from 'node:util';
 import {
   createNativeInstanceSelectionSchema,
-  describeNativeInstanceSelection,
   resolveNativeInstanceSelection,
-  describeNativeInstanceSelectionFeedback,
 } from '@openapi-flow/core';
 import type {
   NativeInstanceSelection,
@@ -14,6 +12,8 @@ import type { SelectNativeNodeInstancesInput } from '../types/native-node-planni
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 import { nativeInstanceSelectionPrompt } from '../prompts/native-node-planning-prompt.js';
 import { NativeNodePlanningError } from './native-node-planning-error.js';
+import { describeNativeSelectionRequest } from './native-selection/describe-native-planning-request.js';
+import { validateNativePlanningRejections } from './native-selection/validate-native-planning-rejections.js';
 
 /** One checkpointable role/ownership selection; parameter values are a separate public stage. */
 export async function selectNativeNodeInstances(
@@ -27,16 +27,39 @@ export async function selectNativeNodeInstances(
     throw new Error(
       'selectNativeNodeInstances.model must support structured output when supplied',
     );
-  const { context } = describeNativeInstanceSelection(input);
-  const feedback =
-    input.feedback === undefined
-      ? undefined
-      : describeNativeInstanceSelectionFeedback(input, input.feedback);
-  const originalOptions = JSON.stringify([
-    input.planId,
-    input.allowRuntimeParameters,
-    input.includeExplanations,
-  ]);
+  const request = describeNativeSelectionRequest(input);
+  const { context, feedback, requestFingerprint } = request;
+  const rejectedProposals = validateNativePlanningRejections({
+    stage: 'instance-selection',
+    requestFingerprint,
+    rejectedProposals: input.rejectedProposals,
+  });
+  const checkCurrent = (failure?: unknown): void => {
+    try {
+      if (
+        !isDeepStrictEqual(request, describeNativeSelectionRequest(input)) ||
+        !isDeepStrictEqual(
+          rejectedProposals,
+          validateNativePlanningRejections({
+            stage: 'instance-selection',
+            requestFingerprint,
+            rejectedProposals: input.rejectedProposals,
+          }),
+        )
+      )
+        throw new Error(
+          'Native instance source contracts changed during selection; no automatic rebase',
+        );
+    } catch (cause) {
+      if (failure !== undefined)
+        throw new AggregateError(
+          [failure, cause],
+          'Native selection input changed while a failed model call was received',
+          { cause },
+        );
+      throw cause;
+    }
+  };
   const schema = createNativeInstanceSelectionSchema(input);
   if (!context.capabilities.length)
     return resolveNativeInstanceSelection({
@@ -69,38 +92,30 @@ export async function selectNativeNodeInstances(
           JSON.stringify({
             ...context,
             ...(feedback === undefined ? {} : { selectionFeedback: feedback }),
+            ...(rejectedProposals.length === 0 ? {} : { rejectedProposals }),
           }),
         ),
       ],
       input.signal === undefined ? undefined : { signal: input.signal },
-    );
-  input.signal?.throwIfAborted();
-  try {
-    if (
-      !isDeepStrictEqual(
-        describeNativeInstanceSelection(input).context,
-        context,
-      ) ||
-      !isDeepStrictEqual(
-        feedback,
-        input.feedback === undefined
-          ? undefined
-          : describeNativeInstanceSelectionFeedback(input, input.feedback),
-      ) ||
-      JSON.stringify([
-        input.planId,
-        input.allowRuntimeParameters,
-        input.includeExplanations,
-      ]) !== originalOptions
     )
-      throw new Error(
-        'Native instance source contracts changed during selection; no automatic rebase',
-      );
+    .catch((error: unknown) => {
+      checkCurrent(error);
+      throw error;
+    });
+  input.signal?.throwIfAborted();
+  let unchanged = false;
+  try {
+    checkCurrent();
+    unchanged = true;
     return resolveNativeInstanceSelection({ ...input, proposal: output });
   } catch (cause) {
     if (!(cause instanceof Error)) throw cause;
     throw new NativeNodePlanningError(
-      { stage: 'instance-selection', output },
+      {
+        stage: 'instance-selection',
+        output,
+        ...(unchanged ? { requestFingerprint } : {}),
+      },
       cause,
     );
   }

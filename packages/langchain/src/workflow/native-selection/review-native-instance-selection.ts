@@ -16,6 +16,8 @@ import { serializeStructuredOutputSchema } from '../../schemas/serialize-structu
 import { modelSignalSchema } from '../../schemas/model-signal-schema.js';
 import { nativeInstanceSelectionReviewPrompt } from '../../prompts/native-instance-selection-review-prompt.js';
 import { NativeInstanceSelectionReviewError } from './native-instance-selection-review-error.js';
+import { fingerprintNativeSelectionReviewRequest } from './describe-native-planning-request.js';
+import { validateNativePlanningRejections } from './validate-native-planning-rejections.js';
 
 /** One review call only. The host owns replanning, user questions, budgets and persistence. */
 export async function reviewNativeInstanceSelection(
@@ -35,6 +37,12 @@ export async function reviewNativeInstanceSelection(
     },
   );
   input.signal?.throwIfAborted();
+  const requestFingerprint = fingerprintNativeSelectionReviewRequest(input);
+  const rejectedProposals = validateNativePlanningRejections({
+    stage: 'selection-review',
+    requestFingerprint,
+    rejectedProposals: input.rejectedProposals,
+  });
   if (!description.gaps.length)
     return createNativeInstanceSelectionReview({
       ...input,
@@ -72,6 +80,14 @@ export async function reviewNativeInstanceSelection(
             !isDeepStrictEqual(
               description,
               describeNativeInstanceSelectionReview(input),
+            ) ||
+            !isDeepStrictEqual(
+              rejectedProposals,
+              validateNativePlanningRejections({
+                stage: 'selection-review',
+                requestFingerprint,
+                rejectedProposals: input.rejectedProposals,
+              }),
             )
           )
             throw new Error(
@@ -102,7 +118,12 @@ export async function reviewNativeInstanceSelection(
       strict: true,
       messages: [
         new SystemMessage(nativeInstanceSelectionReviewPrompt),
-        new HumanMessage(JSON.stringify(description)),
+        new HumanMessage(
+          JSON.stringify({
+            ...description,
+            ...(rejectedProposals.length === 0 ? {} : { rejectedProposals }),
+          }),
+        ),
       ],
       ...(input.signal === undefined ? {} : { signal: input.signal }),
     }).catch((error: unknown) => {
@@ -114,6 +135,9 @@ export async function reviewNativeInstanceSelection(
     return createNativeInstanceSelectionReview({ ...input, proposal: output });
   } catch (cause) {
     if (!(cause instanceof Error)) throw cause;
-    throw new NativeInstanceSelectionReviewError({ output }, cause);
+    throw new NativeInstanceSelectionReviewError(
+      { output, requestFingerprint },
+      cause,
+    );
   }
 }

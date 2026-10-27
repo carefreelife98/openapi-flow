@@ -90,6 +90,16 @@ export type * from './types/workflow-connection-goal-review.js';
 export type * from './types/native-instance-selection-review.js';
 export { reviewNativeInstanceSelection } from './workflow/native-selection/review-native-instance-selection.js';
 export { NativeInstanceSelectionReviewError } from './workflow/native-selection/native-instance-selection-review-error.js';
+export {
+  createNativeSelectionRejection,
+  createNativeSelectionReviewRejection,
+} from './workflow/native-selection/create-native-planning-rejection.js';
+export { nativePlanningRejectionSchema } from './schemas/native-planning-rejection-schema.js';
+export type * from './types/native-planning-rejection.js';
+export {
+  describeNativeSelectionRequest,
+  fingerprintNativeSelectionReviewRequest,
+} from './workflow/native-selection/describe-native-planning-request.js';
 export type * from './types/workflow-connection-outline.js';
 export { planWorkflowConnectionOutline } from './workflow/connections/plan-workflow-connection-outline.js';
 export { describeWorkflowConnectionOutlineRequest } from './workflow/connections/describe-workflow-connection-outline-request.js';

@@ -1,5 +1,7 @@
 # 현재 대화형 워크플로우 설계 그래프
 
+현재 작업(2026-10-27, native 계약 거절·미배포): 공개 0.4.0으로 원문 다섯 시나리오를 두 방식에서 독립 재평가했습니다. 열 번의 API 선택은 기대 28종과 일치했지만 단일 0/5·증분 0/5이며 연결 도달은 없습니다. 원문 인용 오류 4건·native 설정 계약 오류 1건·실제 결손 보고 4건·업무 질문 대기 1건을 구분합니다. 보완 중인 OSS는 원래 입력·단계가 같은 출력 계약 오류만 원본 출력/사유와 함께 다음 한 번 호출에 전달합니다. 예제 자식 그래프가 기존 호출 예산·checkpoint로 반복하며 라이브러리의 숨은 재시도는 없습니다. 네트워크·취소·입력 변경과 실제 미지원·업무 질문은 자동 우회하지 않습니다. 아래 topology는 실제 컴파일 결과이며 경로를 임의로 추가하지 않았습니다. 제품 공개 설치·원문 task 연결·복구 dispatcher와 원문 다섯 쌍의 새 최종 평가는 남고, 0.4.1 최초 후보의 엔진 33묶음 통과는 이번 후속 수정의 검증으로 대체하지 않습니다. 회사 push·Cloud·기존 사용자 서버는 유지합니다.
+
 현재 작업(2026-10-27, enum 원문 출처·미배포): API 값 생성의 원문 목록을 enum 의도 단계까지 전달합니다. 각 메시지의 인용 후보·UTF-16 위치는 따로 유지하고 JSON 포장이나 이어 붙인 문자열에서 값을 추출하지 않습니다. 한 메시지의 ID는 코드 소유이고 여러 메시지에서는 모델이 제공된 ID·인용 위치·해당 OAS 후보만 선택합니다. 코드는 원본 enum 값을 타입 그대로 복사하고 메시지 ID를 기록·재검증합니다. 명시적 원문이 모두 비어 있으면 모델 호출 없이 입력 미정으로 남으며 두 번째 enum 호출 중 원문/복구 입력 변경도 거절합니다. 새 18건 포함 전체 1747/1748·기존 Ajv 한 실패·skip/cancel 0, 집중 65건·원본 OAS 4파일/59건·타입/빌드/Lint/포맷·그래프 5건·독립 설치를 확인했습니다. SDK HTTP 검사는 기존 네 조건과 메시지 두 조건이며 실제 모델의 좁은 입력 검사에서는 최초 계약 거절·같은 원문과 검증 피드백을 사용한 명시적 예산 내 1회 재계획·OAS enum 값 복사를 확인했습니다. 앞선 직접 실패와 측정 하니스 실패도 보존했습니다. 인용 의미의 충분함·원문 다섯 쌍 품질·업무 API·엔진 검증을 대신하지 않습니다. 아래 실제 topology는 유지하고 제품 복구 dispatcher·전체 원문 다섯 쌍 품질 평가는 아직 완료하지 않았습니다. Qoopilot 공개 0.4.0·잠금·기존 서버·회사 원격·Cloud와 원래 0~7 범위를 유지합니다.
 
 현재 작업(2026-10-27, 원문 출처 채널·미배포): API 값 생성이 계획 문맥 scenario와 실제 literalSourceMessages를 분리해 받습니다. 한 원문의 ID는 코드가 붙이고 여러 원문에서는 제공된 ID만 모델이 선택합니다. 기존 완전 인용·타입·전체 값 검사와 JSON 문자열 보호는 유지합니다. materialRepair.literalContext는 별도 원문 문맥을 명시적으로 고정하면서 원래 API·역할·OAS·바인딩 검사를 유지합니다. 예제 API 재계획 자식은 runtime 계약을 checkpoint에 넣지 않고 검증 설명·지문을 저장하며 실제 복구 입력을 호출에 전달합니다. 새 회귀 20건 포함 전체 1729/1730·기존 Ajv 한 실패·skip/cancel 0, 집중 46건·OAS 4파일/59건·타입/빌드/Lint/포맷·그래프 5건·독립 설치를 확인했습니다. SDK 로컬 HTTP의 실제 전송 스키마도 검사했습니다. 실제 모델·업무 API 호출은 없으며 아래 실제 topology와 Qoopilot 공개 0.4.0·잠금·기존 서버·회사 원격·Cloud는 유지합니다. 다중 메시지 enum 의도 추출·제품 복구 dispatcher·원문 다섯 쌍 독립 평가와 전체 0~7 범위는 미완료입니다.
@@ -396,8 +398,8 @@ flowchart TD
   nativeSelection3["initialize / 원문·API·기능·정책 snapshot 확인"]
   nativeSelection4["publishOutcome / 안전한 결과 요약 / 완료·중단·다음 선택"]
   nativeSelection5["reserveModelCall / 예산·취소·기한 검사 / 호출 예약 저장"]
-  nativeSelection6["reviewSelection / 원래 결손 검토 / 미지원·업무 판단 보존"]
-  nativeSelection7["selectInstances / 독립 선택 또는 검토·시도 이력으로 재선택"]
+  nativeSelection6["reviewSelection / 원래 결손 검토 / 계약 거절만 재계획·실제 미지원 보존"]
+  nativeSelection7["selectInstances / 독립 선택 / 계약 거절·검토 근거로 재선택"]
   nativeSelection1 --> nativeSelection3
   nativeSelection2 --> nativeSelection0
   nativeSelection3 -.-> nativeSelection0

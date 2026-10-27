@@ -133,6 +133,122 @@ test('an unchanged rejected selection reuses its review and sends all attempts t
   );
 });
 
+test('invalid selection and review outputs use source-bound feedback and the shared model budget without human approval', async () => {
+  const f = await fixture();
+  const badSelection = clone(f.proposal);
+  badSelection.instances[0].capability = 'not-supplied';
+  const badReview = clone(f.reviewProposal);
+  badReview.assessments[f.selection.gaps[0].id].sourceQuote =
+    'Generated explanation is not source text';
+  const progress = [];
+  const model = queueModel([
+    badSelection,
+    f.proposal,
+    badReview,
+    f.reviewProposal,
+    f.ready,
+  ]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+    observe: (event) => progress.push(event),
+  });
+  const config = {
+    configurable: { thread_id: 'contract-correction-ledger' },
+    durability: 'sync',
+  };
+  const result = await graph.invoke({ source: f.source }, config);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.modelInvocations, 5);
+  assert.equal(result.reselections, 1);
+  assert.equal(result.selections.length, 2);
+  assert.equal(result.reviews.length, 1);
+  assert.equal(result.rejectedProposals.length, 2);
+  assert.deepEqual(
+    result.rejectedProposals.map((entry) => entry.output),
+    [badSelection, badReview],
+  );
+  assert.deepEqual(model.calls[1].payload.rejectedProposals, [
+    result.rejectedProposals[0],
+  ]);
+  assert.deepEqual(model.calls[3].payload.rejectedProposals, [
+    result.rejectedProposals[1],
+  ]);
+  assert.equal(
+    Object.hasOwn(model.calls[4].payload, 'rejectedProposals'),
+    false,
+    'A new reviewed selection request cannot reuse stale contract feedback',
+  );
+  assert.deepEqual(
+    progress.map((event) => event.phase),
+    ['selection-rejected', 'selected', 'review-rejected', 'reviewed', 'ready'],
+  );
+  for (const event of progress) {
+    assert.equal(Object.hasOwn(event, 'output'), false);
+    assert.equal(Object.hasOwn(event, 'reason'), false);
+  }
+  const { failureId, ...serializable } = result;
+  assert.equal(failureId, undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), serializable);
+  assert.deepEqual((await graph.getState(config)).next, []);
+});
+
+test('repeated invalid outputs stop before dispatch at the existing shared invocation limit and stay stopped on resume', async () => {
+  const f = await fixture();
+  const bad = clone(f.proposal);
+  bad.instances[0].capability = 'not-supplied';
+  const model = queueModel([bad, bad]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy: { ...policy, maxModelInvocations: 2 },
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+  });
+  const config = { configurable: { thread_id: 'contract-rejection-limit' } };
+  const limit = (error) =>
+    error instanceof NativeSelectionPlanningLimitError &&
+    error.failure.kind === 'model-invocations';
+  await assert.rejects(graph.invoke({ source: f.source }, config), limit);
+  const saved = await graph.getState(config);
+  assert.equal(saved.values.modelInvocations, 2);
+  assert.equal(saved.values.rejectedProposals.length, 2);
+  await assert.rejects(graph.invoke(null, config), limit);
+  assert.equal(model.calls.length, 2);
+});
+
+test('an observer failure after a contract rejection retains its output checkpoint without repeating model calls', async () => {
+  const f = await fixture();
+  const bad = clone(f.proposal);
+  bad.instances[0].capability = 'not-supplied';
+  const cause = new Error('Original rejection observer failure');
+  const model = queueModel([bad]);
+  const graph = createNativeSelectionPlanningGraph({
+    capabilities: f.capabilities,
+    model,
+    policy,
+    now: Date.now,
+    checkpointer: new MemorySaver(),
+    observe: () => {
+      throw cause;
+    },
+  });
+  const config = { configurable: { thread_id: 'rejected-observer-failure' } };
+  await assert.rejects(
+    graph.invoke({ source: f.source }, config),
+    (error) => error === cause,
+  );
+  const saved = await graph.getState(config);
+  assert.equal(saved.values.rejectedProposals.length, 1);
+  assert.deepEqual(saved.values.rejectedProposals[0].output, bad);
+  assert.deepEqual(saved.next, ['fail']);
+  await assert.rejects(graph.invoke(null, config), (error) => error === cause);
+  assert.equal(model.calls.length, 1);
+});
+
 for (const [field, value, kind, outputs, expectedCalls] of [
   ['maxModelInvocations', 2, 'model-invocations', 'reviewed', 2],
   ['maxReselections', 0, 'reselections', 'reviewed', 2],

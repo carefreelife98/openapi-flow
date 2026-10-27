@@ -29,7 +29,14 @@ export type NativeSelectionPlanningState =
 export type NativeSelectionPlanningUpdate =
   typeof nativeSelectionPlanningStateSchema.Update;
 export interface NativeSelectionPlanningProgress {
-  phase: 'selected' | 'repeated-selection' | 'reviewed' | 'ready' | 'blocked';
+  phase:
+    | 'selected'
+    | 'repeated-selection'
+    | 'reviewed'
+    | 'ready'
+    | 'blocked'
+    | 'selection-rejected'
+    | 'review-rejected';
   modelInvocations: number;
   reselections: number;
   reportedGaps: number;

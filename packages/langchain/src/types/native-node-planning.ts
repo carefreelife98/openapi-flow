@@ -1,5 +1,6 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { z } from 'zod';
+import type { NativePlanningRejectedProposal } from './native-planning-rejection.js';
 import type {
   JsonValueObject,
   NativeNodePlanningInput,
@@ -94,6 +95,7 @@ export type NativeNodePlanningFailure =
         | 'parameter-schema'
         | 'parameter-validation';
       output: unknown;
+      requestFingerprint?: string;
     }
   | { stage: 'proposal-schema'; output: unknown }
   | {
@@ -107,6 +109,8 @@ export interface SelectNativeNodeInstancesInput extends NativeInstanceSelectionI
   signal?: AbortSignal;
   /** Explicit independently reviewed rejection. Never causes a hidden retry. */
   feedback?: NativeInstanceSelectionFeedback;
+  /** Explicit same-source contract rejections. No library-owned retry is performed. */
+  rejectedProposals?: NativePlanningRejectedProposal[];
 }
 
 export interface GenerateNativeNodeParametersInput extends NativeNodeConfigurationInput {

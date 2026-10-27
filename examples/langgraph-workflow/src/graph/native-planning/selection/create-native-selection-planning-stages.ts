@@ -6,9 +6,17 @@ import {
   validateNativeInstanceSelection,
   validateNativeInstanceSelectionReview,
 } from '@openapi-flow/core';
+import type {
+  NativeInstanceSelection,
+  NativeInstanceSelectionReview,
+} from '@openapi-flow/core';
 import {
   selectNativeNodeInstances,
   reviewNativeInstanceSelection,
+  createNativeSelectionRejection,
+  createNativeSelectionReviewRejection,
+  describeNativeSelectionRequest,
+  fingerprintNativeSelectionReviewRequest,
 } from '@openapi-flow/langchain';
 import type {
   NativeSelectionPlanningDependencies,
@@ -54,6 +62,7 @@ export function createNativeSelectionPlanningStages(
     if (
       !state.selections ||
       !state.reviews ||
+      !state.rejectedProposals ||
       state.startedAt === undefined ||
       state.modelInvocations === undefined ||
       state.reselections === undefined ||
@@ -77,6 +86,7 @@ export function createNativeSelectionPlanningStages(
     if (
       state.modelInvocations <
         state.reviews.length +
+          state.rejectedProposals.length +
           (state.snapshot.context.capabilities.length
             ? state.selections.length
             : 0) ||
@@ -177,6 +187,7 @@ export function createNativeSelectionPlanningStages(
         reselections: 0,
         selections: [],
         reviews: [],
+        rejectedProposals: [],
         status: 'planning',
         nextAction: 'select',
       };
@@ -232,7 +243,7 @@ export function createNativeSelectionPlanningStages(
           throw new Error(
             'Native reselection requires the original matching gap review',
           );
-        const selection = await selectNativeNodeInstances({
+        const input = {
           ...source(state),
           model: dependencies.model,
           signal: signal(state, config),
@@ -245,7 +256,34 @@ export function createNativeSelectionPlanningStages(
                 },
               }
             : {}),
-        });
+        };
+        const request = describeNativeSelectionRequest(input);
+        let selection: NativeInstanceSelection;
+        try {
+          selection = await selectNativeNodeInstances({
+            ...input,
+            rejectedProposals: state.rejectedProposals!.filter(
+              (entry) =>
+                entry.stage === 'instance-selection' &&
+                entry.requestFingerprint === request.requestFingerprint,
+            ),
+          });
+        } catch (error) {
+          const rejection = createNativeSelectionRejection({ ...input, error });
+          if (rejection === undefined) throw error;
+          check(state, config);
+          return {
+            rejectedProposals: [...state.rejectedProposals!, rejection],
+            status: 'planning',
+            nextAction: 'select',
+            progress: {
+              phase: 'selection-rejected',
+              modelInvocations: state.modelInvocations!,
+              reselections: state.reselections!,
+              reportedGaps: previous === undefined ? 0 : previous.gaps.length,
+            },
+          };
+        }
         check(state, config);
         const repeated = state.selections!.some(
           (item) => item.id === selection.id,
@@ -291,12 +329,43 @@ export function createNativeSelectionPlanningStages(
         const selection = state.selections!.at(-1);
         if (!selection || !selection.gaps.length)
           throw new Error('Native gap review requires a reported original gap');
-        const review = await reviewNativeInstanceSelection({
+        const input = {
           ...source(state),
           selection,
           model: dependencies.model,
           signal: signal(state, config),
-        });
+        };
+        const requestFingerprint =
+          fingerprintNativeSelectionReviewRequest(input);
+        let review: NativeInstanceSelectionReview;
+        try {
+          review = await reviewNativeInstanceSelection({
+            ...input,
+            rejectedProposals: state.rejectedProposals!.filter(
+              (entry) =>
+                entry.stage === 'selection-review' &&
+                entry.requestFingerprint === requestFingerprint,
+            ),
+          });
+        } catch (error) {
+          const rejection = createNativeSelectionReviewRejection({
+            ...input,
+            error,
+          });
+          if (rejection === undefined) throw error;
+          check(state, config);
+          return {
+            rejectedProposals: [...state.rejectedProposals!, rejection],
+            status: 'planning',
+            nextAction: 'review',
+            progress: {
+              phase: 'review-rejected',
+              modelInvocations: state.modelInvocations!,
+              reselections: state.reselections!,
+              reportedGaps: selection.gaps.length,
+            },
+          };
+        }
         check(state, config);
         const status =
           review.status === 'needs-reselection'
