@@ -13,12 +13,15 @@ context. Default planning excludes explicit-only `ComposeApiResponses`, exposing
 17 registrations and 16 planning definitions without a host literal producer.
 The older inventories below describe their stated historical source versions.
 
-Unreleased follow-up: `GatherApiResponses` now declares each `results` position
+Published 0.4.6: `GatherApiResponses` now declares each `results` position
 with `prefixItems` in the already-selected `sourceNodeIds` order. This matches the
 existing reader and official Aggregate output, without changing API execution
 order or response values. Published 0.4.5 describes the possible entry set but
 omits positional identity; it does not contain this correction. Downstream
 consumers still validate references against the actual bound output contract.
+The three public 0.4.6 archives and GitHub Release are verified. Local product
+installation and its complete verification passed; fresh whole-scenario model
+generation, engine and UI quality are separate pending checks.
 
 Local unreleased source adds `CollectNativeOutputValues`
 (`collect-native-output-values`). It requires actual native output contracts and
