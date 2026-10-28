@@ -296,7 +296,8 @@ Further webhook/callback implementation is deferred, including inbound authentic
 
 ## TODO and roadmap
 
-- [ ] Unreleased planning and pagination integration (2026-10-28):
+- [x] Publish explicit material revision requests and goal-aware connection outlines in [0.5.0](docs/releases/0.5.0-notes.md). The host owns candidate planning and atomic validated adoption; material revision output is opt-in through `allowMaterialRevisions`.
+- [ ] Planning and pagination integration after 0.5.0 (2026-10-28):
   - [x] Treat selected native producers as permitted materials. Derive actual references from validated settings and accept a subset without inventing execution dependencies.
   - [x] Pool exactly repeated native-selection material contracts on the model wire while preserving original receipts and validation.
   - [x] Provide an explicit numeric-query HTTP Request pagination compile option; verify per-page values and completion in isolated n8n.
@@ -488,8 +489,8 @@ item-preserving fragment. An ordinary singleton response binding rejects multipl
 pages instead of selecting one or silently collecting them. POST request bodies
 and unrelated literal/bound query values retain their existing serialization.
 
-This source-only option is not installed in the published 0.4.6 host and is not
-connected to natural-language planning. Body parameter pagination, body-based/empty
+This explicit compile option is available in 0.5.0 and is not connected to
+natural-language planning. Body parameter pagination, body-based/empty
 body pagination termination and next URL traversal are outside the current scope
 by owner decision (2026-10-28). Generic IF loop planning and compilation are
 on hold by owner decision. A page field name alone does not establish
