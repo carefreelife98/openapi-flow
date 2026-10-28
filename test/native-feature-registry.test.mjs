@@ -21,8 +21,8 @@ test('omission inventories every registered feature and exposes unmet context in
     registry.registrations.map((entry) => entry.feature),
     Object.values(N8nNativeFeature),
   );
-  assert.equal(registry.registrations.length, 17);
-  assert.equal(registry.capabilities.length, 6);
+  assert.equal(registry.registrations.length, 18);
+  assert.equal(registry.capabilities.length, 7);
   const pending = registry.registrations.filter(
     (entry) => entry.status === 'requires-context',
   );

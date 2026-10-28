@@ -296,6 +296,14 @@ Further webhook/callback implementation is deferred, including inbound authentic
 
 ## TODO and roadmap
 
+- [ ] Publish and adopt the working-tree `EvaluateResponses` family after release
+  review. It preserves original API/native values and returns scenario-defined
+  per-check outcomes plus counts; an adverse observation does not throw. Missing
+  optional data stays undetermined, while invalid OAS/type/reference contracts
+  still fail. See [response evaluation](docs/native-feature-registry.md#response-evaluation).
+  Synthetic isolated n8n checks and fixed original-OAS evaluation fixtures are
+  not a new end-to-end Qoopilot generation/UI quality result.
+
 - [ ] Unreleased source-only failure hardening and representative workflow completion:
   - [x] Keep source-selection wire schemas bounded while preserving exact local source membership, original values/types, and ordered text-boundary checks.
   - [x] Remove redundant root/terminal generation from incremental model outputs; derive those boundaries from proposed edges and actual contracts, retaining atomic DAG/reference validation.

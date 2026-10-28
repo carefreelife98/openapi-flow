@@ -11,6 +11,7 @@ export const N8nNativeFeature = Object.freeze({
   If: 'if',
   MergeAppend: 'merge-append',
   AssertResponses: 'assert-responses',
+  EvaluateResponses: 'evaluate-responses',
   StopAndError: 'stop-and-error',
   PassThrough: 'pass-through',
   RejoinExclusiveBranches: 'rejoin-exclusive-branches',

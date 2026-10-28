@@ -4,6 +4,7 @@ import type { ApiCallArguments, PlannedNativeNode } from '@openapi-flow/core';
 import {
   N8nNativeFeature,
   createApiResponseResultsCapability,
+  createResponseEvaluationCapability,
   createHttpRequestNode,
   compilePlannedN8nWorkflow,
   resolveN8nNativePlanningFeatures,
@@ -13,6 +14,7 @@ import type {
   ApiResponseResultsParameters,
   CreateApiResponseResultsCapabilityInput,
   CreateHttpRequestNodeInput,
+  ResponseEvaluationParameters,
 } from '@openapi-flow/n8n';
 
 /** Independent installed-package proof using an unchanged actual OAS contract. */
@@ -36,6 +38,29 @@ export function verifyConsumerApiResponseResults(
     })),
   };
   const capability = createApiResponseResultsCapability(source);
+  const evaluation = createResponseEvaluationCapability({
+    sources: { apiMaterials: source.materials, nativeOutputs: [] },
+  });
+  const evaluationParameters: ResponseEvaluationParameters = {
+    checks: [
+      {
+        kind: 'unassessed',
+        source: { source: 'response', nodeId: callIds[0]!, pointer: '' },
+      },
+    ],
+  };
+  assert.equal(evaluation.name, N8nNativeFeature.EvaluateResponses);
+  assert.ok(evaluation.outputSchema?.(evaluationParameters));
+  assert.throws(() =>
+    evaluation.outputSchema?.({
+      checks: [
+        {
+          kind: 'unassessed',
+          source: { source: 'response', nodeId: 'not-offered', pointer: '' },
+        },
+      ],
+    }),
+  );
   const parameters: ApiResponseResultsParameters = { sourceNodeIds: callIds };
   const planned: PlannedNativeNode = {
     id: 'consumer-result-list',

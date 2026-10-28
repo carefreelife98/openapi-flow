@@ -15,6 +15,8 @@ import type {
 import type { N8nNativeOutputSource } from './output-binding-source.js';
 import type {
   nativeOperandSchema,
+  nativeResponseOperandSchema,
+  nativeOutputOperandSchema,
   nativeCheckSchema,
   ifParametersSchema,
   mergeParametersSchema,
@@ -23,6 +25,9 @@ import type {
 } from '../schemas/native-capability-schemas.js';
 
 export type NativeOperand = z.infer<typeof nativeOperandSchema>;
+export type NativeReferenceOperand =
+  | z.infer<typeof nativeResponseOperandSchema>
+  | z.infer<typeof nativeOutputOperandSchema>;
 export type NativeCheck = z.infer<typeof nativeCheckSchema>;
 export type IfParameters = z.infer<typeof ifParametersSchema>;
 export type MergeParameters = z.infer<typeof mergeParametersSchema>;

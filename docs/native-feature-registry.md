@@ -1,5 +1,16 @@
 # Registered n8n feature selection
 
+The current working tree adds `EvaluateResponses` (`evaluate-responses`) after
+published 0.4.4. It produces explicit per-check results and counts without stopping
+on a valid adverse observation. It shares the existing comparison and source
+validation runtime, compiles to an official SDK Code node, and introduces no
+health threshold defaults. See [response evaluation](#response-evaluation).
+This addition is not yet published or installed in Qoopilot. Current inventory:
+18 families, seven constructible without source context and eleven requiring
+context. Default planning excludes explicit-only `ComposeApiResponses`, exposing
+17 registrations and 16 planning definitions without a host literal producer.
+The older inventories below describe their stated historical source versions.
+
 Local unreleased source adds `CollectNativeOutputValues`
 (`collect-native-output-values`). It requires actual native output contracts and
 reuses official Aggregate through the same compiler as `CollectApiResponses`.
@@ -73,6 +84,7 @@ retry. Supplied invalid context fails even if an unrelated feature was selected.
 | `If`                      | `if`                        | None; planning later restricts response references to actual API instances                                                 |
 | `MergeAppend`             | `merge-append`              | None                                                                                                                       |
 | `AssertResponses`         | `assert-responses`          | None; planning later restricts response references to actual API instances                                                 |
+| `EvaluateResponses`       | `evaluate-responses`        | Factory accepts explicit API/native source arrays; configured rules require their actual source contracts                  |
 | `StopAndError`            | `stop-and-error`            | None                                                                                                                       |
 | `PassThrough`             | `pass-through`              | None                                                                                                                       |
 | `RejoinExclusiveBranches` | `rejoin-exclusive-branches` | None; final graph still requires the declared IF alternatives                                                              |
@@ -121,6 +133,44 @@ declarations. It does not prove that a selected response pointer is an array,
 that a branch dependency is reachable, that source declarations match compiled
 producers or that n8n credentials are accessible. Existing parameter, source,
 topology, request and runtime response validators still own those checks.
+
+## Response evaluation
+
+`assert-responses` throws when a comparison is false. `evaluate-responses` instead
+returns `checks` and `summary` data. Each rule explicitly selects an original API
+response or native output, a JSON pointer, a scope and its scenario-owned policy.
+Ordered strict scalar comparisons map to `normal`, `warning`, `abnormal` or
+`undetermined`; the first match wins. `otherwise` is required. The library does
+not interpret arbitrary monitoring objects or infer environment/health rules.
+
+`scope` is `value`, `array-items` or `object-values`. The latter two report each
+original entry with its escaped absolute source pointer. Missing optional fields
+and empty iterated collections produce an `undetermined` result, not an invented
+zero or vacuous success. `measurement: 'array-length'` preserves the array as
+`actualValue` and emits its separate `measuredValue`. `kind: 'unassessed'` records
+an observation for which no supported business decision rule exists.
+
+`createResponseEvaluationCapability({ sources: { apiMaterials, nativeOutputs } })`
+requires both source arrays explicitly. Its parameter, result and policy types are
+public exports from `@openapi-flow/n8n`. The registry can expose the definition
+before producers exist; actual source identities/contracts are bound when rules
+are configured. Planning restricts reference IDs to supplied API/native producers.
+The compiler checks their unchanged contracts and reachable execution sources.
+
+The official SDK Code node reuses the IF/assertion source reader and strict
+comparison functions. Independent branches must first join through Merge;
+evaluation is not an implicit join. Default execution reports one combined result
+with all contributing input links. Explicit `itemMode: 'linked'` reports one result
+per input item and preserves its pairing. Invalid OAS/native data, unknown source
+identities, invalid pointers and invalid numeric comparisons remain technical
+errors. A valid adverse outcome continues to the next node.
+
+Run `node integration/response-evaluation-local-n8n.mjs` after building. The
+disposable n8n 2.37.10 container uses `--network none` and a loopback contract
+server. Four valid cases complete and echo unchanged reports to a subsequent API;
+one invalid-OAS case fails before that API. Import JSON and a compact report are
+written under `.local-artifacts/response-evaluation/`. These synthetic engine
+checks are separate from real-model and whole-scenario quality evaluation.
 
 `JsonOutput` deliberately requires a host-owned typed producer contract. Its
 feature key is a family identity, not a new fixed capability name. The registry

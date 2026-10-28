@@ -343,6 +343,7 @@ export type * from './types/api-response.js';
 export { createResponseArrayItemSchema } from './openapi/response/create-response-array-item-schema.js';
 export { createResponseArrayItemValueSchema } from './openapi/response/create-response-array-item-value-schema.js';
 export { createNativeArrayItemSchema } from './bindings/create-native-array-item-schema.js';
+export { createNativeObjectEntrySchema } from './bindings/create-native-object-entry-schema.js';
 export { createNativeValueSchema } from './bindings/create-native-value-schema.js';
 export { pointerTokens } from './bindings/json-pointer.js';
 export { createNativeObjectProjectionSchema } from './bindings/create-native-object-projection-schema.js';

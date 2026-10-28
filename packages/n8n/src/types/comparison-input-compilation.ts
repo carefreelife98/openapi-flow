@@ -3,6 +3,7 @@ import type {
   NativeCheck,
 } from './native-capability.js';
 import type { N8nOutputBindingSource } from './output-binding-source.js';
+import type { WorkflowValueReference } from '@openapi-flow/core';
 
 export interface CreateComparisonInputReaderInput extends Pick<
   CompileNativeNodeInput,
@@ -19,4 +20,11 @@ export interface CreateComparisonInputReaderInput extends Pick<
 export interface CompiledComparisonInputReader {
   code: string;
   bindingSources: N8nOutputBindingSource[];
+}
+
+export interface CreateComparisonSourceReaderInput extends Omit<
+  CreateComparisonInputReaderInput,
+  'checks'
+> {
+  references: WorkflowValueReference[];
 }

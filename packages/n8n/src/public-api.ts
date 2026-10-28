@@ -53,6 +53,12 @@ export type {
   N8nWorkflowTemplateResult,
 } from './types/workflow-template.js';
 export type * from './types/native-capability.js';
+export { createResponseEvaluationCapability } from './nodes/native/evaluation/create-response-evaluation-capability.js';
+export {
+  responseEvaluationParametersSchema,
+  responseEvaluationStatusSchema,
+} from './schemas/response-evaluation-schema.js';
+export type * from './types/response-evaluation.js';
 export type {
   N8nNativeRuntimeInput,
   PrependNativeParameterGuardInput,

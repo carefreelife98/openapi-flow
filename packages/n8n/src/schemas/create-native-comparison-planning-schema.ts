@@ -4,7 +4,10 @@ import {
   createNativeOutputPointerSelectionSchema,
   isSchemaProvablyEmpty,
 } from '@openapi-flow/core';
-import type { NativeOperand } from '../types/native-capability.js';
+import type {
+  NativeOperand,
+  NativeReferenceOperand,
+} from '../types/native-capability.js';
 import {
   nativeResponseOperandSchema,
   nativeLiteralOperandSchema,
@@ -14,11 +17,11 @@ import {
   assertionParametersSchema,
 } from './native-capability-schemas.js';
 
-function createPlanningCheckSchema({
+export function createPlanningReferenceSchemas({
   apiCallIds,
   nativeOutputs,
 }: WorkflowCapabilityPlanningContext) {
-  const variants: z.ZodType<NativeOperand>[] = [nativeLiteralOperandSchema];
+  const variants: z.ZodType<NativeReferenceOperand>[] = [];
   if (apiCallIds.length)
     variants.push(
       nativeResponseOperandSchema.extend({
@@ -39,6 +42,14 @@ function createPlanningCheckSchema({
       }),
     );
   }
+  return variants;
+}
+
+function createPlanningCheckSchema(context: WorkflowCapabilityPlanningContext) {
+  const variants: z.ZodType<NativeOperand>[] = [
+    nativeLiteralOperandSchema,
+    ...createPlanningReferenceSchemas(context),
+  ];
   const operand =
     variants.length === 1 ? nativeLiteralOperandSchema : z.union(variants);
   return nativeCheckSchema.extend({ left: operand, right: operand });

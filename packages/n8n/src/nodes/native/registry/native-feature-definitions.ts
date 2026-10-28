@@ -9,6 +9,7 @@ import { apiResponseMapEntryDefinition } from '../maps/api-response-map-entry-de
 import { createApiResponseMapEntryCapability } from '../maps/create-api-response-map-entry-capability.js';
 import { createMergeAppendCapability } from '../merge-append-capability.js';
 import { createResponseAssertionCapability } from '../response-assertion-capability.js';
+import { createResponseEvaluationCapability } from '../evaluation/create-response-evaluation-capability.js';
 import { createStopAndErrorCapability } from '../stop-and-error-capability.js';
 import { createPassThroughCapability } from '../create-pass-through-capability.js';
 import { createExclusiveBranchMergeCapability } from '../create-exclusive-branch-merge-capability.js';
@@ -116,6 +117,21 @@ export const nativeFeatureDefinitions: Record<
   [N8nNativeFeature.AssertResponses]: {
     requirements: [],
     create: createResponseAssertionCapability,
+  },
+  [N8nNativeFeature.EvaluateResponses]: {
+    requirements: [],
+    create: (context) =>
+      createResponseEvaluationCapability({
+        sources: {
+          apiMaterials:
+            context.apiMaterials === undefined ? [] : context.apiMaterials,
+          nativeOutputs:
+            context.nativeOutputSources === undefined
+              ? []
+              : context.nativeOutputSources,
+        },
+        itemMode: context.itemMode,
+      }),
   },
   [N8nNativeFeature.StopAndError]: {
     requirements: [],

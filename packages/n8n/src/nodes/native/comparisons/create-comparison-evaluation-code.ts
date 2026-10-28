@@ -30,7 +30,10 @@ function equal(a, b) {
 }
 function compare(check) {
   const left = read(check.left), right = read(check.right);
-  switch (check.operator) {
+  return compareValues(check.operator, left, right);
+}
+function compareValues(operator, left, right) {
+  switch (operator) {
     case 'equals': return equal(left, right);
     case 'notEquals': return !equal(left, right);
     case 'keysEqual':
@@ -39,7 +42,7 @@ function compare(check) {
       return equal(Object.keys(left).sort(), Object.keys(right).sort());
     case 'greaterThan': case 'lessThan':
       if (typeof left !== 'number' || typeof right !== 'number') throw new Error('Numeric comparison requires numbers');
-      return check.operator === 'greaterThan' ? left > right : left < right;
+      return operator === 'greaterThan' ? left > right : left < right;
     default: throw new Error('Unknown comparison operator');
   }
 }`;

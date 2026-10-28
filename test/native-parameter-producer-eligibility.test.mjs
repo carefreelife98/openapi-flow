@@ -76,6 +76,7 @@ const expectedKinds = {
   [N8nNativeFeature.If]: ['response', 'node-output'],
   [N8nNativeFeature.MergeAppend]: [],
   [N8nNativeFeature.AssertResponses]: ['response', 'node-output'],
+  [N8nNativeFeature.EvaluateResponses]: ['response', 'node-output'],
   [N8nNativeFeature.StopAndError]: [],
   [N8nNativeFeature.PassThrough]: [],
   [N8nNativeFeature.RejoinExclusiveBranches]: ['exclusive-output'],

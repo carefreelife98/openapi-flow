@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type {
   CreateComparisonInputReaderInput,
   CompiledComparisonInputReader,
+  CreateComparisonSourceReaderInput,
 } from '../../../types/comparison-input-compilation.js';
 import type { N8nOutputBindingSource } from '../../../types/output-binding-source.js';
 import { comparisonValueReferences } from '../common/comparison-value-references.js';
@@ -23,7 +24,33 @@ export function createComparisonInputReader({
   nativeOutputSources,
   linked,
 }: CreateComparisonInputReaderInput): CompiledComparisonInputReader {
-  const references = comparisonValueReferences(checks);
+  const reader = createComparisonSourceReader({
+    nodeId,
+    references: comparisonValueReferences(checks),
+    apiNodeNames,
+    apiResponseContracts,
+    singletonApiResponseIds,
+    nativeOutputSources,
+    linked,
+  });
+  return {
+    ...reader,
+    // IF expression errors are not a reliable failure boundary in n8n. Validate each
+    // selected pointer and operator type in Code; a valid false result is not an error.
+    code: `${reader.code}\n(()=>{${createComparisonEvaluationCode('')}\nconst checks=${javascriptJsonLiteral(checks)};for(const check of checks)compare(check);})();`,
+  };
+}
+
+/** Read and validate original roots without evaluating optional diagnostic values. */
+export function createComparisonSourceReader({
+  nodeId,
+  references,
+  apiNodeNames,
+  apiResponseContracts,
+  singletonApiResponseIds,
+  nativeOutputSources,
+  linked,
+}: CreateComparisonSourceReaderInput): CompiledComparisonInputReader {
   const ids = [...new Set(references.map((ref) => ref.nodeId))];
   const bindingSources: N8nOutputBindingSource[] = ids.map((id) => {
     const kinds = new Set(
@@ -69,9 +96,7 @@ export function createComparisonInputReader({
     'utf8',
   );
   return {
-    // IF expression errors are not a reliable failure boundary in n8n. Validate each
-    // selected pointer and operator type in Code; a valid false result is not an error.
-    code: `${runtime}\n${createOutputReaderCode(bindingSources, linked, singletonApiResponseIds)}\n(()=>{${createComparisonEvaluationCode('')}\nconst checks=${javascriptJsonLiteral(checks)};for(const check of checks)compare(check);})();`,
+    code: `${runtime}\n${createOutputReaderCode(bindingSources, linked, singletonApiResponseIds)}`,
     bindingSources,
   };
 }

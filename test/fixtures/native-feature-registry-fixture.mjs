@@ -93,6 +93,19 @@ export const nativeFeatureParameters = {
   [N8nNativeFeature.AssertResponses]: {
     checks: [{ ...literalCheck, message: 'Values differ' }],
   },
+  [N8nNativeFeature.EvaluateResponses]: {
+    checks: [
+      {
+        kind: 'compare',
+        source: { source: 'response', nodeId: 'left', pointer: '/rows' },
+        scope: 'value',
+        valuePointer: '',
+        measurement: 'array-length',
+        cases: [{ operator: 'equals', expected: 0, status: 'normal' }],
+        otherwise: 'warning',
+      },
+    ],
+  },
   [N8nNativeFeature.StopAndError]: { message: 'Explicit stop' },
   [N8nNativeFeature.PassThrough]: {},
   [N8nNativeFeature.RejoinExclusiveBranches]: { sourceNodeId: 'if-branch' },
