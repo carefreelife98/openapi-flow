@@ -19,7 +19,7 @@ A candidate's possible JSON types are a structural prerequisite, not a proof of 
 
 `examples/langgraph-workflow/src/graph/bindings/plan-api-binding-call-with-repair.ts` composes the public planner and rejection helper. The host supplies `maxRejectedProposals`, can reserve work in `beforeAttempt`, and receives safe rejection counts. A failure outside this exact candidate-planning boundary is rethrown. Rejection feedback is separate from the unchanged scenario; it is not a source of user values.
 
-This example is not installed automatically in Qoopilot. Qoopilot's current public dependency remains 0.5.0. Its local checkpoint changes use already-public source/field/assembly functions. Installing the new candidate and rejection APIs, then connecting bounded automatic correction, is part of the authorized 0.5.1 release and local adoption work; publication and host installation are recorded separately. No local package substitution is used.
+The example is an explicit host composition, not an automatic library retry. Qoopilot now installs the three public 0.5.1 packages and composes the candidate planner with per-call checkpoints and a host-owned bound on rejected proposals. Installed archive contents were compared with public downloads; no local package substitution is used. The release record distinguishes source publication, local host adoption and generated-workflow quality.
 
 ## Verification and limits
 
