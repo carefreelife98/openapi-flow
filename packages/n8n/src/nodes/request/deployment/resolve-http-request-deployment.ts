@@ -15,8 +15,8 @@ export function resolveHttpRequestDeployment(
   const pendingFields: string[] = [];
   let baseUrl: string;
   if (options.baseUrl === undefined) {
-    baseUrl = 'https://REPLACE_ME.invalid';
-    pendingFields.push('baseUrl');
+    baseUrl = input.oasServerAddress.baseUrl;
+    if (input.oasServerAddress.requiresHost) pendingFields.push('baseUrl');
   } else {
     baseUrl = options.baseUrl;
   }

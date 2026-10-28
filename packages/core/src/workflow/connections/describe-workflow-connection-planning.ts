@@ -11,6 +11,7 @@ import { createPreparedNativeNodeMaterials } from '../planning/create-prepared-n
 import { createNativeOutputContracts } from '../create-native-output-contracts.js';
 import { createNativePlanningCapabilityMaterial } from '../planning/create-native-planning-capability-material.js';
 import { prepareWorkflowConnectionMaterials } from './prepare-workflow-connection-materials.js';
+import { listWorkflowRequiredPrecedence } from './list-workflow-required-precedence.js';
 
 /** Capture declared data before awaiting the model; never clone opaque callbacks or forward audit metadata. */
 export function describeWorkflowConnectionPlanning(
@@ -57,6 +58,7 @@ export function describeWorkflowConnectionPlanning(
   const context: WorkflowConnectionPlanningContext = {
     ...structuredClone(identity),
     nodes: structuredClone(prepared.contracts),
+    requiredPrecedence: listWorkflowRequiredPrecedence(prepared.contracts),
     ...(prepared.nativeNodes.length
       ? {
           nativeNodes: structuredClone(

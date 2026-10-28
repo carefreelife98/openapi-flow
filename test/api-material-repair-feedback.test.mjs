@@ -1,3 +1,4 @@
+import { candidateChoices } from './fixtures/api-binding-candidate-choice.mjs';
 import assert from 'node:assert/strict';
 import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import test from 'node:test';
@@ -379,7 +380,10 @@ test('selection and field mapping receive separate repair feedback and return a 
   ];
   const model = recoveryQueueModel([
     { decision: { kind: 'selected-response-sources', sourceNodeIds } },
-    { bindings: proposedBindings, gaps: [] },
+    ({ payload }) => ({
+      bindings: candidateChoices(payload, proposedBindings),
+      gaps: [],
+    }),
   ]);
   const sources = await selectApiBindingSources({
     ...bindingInput,
@@ -728,7 +732,15 @@ test('real ChatOpenAI transport keeps recovery data separate in all three API pl
     let raw = '';
     for await (const chunk of request) raw += chunk;
     const body = JSON.parse(raw);
-    const output = outputs[requests.length];
+    const originalOutput = outputs[requests.length];
+    const payload = JSON.parse(body.messages[1].content);
+    const output =
+      body.tools[0].function.name === 'plan_api_call_bindings'
+        ? {
+            ...originalOutput,
+            bindings: candidateChoices(payload, originalOutput.bindings),
+          }
+        : originalOutput;
     requests.push(body);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(

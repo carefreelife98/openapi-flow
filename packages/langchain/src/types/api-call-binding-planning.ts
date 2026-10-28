@@ -9,6 +9,7 @@ import type {
   WorkflowConnectionApiRepairContext,
 } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from './binding-planning.js';
+import type { ApiCallBindingRejection } from './api-call-binding-rejection.js';
 
 export type ApiBindingSourceDecisionOutput = z.infer<
   ReturnType<typeof createApiBindingSourceDecisionSchema>
@@ -23,6 +24,8 @@ export interface SelectApiBindingSourcesInput extends ApiCallBindingPlanningInpu
 
 export interface PlanApiCallBindingsInput extends SelectApiBindingSourcesInput {
   sources: ApiBindingSourceSelection;
+  /** Host-owned bounded repair; never append these diagnostics to the user scenario. */
+  rejectedProposals?: ApiCallBindingRejection[];
 }
 
 export interface PlanApiBindingsByCallInput extends PlanApiBindingsInput {

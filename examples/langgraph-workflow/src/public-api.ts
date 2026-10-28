@@ -35,3 +35,5 @@ export type {
   OrchestratedGraphDependencies,
 } from './types/workflow-graph.js';
 export type * from './types/incremental-material-arguments.js';
+export { planApiBindingCallWithRepair } from './graph/bindings/plan-api-binding-call-with-repair.js';
+export type * from './types/api-binding-call-repair.js';

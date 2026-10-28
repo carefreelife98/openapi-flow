@@ -1,3 +1,7 @@
+import { fingerprintApiCallBindingSource } from './fingerprint-api-call-binding-source.js';
+import { apiCallBindingRejectionSchema } from '../schemas/api-call-binding-rejection-schema.js';
+import { ApiCallBindingPlanningError } from './api-call-binding-planning-error.js';
+import { isOpenApiFlowError } from '@openapi-flow/core';
 import { isDeepStrictEqual } from 'node:util';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
@@ -7,18 +11,21 @@ import {
   listApiResponsePointers,
   runOpenApiFlowOperation,
   describeWorkflowConnectionApiRepair,
+  describeApiBindingCandidates,
+  resolveApiBindingCandidates,
 } from '@openapi-flow/core';
 import type {
   ApiCallBindingPlan,
-  ApiCallBindingProposal,
+  ApiBindingCandidateProposal,
 } from '@openapi-flow/core';
 import type { PlanApiCallBindingsInput } from '../types/api-call-binding-planning.js';
-import { createApiCallBindingPlanSchema } from '../schemas/api-call-binding-plan-schema.js';
+import { createApiBindingCandidateSchema } from '../schemas/api-binding-candidate-schema.js';
 import { apiCallBindingsPrompt } from '../prompts/api-call-bindings-prompt.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
+import { createApiBindingCandidateContext } from './create-api-binding-candidate-context.js';
 
 export async function planApiCallBindings(
   input: PlanApiCallBindingsInput,
@@ -56,6 +63,23 @@ export async function planApiCallBindings(
       return { description, sources, materialRepair };
     },
   );
+  const sourceFingerprint = fingerprintApiCallBindingSource({
+    ...description.input,
+    sources,
+    materialRepair: input.materialRepair,
+  });
+  const rejectedProposals =
+    input.rejectedProposals === undefined
+      ? []
+      : apiCallBindingRejectionSchema.array().parse(input.rejectedProposals);
+  if (
+    rejectedProposals.some(
+      (rejection) => rejection.sourceFingerprint !== sourceFingerprint,
+    )
+  )
+    throw new Error(
+      'Binding repair feedback belongs to a different call, source selection or contract snapshot',
+    );
   input.signal?.throwIfAborted();
   if (!sources.sourceNodeIds.length)
     return resolveApiCallBindingPlan({
@@ -68,11 +92,12 @@ export async function planApiCallBindings(
       },
     });
   const selected = new Set(sources.sourceNodeIds);
-  const schema = createApiCallBindingPlanSchema(
-    description,
-    sources.sourceNodeIds,
-  );
-  const output = await invokeStructuredModel<ApiCallBindingProposal>({
+  const catalog = describeApiBindingCandidates({
+    ...description.input,
+    sources,
+  });
+  const schema = createApiBindingCandidateSchema(description, catalog);
+  const output = await invokeStructuredModel<ApiBindingCandidateProposal>({
     model: input.model,
     schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
     operation: 'planApiCallBindings',
@@ -91,6 +116,8 @@ export async function planApiCallBindings(
           scenario: description.input.scenario,
           target: description.target,
           requestSchema: description.requestSchema,
+          ...createApiBindingCandidateContext(catalog),
+          ...(rejectedProposals.length ? { rejectedProposals } : {}),
           apiSources: description.input.materials
             .filter((material) => selected.has(material.callId))
             .map((material) => ({
@@ -113,42 +140,52 @@ export async function planApiCallBindings(
     ],
   });
   input.signal?.throwIfAborted();
-  return runOpenApiFlowOperation(
-    {
-      owner: 'langchain',
-      operation: 'planApiCallBindings',
-      stage: 'contract-validation',
-      code: 'API_BINDING_VALIDATION_FAILED',
-    },
-    () => {
-      if (
-        materialRepair !== undefined &&
-        (input.materialRepair === undefined ||
-          !isDeepStrictEqual(
-            materialRepair,
-            describeWorkflowConnectionApiRepair({
-              stage: 'api-bindings',
-              repair: input.materialRepair,
-              planning: input,
-            }),
-          ))
-      )
-        throw new Error(
-          'API material repair feedback changed during binding planning',
-        );
-      return resolveApiCallBindingPlan({
-        ...description.input,
-        sources,
-        proposal: parseStructuredOutput(
-          createApiCallBindingPlanSchema(
-            description,
-            sources.sourceNodeIds,
-            false,
+  try {
+    return runOpenApiFlowOperation(
+      {
+        owner: 'langchain',
+        operation: 'planApiCallBindings',
+        stage: 'contract-validation',
+        code: 'API_BINDING_VALIDATION_FAILED',
+      },
+      () => {
+        if (
+          materialRepair !== undefined &&
+          (input.materialRepair === undefined ||
+            !isDeepStrictEqual(
+              materialRepair,
+              describeWorkflowConnectionApiRepair({
+                stage: 'api-bindings',
+                repair: input.materialRepair,
+                planning: input,
+              }),
+            ))
+        )
+          throw new Error(
+            'API material repair feedback changed during binding planning',
+          );
+        return resolveApiBindingCandidates({
+          ...description.input,
+          sources,
+          proposal: parseStructuredOutput(
+            createApiBindingCandidateSchema(description, catalog, false),
+            output,
+            'API call bindings',
           ),
-          output,
-          'API call bindings',
-        ),
+        });
+      },
+    );
+  } catch (error) {
+    if (
+      isOpenApiFlowError(error) &&
+      (error.diagnostic.stage === 'contract-validation' ||
+        error.diagnostic.stage === 'model-output')
+    )
+      throw new ApiCallBindingPlanningError({
+        error,
+        sourceFingerprint,
+        output,
       });
-    },
-  );
+    throw error;
+  }
 }

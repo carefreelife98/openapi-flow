@@ -111,3 +111,6 @@ export { generateWorkflowConnectionNativeParameters } from './workflow/connectio
 export { WorkflowConnectionNativeRepairError } from './workflow/connections/workflow-connection-native-repair-error.js';
 export type * from './types/workflow-intent.js';
 export { planWorkflowIntent } from './workflow/plan-workflow-intent.js';
+export { createApiCallBindingRejection } from './bindings/create-api-call-binding-rejection.js';
+export { ApiCallBindingPlanningError } from './bindings/api-call-binding-planning-error.js';
+export type * from './types/api-call-binding-rejection.js';

@@ -24,6 +24,7 @@ export async function verifyIncrementalConnectionRuntime({
   policy,
   label,
   nativeAugmentation,
+  incrementalOnly = false,
 }) {
   assert.equal(typeof model?.withStructuredOutput, 'function');
   assert.ok(typeof label === 'string' && label.trim());
@@ -130,10 +131,13 @@ export async function verifyIncrementalConnectionRuntime({
     );
     const executions = [];
     const seeds = [randomUUID(), randomUUID()];
-    for (const [mode, plan] of [
-      ['baseline-fixed-plan', baseline],
-      ['incremental-planned', result.plan],
-    ]) {
+    const executionPlans = incrementalOnly
+      ? [['incremental-planned', result.plan]]
+      : [
+          ['baseline-fixed-plan', baseline],
+          ['incremental-planned', result.plan],
+        ];
+    for (const [mode, plan] of executionPlans) {
       const compiled = compilePlannedN8nWorkflow({
         id: `${mode}-${runId}`,
         name: mode,
@@ -184,7 +188,7 @@ export async function verifyIncrementalConnectionRuntime({
         );
       }
     }
-    for (let index = 0; index < seeds.length; index++) {
+    for (let index = 0; !incrementalOnly && index < seeds.length; index++) {
       const before = executions.find(
         (item) => item.mode === 'baseline-fixed-plan' && item.index === index,
       );
@@ -216,8 +220,9 @@ export async function verifyIncrementalConnectionRuntime({
           localRequests: runtime.requests.length,
           businessApiCalls: 0,
           actualConcurrencyGuaranteed: false,
-          scope:
-            nativeAugmentation === undefined
+          scope: incrementalOnly
+            ? 'Incremental planning only, with fixed API contracts and response bindings. Two isolated n8n executions. No baseline execution, full natural-language quality evaluation, Qoopilot UI or business service calls.'
+            : nativeAugmentation === undefined
               ? 'Same fixed API contracts, bindings and native settings. Baseline is a deterministic fixed plan, not a legacy LLM quality result. The new host child graph proposes and validates connections. Both SDK workflows execute twice with identical paired source values in isolated n8n. This does not test full natural-language planning, native augmentation, Qoopilot streaming UI or real services.'
               : 'Same fixed API contracts and response bindings. The new graph begins without Merge, requests the registered implementation, allocates its ID in code, plans its settings and resumes the same connection session without HITL. The generated plan and JSON are unmodified; comparison aligns the one actual Merge role only in assertions. Baseline is a fixed answer, not a legacy LLM response. Four isolated n8n executions preserve paired inputs. Full natural-language API selection, Qoopilot UI and business services are not tested.',
         },
@@ -346,6 +351,7 @@ if (
     });
   let calls = 0;
   const directory = await verifyIncrementalConnectionRuntime({
+    incrementalOnly: process.argv.includes('--incremental-only'),
     label: rejectReverseGoal
       ? 'scripted-reverse-goal-replanning-not-Chomsky'
       : 'scripted-model-not-Chomsky',

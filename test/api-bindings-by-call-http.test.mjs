@@ -1,3 +1,4 @@
+import { candidateChoices } from './fixtures/api-binding-candidate-choice.mjs';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
@@ -57,13 +58,7 @@ async function runBindingHttpTest(presentation) {
               ...display,
             })
           : {
-              bindings: target.bindings.map(
-                ({ targetPointer, sourceNodeId, sourcePointer }) => ({
-                  targetPointer,
-                  sourceNodeId,
-                  sourcePointer,
-                }),
-              ),
+              bindings: candidateChoices(context, target.bindings),
               gaps: [],
               ...display,
             };

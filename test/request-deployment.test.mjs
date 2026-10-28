@@ -54,9 +54,9 @@ const exportNode = (node) =>
     starts: [node.nodeId],
   }).workflow.nodes.find((item) => item.type === 'n8n-nodes-base.httpRequest');
 
-test('missing deployment emits SDK-valid URL and credential placeholders, never the OAS server', () => {
+test('OAS server supplies the address while missing credentials remain placeholders', () => {
   const request = exportNode(fragment());
-  assert.equal(request.parameters.url, 'https://replace_me.invalid/items');
+  assert.equal(request.parameters.url, 'https://oas-server.example.test/items');
   assert.equal(request.parameters.authentication, 'genericCredentialType');
   assert.equal(request.parameters.genericAuthType, 'httpBearerAuth');
   assert.equal(
@@ -69,12 +69,12 @@ test('missing deployment emits SDK-valid URL and credential placeholders, never 
   );
   assert.match(
     request.notes,
-    /REPLACE_ME.*inventory.*baseUrl.*credentialBindings.bearer/,
+    /REPLACE_ME.*inventory.*credentialBindings.bearer/,
   );
   assert.equal(request.notesInFlow, true);
   assert.equal(
     JSON.stringify(request).includes('oas-server.example.test'),
-    false,
+    true,
   );
 });
 
@@ -93,7 +93,7 @@ test('address only keeps the supplied address and only placeholders the missing 
   assert.equal(request.notes.includes('requires baseUrl'), false);
 });
 
-test('credential only keeps the supplied reference and only placeholders the missing address', () => {
+test('credential only uses the OAS address and supplied reference', () => {
   const reference = {
     id: 'real-credential-id',
     name: 'User supplied credential',
@@ -102,7 +102,7 @@ test('credential only keeps the supplied reference and only placeholders the mis
   const before = globalThis.structuredClone(credentialBindings);
   const request = exportNode(fragment({ credentialBindings }));
   assert.deepEqual(request.credentials.httpBearerAuth, reference);
-  assert.match(request.notes, /requires baseUrl before execution/);
+  assert.equal(request.notes, undefined);
   assert.deepEqual(credentialBindings, before);
 });
 
@@ -126,8 +126,8 @@ test('anonymous operation never receives a credential placeholder', () => {
   const request = exportNode(fragment({}, anonymous));
   assert.equal(request.credentials, undefined);
   assert.equal(request.parameters.authentication, undefined);
-  assert.match(request.notes, /requires baseUrl before execution/);
-  assert.equal(request.notes.includes('credentialBindings'), false);
+  assert.equal(request.notes, undefined);
+  assert.equal(request.notes, undefined);
 });
 
 test('partial scheme maps get only the required missing binding without mutating caller input', () => {
@@ -260,7 +260,7 @@ test('official LangGraph generates a secured template with the entire deployment
   const request = result.workflow.nodes.find(
     (item) => item.type === 'n8n-nodes-base.httpRequest',
   );
-  assert.equal(request.parameters.url, 'https://replace_me.invalid/items');
+  assert.equal(request.parameters.url, 'https://oas-server.example.test/items');
   assert.match(request.credentials.httpBearerAuth.id, /^REPLACE_ME:/);
 });
 
@@ -282,7 +282,7 @@ test('official LangGraph accepts partial per-OAS configuration without passing d
   const request = result.workflow.nodes.find(
     (item) => item.type === 'n8n-nodes-base.httpRequest',
   );
-  assert.equal(request.parameters.url, 'https://replace_me.invalid/items');
+  assert.equal(request.parameters.url, 'https://oas-server.example.test/items');
   assert.match(request.notes, /inventory/);
 });
 
@@ -401,8 +401,8 @@ test('two selected OAS documents independently apply their partial deployment op
     inventory.credentials.httpBearerAuth.id,
     'REPLACE_ME:inventory:bearer',
   );
-  assert.equal(billing.parameters.url, 'https://replace_me.invalid/items');
-  assert.match(billing.notes, /OAS billing requires baseUrl/);
+  assert.equal(billing.parameters.url, 'https://oas-server.example.test/items');
+  assert.equal(billing.notes, undefined);
 });
 
 test('deployment placeholders do not silently select an OAS authentication alternative', async () => {

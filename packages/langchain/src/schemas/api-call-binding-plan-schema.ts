@@ -3,10 +3,7 @@ import {
   createApiRequestInputPointerSchema,
   optionalPlanningExplanationSchema,
 } from '@openapi-flow/core';
-import type {
-  ApiCallBindingProposal,
-  ApiCallBindingPlanningDescription,
-} from '@openapi-flow/core';
+import type { ApiCallBindingPlanningDescription } from '@openapi-flow/core';
 import { apiBindingCallReasonSchema } from './api-binding-plan-schema.js';
 
 export const apiBindingCallExecutionSchema = z.object({
@@ -70,40 +67,6 @@ export function createApiBindingSourceDecisionSchema(
   const schema = z.strictObject({
     // Distinct literal kinds keep these branches exclusive; union emits strict-provider-compatible anyOf.
     decision: z.union([independent, missing, ...available]),
-  });
-  if (!requireExplanations)
-    return schema.extend({ reason: optionalPlanningExplanationSchema });
-  return description.input.includeExplanations === true
-    ? schema.extend({ reason: apiBindingCallReasonSchema })
-    : schema;
-}
-
-export function createApiCallBindingPlanSchema(
-  description: ApiCallBindingPlanningDescription,
-  sourceNodeIds: string[],
-  requireExplanations = true,
-): z.ZodType<ApiCallBindingProposal> {
-  if (!sourceNodeIds.length)
-    throw new Error('field planning requires selected source contracts');
-  const schema = z.strictObject({
-    bindings: z.array(
-      z.strictObject({
-        targetPointer: createApiRequestInputPointerSchema(
-          description.requestSchema,
-        ),
-        sourceNodeId: z
-          .enum(sourceNodeIds)
-          .describe(
-            'Exact identity of a retrieved producer, never an inferred predecessor.',
-          ),
-        sourcePointer: z
-          .string()
-          .describe(
-            'RFC 6901 pointer into the unchanged API response BODY or native JSON output. Empty string reads the entire value. Never an expression, cast or invented value.',
-          ),
-      }),
-    ),
-    gaps: callGapsSchema(description),
   });
   if (!requireExplanations)
     return schema.extend({ reason: optionalPlanningExplanationSchema });

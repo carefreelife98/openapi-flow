@@ -1,3 +1,4 @@
+import { candidateChoices } from './fixtures/api-binding-candidate-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout } from 'node:timers/promises';
@@ -91,13 +92,7 @@ function bindingModel(plan, inspect = async () => {}, presentation) {
             wanted,
           );
           return {
-            bindings: call.bindings.map(
-              ({ targetPointer, sourceNodeId, sourcePointer }) => ({
-                targetPointer,
-                sourceNodeId,
-                sourcePointer,
-              }),
-            ),
+            bindings: candidateChoices(context, call.bindings),
             gaps: [],
             ...reason,
           };

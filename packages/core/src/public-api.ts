@@ -327,6 +327,11 @@ export { validateApiBindingAssignments } from './bindings/validate-api-binding-a
 export { validateApiBindingAssignment } from './bindings/validate-api-binding-assignment.js';
 export { validateApiBindingGaps } from './bindings/validate-api-binding-gaps.js';
 export { describeApiCallBindingPlanning } from './bindings/planning/describe-api-call-binding-planning.js';
+export { describeApiBindingCandidates } from './bindings/candidates/describe-api-binding-candidates.js';
+export { listWorkflowRequiredPrecedence } from './workflow/connections/list-workflow-required-precedence.js';
+export type * from './types/workflow-required-precedence.js';
+export { resolveApiBindingCandidates } from './bindings/candidates/resolve-api-binding-candidates.js';
+export type * from './types/api-binding-candidates.js';
 export { resolveApiBindingSourceSelection } from './bindings/planning/resolve-api-binding-source-selection.js';
 export { resolveApiCallBindingPlan } from './bindings/planning/resolve-api-call-binding-plan.js';
 export { validateApiCallBindingPlan } from './bindings/planning/validate-api-call-binding-plan.js';

@@ -1,3 +1,4 @@
+import type { WorkflowRequiredPrecedence } from './workflow-required-precedence.js';
 import type {
   ReviewableWorkflowApiMaterial,
   ReviewableWorkflowGraphPlan,
@@ -60,6 +61,7 @@ export interface WorkflowConnectionPlanningContext extends Pick<
 > {
   scenario: string;
   nodes: WorkflowPlanNodeContract[];
+  requiredPrecedence: WorkflowRequiredPrecedence[];
   nativeNodes?: PreparedNativeNodeMaterial[];
   nativeParameterReadiness?: WorkflowNativeParameterReadiness[];
   edges: WorkflowPlanEdge[];

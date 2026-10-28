@@ -7,6 +7,7 @@ import { absoluteOperationPath } from '../../legacy/workflow/request/request-url
 import { resolveHttpRequestAuthentication } from './authentication/resolve-http-request-authentication.js';
 import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
 import { resolveHttpRequestPagination } from './pagination/resolve-http-request-pagination.js';
+import { resolveOasServerAddress } from './deployment/resolve-oas-server-address.js';
 
 /** Shared configuration ownership, after the strict or template boundary checks. */
 export function resolveHttpRequestNodeConfiguration(
@@ -27,6 +28,7 @@ export function resolveHttpRequestNodeConfiguration(
   });
   const deployment = resolveHttpRequestDeployment({
     documentId: contract.key.documentId,
+    oasServerAddress: resolveOasServerAddress(contract),
     authentication,
     baseUrl: input.baseUrl,
     credentialBindings: input.credentialBindings,
