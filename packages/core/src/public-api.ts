@@ -472,3 +472,8 @@ export {
   validateWorkflowIntent,
 } from './workflow/intent/resolve-workflow-intent.js';
 export { formatWorkflowIntentScenario } from './workflow/intent/format-workflow-intent-scenario.js';
+
+export {
+  createWorkflowConnectionMaterialRevisionRequest,
+  validateWorkflowConnectionMaterialRevisionRequest,
+} from './workflow/connections/materials/create-workflow-connection-material-revision-request.js';

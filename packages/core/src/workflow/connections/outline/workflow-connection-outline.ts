@@ -20,9 +20,10 @@ import {
 import { describeWorkflowConnectionStep } from '../incremental/describe-workflow-connection-step.js';
 import { applyWorkflowConnectionStep } from '../incremental/apply-workflow-connection-step.js';
 import { connectionValueFingerprint } from '../incremental/connection-graph-identity.js';
+import { deriveWorkflowConnectionOutlineGoals } from './derive-workflow-connection-outline-goals.js';
 import { runOpenApiFlowOperation } from '../../../errors/run-openapi-flow-operation.js';
 
-/** Covers references only. Node/goal/fact membership and prose are not proof of business-meaning coverage. */
+/** Model chooses grouping. Typed goal association is derived, never completion proof. */
 export function createWorkflowConnectionOutline(
   input: CreateWorkflowConnectionOutlineInput,
 ): WorkflowConnectionOutline {
@@ -48,28 +49,46 @@ export function createWorkflowConnectionOutline(
       for (const field of ['nodeIds', 'goalIds', 'factIds'] as const) {
         const covered = new Set<string>();
         for (const bundle of proposal.bundles) {
+          const ids = bundle[field];
+          if (ids === undefined) continue;
           if (
-            new Set(bundle[field]).size !== bundle[field].length ||
-            bundle[field].some((id) => !actual[field].includes(id))
+            new Set(ids).size !== ids.length ||
+            ids.some((id) => !actual[field].includes(id))
           )
             throw new Error(
               `Outline ${field} must name distinct actual supplied identities`,
             );
-          for (const id of bundle[field]) covered.add(id);
+          for (const id of ids) covered.add(id);
         }
-        if (actual[field].some((id) => !covered.has(id)))
+        if (field === 'nodeIds' && actual[field].some((id) => !covered.has(id)))
           throw new Error(`Outline must retain every supplied ${field}`);
       }
-      const bundles = proposal.bundles.map((bundle) => ({
-        ...structuredClone(bundle),
-        id: connectionValueFingerprint({
-          nodeIds: [...bundle.nodeIds].sort(),
-          goalIds: [...bundle.goalIds].sort(),
-          factIds: [...bundle.factIds].sort(),
-        }),
-      }));
+      const association = deriveWorkflowConnectionOutlineGoals(step, proposal);
+      const bundles: WorkflowConnectionOutline['bundles'] =
+        proposal.bundles.map((bundle, index) => ({
+          ...structuredClone(bundle),
+          scope: 'local',
+          goalIds: association.bundleGoalIds[index]!,
+          id: connectionValueFingerprint({
+            nodeIds: [...bundle.nodeIds].sort(),
+          }),
+        }));
       if (new Set(bundles.map((bundle) => bundle.id)).size !== bundles.length)
         throw new Error('Outline contains duplicate structural work bundles');
+      if (association.globalGoalIds.length) {
+        bundles.push({
+          scope: 'global',
+          purpose:
+            'Assess and revise global session goals against the complete workflow.',
+          nodeIds: [...actual.nodeIds],
+          goalIds: [...association.globalGoalIds],
+          id: connectionValueFingerprint({
+            scope: 'global',
+            nodeIds: [...actual.nodeIds].sort(),
+            goalIds: [...association.globalGoalIds].sort(),
+          }),
+        });
+      }
       const identity = {
         sessionId: step.expected.sessionId,
         sourceFingerprint: step.expected.sourceFingerprint,
@@ -78,6 +97,8 @@ export function createWorkflowConnectionOutline(
       return {
         ...proposal,
         ...identity,
+        goalIds: actual.goalIds,
+        globalGoalIds: association.globalGoalIds,
         bundles,
         id: connectionValueFingerprint({
           ...identity,
@@ -106,10 +127,13 @@ export function describeWorkflowConnectionOutline(
         ...input,
         proposal: {
           purpose: outline.purpose,
-          bundles: outline.bundles.map(({ id, ...bundle }) => {
-            void id;
-            return bundle;
-          }),
+          bundles: outline.bundles
+            .filter((bundle) => bundle.scope === 'local')
+            .map(({ id, scope, ...bundle }) => {
+              void id;
+              void scope;
+              return bundle;
+            }),
         },
       });
       if (!isDeepStrictEqual(reconstructed, outline))
@@ -120,6 +144,9 @@ export function describeWorkflowConnectionOutline(
       return {
         outline: structuredClone(outline),
         step,
+        globalUnmetGoalIds: step.inspection.unmetGoalIds.filter((id) =>
+          outline.globalGoalIds.includes(id),
+        ),
         bundles: outline.bundles.map((bundle) => {
           const pendingNodeIds = step.inspection.pendingNodeIds.filter((id) =>
             bundle.nodeIds.includes(id),

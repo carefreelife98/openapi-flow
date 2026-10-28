@@ -411,7 +411,7 @@ test('no-reference roles make zero model calls even with API/native producers; m
   assert.equal(calls, 0);
 });
 
-test('unused selected API producers still fail actual-reference equality and a lying declaration cannot bypass implementation references', async () => {
+test('unused selected API producers are allowed and a lying declaration cannot bypass implementation references', async () => {
   const f = await fixture();
   const capability = f.capabilities.find(
     (entry) => entry.name === N8nNativeFeature.AssertResponses,
@@ -442,20 +442,20 @@ test('unused selected API producers still fail actual-reference equality and a l
     proposal: { sourcesByNodeId: { [nodeId]: { sourceNodeIds: ['left'] } } },
   });
   const configuration = { ...input, selection, dependencies, nodeId };
-  assert.throws(
-    () =>
-      resolveNativeNodeParameters({
-        ...configuration,
-        fingerprint: describeNativeNodeConfiguration(configuration).fingerprint,
-        proposal: {
-          decision: {
-            status: 'provided',
-            parameters:
-              nativeFeatureParameters[N8nNativeFeature.AssertResponses],
-          },
-        },
-      }),
-    /actual parameter references must exactly match/,
+  const result = resolveNativeNodeParameters({
+    ...configuration,
+    fingerprint: describeNativeNodeConfiguration(configuration).fingerprint,
+    proposal: {
+      decision: {
+        status: 'provided',
+        parameters: nativeFeatureParameters[N8nNativeFeature.AssertResponses],
+      },
+    },
+  });
+  assert.equal(result.status, 'ready');
+  assert.deepEqual(
+    result.node.parameters,
+    nativeFeatureParameters[N8nNativeFeature.AssertResponses],
   );
   const referenceNode = {
     id: 'checks',

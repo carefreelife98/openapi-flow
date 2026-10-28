@@ -1,4 +1,5 @@
 import type { NodeInstance } from '@n8n/workflow-sdk';
+import type { HttpRequestPagination } from './http-request-pagination.js';
 import type {
   ApiOperationContract,
   ApiCallArguments,
@@ -48,6 +49,8 @@ export interface N8nNodeFragment {
   bindingSources?: N8nOutputBindingSource[];
 }
 export interface CreateHttpRequestNodeInput extends HttpRequestDeploymentOptions {
+  /** Adapter-only opt-in. Each output item is one page, never an aggregate body. */
+  pagination?: HttpRequestPagination;
   operation: ApiOperationContract;
   arguments: ApiCallArguments;
   position: [number, number];

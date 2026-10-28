@@ -8,7 +8,7 @@ import {
   resolveNativeNodeParameters,
 } from './describe-native-node-configuration.js';
 
-/** No model choice remains only when the registered implementation explicitly declares complete ownership. */
+/** Allowed source candidates cannot determine a remaining parameter choice. */
 export function resolveNativeProducerParameters(
   input: NativeNodeConfigurationInput,
 ): NativeNodeParameterResult | undefined {
@@ -24,6 +24,9 @@ export function resolveNativeProducerParameters(
   const derive = materials.capability.parametersFromProducerDependencies;
   if (derive === undefined || materials.sourceDependencies === undefined)
     return undefined;
+  // The dependency receipt grants access, not a binding of every listed producer.
+  // Let value generation choose actual references whenever its schema permits a choice.
+  if (materials.instance.hasLiteralParameters) return undefined;
   if (materials.instance.runtimeParameters !== undefined)
     throw new Error(
       `Native instance ${input.nodeId}: producer-derived parameters cannot replace execution-owned fields`,

@@ -12,6 +12,7 @@ import { serializeHttpRequest } from './serialization/serialize-http-request.js'
 import { createSerializedHttpRequestNode } from './serialization/create-serialized-http-request-node.js';
 import { resolveHttpRequestNodeConfiguration } from './resolve-http-request-node-configuration.js';
 import { finalizeHttpRequestFragment } from './finalize-http-request-fragment.js';
+import { applyHttpRequestPagination } from './pagination/apply-http-request-pagination.js';
 
 export function createHttpRequestNode(
   input: CreateHttpRequestNodeInput,
@@ -63,6 +64,7 @@ export function createHttpRequestNode(
       prepared.config.templateUrl,
       args.values,
       args.requestMediaType,
+      prepared.config.pagination,
     );
     const request = createSerializedHttpRequestNode({
       bodySource: 'literal',
@@ -90,7 +92,8 @@ export function createHttpRequestNode(
     };
   }
   return finalizeHttpRequestFragment({
-    fragment,
+    pagination: prepared.config.pagination,
+    fragment: applyHttpRequestPagination(fragment, prepared.config),
     method: contract.method,
     documentId: contract.key.documentId,
     deployment: resolvedInput,

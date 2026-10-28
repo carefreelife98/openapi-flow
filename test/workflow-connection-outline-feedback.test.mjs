@@ -33,9 +33,7 @@ function prepare() {
     describeWorkflowConnectionStep(input),
   );
   const invalid = globalThis.structuredClone(proposal);
-  invalid.bundles.forEach((bundle) => {
-    bundle.goalIds = [];
-  });
+  invalid.bundles.pop();
   return { ...fixture, input, proposal, invalid };
 }
 async function capture(input, output, inspect) {
@@ -89,7 +87,7 @@ test('outline feedback preserves the original rejected JSON and code-owned reque
     model,
     rejectedProposals: [feedback],
   });
-  assert.equal(outline.bundles.length, 3);
+  assert.equal(outline.bundles.length, 4);
   assert.equal(model.requests.length, 1);
   assert.equal(JSON.stringify(input), before);
   feedback.output.bundles[0].purpose = 'changed copy';

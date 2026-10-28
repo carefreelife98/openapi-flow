@@ -6,6 +6,7 @@ import type {
 } from './native-node-planning.js';
 import type { NativeOutputContract } from './node-output.js';
 
+/** Planning-time access scope. Actual parameter references are derived after configuration. */
 export interface NativeInstanceDependencyChoice {
   sourceNodeIds: string[];
   reason?: string;
@@ -43,5 +44,6 @@ export interface ValidateNativeInstanceDependenciesInput extends NativeSelectedP
 
 export interface NativeNodeConfigurationDependencies {
   planId: string;
+  /** Selected materials available to configuration, not mandatory execution predecessors. */
   sourceNodeIds: string[];
 }

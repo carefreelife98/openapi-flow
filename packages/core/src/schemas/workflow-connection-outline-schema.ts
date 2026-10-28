@@ -21,17 +21,20 @@ export const workflowConnectionOutlineBundleProposalSchema = z.strictObject({
   goalIds: z
     .array(text)
     .describe(
-      'Actual session goals addressed by this task, not new requirements.',
-    ),
+      'Optional legacy trace IDs. Core derives goal association from typed session goals and actual node anchors.',
+    )
+    .optional(),
   factIds: z
     .array(text)
-    .min(1)
     .describe(
       'Unchanged original requirement IDs supporting this planning task.',
-    ),
-  reason: text.describe(
-    'Short evidence-based rationale, not private chain of thought.',
-  ),
+    )
+    .optional(),
+  reason: text
+    .describe(
+      'Optional evidence-based UI trace, not private chain of thought or completion proof.',
+    )
+    .optional(),
 });
 export const workflowConnectionOutlineProposalSchema = z.strictObject({
   purpose: text.describe(
@@ -41,7 +44,7 @@ export const workflowConnectionOutlineProposalSchema = z.strictObject({
     .array(workflowConnectionOutlineBundleProposalSchema)
     .min(1)
     .describe(
-      'Planning tasks covering all supplied nodes, goals and facts. Array order does not establish execution order.',
+      'Planning tasks covering all supplied nodes. Core retains every session goal globally. Array order does not establish execution order.',
     ),
 });
 export const workflowConnectionOutlineSchema =
@@ -50,10 +53,26 @@ export const workflowConnectionOutlineSchema =
     sessionId: workflowConnectionStepExpectationSchema.shape.sessionId,
     sourceFingerprint: fingerprint,
     goalFingerprint: fingerprint,
+    goalIds: z.array(text).min(1).describe('Every unchanged session goal ID.'),
+    globalGoalIds: z
+      .array(text)
+      .describe(
+        'Semantic goals and structural goals spanning bundles; always checked by whole-session completion.',
+      ),
     bundles: z
       .array(
         workflowConnectionOutlineBundleProposalSchema.extend({
           id: fingerprint,
+          scope: z
+            .enum(['local', 'global'])
+            .describe(
+              'Local model grouping or code-owned whole-session goal work; neither proves goal satisfaction.',
+            ),
+          goalIds: z
+            .array(text)
+            .describe(
+              'Code-derived goals touching actual bundle anchors; association is not satisfaction.',
+            ),
         }),
       )
       .min(1),

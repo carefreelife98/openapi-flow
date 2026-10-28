@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-revision-schema.js';
+import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-material-repair-request-schema.js';
 import { workflowConnectionStepExpectationSchema } from './workflow-connection-session-schema.js';
 import { workflowMaterialArgumentSchema } from './workflow-planning-material-schema.js';
 import { workflowDraftNativeNodeSchema } from './workflow-draft-schema.js';

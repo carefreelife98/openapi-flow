@@ -296,13 +296,22 @@ Further webhook/callback implementation is deferred, including inbound authentic
 
 ## TODO and roadmap
 
+- [ ] Unreleased planning and pagination integration (2026-10-28):
+  - [x] Treat selected native producers as permitted materials. Derive actual references from validated settings and accept a subset without inventing execution dependencies.
+  - [x] Pool exactly repeated native-selection material contracts on the model wire while preserving original receipts and validation.
+  - [x] Provide an explicit numeric-query HTTP Request pagination compile option; verify per-page values and completion in isolated n8n.
+  - [ ] Connect pagination choices to model planning and host orchestration. The compile option alone does not add natural-language pagination support.
+  - On hold by owner decision: conditional-loop planning and compilation. This work is excluded from the current plan-revision implementation.
+  - Out of the current implementation scope by owner decision (2026-10-28): body-parameter pagination, response-body/empty-body pagination termination and next-URL traversal. These modes are not implemented.
+  - [ ] Complete the representative workflow and independent single-pass/incremental quality comparison. Component tests are not business-quality completion.
+
 - [x] Publish `EvaluateResponses` in 0.4.5 and verify its local product installation.
-  It preserves original API/native values and returns scenario-defined
-  per-check outcomes plus counts; an adverse observation does not throw. Missing
-  optional data stays undetermined, while invalid OAS/type/reference contracts
-  still fail. See [response evaluation](docs/native-feature-registry.md#response-evaluation).
-  Synthetic isolated n8n checks and fixed original-OAS evaluation fixtures are
-  not a new end-to-end Qoopilot generation/UI quality result.
+      It preserves original API/native values and returns scenario-defined
+      per-check outcomes plus counts; an adverse observation does not throw. Missing
+      optional data stays undetermined, while invalid OAS/type/reference contracts
+      still fail. See [response evaluation](docs/native-feature-registry.md#response-evaluation).
+      Synthetic isolated n8n checks and fixed original-OAS evaluation fixtures are
+      not a new end-to-end Qoopilot generation/UI quality result.
 
 - [ ] Unreleased source-only failure hardening and representative workflow completion:
   - [x] Keep source-selection wire schemas bounded while preserving exact local source membership, original values/types, and ordered text-boundary checks.
@@ -437,6 +446,57 @@ For nested native arrays, the host first derives the parent split's output contr
 Native producers are now validated independently at their original schema roots. Item and binding-pointer projections retain the original resource in a standard compound schema and reference its original locations rather than copying fragments into a new reference scope. Core uses Ajv's public `addSchema`/`getSchema` registry and fast-uri for URI resolution. Its initial retrieval URI is `https://openapi-flow.invalid/schema/<sha256>` using the JSON document's digest; an explicit `$id` resolves against this base. This URI is an offline identifier, not a fetch endpoint. No source values are invented, schemas are not fetched remotely, and original contracts/values are not mutated. `$ref` sibling assertions remain conjunctive. Missing references fail explicitly; non-progressing projection cycles are not replaced by unconstrained schemas. See [JSON Schema initial base URIs](https://json-schema.org/draft/2020-12/json-schema-core#section-9.1.1).
 
 `npm run test:native-schema-references` now checks both the previously failing original source compiler and the independently reusable projected item contract. It is a passing regression after this fix. Unit cases cover recursive references, aliases, anchors, nested relative IDs, special-character pointers, same-named definitions in distinct native roots, JSON round trips and schema-like const data. General schema implication, dynamic-scope projection coverage and externally supplied resource registries remain separate work; this does not claim support for every JSON Schema contract. See [JSON Schema compound documents](https://json-schema.org/draft/2020-12/json-schema-core#section-9.3) and [Ajv reference resolution](https://ajv.js.org/guide/combining-schemas.html#combining-schemas-with-ref).
+
+## Explicit HTTP Request pagination (unreleased workspace source)
+
+`createHttpRequestNode` accepts an optional `pagination` configuration for the
+original OAS numeric query parameter. The adapter emits the official HTTP Request
+pagination options; it does not implement an HTTP execution engine. The declared
+starting value must match the original arguments. For example, given existing
+`operation`, `args` and `baseUrl` values:
+
+```ts
+const fragment = createHttpRequestNode({
+  operation,
+  arguments: args,
+  baseUrl,
+  position: [0, 0],
+  pagination: {
+    mode: 'page-number',
+    output: 'per-page',
+    parameter: 'page',
+    start: 1,
+    step: 1,
+    maxRequests: 3,
+    requestInterval: 0,
+    termination: { kind: 'max-requests' },
+  },
+});
+```
+
+This explicitly requests three pages. It does not infer the API's last page or
+promise to fetch every record. Status-code termination is also explicit, using
+`{ kind: 'status-codes', statusCodes: [204] }`; exhausting the request budget
+before that condition is an error. The entire bounded sequence is checked by
+core's original OAS validator and compiled-schema cache before emission. This
+cost is `O(maxRequests)`; the host owns the budget. No implicit 1,000-page cap or
+field-name heuristics are added.
+
+Each fetched page keeps its original response envelope and body type, including
+the terminal page. The result is a stream, not a collection body and not a 1:1
+item-preserving fragment. An ordinary singleton response binding rejects multiple
+pages instead of selecting one or silently collecting them. POST request bodies
+and unrelated literal/bound query values retain their existing serialization.
+
+This source-only option is not installed in the published 0.4.6 host and is not
+connected to natural-language planning. Body parameter pagination, body-based/empty
+body pagination termination and next URL traversal are outside the current scope
+by owner decision (2026-10-28). Generic IF loop planning and compilation are
+on hold by owner decision. A page field name alone does not establish
+termination semantics.
+
+After a workspace build, run `node integration/http-request-pagination-local-n8n.mjs`
+for the isolated n8n example. It uses synthetic contracts, never business services.
 
 ## Explicit batch execution
 

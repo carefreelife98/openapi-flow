@@ -4,7 +4,7 @@ import type { NativeInstanceDependencyProposal } from '../types/native-instance-
 import { describeNativeInstanceDependencies } from '../workflow/planning/resolve-native-instance-dependencies.js';
 import { createNativeProducerDependenciesSchema } from './native-producer-dependencies-schema.js';
 
-/** All row keys and candidates come from the original selection; the model chooses only actual source roles. */
+/** All row keys and candidates come from the original selection; the model chooses the permitted source roles for configuration. */
 export function createNativeInstanceDependenciesSchema(
   input: NativeSelectedPlanningInput,
   requireExplanations = true,
@@ -14,7 +14,7 @@ export function createNativeInstanceDependenciesSchema(
     {
       targets: context.instances.map((instance) => ({
         nodeId: instance.id,
-        description: `Producer choices for ${instance.capability}: ${instance.purpose}`,
+        description: `Allowed producer materials for ${instance.capability}: ${instance.purpose}`,
         sourceNodeIds: context.sourceCandidatesByNodeId[instance.id],
       })),
       includeExplanations: input.includeExplanations === true,

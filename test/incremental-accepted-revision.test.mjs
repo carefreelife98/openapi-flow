@@ -13,6 +13,7 @@ import {
 } from '@openapi-flow/example-langgraph-workflow';
 import {
   describeWorkflowConnectionStep,
+  describeWorkflowConnectionOutline,
   workflowConnectionEdgeId,
   extendWorkflowConnectionSession,
   applyWorkflowConnectionRevision,
@@ -370,9 +371,6 @@ test('outline planning starts a new source/goal epoch only after a checked revis
       {
         purpose: 'All confirmed roles',
         nodeIds: payload.context.nodes.map((node) => node.id),
-        goalIds: payload.goals.map((goal) => goal.id),
-        factIds: payload.requirements.map((fact) => fact.id),
-        reason: 'Retain the actual role and goal boundaries.',
       },
     ],
   });
@@ -409,6 +407,53 @@ test('outline planning starts a new source/goal epoch only after a checked revis
     fixture.firstEdges,
   );
   assert.equal(model.requests.length, 7);
+  assert.equal(result.modelInvocations, 7);
+  assert.deepEqual(result.rejectedOutlineProposals, []);
+  assert.deepEqual(
+    model.requests.map((request) => request.options.name),
+    [
+      'plan_workflow_connection_goals',
+      'plan_workflow_connection_outline',
+      'plan_workflow_connection_step',
+      'plan_workflow_connection_step',
+      'plan_workflow_connection_revision',
+      'plan_workflow_connection_revision',
+      'plan_workflow_connection_outline',
+    ],
+  );
+  for (const index of [1, 6]) {
+    const request = model.requests[index];
+    assert.deepEqual(
+      Object.keys(request.schema.properties.bundles.items.properties).sort(),
+      ['nodeIds', 'purpose'],
+    );
+    assert.equal(Object.hasOwn(request.payload, 'previousOutline'), false);
+  }
+  assert.equal(
+    model.requests[1].payload.expected.sessionId,
+    result.sourceEvents[0].beforeSession.id,
+  );
+  assert.equal(model.requests[6].payload.expected.sessionId, result.session.id);
+  assert.deepEqual(model.requests[6].payload.goals, result.session.goals);
+  const current = {
+    ...resolveIncrementalConnectionSource(options, result),
+    session: result.session,
+  };
+  assert.throws(
+    () =>
+      describeWorkflowConnectionOutline({
+        ...current,
+        outline: result.outlineHistory[0],
+      }),
+    /differs/,
+  );
+  assert.equal(
+    describeWorkflowConnectionOutline({
+      ...current,
+      outline: result.outlineHistory[1],
+    }).step.inspection.ready,
+    true,
+  );
 });
 
 test('ordered source replay supports a native extension between accepted revisions and rejects reordered or altered receipts', async () => {

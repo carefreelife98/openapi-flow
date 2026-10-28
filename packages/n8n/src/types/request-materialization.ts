@@ -5,12 +5,14 @@ import type {
 } from '@openapi-flow/core';
 import type { Operation } from '@openapi-flow/core/internal';
 import type { DeferredApiInputSlot } from '@openapi-flow/core';
+import type { HttpRequestPagination } from './http-request-pagination.js';
 import type {
   PreparedRequestBody,
   RequestHeader,
 } from './legacy/request-node.js';
 
 export interface RequestMaterializationConfig {
+  pagination?: HttpRequestPagination;
   contract: ApiOperationContract;
   operation: Operation;
   arguments: RequestMaterializationArguments;

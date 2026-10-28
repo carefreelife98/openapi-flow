@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { planningEvidenceTextSchema as text } from './planning-evidence-schema.js';
+import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-material-repair-request-schema.js';
+export {
+  workflowConnectionMaterialRepairTargetSchema,
+  workflowConnectionMaterialRepairRequestSchema,
+} from './workflow-connection-material-repair-request-schema.js';
 import {
   workflowConnectionGoalProposalSchema,
   workflowConnectionPatchSchema,
@@ -17,21 +22,6 @@ export const workflowConnectionRevisionProposalSchema = z.strictObject({
   graphChange: workflowConnectionPatchSchema,
 });
 
-export const workflowConnectionMaterialRepairTargetSchema = z.strictObject({
-  stage: z.enum([
-    'api-bindings',
-    'api-arguments',
-    'native-dependencies',
-    'native-parameters',
-  ]),
-  nodeId: text,
-});
-export const workflowConnectionMaterialRepairRequestSchema = z.strictObject({
-  kind: z.literal('replan-materials'),
-  targets: z.array(workflowConnectionMaterialRepairTargetSchema).min(1),
-  factIds: z.array(text).min(1),
-  reason: text,
-});
 export const workflowConnectionMaterialRepairReceiptSchema = z.strictObject({
   kind: z.literal('replan-materials'),
   expected: z.strictObject({

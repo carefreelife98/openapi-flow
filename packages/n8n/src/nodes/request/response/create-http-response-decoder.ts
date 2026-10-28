@@ -5,11 +5,13 @@ import type { N8nNodeFragment } from '../../../types/node-fragment.js';
 import type { CreateHttpResponseDecoderInput } from '../../../types/http-response-decoding.js';
 import { javascriptJsonLiteral } from '../../../utils/javascript-json-literal.js';
 import { httpResponseNodeName } from './http-response-node-name.js';
+import { createPaginationResponseGuard } from '../pagination/create-pagination-response-guard.js';
 
 /** Keep transport metadata and item ancestry while exposing the decoded API exit. */
 export function createHttpResponseDecoder({
   fragment,
   method,
+  pagination,
 }: CreateHttpResponseDecoderInput): N8nNodeFragment {
   const transport = fragment.exit;
   const position = transport.config.position;
@@ -46,6 +48,9 @@ export function createHttpResponseDecoder({
     new URL('./response-runtime.bundle.js', import.meta.url),
     'utf8',
   );
+  // Native pagination skips its continuation/status check at maxRequests.
+  // Check every returned page, including the last budgeted response.
+  const pageGuard = createPaginationResponseGuard(pagination);
   const decoder = node({
     type: 'n8n-nodes-base.code',
     version: 2,
@@ -57,7 +62,7 @@ export function createHttpResponseDecoder({
         'Decode the raw HTTP response once. Preserve status, headers, body types and item ancestry. Invalid JSON fails without repair.',
       parameters: {
         mode: 'runOnceForAllItems',
-        jsCode: `${runtime}\nconst sourceNodeId=${javascriptJsonLiteral(fragment.nodeId)};\nconst method=${javascriptJsonLiteral(method)};\nconst result=[];\nfor(const [inputIndex,item] of $input.all().entries()){\nconst bytes=await this.helpers.getBinaryDataBuffer(inputIndex,'openApiFlowRawResponse');\nconst decoded=OpenApiFlowResponseRuntime.decodeHttpResponse({response:item.json,bytes,method,sourceNodeId});\nconst binary={...item.binary};\nconst raw=binary.openApiFlowRawResponse;\ndelete binary.openApiFlowRawResponse;\nif(decoded.kind==='binary')binary.data=raw;\nresult.push({json:decoded.response,...(Object.keys(binary).length?{binary}:{}),pairedItem:{item:inputIndex}});\n}\nreturn result;`,
+        jsCode: `${runtime}\nconst sourceNodeId=${javascriptJsonLiteral(fragment.nodeId)};\nconst method=${javascriptJsonLiteral(method)};\n${pageGuard}\nconst result=[];\nfor(const [inputIndex,item] of $input.all().entries()){\nconst bytes=await this.helpers.getBinaryDataBuffer(inputIndex,'openApiFlowRawResponse');\nconst decoded=OpenApiFlowResponseRuntime.decodeHttpResponse({response:item.json,bytes,method,sourceNodeId});\nconst binary={...item.binary};\nconst raw=binary.openApiFlowRawResponse;\ndelete binary.openApiFlowRawResponse;\nif(decoded.kind==='binary')binary.data=raw;\nresult.push({json:decoded.response,...(Object.keys(binary).length?{binary}:{}),pairedItem:{item:inputIndex}});\n}\nreturn result;`,
       },
     },
   });

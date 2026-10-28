@@ -70,6 +70,7 @@ export function materializeHttpRequest(
     config.templateUrl,
     values,
     config.arguments.requestMediaType,
+    config.pagination,
   );
   return {
     ...request,

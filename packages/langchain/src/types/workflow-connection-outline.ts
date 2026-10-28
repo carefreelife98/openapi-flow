@@ -5,7 +5,17 @@ import type {
   WorkflowConnectionSessionInput,
   WorkflowConnectionOutline,
   WorkflowConnectionStepDescription,
+  WorkflowConnectionOutlineBundleProposal,
 } from '@openapi-flow/core';
+
+/** Model selects structure only; core owns goal association and trace compatibility. */
+export interface WorkflowConnectionOutlineModelProposal {
+  purpose: string;
+  bundles: Pick<
+    WorkflowConnectionOutlineBundleProposal,
+    'purpose' | 'nodeIds'
+  >[];
+}
 
 export interface WorkflowConnectionOutlineRequestInput extends WorkflowConnectionSessionInput {
   /** A revisable grouping hypothesis, never replacement user requirements or execution edges. */

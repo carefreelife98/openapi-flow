@@ -3,7 +3,7 @@ import type { NativeProducerDependencySchemaInput } from '../types/native-produc
 import type { NativeInstanceDependencyProposal } from '../types/native-instance-dependencies.js';
 import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
-/** Code supplies identities; model output contains only exact producer choices and optional reasons. */
+/** Code supplies identities; model output selects allowed producer materials and optional reasons. */
 export function createNativeProducerDependenciesSchema(
   input: NativeProducerDependencySchemaInput,
   requireExplanations = true,
@@ -24,7 +24,7 @@ export function createNativeProducerDependenciesSchema(
                   'Native producer IDs must be distinct',
                 )
                 .describe(
-                  'Exact producer IDs referenced by this instance configuration. Empty means independent. Not execution edges or scheduling preferences. Future roles do not yet have output schemas.',
+                  'Selected producer materials this instance may reference. Final settings may use a subset; actual references are derived from those settings. Empty means no producer access. Not execution edges or scheduling preferences. Future roles do not yet have output schemas.',
                 ),
               ...(!requireExplanations
                 ? { reason: optionalPlanningExplanationSchema }

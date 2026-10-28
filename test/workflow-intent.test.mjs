@@ -114,7 +114,7 @@ test('upstream business intent uses code-owned identities/original sources witho
   assert.throws(() => validateWorkflowIntent({ ...changedSource, plan }));
 });
 
-test('intent structure rejects absent source/role references and activation of future/excluded tasks, not wording whitespace', () => {
+test('intent structure rejects absent source/role references, not wording whitespace', () => {
   const { input, proposal } = fixture();
   for (const change of [
     (copy) => {
@@ -132,12 +132,6 @@ test('intent structure rejects absent source/role references and activation of f
     (copy) => {
       copy.flows[0].roleIndices = [0, 99];
     },
-    (copy) => {
-      copy.flows[0].roleIndices = [0, 3];
-    },
-    (copy) => {
-      copy.flows[0].roleIndices = [0, 4];
-    },
   ]) {
     const copy = globalThis.structuredClone(proposal);
     change(copy);
@@ -146,6 +140,73 @@ test('intent structure rejects absent source/role references and activation of f
   assert.throws(() =>
     createWorkflowIntentProposalSchema({ ...input, messages: [] }),
   );
+});
+
+test('code retains inactive relations at original positions and exposes only requested flows to later planning', () => {
+  const { input, proposal } = fixture();
+  proposal.flows.splice(0, 0, {
+    kind: 'sequence',
+    roleIndices: [0, 3],
+    intent: 'Only after a later explicit request, send email after reading',
+  });
+  proposal.flows.push({
+    kind: 'sequence',
+    roleIndices: [2, 4],
+    intent: 'Excluded record update must remain inactive',
+  });
+  const before = globalThis.structuredClone({ input, proposal });
+  const plan = resolveWorkflowIntent({ ...input, proposal });
+  assert.deepEqual({ input, proposal }, before);
+  assert.equal(plan.flows.length, 2);
+  assert.deepEqual(
+    plan.inactiveFlows.map((flow) => flow.sourceIndex),
+    [0, 3],
+  );
+  assert.deepEqual(
+    plan.inactiveFlows.map((flow) => flow.intent),
+    [proposal.flows[0].intent, proposal.flows[3].intent],
+  );
+  assert.deepEqual(validateWorkflowIntent({ ...input, plan }), plan);
+  const projected = JSON.parse(
+    formatWorkflowIntentScenario({ ...input, plan }),
+  );
+  assert.deepEqual(projected.workflowIntent.flows, plan.flows);
+  assert.equal(Object.hasOwn(projected.workflowIntent, 'inactiveFlows'), false);
+  assert.equal(projected.originalRequirements, input.scenario);
+  assert.deepEqual(
+    projected.workflowIntent.roles.map((role) => role.scope),
+    ['required', 'required', 'required', 'conditional', 'excluded'],
+  );
+  for (const change of [
+    (copy) => {
+      copy.inactiveFlows[0].sourceIndex = -1;
+    },
+    (copy) => {
+      copy.inactiveFlows[0].sourceIndex = 0.5;
+    },
+    (copy) => {
+      copy.inactiveFlows[0].sourceIndex = 99;
+    },
+    (copy) => {
+      copy.inactiveFlows[1].sourceIndex = 0;
+    },
+    (copy) => {
+      copy.inactiveFlows[0].roleIds[0] = 'absent';
+    },
+    (copy) => {
+      copy.inactiveFlows[0].intent = 'rewritten';
+    },
+    (copy) => {
+      copy.flows[0].roleIds[0] = copy.roles[3].id;
+    },
+    (copy) => {
+      delete copy.inactiveFlows;
+    },
+  ]) {
+    const changed = globalThis.structuredClone(plan);
+    change(changed);
+    assert.throws(() => validateWorkflowIntent({ ...input, plan: changed }));
+  }
 });
 
 test('real LangChain JSON-schema invocation plans intent once; no generated quote or extra display call is required', async () => {

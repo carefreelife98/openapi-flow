@@ -18,6 +18,8 @@ import { nativeInstanceSelectionReviewPrompt } from '../../prompts/native-instan
 import { NativeInstanceSelectionReviewError } from './native-instance-selection-review-error.js';
 import { fingerprintNativeSelectionReviewRequest } from './describe-native-planning-request.js';
 import { validateNativePlanningRejections } from './validate-native-planning-rejections.js';
+import { createNativeSelectionModelContext } from './create-native-selection-model-context.js';
+import { nativeMaterialSourceReferencesPrompt } from '../../prompts/native-node-planning-prompt.js';
 
 /** One review call only. The host owns replanning, user questions, budgets and persistence. */
 export async function reviewNativeInstanceSelection(
@@ -117,10 +119,13 @@ export async function reviewNativeInstanceSelection(
       method: 'jsonSchema',
       strict: true,
       messages: [
-        new SystemMessage(nativeInstanceSelectionReviewPrompt),
+        new SystemMessage(
+          `${nativeInstanceSelectionReviewPrompt}\n${nativeMaterialSourceReferencesPrompt}`,
+        ),
         new HumanMessage(
           JSON.stringify({
             ...description,
+            context: createNativeSelectionModelContext(description.context),
             ...(rejectedProposals.length === 0 ? {} : { rejectedProposals }),
           }),
         ),

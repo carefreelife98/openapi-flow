@@ -2,6 +2,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
   describeWorkflowConnectionStep,
+  describeWorkflowConnectionGoals,
+  createWorkflowConnectionMaterialRevisionRequest,
   workflowConnectionPlanningDecisionSchema,
   workflowConnectionRejectedProposalSchema,
   runOpenApiFlowOperation,
@@ -10,10 +12,14 @@ import {
 import type { WorkflowConnectionPlanningDecision } from '@openapi-flow/core';
 import type {
   PlanWorkflowConnectionStepInput,
+  PlanWorkflowConnectionStepDefaultInput,
   PlanWorkflowConnectionStepResult,
 } from '../../types/incremental-connection-planning.js';
 import { createWorkflowConnectionStepSchema } from '../../schemas/workflow-connection-step-schema.js';
-import { workflowConnectionStepPrompt } from '../../prompts/incremental-workflow-connections-prompt.js';
+import {
+  workflowConnectionStepPrompt,
+  workflowConnectionMaterialRevisionStepPrompt,
+} from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
 import {
   resolveConnectionEdgeSelections,
@@ -24,9 +30,15 @@ import {
   WorkflowConnectionPlanningError,
 } from './workflow-connection-planning-error.js';
 
+export function planWorkflowConnectionStep(
+  input: PlanWorkflowConnectionStepDefaultInput,
+): Promise<PlanWorkflowConnectionStepResult>;
+export function planWorkflowConnectionStep(
+  input: PlanWorkflowConnectionStepInput,
+): Promise<PlanWorkflowConnectionStepResult<boolean>>;
 export async function planWorkflowConnectionStep(
   input: PlanWorkflowConnectionStepInput,
-): Promise<PlanWorkflowConnectionStepResult> {
+): Promise<PlanWorkflowConnectionStepResult<boolean>> {
   const operation = 'planWorkflowConnectionStep';
   const {
     description,
@@ -35,6 +47,8 @@ export async function planWorkflowConnectionStep(
     schema,
     outlineContext,
     rejectedSnapshot,
+    allowMaterialRevisions,
+    materialRepairStages,
   } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
@@ -43,7 +57,19 @@ export async function planWorkflowConnectionStep(
       code: 'PLANNING_INPUT_INVALID',
     },
     () => {
+      if (
+        input.allowMaterialRevisions !== undefined &&
+        typeof input.allowMaterialRevisions !== 'boolean'
+      )
+        throw new Error(
+          'allowMaterialRevisions must be a boolean when supplied',
+        );
+      const allowMaterialRevisions = input.allowMaterialRevisions;
       const description = describeWorkflowConnectionStep(input);
+      const materialRepairStages =
+        allowMaterialRevisions === true
+          ? describeWorkflowConnectionGoals(input).materialRepairStages
+          : undefined;
       if ((input.outline === undefined) !== (input.bundleId === undefined))
         throw new Error(
           'Connection outline and bundleId must be supplied together',
@@ -77,6 +103,8 @@ export async function planWorkflowConnectionStep(
         input.capabilities === undefined ? [] : input.capabilities;
       return {
         description,
+        allowMaterialRevisions,
+        materialRepairStages,
         outlineContext,
         rejectedSnapshot:
           input.rejectedProposals === undefined
@@ -91,6 +119,7 @@ export async function planWorkflowConnectionStep(
           description,
           capabilities,
           outlineContext,
+          materialRepairStages,
         ),
       };
     },
@@ -126,6 +155,13 @@ export async function planWorkflowConnectionStep(
               describeWorkflowConnectionStep(input),
               description,
             ) ||
+            input.allowMaterialRevisions !== allowMaterialRevisions ||
+            !isDeepStrictEqual(
+              allowMaterialRevisions === true
+                ? describeWorkflowConnectionGoals(input).materialRepairStages
+                : undefined,
+              materialRepairStages,
+            ) ||
             !isDeepStrictEqual(currentOutline, outlineContext) ||
             !isDeepStrictEqual(input.rejectedProposals, rejectedSnapshot) ||
             !isDeepStrictEqual(
@@ -156,10 +192,17 @@ export async function planWorkflowConnectionStep(
     name: 'plan_workflow_connection_step',
     schema,
     messages: [
-      new SystemMessage(workflowConnectionStepPrompt),
+      new SystemMessage(
+        allowMaterialRevisions === true
+          ? `${workflowConnectionStepPrompt}\n${workflowConnectionMaterialRevisionStepPrompt}`
+          : workflowConnectionStepPrompt,
+      ),
       new HumanMessage(
         JSON.stringify({
           ...description,
+          ...(materialRepairStages === undefined
+            ? {}
+            : { materialRepairStages }),
           ...(outlineContext === undefined
             ? {}
             : {
@@ -219,9 +262,16 @@ export async function planWorkflowConnectionStep(
                 description.context.nodes,
               ),
             };
+      const checked = workflowConnectionPlanningDecisionSchema.parse(decision);
+      if (checked.kind === 'replan-materials')
+        createWorkflowConnectionMaterialRevisionRequest({
+          ...input,
+          expected: description.expected,
+          decision: checked,
+        });
       return {
         expected: structuredClone(description.expected),
-        decision: workflowConnectionPlanningDecisionSchema.parse(decision),
+        decision: checked,
       };
     },
   );

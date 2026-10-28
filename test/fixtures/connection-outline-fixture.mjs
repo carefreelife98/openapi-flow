@@ -4,7 +4,7 @@ import {
   incrementalConnectionModelPatch,
 } from './incremental-connection-fixture.mjs';
 
-export function connectionOutlineProposal(description) {
+export function connectionOutlineProposal() {
   return {
     purpose:
       'Read the source, plan independent branches and then join their results for summary.',
@@ -12,27 +12,14 @@ export function connectionOutlineProposal(description) {
       {
         purpose: 'Source boundary',
         nodeIds: ['source'],
-        goalIds: [],
-        factIds: ['intent'],
-        reason: 'The original source supplies branch values.',
       },
       {
         purpose: 'Independent branches and join',
         nodeIds: ['detail', 'price', 'stock', 'join'],
-        goalIds: description.goals
-          .filter((goal) => goal.decision.kind !== 'precedence')
-          .map((goal) => goal.id),
-        factIds: ['intent'],
-        reason: 'Keep the independent responses and their real join together.',
       },
       {
         purpose: 'Summary boundary',
         nodeIds: ['join', 'summary'],
-        goalIds: description.goals
-          .filter((goal) => goal.decision.kind === 'precedence')
-          .map((goal) => goal.id),
-        factIds: ['intent'],
-        reason: 'Summary consumes the actual joined responses.',
       },
     ],
   };

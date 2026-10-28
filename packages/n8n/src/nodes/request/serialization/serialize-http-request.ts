@@ -10,6 +10,7 @@ import type { ApiArgumentValues } from '@openapi-flow/core';
 import type { Operation } from '@openapi-flow/core/internal';
 import type { MaterializedHttpRequest } from '../../../types/request-materialization.js';
 import type { JsonObject } from '@openapi-flow/core/internal';
+import type { HttpRequestPagination } from '../../../types/http-request-pagination.js';
 import { looksLikeCredential } from '../authentication/credential-field-name.js';
 
 /** Pure transport mapping, shared by literal and runtime-bound requests. */
@@ -18,6 +19,7 @@ export function serializeHttpRequest(
   templateUrl: string,
   values: ApiArgumentValues,
   requestMediaType?: string,
+  pagination?: HttpRequestPagination,
 ): MaterializedHttpRequest {
   let url = templateUrl;
   const query: string[] = [];
@@ -34,6 +36,12 @@ export function serializeHttpRequest(
         );
         break;
       case 'query':
+        // The native qs override owns this value on every page, including page zero.
+        if (
+          pagination?.mode === 'page-number' &&
+          pagination.parameter === parameter.name
+        )
+          break;
         query.push(
           ...serializeQueryParameter(parameter, operation.operationRef, value),
         );

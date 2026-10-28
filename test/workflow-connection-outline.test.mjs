@@ -56,11 +56,11 @@ function prepared() {
   };
 }
 
-test('global outline retains every actual node/goal/fact with code-owned stable IDs and no generated execution edges', () => {
+test('global outline retains every actual node and session goal with code-owned stable IDs and no generated execution edges', () => {
   const { input, outline, proposal } = prepared();
   const before = globalThis.structuredClone(input.session);
   const description = describeWorkflowConnectionOutline({ ...input, outline });
-  assert.equal(description.outline.bundles.length, 3);
+  assert.equal(description.outline.bundles.length, 4);
   assert.ok(description.bundles.every((bundle) => bundle.pending));
   assert.equal(Object.hasOwn(outline, 'edges'), false);
   const reordered = {
@@ -69,7 +69,7 @@ test('global outline retains every actual node/goal/fact with code-owned stable 
       .map((bundle) => ({
         ...bundle,
         nodeIds: [...bundle.nodeIds].reverse(),
-        reason: 'A different explanation of the same structural task.',
+        purpose: 'A different explanation of the same structural task.',
       }))
       .reverse(),
   };
@@ -106,9 +106,7 @@ test('missing identities, duplicate tasks, stale goals/source and forged IDs can
       value.bundles[2].nodeIds = ['join'];
     },
     (value) => {
-      value.bundles.forEach((bundle) => {
-        bundle.goalIds = [];
-      });
+      value.bundles[0].goalIds = ['foreign'];
     },
     (value) => {
       value.bundles[0].factIds = ['foreign'];
@@ -214,6 +212,20 @@ test('one outline call returns only grouping choices, and scoped step schemas re
   const model = recoveryQueueModel([proposal], ({ schema }) => {
     const validate = new Ajv2020({ strict: false }).compile(schema);
     assert.equal(validate(proposal), true);
+    assert.deepEqual(
+      Object.keys(schema.properties.bundles.items.properties).sort(),
+      ['nodeIds', 'purpose'],
+    );
+    const annotated = globalThis.structuredClone(proposal);
+    annotated.bundles[0].goalIds = [];
+    assert.equal(
+      validate(annotated),
+      false,
+      'The model does not repeat goal IDs',
+    );
+    const unknown = globalThis.structuredClone(proposal);
+    unknown.bundles[0].nodeIds = ['unknown'];
+    assert.equal(validate(unknown), false);
     assert.equal(validate({ ...proposal, id: 'invented' }), false);
   });
   const outline = await planWorkflowConnectionOutline({ ...input, model });
@@ -381,10 +393,6 @@ test('an outline can be regrouped at the current edge revision without resetting
       {
         purpose: 'All remaining boundaries',
         nodeIds: description.context.nodes.map((node) => node.id),
-        goalIds: description.goals.map((goal) => goal.id),
-        factIds: description.requirements.map((fact) => fact.id),
-        reason:
-          'The previous grouping is revisable; original requirements and graph stay unchanged.',
       },
     ],
   };
@@ -420,10 +428,6 @@ test('adding actual native material invalidates the old outline and schedules a 
       {
         purpose: 'Current supplied material',
         nodeIds: payload.context.nodes.map((node) => node.id),
-        goalIds: payload.goals.map((goal) => goal.id),
-        factIds: payload.requirements.map((fact) => fact.id),
-        reason:
-          'Reconsider actual supplied material, not a fixed previous grouping.',
       },
     ],
   });

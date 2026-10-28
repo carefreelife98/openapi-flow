@@ -10,6 +10,7 @@ import type {
   WorkflowConnectionPatch,
   WorkflowConnectionPlanningDecision,
   WorkflowConnectionMaterialRequest,
+  WorkflowConnectionMaterialRepairRequest,
   WorkflowConnectionUserDecision,
   WorkflowConnectionRejectedProposal,
   WorkflowConnectionStepExpectation,
@@ -38,6 +39,15 @@ export interface PlanWorkflowConnectionStepInput extends WorkflowConnectionSessi
   signal?: AbortSignal;
   outline?: WorkflowConnectionOutline;
   bundleId?: string;
+  /** Explicit host opt-in to request changes to existing material. Omitted/false retains the original model contract. */
+  allowMaterialRevisions?: boolean;
+}
+/** Default calls retain the original decision type as well as the original wire contract. */
+export interface PlanWorkflowConnectionStepDefaultInput extends Omit<
+  PlanWorkflowConnectionStepInput,
+  'allowMaterialRevisions'
+> {
+  allowMaterialRevisions?: false;
 }
 export type WorkflowConnectionRouteGoal = Extract<
   WorkflowConnectionGoalProposal,
@@ -84,13 +94,21 @@ export type WorkflowConnectionStepModelDecision =
   | WorkflowConnectionPatchSelection
   | WorkflowConnectionCompletionRequest
   | WorkflowConnectionMaterialRequest
+  | WorkflowConnectionMaterialRepairRequest
   | WorkflowConnectionUserDecision;
 export interface WorkflowConnectionStepModelOutput {
   decision: WorkflowConnectionStepModelDecision;
 }
-export interface PlanWorkflowConnectionStepResult {
+export interface PlanWorkflowConnectionStepResult<
+  AllowMaterialRevisions extends boolean = false,
+> {
   expected: WorkflowConnectionStepExpectation;
-  decision: WorkflowConnectionPlanningDecision;
+  decision: AllowMaterialRevisions extends true
+    ? WorkflowConnectionPlanningDecision
+    : Exclude<
+        WorkflowConnectionPlanningDecision,
+        WorkflowConnectionMaterialRepairRequest
+      >;
 }
 export interface InvokeConnectionPlanningModelInput<Output extends object> {
   model: BaseChatModel;

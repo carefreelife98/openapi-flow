@@ -193,7 +193,7 @@ test('draft consumers wait for the chosen producer, not an unrelated available o
   );
 });
 
-test('unused producers and injected schema-identical substitutions fail in Core, including direct final assembly inputs', () => {
+test('ineligible producers and injected schema-identical substitutions fail in Core, including direct final assembly inputs', () => {
   const f = draftNativeDependencyFixture();
   const proposal = clone(f.proposal);
   proposal.sourcesByNodeId[f.source.newNodeId].sourceNodeIds = [
@@ -213,11 +213,11 @@ test('unused producers and injected schema-identical substitutions fail in Core,
         ...f,
         resolutions: changed,
       }),
-    /sourceNodeId|actual parameter references must exactly match/,
+    /sourceNodeId|actual parameter references must be a subset/,
   );
   assert.throws(
     () => assembleWorkflowDraftEdit({ ...f, resolutions: changed }),
-    /sourceNodeId|actual parameter references must exactly match/,
+    /sourceNodeId|actual parameter references must be a subset/,
   );
   assert.throws(
     () => validateWorkflowDraftNativeDependencyResolutions(f),

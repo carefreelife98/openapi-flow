@@ -4,7 +4,11 @@ import type {
   workflowConnectionSourceRepairReceiptSchema,
   workflowConnectionMaterialReplacementSchema,
 } from '../schemas/workflow-connection-material-repair-schema.js';
-import type { WorkflowConnectionSessionSource } from './workflow-connection-session.js';
+import type {
+  WorkflowConnectionSessionSource,
+  WorkflowConnectionSessionInput,
+  WorkflowConnectionStepExpectation,
+} from './workflow-connection-session.js';
 import type { ApiCallArguments } from './api-arguments.js';
 import type {
   ApiOperationContract,
@@ -15,7 +19,10 @@ import type { PlannedNativeNode } from './workflow-plan.js';
 import type { NativeOutputContract } from './node-output.js';
 import type { NativePlanningCapabilityMaterial } from './native-node-planning.js';
 import type { DeferredApiInputSlot } from './deferred-api-inputs.js';
-import type { WorkflowConnectionMaterialRepairTarget } from './workflow-connection-revision.js';
+import type {
+  WorkflowConnectionMaterialRepairTarget,
+  WorkflowConnectionMaterialRepairRequest,
+} from './workflow-connection-revision.js';
 import type {
   ApiLiteralGenerationInput,
   ApiLiteralSourceContext,
@@ -158,4 +165,13 @@ export interface PreparedConnectionMaterialReplacement {
 export interface ReplayWorkflowConnectionMaterialRepairInput {
   source: WorkflowConnectionSessionSource;
   receipt: WorkflowConnectionSourceRepairReceipt;
+}
+
+/** Original accepted-session context and the exact requested stage/node scope; never replacement material. */
+export interface CreateWorkflowConnectionMaterialRevisionRequestInput extends WorkflowConnectionSessionInput {
+  expected: WorkflowConnectionStepExpectation;
+  decision: WorkflowConnectionMaterialRepairRequest;
+}
+export interface ValidateWorkflowConnectionMaterialRevisionRequestInput extends CreateWorkflowConnectionMaterialRevisionRequestInput {
+  request: WorkflowConnectionSourceRepairRequest;
 }

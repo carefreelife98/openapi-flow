@@ -94,7 +94,7 @@ test('display dependency reasons do not change producer selection or weaken DAG 
   );
 });
 
-test('registered producer-owned settings copy the chosen original IDs without a second model decision', async () => {
+test('registered producer derivation cannot force every allowed candidate into settings', async () => {
   const { apiMaterials } = await nativeFeatureRegistryFixture();
   const capabilities = resolveN8nNativePlanningFeatures({
     features: [N8nNativeFeature.GatherApiResponses],
@@ -133,29 +133,37 @@ test('registered producer-owned settings copy the chosen original IDs without a 
     selection,
     dependencies,
     nodeId,
-    model: modelReply(new Error('No value choice remains'), calls),
+    model: modelReply(
+      {
+        decision: {
+          status: 'provided',
+          parameters: { sourceNodeIds: ['left'] },
+        },
+      },
+      calls,
+    ),
   });
   assert.equal(result.status, 'ready');
-  assert.deepEqual(result.node.parameters, {
-    sourceNodeIds: ['right', 'left'],
-  });
+  assert.deepEqual(result.node.parameters, { sourceNodeIds: ['left'] });
   assert.deepEqual(dependencies, before);
-  assert.equal(calls.length, 0);
+  assert.equal(calls.length, 1);
 });
 
-test('producer-owned settings use the registered contract, not a capability or parameter name convention', async () => {
+test('candidate-based derivation cannot override actual value choices, regardless of capability or parameter names', async () => {
   const { apiMaterials } = await nativeFeatureRegistryFixture();
   const parametersSchema = z.strictObject({
     chosen: z.array(z.string()).min(1),
   });
-  for (const invalid of [false, true]) {
+  for (const subset of [false, true]) {
+    let derivations = 0;
     const capability = {
       name: 'custom-producer-collector',
       description: 'Use the explicitly selected complete responses.',
       parametersSchema,
-      parametersFromProducerDependencies: (ids) => ({
-        chosen: invalid ? ['left'] : [...ids],
-      }),
+      parametersFromProducerDependencies: (ids) => {
+        derivations++;
+        return { chosen: [...ids] };
+      },
       parameterReferenceSources: ['response'],
       parameterReferenceBindings: (parameters) =>
         parametersSchema.parse(parameters).chosen.map((nodeId, index) => ({
@@ -177,7 +185,7 @@ test('producer-owned settings use the registered contract, not a capability or p
       exclusiveOutputPorts: false,
     };
     const input = {
-      planId: `custom-producer-${invalid}`,
+      planId: `custom-producer-${subset}`,
       scenario: 'Gather both complete supplied responses.',
       apiMaterials,
       capabilities: [capability],
@@ -210,14 +218,21 @@ test('producer-owned settings use the registered contract, not a capability or p
         selection,
         dependencies,
         nodeId,
-        model: modelReply(new Error('No model decision remains'), calls),
+        model: modelReply(
+          {
+            decision: {
+              status: 'provided',
+              parameters: { chosen: subset ? ['left'] : ['right', 'left'] },
+            },
+          },
+          calls,
+        ),
       });
-    if (invalid) await assert.rejects(execute, /exactly match/);
-    else
-      assert.deepEqual((await execute()).node.parameters, {
-        chosen: ['right', 'left'],
-      });
-    assert.equal(calls.length, 0);
+    assert.deepEqual((await execute()).node.parameters, {
+      chosen: subset ? ['left'] : ['right', 'left'],
+    });
+    assert.equal(derivations, 0);
+    assert.equal(calls.length, 1);
   }
 });
 
@@ -339,7 +354,7 @@ test('a consumer waits for its chosen producer even when unrelated outputs satis
   );
 });
 
-test('an explicit empty producer choice never exposes all available sources or tolerates unused declared references', () => {
+test('an explicit empty producer choice never exposes all available sources or admits ineligible producers', () => {
   const f = nativeDependencyFixture({ withPrepared: true });
   const input = nativeDependencyConfiguration(f, f.source);
   const description = describeNativeNodeConfiguration(input);
@@ -433,7 +448,7 @@ test('completed supplied consumers cannot substitute a different available produ
       ...nativeDependencyConfiguration(f, f.child, [source, altered]),
       model: modelReply({}, calls),
     }),
-    /actual parameter references must exactly match/,
+    /actual parameter references must be a subset/,
   );
   assert.equal(calls.length, 0);
 });

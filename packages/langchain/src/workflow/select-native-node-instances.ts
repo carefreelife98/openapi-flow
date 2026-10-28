@@ -10,10 +10,14 @@ import type {
 } from '@openapi-flow/core';
 import type { SelectNativeNodeInstancesInput } from '../types/native-node-planning.js';
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
-import { nativeInstanceSelectionPrompt } from '../prompts/native-node-planning-prompt.js';
+import {
+  nativeInstanceSelectionPrompt,
+  nativeMaterialSourceReferencesPrompt,
+} from '../prompts/native-node-planning-prompt.js';
 import { NativeNodePlanningError } from './native-node-planning-error.js';
 import { describeNativeSelectionRequest } from './native-selection/describe-native-planning-request.js';
 import { validateNativePlanningRejections } from './native-selection/validate-native-planning-rejections.js';
+import { createNativeSelectionModelContext } from './native-selection/create-native-selection-model-context.js';
 
 /** One checkpointable role/ownership selection; parameter values are a separate public stage. */
 export async function selectNativeNodeInstances(
@@ -87,10 +91,12 @@ export async function selectNativeNodeInstances(
     )
     .invoke(
       [
-        new SystemMessage(nativeInstanceSelectionPrompt),
+        new SystemMessage(
+          `${nativeInstanceSelectionPrompt}\n${nativeMaterialSourceReferencesPrompt}`,
+        ),
         new HumanMessage(
           JSON.stringify({
-            ...context,
+            ...createNativeSelectionModelContext(context),
             ...(feedback === undefined ? {} : { selectionFeedback: feedback }),
             ...(rejectedProposals.length === 0 ? {} : { rejectedProposals }),
           }),

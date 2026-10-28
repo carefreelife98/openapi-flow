@@ -40,6 +40,8 @@ export interface WorkflowConnectionOutlineDescription {
   outline: WorkflowConnectionOutline;
   step: WorkflowConnectionStepDescription;
   bundles: WorkflowConnectionOutlineBundleStatus[];
+  /** Unmet semantic or cross-bundle goals; generic completion must still inspect all session goals. */
+  globalUnmetGoalIds: string[];
 }
 export interface WorkflowConnectionOutlineBundleDescription extends WorkflowConnectionOutlineDescription {
   bundle: WorkflowConnectionOutline['bundles'][number];

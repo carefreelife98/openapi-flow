@@ -1,6 +1,6 @@
 import type { WorkflowPlanNodeContract } from '../../types/workflow-plan.js';
 
-/** Parameter references only, not execution edges or inferred scheduling dependencies. */
+/** Actual parameter references only, never upstream selection candidates or execution edges. */
 export function nativeParameterProducerIds(
   contract: WorkflowPlanNodeContract,
 ): string[] {

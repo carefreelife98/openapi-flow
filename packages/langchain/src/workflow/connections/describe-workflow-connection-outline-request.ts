@@ -36,7 +36,12 @@ export function describeWorkflowConnectionOutlineRequest(
       return {
         ...context,
         requestFingerprint: createHash('sha256')
-          .update(JSON.stringify(context))
+          .update(
+            JSON.stringify({
+              outputContract: 'node-anchor-grouping-v1',
+              ...context,
+            }),
+          )
           .digest('hex'),
       };
     },

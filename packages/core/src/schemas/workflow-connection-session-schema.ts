@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-material-repair-request-schema.js';
 import {
   planningEvidenceTextSchema as text,
   workflowMessageEvidenceSchema,
@@ -123,6 +124,7 @@ export const workflowConnectionPlanningDecisionSchema = z.union([
   workflowConnectionStepProposalSchema,
   workflowConnectionMaterialRequestSchema,
   workflowConnectionUserDecisionSchema,
+  workflowConnectionMaterialRepairRequestSchema,
 ]);
 export const workflowConnectionViolationSchema = z.strictObject({
   code: z.enum([

@@ -9,6 +9,7 @@ import {
   createWorkflowIntentProposalSchema,
   workflowIntentInputSchema,
 } from '../../schemas/workflow-intent-schema.js';
+import { restoreWorkflowIntentProposalFlows } from './restore-workflow-intent-proposal-flows.js';
 
 /** Structural validation only: business interpretation remains a model/human decision. */
 export function resolveWorkflowIntent(
@@ -28,10 +29,6 @@ export function resolveWorkflowIntent(
         throw new Error(
           `Workflow intent flow references absent role index ${index}`,
         );
-      if (role.scope !== 'required')
-        throw new Error(
-          'Active workflow intent flows must not activate conditional or excluded roles',
-        );
     }
   }
   const digest = createHash('sha256')
@@ -44,15 +41,21 @@ export function resolveWorkflowIntent(
       structuredClone(source.messages.find((message) => message.id === id)!),
     ),
   }));
+  const flows = proposal.flows.map(({ roleIndices, ...flow }, sourceIndex) => ({
+    flow: { ...flow, roleIds: roleIndices.map((index) => roles[index]!.id) },
+    sourceIndex,
+    active: roleIndices.every((index) => roles[index]!.scope === 'required'),
+  }));
+  const inactiveFlows = flows.flatMap((entry) =>
+    entry.active ? [] : [{ ...entry.flow, sourceIndex: entry.sourceIndex }],
+  );
   return structuredClone({
     id: `intent:${digest}`,
     source,
     objective: proposal.objective,
     roles,
-    flows: proposal.flows.map(({ roleIndices, ...flow }) => ({
-      ...flow,
-      roleIds: roleIndices.map((index) => roles[index]!.id),
-    })),
+    flows: flows.filter((entry) => entry.active).map((entry) => entry.flow),
+    ...(inactiveFlows.length ? { inactiveFlows } : {}),
   });
 }
 
@@ -70,12 +73,7 @@ export function validateWorkflowIntent(
         scope,
         sourceMessageIds: sources.map((source) => source.id),
       })),
-      flows: plan.flows.map(({ roleIds, ...flow }) => ({
-        ...flow,
-        roleIndices: roleIds.map((id) =>
-          plan.roles.findIndex((role) => role.id === id),
-        ),
-      })),
+      flows: restoreWorkflowIntentProposalFlows(plan),
     },
   });
   if (!isDeepStrictEqual(expected, plan))

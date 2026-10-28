@@ -1,5 +1,6 @@
 import type { ApiResponseEnvelope } from '@openapi-flow/core';
 import type { N8nNodeFragment } from './node-fragment.js';
+import type { HttpRequestPagination } from './http-request-pagination.js';
 
 export interface HttpResponseDecodeInput {
   response: ApiResponseEnvelope;
@@ -14,6 +15,7 @@ export interface DecodedHttpResponse {
 }
 
 export interface CreateHttpResponseDecoderInput {
+  pagination?: HttpRequestPagination;
   fragment: N8nNodeFragment;
   method: string;
 }

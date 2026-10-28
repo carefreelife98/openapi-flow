@@ -23,11 +23,11 @@ import { isSchemaProvablyEmpty } from '../../bindings/is-schema-provably-empty.j
 import { z } from 'zod';
 import { nativeParameterProducerIds } from './native-parameter-producer-ids.js';
 
-/** Actual implementation references must equal the prior choice; unused or substituted producers are not repairs. */
+/** Selection grants source access; only actual parameter references become bindings. */
 export function validateNativeNodeProducerReferences(
   node: PlannedNativeNode,
   capability: WorkflowCapability,
-  expected: string[],
+  allowed: string[],
 ): void {
   const [contract] = createWorkflowNodeContracts({
     materials: [],
@@ -35,9 +35,10 @@ export function validateNativeNodeProducerReferences(
     capabilities: [capability],
   });
   const actual = nativeParameterProducerIds(contract);
-  if (!jsonValuesEqual(actual, [...expected].sort()))
+  const unexpected = actual.filter((id) => !allowed.includes(id));
+  if (unexpected.length)
     throw new Error(
-      `Native instance ${node.id}: actual parameter references must exactly match its declared producer dependencies`,
+      `Native instance ${node.id}: actual parameter references must be a subset of its allowed selected producer materials; unselected producers: ${unexpected.join(', ')}`,
     );
 }
 

@@ -3,43 +3,31 @@ import {
   workflowConnectionOutlineBundleProposalSchema,
   workflowConnectionOutlineProposalSchema,
 } from '@openapi-flow/core';
-import type {
-  WorkflowConnectionStepDescription,
-  WorkflowConnectionOutlineProposal,
-} from '@openapi-flow/core';
-import { connectionIdListSchema } from './connection-planning-field-schemas.js';
+import type { WorkflowConnectionStepDescription } from '@openapi-flow/core';
+import type { WorkflowConnectionOutlineModelProposal } from '../types/workflow-connection-outline.js';
 
 export function createWorkflowConnectionOutlineSchema(
   description: WorkflowConnectionStepDescription,
-): z.ZodType<WorkflowConnectionOutlineProposal> {
+): z.ZodType<WorkflowConnectionOutlineModelProposal> {
   const ids = description.context.nodes.map((node) => node.id);
   if (!ids.length)
     throw new Error('Outline planning requires actual supplied nodes');
-  const bundle = workflowConnectionOutlineBundleProposalSchema.extend({
-    nodeIds: z
-      .array(z.enum(ids))
-      .min(1)
-      .describe(
-        'Choose actual node anchors for a coherent planning task. Shared boundary nodes may appear in several tasks.',
-      ),
-    goalIds: connectionIdListSchema(
-      description.goals.map((goal) => goal.id),
-    ).describe(
-      'Select actual current goals addressed by this task; all goals must appear somewhere in the outline.',
-    ),
-    factIds: z
-      .array(z.enum(description.requirements.map((fact) => fact.id)))
-      .min(1)
-      .describe(
-        'Select unchanged original requirement IDs supporting this task; never create replacement requirements.',
-      ),
-  });
+  const bundle = workflowConnectionOutlineBundleProposalSchema
+    .pick({ purpose: true, nodeIds: true })
+    .extend({
+      nodeIds: z
+        .array(z.enum(ids))
+        .min(1)
+        .describe(
+          'Choose actual node anchors for a coherent planning task. Shared boundary nodes may appear in several tasks.',
+        ),
+    });
   return workflowConnectionOutlineProposalSchema.extend({
     bundles: z
       .array(bundle)
       .min(1)
       .describe(
-        'Cover all supplied node, goal and fact identities with planning tasks. Array order is not execution order.',
+        'Cover all supplied node identities with planning tasks. Core derives typed goal associations and retains all goals globally. Array order is not execution order.',
       ),
   });
 }

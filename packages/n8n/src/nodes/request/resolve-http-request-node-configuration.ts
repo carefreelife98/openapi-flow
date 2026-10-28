@@ -6,6 +6,7 @@ import { originFrom } from '../../legacy/workflow/request/base-url.js';
 import { absoluteOperationPath } from '../../legacy/workflow/request/request-url.js';
 import { resolveHttpRequestAuthentication } from './authentication/resolve-http-request-authentication.js';
 import { resolveHttpRequestDeployment } from './deployment/resolve-http-request-deployment.js';
+import { resolveHttpRequestPagination } from './pagination/resolve-http-request-pagination.js';
 
 /** Shared configuration ownership, after the strict or template boundary checks. */
 export function resolveHttpRequestNodeConfiguration(
@@ -19,6 +20,7 @@ export function resolveHttpRequestNodeConfiguration(
     contract.pathItem as unknown as JsonObject,
     contract.operation,
   );
+  const pagination = resolveHttpRequestPagination(input, operation);
   const authentication = resolveHttpRequestAuthentication({
     operation: contract,
     securityRequirementIndex: input.securityRequirementIndex,
@@ -33,6 +35,7 @@ export function resolveHttpRequestNodeConfiguration(
   return {
     input: { ...input, ...deployment },
     config: {
+      ...(pagination === undefined ? {} : { pagination }),
       contract,
       operation,
       arguments: {

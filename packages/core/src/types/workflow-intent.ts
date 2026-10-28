@@ -43,12 +43,19 @@ export interface WorkflowIntentFlow extends Omit<
   roleIds: string[];
 }
 
+/** Retained proposal evidence; never an active business or execution flow. */
+export interface InactiveWorkflowIntentFlow extends WorkflowIntentFlow {
+  sourceIndex: number;
+}
+
 export interface WorkflowIntentPlan {
   id: string;
   source: WorkflowIntentInput;
   objective: string;
   roles: WorkflowIntentRole[];
   flows: WorkflowIntentFlow[];
+  /** Relations mentioning conditional/excluded roles, in their original proposal positions. */
+  inactiveFlows?: InactiveWorkflowIntentFlow[];
 }
 
 export interface ResolveWorkflowIntentInput extends WorkflowIntentInput {
