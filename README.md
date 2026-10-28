@@ -296,8 +296,8 @@ Further webhook/callback implementation is deferred, including inbound authentic
 
 ## TODO and roadmap
 
-- [ ] Publish and adopt the working-tree `EvaluateResponses` family after release
-  review. It preserves original API/native values and returns scenario-defined
+- [x] Publish `EvaluateResponses` in 0.4.5 and verify its local product installation.
+  It preserves original API/native values and returns scenario-defined
   per-check outcomes plus counts; an adverse observation does not throw. Missing
   optional data stays undetermined, while invalid OAS/type/reference contracts
   still fail. See [response evaluation](docs/native-feature-registry.md#response-evaluation).

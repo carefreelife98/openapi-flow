@@ -6,6 +6,8 @@ import { URL } from 'node:url';
 import { z } from 'zod';
 import {
   createNativeOutputContracts,
+  createNativeValueSchema,
+  createNativeOutputPointerSelectionSchema,
   inspectNativeReferenceStructure,
   validateWorkflowGraphPlan,
 } from '@openapi-flow/core';
@@ -173,7 +175,7 @@ test('whole bodies and original provenance are preserved; source selection order
     assert.deepEqual(item.pairedItem, [{ item: 0 }, { item: 1 }]);
 });
 
-test('the output schema proves full OAS bodies, fixed provenance and exactly one entry per call, not array-position identity', () => {
+test('the output schema preserves full OAS bodies and the source order emitted by the compiled reader and Aggregate', () => {
   const [output] = createNativeOutputContracts({
     nativeNodes: [planned],
     capabilities: [capability()],
@@ -184,7 +186,12 @@ test('the output schema proves full OAS bodies, fixed provenance and exactly one
     true,
     JSON.stringify(validate.errors),
   );
-  assert.equal(validate({ results: expected().reverse() }), true);
+  assert.equal(validate({ results: expected().reverse() }), false);
+  const reversed = new Ajv2020({ strict: false }).compile(
+    capability().outputSchema({ sourceNodeIds: ['right', 'left'] }),
+  );
+  assert.equal(reversed({ results: expected(['right', 'left']) }), true);
+  assert.equal(reversed({ results: expected() }), false);
   for (const change of [
     (values) => values.slice(0, 1),
     (values) => [values[0], values[0]],
@@ -196,6 +203,30 @@ test('the output schema proves full OAS bodies, fixed provenance and exactly one
       values.map((entry) => ({ ...entry, body: { ...entry.body, id: 7 } })),
   ])
     assert.equal(validate({ results: change(expected()) }), false);
+});
+
+test('downstream native references can identify each complete source body from the actual positional contract', () => {
+  const [output] = createNativeOutputContracts({
+    nativeNodes: [planned],
+    capabilities: [capability()],
+  });
+  const pointers = createNativeOutputPointerSelectionSchema(output);
+  for (const [index, id] of parameters.sourceNodeIds.entries()) {
+    const pointer = `/results/${index}/body`;
+    assert.equal(pointers.safeParse(pointer).success, true);
+    const body = new Ajv2020({ strict: false }).compile(
+      createNativeValueSchema(output, pointer),
+    );
+    assert.equal(body(bodies[id]), true);
+    const identity = new Ajv2020({ strict: false }).compile(
+      createNativeValueSchema(output, `/results/${index}/callId`),
+    );
+    assert.equal(identity(id), true);
+    assert.equal(identity(id === 'left' ? 'right' : 'left'), false);
+  }
+  for (const pointer of ['/results/2/body', '/results/0/body/invented']) {
+    assert.throws(() => createNativeValueSchema(output, pointer));
+  }
 });
 
 test('missing materials, runtime names, source bodies, invalid OAS data and ambiguous item counts fail without repairs', () => {
@@ -236,7 +267,7 @@ test('two invocations of one OAS operation retain different call identities and 
     ],
   });
   const schema = repeated.outputSchema({ sourceNodeIds: ['first', 'second'] });
-  const entries = schema.properties.results.items.anyOf;
+  const entries = schema.properties.results.prefixItems;
   assert.deepEqual(
     entries.map((entry) => entry.properties.callId.const),
     ['first', 'second'],

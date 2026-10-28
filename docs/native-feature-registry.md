@@ -1,15 +1,24 @@
 # Registered n8n feature selection
 
-The current working tree adds `EvaluateResponses` (`evaluate-responses`) after
-published 0.4.4. It produces explicit per-check results and counts without stopping
+Published 0.4.5 adds `EvaluateResponses` (`evaluate-responses`).
+It produces explicit per-check results and counts without stopping
 on a valid adverse observation. It shares the existing comparison and source
 validation runtime, compiles to an official SDK Code node, and introduces no
 health threshold defaults. See [response evaluation](#response-evaluation).
-This addition is not yet published or installed in Qoopilot. Current inventory:
+All three 0.4.5 packages and the matching GitHub Release are published. The local
+product installs the exact public files and passed its full verification;
+whole-workflow model/UI quality remains a separate check. Current inventory:
 18 families, seven constructible without source context and eleven requiring
 context. Default planning excludes explicit-only `ComposeApiResponses`, exposing
 17 registrations and 16 planning definitions without a host literal producer.
 The older inventories below describe their stated historical source versions.
+
+Unreleased follow-up: `GatherApiResponses` now declares each `results` position
+with `prefixItems` in the already-selected `sourceNodeIds` order. This matches the
+existing reader and official Aggregate output, without changing API execution
+order or response values. Published 0.4.5 describes the possible entry set but
+omits positional identity; it does not contain this correction. Downstream
+consumers still validate references against the actual bound output contract.
 
 Local unreleased source adds `CollectNativeOutputValues`
 (`collect-native-output-values`). It requires actual native output contracts and

@@ -117,16 +117,8 @@ export function verifyConsumerApiResponseResults(
       type: 'array',
       minItems: 3,
       maxItems: 3,
-      items: { anyOf: expectedEntries },
-      allOf: callIds.map((callId) => ({
-        contains: {
-          type: 'object',
-          properties: { callId: { const: callId } },
-          required: ['callId'],
-        },
-        minContains: 1,
-        maxContains: 1,
-      })),
+      prefixItems: expectedEntries,
+      items: false,
     },
   });
   const apiNodes = calls.map((call, index) =>

@@ -68,16 +68,8 @@ export function createApiResponseResultsCapability(
             type: 'array',
             minItems: selected.length,
             maxItems: selected.length,
-            items: { anyOf: entries },
-            allOf: selected.map(({ callId }) => ({
-              contains: {
-                type: 'object',
-                properties: { callId: { const: callId } },
-                required: ['callId'],
-              },
-              minContains: 1,
-              maxContains: 1,
-            })),
+            prefixItems: entries,
+            items: false,
           },
         },
         required: ['results'],

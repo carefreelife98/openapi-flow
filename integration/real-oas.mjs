@@ -3467,7 +3467,7 @@ test('original multi-service OAS full response contracts form fixed results with
   const parameters = { sourceNodeIds: materials.map(({ callId }) => callId) };
   const schema = capability.outputSchema(parameters);
   for (const [index, material] of materials.entries()) {
-    const properties = schema.properties.results.items.anyOf[index].properties;
+    const properties = schema.properties.results.prefixItems[index].properties;
     assert.deepEqual(
       properties.body,
       createResponseValueSchema(material.operation, ''),

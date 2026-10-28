@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const sourceSelectionDescription =
-  'Selected API callIds to collect as complete unchanged response bodies. Select calls only; code owns provenance, the results list and every output field. Order lists the selected calls, not a downstream data-binding address.';
+  'Selected API callIds to collect as complete unchanged response bodies. Select calls only; code owns provenance, the results list and every output field. The results array follows this selected order; code declares each position and body schema in the bound output contract.';
 
 export const apiResponseResultsParametersSchema = z
   .strictObject({
