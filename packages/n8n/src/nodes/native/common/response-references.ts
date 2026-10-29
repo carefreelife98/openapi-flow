@@ -1,9 +1,11 @@
 import type { WorkflowResponseReference } from '@openapi-flow/core';
-import type { NativeCheck } from '../../../types/native-capability.js';
+import type { NativeCondition } from '../../../types/native-capability.js';
 export function responseReferences(
-  checks: NativeCheck[],
+  checks: NativeCondition[],
 ): WorkflowResponseReference[] {
   return checks
-    .flatMap((check) => [check.left, check.right])
+    .flatMap((check) =>
+      'right' in check ? [check.left, check.right] : [check.left],
+    )
     .filter((operand) => operand.source === 'response');
 }

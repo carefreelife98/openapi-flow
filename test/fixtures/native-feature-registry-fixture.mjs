@@ -66,6 +66,9 @@ const literalCheck = {
 };
 
 export const nativeFeatureParameters = {
+  [N8nNativeFeature.EmitLiteralData]: {
+    fields: [{ name: 'reason', value: 'Skipped by explicit condition' }],
+  },
   [N8nNativeFeature.CollectNativeOutputValues]: {
     sourceNodeId: 'context',
     pointer: '/rows',

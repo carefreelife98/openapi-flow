@@ -18,6 +18,7 @@ import type {
   nativeResponseOperandSchema,
   nativeOutputOperandSchema,
   nativeCheckSchema,
+  nativeConditionSchema,
   ifParametersSchema,
   mergeParametersSchema,
   assertionParametersSchema,
@@ -28,6 +29,7 @@ export type NativeOperand = z.infer<typeof nativeOperandSchema>;
 export type NativeReferenceOperand =
   | z.infer<typeof nativeResponseOperandSchema>
   | z.infer<typeof nativeOutputOperandSchema>;
+export type NativeCondition = z.infer<typeof nativeConditionSchema>;
 export type NativeCheck = z.infer<typeof nativeCheckSchema>;
 export type IfParameters = z.infer<typeof ifParametersSchema>;
 export type MergeParameters = z.infer<typeof mergeParametersSchema>;

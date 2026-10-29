@@ -81,6 +81,7 @@ const expectedKinds = {
   [N8nNativeFeature.PassThrough]: [],
   [N8nNativeFeature.RejoinExclusiveBranches]: ['exclusive-output'],
   [N8nNativeFeature.JsonOutput]: [],
+  [N8nNativeFeature.EmitLiteralData]: [],
   [N8nNativeFeature.SplitApiResponseArray]: ['response'],
   [N8nNativeFeature.CollectApiResponses]: ['response'],
   [N8nNativeFeature.CollectNativeOutputValues]: ['node-output'],

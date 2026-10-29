@@ -1,4 +1,4 @@
-import type { NativeCheck } from '../../../types/native-capability.js';
+import type { NativeCondition } from '../../../types/native-capability.js';
 import { javascriptJsonLiteral } from '../../../utils/javascript-json-literal.js';
 import { comparisonValueReferences } from '../common/comparison-value-references.js';
 import type { N8nOutputBindingSource } from '../../../types/output-binding-source.js';
@@ -7,7 +7,7 @@ import { createOutputItemReaderCode } from '../../request/bindings/create-output
 /** Library-owned runtime, shared by IF expressions and assertion Code nodes. */
 function comparisonRuntime(): string {
   return `
-function read(operand) {
+function read(operand, allowMissing = false) {
   if (operand.source === 'literal') return operand.value;
   if (!Object.hasOwn(responses, operand.nodeId) || responses[operand.nodeId] === undefined)
     throw new Error((operand.source === 'response' ? 'Missing response body: ' : 'Missing native JSON output: ') + operand.nodeId);
@@ -15,8 +15,10 @@ function read(operand) {
   if (operand.pointer === '') return value;
   for (const encoded of operand.pointer.slice(1).split('/')) {
     const key = encoded.replace(/~1/g, '/').replace(/~0/g, '~');
-    if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key))
+    if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) {
+      if (allowMissing) return undefined;
       throw new Error((operand.source === 'response' ? 'Missing response pointer: ' : 'Missing native output pointer: ') + operand.nodeId + operand.pointer);
+    }
     value = value[key];
   }
   return value;
@@ -29,6 +31,18 @@ function equal(a, b) {
   return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && equal(a[key], b[key]));
 }
 function compare(check) {
+  if (!Object.hasOwn(check, 'right')) {
+    const value = read(check.left, true);
+    const exists = value !== undefined && value !== null;
+    const empty = !exists || value === '' || (Array.isArray(value) ? value.length === 0 : typeof value === 'object' && Object.keys(value).length === 0);
+    switch (check.operator) {
+      case 'exists': return exists;
+      case 'notExists': return !exists;
+      case 'isEmpty': return empty;
+      case 'isNotEmpty': return !empty;
+      default: throw new Error('Unknown presence operator');
+    }
+  }
   const left = read(check.left), right = read(check.right);
   return compareValues(check.operator, left, right);
 }
@@ -55,7 +69,7 @@ export function createComparisonEvaluationCode(
 }
 
 export function createComparisonConditionExpression(
-  check: NativeCheck,
+  check: NativeCondition,
   bindingSources: N8nOutputBindingSource[],
   linked = false,
   singletonApiResponseIds: string[] = [],

@@ -51,12 +51,25 @@ export const nativeCheckSchema = z.strictObject({
     ),
   right: nativeOperandSchema,
 });
+/** Unary predicates inspect declared pointers without requiring a comparison value. */
+export const nativePresenceCheckSchema = z.strictObject({
+  left: z.union([nativeResponseOperandSchema, nativeOutputOperandSchema]),
+  operator: z
+    .enum(['exists', 'notExists', 'isEmpty', 'isNotEmpty'])
+    .describe(
+      'exists excludes missing and null. isEmpty accepts missing, null, empty string, array or object. No conversion or replacement values.',
+    ),
+});
+export const nativeConditionSchema = z.union([
+  nativeCheckSchema,
+  nativePresenceCheckSchema,
+]);
 export const ifParametersSchema = z.strictObject({
   combinator: z
     .enum(['and', 'or'])
     .describe('Combine all conditions. Outputs: true, false; input: main.'),
   conditions: z
-    .array(nativeCheckSchema)
+    .array(nativeConditionSchema)
     .min(1)
     .describe(
       'Only conditions required by the scenario, with OAS-derived response pointers.',

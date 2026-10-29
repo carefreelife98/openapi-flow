@@ -106,3 +106,7 @@ export type {
   CreateNativeValueCollectionCapabilityInput,
   NativeValueCollectionParameters,
 } from './types/value-collection.js';
+
+export { createLiteralDataCapability } from './nodes/native/create-literal-data-capability.js';
+export { literalDataParametersSchema } from './schemas/literal-data-schema.js';
+export type { NativeCondition } from './types/native-capability.js';

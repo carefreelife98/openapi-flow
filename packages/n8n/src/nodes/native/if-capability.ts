@@ -21,7 +21,7 @@ export function createIfCapability(
   return {
     name: 'if',
     description:
-      'n8n IF: compare supplied API responses or actual native JSON outputs without conversion. main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions.',
+      'n8n IF: compare supplied API responses or actual native JSON outputs without conversion. main input; true and false OUTPUT PORTS are mutually exclusive. Multiple edges from the SAME port all execute (fan-out) and can be joined. Type-strict declarative conditions. Unary exists/notExists/isEmpty/isNotEmpty safely inspect missing nested fields without inventing values. Use separate IF gates before strict comparisons of optional fields.',
     parametersSchema: ifParametersSchema,
     parameterReferenceSources: ['response', 'node-output'],
     createPlanningParametersSchema: createIfPlanningParametersSchema,

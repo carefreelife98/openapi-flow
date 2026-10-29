@@ -1,3 +1,4 @@
+import { createLiteralDataCapability } from '../create-literal-data-capability.js';
 import { createIfCapability } from '../if-capability.js';
 import { nativeValueCollectionDefinition } from '../collection/native-value-collection-definition.js';
 import { createNativeValueCollectionCapability } from '../collection/create-native-value-collection-capability.js';
@@ -144,6 +145,10 @@ export const nativeFeatureDefinitions: Record<
   [N8nNativeFeature.RejoinExclusiveBranches]: {
     requirements: [],
     create: createExclusiveBranchMergeCapability,
+  },
+  [N8nNativeFeature.EmitLiteralData]: {
+    requirements: [],
+    create: createLiteralDataCapability,
   },
   [N8nNativeFeature.JsonOutput]: {
     requirements: [{ field: 'jsonOutput' }],

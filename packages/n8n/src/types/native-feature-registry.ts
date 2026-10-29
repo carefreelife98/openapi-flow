@@ -16,6 +16,7 @@ export const N8nNativeFeature = Object.freeze({
   PassThrough: 'pass-through',
   RejoinExclusiveBranches: 'rejoin-exclusive-branches',
   JsonOutput: 'json-output',
+  EmitLiteralData: 'emit-literal-data',
   SplitApiResponseArray: 'split-api-response-array',
   CollectApiResponses: 'collect-api-responses',
   CollectNativeOutputValues: 'collect-native-output-values',

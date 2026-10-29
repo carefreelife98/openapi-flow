@@ -13,6 +13,7 @@ import {
   nativeLiteralOperandSchema,
   nativeOutputOperandSchema,
   nativeCheckSchema,
+  nativePresenceCheckSchema,
   ifParametersSchema,
   assertionParametersSchema,
 } from './native-capability-schemas.js';
@@ -58,9 +59,18 @@ function createPlanningCheckSchema(context: WorkflowCapabilityPlanningContext) {
 export function createIfPlanningParametersSchema(
   context: WorkflowCapabilityPlanningContext,
 ) {
+  const references = createPlanningReferenceSchemas(context);
+  const comparison = createPlanningCheckSchema(context);
+  const condition =
+    references.length === 0
+      ? comparison
+      : z.union([
+          comparison,
+          nativePresenceCheckSchema.extend({ left: z.union(references) }),
+        ]);
   return ifParametersSchema.extend({
     conditions: z
-      .array(createPlanningCheckSchema(context))
+      .array(condition)
       .min(1)
       .describe(
         'Only scenario-required comparisons of supplied API responses or actual declared native outputs. Keep source values and types unchanged.',

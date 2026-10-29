@@ -1,6 +1,6 @@
 import type {
   CompileNativeNodeInput,
-  NativeCheck,
+  NativeCondition,
 } from './native-capability.js';
 import type { N8nOutputBindingSource } from './output-binding-source.js';
 import type { WorkflowValueReference } from '@openapi-flow/core';
@@ -13,7 +13,7 @@ export interface CreateComparisonInputReaderInput extends Pick<
   | 'nativeOutputSources'
 > {
   nodeId: string;
-  checks: NativeCheck[];
+  checks: NativeCondition[];
   linked: boolean;
 }
 
