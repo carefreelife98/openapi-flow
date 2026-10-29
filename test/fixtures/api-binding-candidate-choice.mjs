@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-function selectionsFor(template, pointer) {
+function selectionsFor(template, pointer, keys, nodeId) {
   const tokens =
     pointer === ''
       ? []
@@ -27,12 +27,33 @@ function selectionsFor(template, pointer) {
         )
       )
         return undefined;
-      selections['s' + Object.keys(selections).length] = token;
+      if (keys === undefined)
+        selections['s' + Object.keys(selections).length] = token;
+      else {
+        const key = keys.find(
+          (item) =>
+            item.nodeId === nodeId &&
+            item.kind === 'key' &&
+            item.value === token,
+        );
+        if (!key) return undefined;
+        selections['s' + Object.keys(selections).length] = { keyId: key.id };
+      }
     } else {
       if (token === undefined) return undefined;
-      selections['s' + Object.keys(selections).length] = tokens.slice(
-        cursor - 1,
-      );
+      const path = tokens.slice(cursor - 1);
+      if (keys === undefined)
+        selections['s' + Object.keys(selections).length] = path;
+      else {
+        const key = keys.find(
+          (item) =>
+            item.nodeId === nodeId &&
+            item.kind === 'path' &&
+            JSON.stringify(item.tokens) === JSON.stringify(path),
+        );
+        if (!key) return undefined;
+        selections['s' + Object.keys(selections).length] = { pathId: key.id };
+      }
       cursor = tokens.length;
     }
   }
@@ -67,10 +88,14 @@ export function candidateChoices(context, bindings) {
         const sourceSelections = selectionsFor(
           candidate.source,
           binding.sourcePointer,
+          context.bindingKeyCandidates,
+          candidate.sourceNodeId,
         );
         const targetSelections = selectionsFor(
           candidate.target,
           binding.targetPointer,
+          context.bindingKeyCandidates,
+          context.target?.nodeId,
         );
         return sourceSelections === undefined || targetSelections === undefined
           ? []

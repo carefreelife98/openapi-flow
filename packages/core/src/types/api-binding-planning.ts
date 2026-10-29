@@ -1,3 +1,4 @@
+import type { WorkflowSourceMessage } from './workflow-draft.js';
 import type { ApiOperationContract } from './api-operation.js';
 import type {
   ApiBindingMaterial,
@@ -11,6 +12,8 @@ export interface ApiBindingPlanningInput {
   scenario: string;
   materials: ApiBindingMaterial[];
   nativeOutputs?: NativeOutputContract[];
+  /** Original user value sources, separate from a formatted planning scenario. */
+  literalSourceMessages?: WorkflowSourceMessage[];
 }
 
 export interface ApiBindingPlanningMaterial extends Pick<
@@ -28,6 +31,8 @@ export interface ApiBindingPlanningContext {
   scenario: string;
   materials: ApiBindingPlanningMaterial[];
   nativeOutputs?: NativeOutputContract[];
+  /** Original user value sources, separate from a formatted planning scenario. */
+  literalSourceMessages?: WorkflowSourceMessage[];
 }
 
 export interface ApiBindingPlanningDescription {

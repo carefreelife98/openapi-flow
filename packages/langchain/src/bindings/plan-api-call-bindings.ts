@@ -6,6 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
   describeApiCallBindingPlanning,
+  createApiBindingKeyCatalog,
   resolveApiBindingSourceSelection,
   resolveApiCallBindingPlan,
   listApiResponsePointers,
@@ -16,8 +17,11 @@ import {
 } from '@openapi-flow/core';
 import type {
   ApiCallBindingPlan,
-  ApiBindingCandidateProposal,
+  ApiBindingKeyCandidate,
 } from '@openapi-flow/core';
+import { restrictModelBindingCandidates } from './restrict-model-binding-candidates.js';
+import { resolveModelBindingSelections } from './resolve-model-binding-selections.js';
+import type { ApiBindingModelCandidateProposal } from '../types/api-binding-model-selection.js';
 import type { PlanApiCallBindingsInput } from '../types/api-call-binding-planning.js';
 import { createApiBindingCandidateSchema } from '../schemas/api-binding-candidate-schema.js';
 import { apiCallBindingsPrompt } from '../prompts/api-call-bindings-prompt.js';
@@ -30,39 +34,58 @@ import { createApiBindingCandidateContext } from './create-api-binding-candidate
 export async function planApiCallBindings(
   input: PlanApiCallBindingsInput,
 ): Promise<ApiCallBindingPlan> {
-  const { description, sources, materialRepair } = runOpenApiFlowOperation(
-    {
-      owner: 'langchain',
-      operation: 'planApiCallBindings',
-      stage: 'input-validation',
-      code: 'PLANNING_INPUT_INVALID',
-    },
-    () => {
-      const description = describeApiCallBindingPlanning(input);
-      const sources = structuredClone(input.sources);
-      const expected = resolveApiBindingSourceSelection({
-        ...description.input,
-        proposal: {
-          sourceNodeIds: sources.sourceNodeIds,
-          gaps: sources.gaps,
-          ...(sources.reason === undefined ? {} : { reason: sources.reason }),
-        },
-      });
-      if (!isDeepStrictEqual(sources, expected))
-        throw new Error(
-          'binding source selection changed or belongs to another call or source snapshot',
-        );
-      const materialRepair =
-        input.materialRepair === undefined
-          ? undefined
-          : describeWorkflowConnectionApiRepair({
-              stage: 'api-bindings',
-              repair: input.materialRepair,
-              planning: input,
-            });
-      return { description, sources, materialRepair };
-    },
-  );
+  const { description, sources, materialRepair, keyCandidates } =
+    runOpenApiFlowOperation(
+      {
+        owner: 'langchain',
+        operation: 'planApiCallBindings',
+        stage: 'input-validation',
+        code: 'PLANNING_INPUT_INVALID',
+      },
+      () => {
+        const description = describeApiCallBindingPlanning(input);
+        const sources = structuredClone(input.sources);
+        const expected = resolveApiBindingSourceSelection({
+          ...description.input,
+          proposal: {
+            sourceNodeIds: sources.sourceNodeIds,
+            ...(sources.keySelections === undefined
+              ? {}
+              : { keySelections: sources.keySelections }),
+            gaps: sources.gaps,
+            ...(sources.reason === undefined ? {} : { reason: sources.reason }),
+          },
+        });
+        if (!isDeepStrictEqual(sources, expected))
+          throw new Error(
+            'binding source selection changed or belongs to another call or source snapshot',
+          );
+        const keyCandidates: ApiBindingKeyCandidate[] = [];
+        if (sources.keySelections !== undefined) {
+          const messages = description.input.literalSourceMessages;
+          if (messages === undefined)
+            throw new Error(
+              'Binding key selections require literalSourceMessages',
+            );
+          keyCandidates.push(
+            ...createApiBindingKeyCatalog({
+              selections: sources.keySelections,
+              messages,
+              nodeIds: [input.callId, ...sources.sourceNodeIds],
+            }),
+          );
+        }
+        const materialRepair =
+          input.materialRepair === undefined
+            ? undefined
+            : describeWorkflowConnectionApiRepair({
+                stage: 'api-bindings',
+                repair: input.materialRepair,
+                planning: input,
+              });
+        return { description, sources, materialRepair, keyCandidates };
+      },
+    );
   const sourceFingerprint = fingerprintApiCallBindingSource({
     ...description.input,
     sources,
@@ -92,12 +115,20 @@ export async function planApiCallBindings(
       },
     });
   const selected = new Set(sources.sourceNodeIds);
-  const catalog = describeApiBindingCandidates({
-    ...description.input,
-    sources,
-  });
-  const schema = createApiBindingCandidateSchema(description, catalog);
-  const output = await invokeStructuredModel<ApiBindingCandidateProposal>({
+  const catalog = restrictModelBindingCandidates(
+    describeApiBindingCandidates({
+      ...description.input,
+      sources,
+    }),
+    input.callId,
+    keyCandidates,
+  );
+  const schema = createApiBindingCandidateSchema(
+    description,
+    catalog,
+    keyCandidates,
+  );
+  const output = await invokeStructuredModel<ApiBindingModelCandidateProposal>({
     model: input.model,
     schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
     operation: 'planApiCallBindings',
@@ -116,7 +147,7 @@ export async function planApiCallBindings(
           scenario: description.input.scenario,
           target: description.target,
           requestSchema: description.requestSchema,
-          ...createApiBindingCandidateContext(catalog),
+          ...createApiBindingCandidateContext(catalog, keyCandidates),
           ...(rejectedProposals.length ? { rejectedProposals } : {}),
           apiSources: description.input.materials
             .filter((material) => selected.has(material.callId))
@@ -150,6 +181,15 @@ export async function planApiCallBindings(
       },
       () => {
         if (
+          !isDeepStrictEqual(
+            input.literalSourceMessages,
+            description.input.literalSourceMessages,
+          )
+        )
+          throw new Error(
+            'Binding literalSourceMessages changed during field planning',
+          );
+        if (
           materialRepair !== undefined &&
           (input.materialRepair === undefined ||
             !isDeepStrictEqual(
@@ -167,10 +207,20 @@ export async function planApiCallBindings(
         return resolveApiBindingCandidates({
           ...description.input,
           sources,
-          proposal: parseStructuredOutput(
-            createApiBindingCandidateSchema(description, catalog, false),
-            output,
-            'API call bindings',
+          proposal: resolveModelBindingSelections(
+            parseStructuredOutput(
+              createApiBindingCandidateSchema(
+                description,
+                catalog,
+                keyCandidates,
+                false,
+              ),
+              output,
+              'API call bindings',
+            ),
+            catalog,
+            keyCandidates,
+            input.callId,
           ),
         });
       },

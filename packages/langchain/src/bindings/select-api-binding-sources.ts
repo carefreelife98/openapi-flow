@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
   describeApiCallBindingPlanning,
+  describeApiLiteralJsonSources,
   resolveApiBindingSourceSelection,
   runOpenApiFlowOperation,
   describeWorkflowConnectionApiRepair,
@@ -74,6 +75,14 @@ export async function selectApiBindingSources(
           target: description.target,
           requestSchema: description.requestSchema,
           sourceCandidates: description.sourceCandidates,
+          ...(description.input.literalSourceMessages === undefined
+            ? {}
+            : {
+                literalSourceMessages: description.input.literalSourceMessages,
+                literalJsonSources: describeApiLiteralJsonSources(
+                  description.input.literalSourceMessages,
+                ),
+              }),
           ...(materialRepair === undefined ? {} : { materialRepair }),
         }),
       ),
@@ -88,6 +97,15 @@ export async function selectApiBindingSources(
       code: 'API_BINDING_VALIDATION_FAILED',
     },
     () => {
+      if (
+        !isDeepStrictEqual(
+          input.literalSourceMessages,
+          description.input.literalSourceMessages,
+        )
+      )
+        throw new Error(
+          'Binding literalSourceMessages changed during source selection',
+        );
       if (
         materialRepair !== undefined &&
         (input.materialRepair === undefined ||
@@ -111,6 +129,7 @@ export async function selectApiBindingSources(
             output,
             'API binding source decision',
           ),
+          description.input.literalSourceMessages,
         ),
       });
     },

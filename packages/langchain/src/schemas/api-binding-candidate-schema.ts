@@ -6,18 +6,23 @@ import {
 import type {
   ApiBindingCandidate,
   ApiBindingCandidateCatalog,
-  ApiBindingCandidateProposal,
   ApiCallBindingPlanningDescription,
   BindingPointerTemplate,
-  BindingPointerSelections,
 } from '@openapi-flow/core';
+import { listBindingKeyChoices } from '../bindings/list-binding-key-choices.js';
+import type {
+  ApiBindingModelCandidateProposal,
+  ApiBindingModelSelection,
+} from '../types/api-binding-model-selection.js';
+import type { ApiBindingKeyCandidate } from '@openapi-flow/core';
 import { apiBindingCallReasonSchema } from './api-binding-plan-schema.js';
 
-function selectionsSchema(template: BindingPointerTemplate) {
-  const fields: Record<
-    string,
-    z.ZodType<BindingPointerSelections[string]>
-  > = {};
+function selectionsSchema(
+  template: BindingPointerTemplate,
+  nodeId: string,
+  keys: ApiBindingKeyCandidate[],
+) {
+  const fields: Record<string, z.ZodType<ApiBindingModelSelection>> = {};
   for (const segment of template.segments) {
     if (segment.kind === 'property') continue;
     const key = 's' + Object.keys(fields).length;
@@ -28,19 +33,24 @@ function selectionsSchema(template: BindingPointerTemplate) {
       ).describe(
         'Explicit array index required by the scenario; never guess the first item.',
       );
-    } else if (segment.kind === 'key') {
-      fields[key] = z
-        .string()
-        .describe(
-          'Explicit runtime dictionary key required by the scenario. Code validates the original key constraints.',
-        );
     } else {
-      fields[key] = z
-        .array(z.string())
-        .min(1)
-        .describe(
-          'Explicit JSON property/index tokens below an open or recursive contract. These are checked against the original schema, not executable expressions.',
+      const choices = listBindingKeyChoices(segment, nodeId, keys);
+      if (!choices.length)
+        throw new Error(
+          'Model binding name slots require verified key/path candidates',
         );
+      fields[key] =
+        segment.kind === 'key'
+          ? z
+              .strictObject({ keyId: z.enum(choices.map((item) => item.id)) })
+              .describe(
+                'Select an ID for an original, code-verified key. Never generate a property name.',
+              )
+          : z
+              .strictObject({ pathId: z.enum(choices.map((item) => item.id)) })
+              .describe(
+                'Select an ID for an original, code-verified relative path. Never generate path tokens.',
+              );
     }
   }
   return z.strictObject(fields);
@@ -49,11 +59,17 @@ function selectionsSchema(template: BindingPointerTemplate) {
 export function createApiBindingCandidateSchema(
   description: ApiCallBindingPlanningDescription,
   catalog: ApiBindingCandidateCatalog,
+  keys: ApiBindingKeyCandidate[],
   requireExplanations = true,
-): z.ZodType<ApiBindingCandidateProposal> {
+): z.ZodType<ApiBindingModelCandidateProposal> {
   const groups = new Map<string, ApiBindingCandidate[]>();
   for (const candidate of catalog.candidates) {
     const key = JSON.stringify([
+      candidate.source.segments.some(
+        (segment) => segment.kind === 'key' || segment.kind === 'descendant',
+      )
+        ? candidate.sourceNodeId
+        : null,
       candidate.source.segments.filter(
         (segment) => segment.kind !== 'property',
       ),
@@ -68,8 +84,16 @@ export function createApiBindingCandidateSchema(
   const choices = [...groups.values()].map((group) =>
     z.strictObject({
       candidateId: z.enum(group.map((candidate) => candidate.id)),
-      sourceSelections: selectionsSchema(group[0].source),
-      targetSelections: selectionsSchema(group[0].target),
+      sourceSelections: selectionsSchema(
+        group[0].source,
+        group[0].sourceNodeId,
+        keys,
+      ),
+      targetSelections: selectionsSchema(
+        group[0].target,
+        description.input.callId,
+        keys,
+      ),
     }),
   );
   const bindings =

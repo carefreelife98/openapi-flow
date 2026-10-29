@@ -108,7 +108,6 @@ test('initial independent generation tracks requested optional inputs and reuses
       literalSources: [idSource],
     },
     requestedInputs: ['/query/id', '/query/sort'],
-    enumIntentInputs: ['/query/sort'],
     explanation: { reason: '첫 조회에 명시한 상품번호만 그대로 추출했습니다.' },
   });
   const result = await generateApiArguments({ ...input, model: llm });
@@ -181,7 +180,6 @@ test('ambiguous enum remains a real requested question; default and unrequested 
         literalSources: [idSource],
       },
       requestedInputs: ['/query/sort'],
-      enumIntentInputs: ['/query/sort'],
     },
     () => undefined,
   );
@@ -196,7 +194,6 @@ test('ambiguous enum remains a real requested question; default and unrequested 
       literalSources: [idSource],
     },
     requestedInputs: [],
-    enumIntentInputs: [],
   });
   const untouched = await generateApiArguments({
     ...input,
@@ -241,7 +238,6 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
       ],
     },
     requestedInputs: ['/query/sort'],
-    enumIntentInputs: [],
   });
   const literal = await generateApiArguments({
     ...input,
@@ -262,7 +258,6 @@ test('original JSON enum types are copied without coercion, including null and c
         literalSources: [idSource],
       },
       requestedInputs: ['/query/sort'],
-      enumIntentInputs: ['/query/sort'],
     });
     const result = await generateApiArguments({
       callId: 'typed',
@@ -344,7 +339,6 @@ test('invalid first values and invalid enum choices fail without repair, another
       literalSources: [idSource],
     },
     requestedInputs: ['/query/sort'],
-    enumIntentInputs: [],
   });
   await assert.rejects(
     generateApiArguments({ ...input, model: invalid }),
@@ -373,7 +367,6 @@ test('invalid first values and invalid enum choices fail without repair, another
           literalSources: [idSource],
         },
         requestedInputs: ['/query/sort'],
-        enumIntentInputs: ['/query/sort'],
       },
       undefined,
       mutate,
@@ -407,7 +400,6 @@ test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an
       ],
     },
     requestedInputs: ['/query/sort'],
-    enumIntentInputs: [],
   });
   await assert.rejects(
     generateApiArguments({
@@ -468,7 +460,6 @@ test('an absent request body exposes only requested enum descendants and preserv
   const llm = model({
     literalInputs: { state: 'not-provided' },
     requestedInputs: ['/body/preferences/sort'],
-    enumIntentInputs: ['/body/preferences/sort'],
   });
   const result = await generateApiArguments({
     callId: 'nested',
@@ -496,7 +487,6 @@ test('explicit literal absence keeps enum intent pending without emitting an emp
   const llm = model({
     literalInputs: { state: 'not-provided' },
     requestedInputs: ['/query/sort'],
-    enumIntentInputs: ['/query/sort'],
   });
   const result = await generateApiArguments({
     callId: 'empty-query',
@@ -515,15 +505,14 @@ test('explicit literal absence keeps enum intent pending without emitting an emp
   assert.deepEqual(result.unresolvedInputs, ['/query/id']);
 });
 
-test('unknown inputs stay missing without a second semantic call, regardless of examples or display reasons', async () => {
+test('requested enums can remain unanswered without interpreting examples or display reasons', async () => {
   const proposed = {
     literalInputs: { state: 'not-provided' },
     requestedInputs: ['/query/id', '/query/sort'],
-    enumIntentInputs: [],
     explanation: { reason: '표시 설명에 VIEWS가 있어도 실행 결정이 아닙니다.' },
   };
   const before = globalThis.structuredClone(proposed);
-  const llm = model(proposed);
+  const llm = model(proposed, () => undefined);
   const result = await generateApiArguments({
     callId: 'future-value',
     operation: await operation(),
@@ -536,9 +525,12 @@ test('unknown inputs stay missing without a second semantic call, regardless of 
   assert.deepEqual(proposed, before);
   assert.deepEqual(result.values, {});
   assert.deepEqual(result.unresolvedInputs, ['/query/id', '/query/sort']);
-  assert.equal(Object.hasOwn(result, 'enumInterpretation'), false);
-  assert.equal(llm.calls.length, 1);
-  assert.ok(llm.calls[0].schema.properties.enumIntentInputs);
+  assert.deepEqual(result.enumInterpretation.analysis.answers, []);
+  assert.equal(llm.calls.length, 2);
+  assert.equal(
+    Object.hasOwn(llm.calls[0].schema.properties, 'enumIntentInputs'),
+    false,
+  );
 });
 
 test('an advertised enum target can still be explicitly not supplied without promoting an example', async () => {
@@ -546,7 +538,6 @@ test('an advertised enum target can still be explicitly not supplied without pro
     {
       literalInputs: { state: 'not-provided' },
       requestedInputs: ['/query/sort'],
-      enumIntentInputs: ['/query/sort'],
     },
     () => undefined,
   );
@@ -580,8 +571,7 @@ test('initial enum decisions copy every OAS value type and bind source identity 
     };
     const llm = model({
       literalInputs: { state: 'not-provided' },
-      requestedInputs: [],
-      enumIntentInputs: ['/query/sort'],
+      requestedInputs: ['/query/sort'],
     });
     const result = await generateApiArguments({ ...input, model: llm });
     assert.deepEqual(result.values, { query: { sort: value } });
@@ -601,7 +591,7 @@ test('initial enum decisions copy every OAS value type and bind source identity 
   }
 });
 
-test('only explicitly selected semantic targets reach enum interpretation; code derives their requested presence', async () => {
+test('code derives enum targets from requested paths without scheduling unrelated missing fields', async () => {
   const input = {
     callId: 'scoped-enum',
     operation: await operation(undefined, [
@@ -622,8 +612,7 @@ test('only explicitly selected semantic targets reach enum interpretation; code 
       values: { query: { id: '0007' } },
       literalSources: [idSource],
     },
-    requestedInputs: [],
-    enumIntentInputs: ['/query/sort'],
+    requestedInputs: ['/query/sort'],
   });
   const result = await generateApiArguments({ ...input, model: llm });
   assert.deepEqual(result.requestedInputs, ['/query/sort']);
@@ -649,62 +638,50 @@ test('only explicitly selected semantic targets reach enum interpretation; code 
   );
 });
 
-test('missing, duplicate, non-enum, confirmed or bound semantic targets fail without scheduling interpretation', async () => {
-  const op = await operation();
+test('the literal output cannot supply a model-owned enum dispatch list', async () => {
   const input = {
-    callId: 'invalid-enum-intent',
-    operation: op,
+    callId: 'invalid-enum-dispatch',
+    operation: await operation(),
     bindings: [],
     scenario: '정렬은 나중에 지정할게.',
     selectOasEnums: true,
   };
-  const cases = [
-    { targets: undefined },
-    { targets: null },
-    { targets: ['/query/sort', '/query/sort'] },
-    { targets: ['/query/id'] },
-    { targets: ['/query/not-declared'] },
-    {
-      targets: ['/query/sort'],
-      confirmedInputs: [
-        {
-          callId: input.callId,
-          operation: op.key,
-          targetPointer: '/query/sort',
-          value: 'NEW',
-        },
-      ],
-    },
-    {
-      targets: ['/query/sort'],
-      bindings: [
-        {
-          kind: 'node-output',
-          targetPointer: '/query/sort',
-          sourceNodeId: 'producer',
-          sourcePointer: '/sort',
-        },
-      ],
-    },
-  ];
-  for (const entry of cases) {
+  for (const targets of [
+    null,
+    [],
+    ['/query/sort'],
+    ['/query/sort', '/query/sort'],
+    ['/query/not-declared'],
+  ]) {
     const llm = model({
       literalInputs: { state: 'not-provided' },
       requestedInputs: [],
-      ...(entry.targets === undefined
-        ? {}
-        : { enumIntentInputs: entry.targets }),
+      enumIntentInputs: targets,
     });
-    await assert.rejects(
-      generateApiArguments({
-        ...input,
-        ...(entry.confirmedInputs === undefined
-          ? {}
-          : { confirmedInputs: entry.confirmedInputs }),
-        ...(entry.bindings === undefined ? {} : { bindings: entry.bindings }),
-        model: llm,
-      }),
-    );
+    await assert.rejects(generateApiArguments({ ...input, model: llm }));
+    assert.equal(llm.calls.length, 1);
+  }
+});
+
+test('missing or invalid requested input paths fail before enum dispatch', async () => {
+  const input = {
+    callId: 'invalid-requested-enum',
+    operation: await operation(),
+    bindings: [],
+    scenario: '정렬은 나중에 지정할게.',
+    selectOasEnums: true,
+  };
+  for (const requestedInputs of [
+    undefined,
+    null,
+    ['/query/sort', '/query/sort'],
+    ['/query/not-declared'],
+  ]) {
+    const llm = model({
+      literalInputs: { state: 'not-provided' },
+      ...(requestedInputs === undefined ? {} : { requestedInputs }),
+    });
+    await assert.rejects(generateApiArguments({ ...input, model: llm }));
     assert.equal(llm.calls.length, 1);
   }
 });

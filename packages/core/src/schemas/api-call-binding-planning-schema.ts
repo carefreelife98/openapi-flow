@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiBindingKeyProposalSchema } from './api-binding-key-schema.js';
 import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
 
 export const apiCallBindingOptionsSchema = z.object({
@@ -15,6 +16,7 @@ export const apiCallBindingGapSchema = z.strictObject({
 });
 
 export const apiBindingSourceProposalSchema = z.strictObject({
+  keySelections: z.array(apiBindingKeyProposalSchema).optional(),
   sourceNodeIds: z.array(z.string().min(1)),
   gaps: z.array(apiCallBindingGapSchema),
   reason: optionalPlanningExplanationSchema,

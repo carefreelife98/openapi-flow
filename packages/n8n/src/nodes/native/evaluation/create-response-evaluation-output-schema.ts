@@ -1,3 +1,4 @@
+import { deduplicateCanonicalSchemaResources } from '@openapi-flow/core';
 import type { BindingSchema } from '@openapi-flow/core';
 import type { ResponseEvaluationRuleContract } from '../../../types/response-evaluation.js';
 import { responseEvaluationStatusSchema } from '../../../schemas/response-evaluation-schema.js';
@@ -86,7 +87,7 @@ export function createResponseEvaluationOutputSchema(
       };
     },
   );
-  return {
+  return deduplicateCanonicalSchemaResources({
     type: 'object',
     properties: {
       checks: {
@@ -108,5 +109,5 @@ export function createResponseEvaluationOutputSchema(
     },
     required: ['checks', 'summary'],
     additionalProperties: false,
-  };
+  });
 }

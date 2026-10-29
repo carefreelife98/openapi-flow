@@ -1,5 +1,20 @@
 # @openapi-flow/n8n
 
+## Unreleased: shared response-evaluation schema projection
+
+Response-evaluation contracts use core's sequential schema projection instead of
+repeatedly embedding intermediate schema bundles. API source extraction, original
+value types, item lineage and array-measurement failure diagnostics are retained.
+This is a schema-processing change, not a new execution node or business rule.
+A replay of three original OAS-backed evaluation rules agreed on 27 test values;
+it is not a full workflow quality result. Published 0.5.1 is unchanged.
+
+Combined evaluation output also reuses identical canonical schema resources when
+multiple checks refer to the same native output. Conflicting resource declarations
+fail rather than merge. Isolated n8n execution passed six evaluation conditions,
+including two checks over one native output with unchanged values and pointers.
+This is execution-contract verification, not a natural-language scenario pass.
+
 0.4.2 declares that `gather-api-responses` settings are fully determined by its
 explicitly selected producer IDs. Core can copy that registered contract without
 a second model value decision. This is opt-in capability behavior, not field-name

@@ -5,6 +5,7 @@ import process from 'node:process';
 import console from 'node:console';
 import {
   createResponseEvaluationWorkflow,
+  createNativeResponseEvaluationWorkflow,
   evaluationBody,
 } from '../test/fixtures/response-evaluation-fixture.mjs';
 import { runDocker } from './utils/run-docker.mjs';
@@ -14,6 +15,7 @@ const image = 'n8nio/n8n:2.37.10';
 const workflow = await createResponseEvaluationWorkflow(
   'http://127.0.0.1:31399',
 );
+const nativeWorkflow = createNativeResponseEvaluationWorkflow();
 const cases = [
   { name: 'mixed-outcomes', body: evaluationBody },
   {
@@ -60,6 +62,12 @@ function run(args){return new Promise((resolve,reject)=>{
    const result=await run(['execute','--id='+payload.workflow.id,'--rawOutput']);
    reports.push({name:entry.name,...result,requests:requests.slice(before)});
   }
+  fs.writeFileSync('/tmp/native-response-evaluation.json',JSON.stringify(payload.nativeWorkflow));
+  const nativeImported=await run(['import:workflow','--input=/tmp/native-response-evaluation.json']);
+  if(nativeImported.code!==0)throw new Error('Native import failed: '+nativeImported.stdout+nativeImported.stderr);
+  const beforeNative=requests.length;
+  const nativeResult=await run(['execute','--id='+payload.nativeWorkflow.id,'--rawOutput']);
+  reports.push({name:'native-two-checks',...nativeResult,requests:requests.slice(beforeNative)});
   process.stdout.write(JSON.stringify(reports));
  }finally{await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{process.stderr.write(error.stack);process.exitCode=1;});`;
@@ -80,7 +88,7 @@ const raw = await runDocker(
     '-e',
     runtime,
   ],
-  JSON.stringify({ workflow, cases }),
+  JSON.stringify({ workflow, nativeWorkflow, cases }),
 );
 assert.equal(raw.code, 0, raw.stderr);
 const reports = JSON.parse(raw.stdout);
@@ -174,6 +182,31 @@ for (const [index, entry] of cases.entries()) {
     outputEchoPreserved: true,
   });
 }
+const nativeReport = reports[cases.length];
+assert.equal(reports.length, cases.length + 1);
+assert.equal(nativeReport.name, 'native-two-checks');
+assert.equal(nativeReport.code, 0, nativeReport.stdout + nativeReport.stderr);
+assert.deepEqual(nativeReport.requests, []);
+const nativeExecution = readN8nExecution(nativeReport.stdout);
+assert.equal(nativeExecution.status, 'success');
+const nativeResult =
+  nativeExecution.data.resultData.runData['evaluate-native'][0].data.main[0][0]
+    .json;
+assert.equal(nativeResult.summary.normal, 2);
+assert.deepEqual(
+  nativeResult.checks.map((check) => check.actualValue),
+  [1, 'x'],
+);
+assert.deepEqual(
+  nativeResult.checks.map((check) => check.source.pointer),
+  ['/a', '/b'],
+);
+verified.push({
+  name: nativeReport.name,
+  status: nativeExecution.status,
+  originalValuesPreserved: true,
+  businessApiCalls: 0,
+});
 const directory = new URL(
   `../.local-artifacts/response-evaluation/${Date.now()}-${process.pid}/`,
   import.meta.url,
@@ -190,6 +223,10 @@ await writeFile(
 await writeFile(
   new URL('workflow.json', directory),
   JSON.stringify(workflow, null, 2),
+);
+await writeFile(
+  new URL('native-workflow.json', directory),
+  JSON.stringify(nativeWorkflow, null, 2),
 );
 console.log(
   JSON.stringify({ cases: verified, artifacts: directory.pathname }, null, 2),

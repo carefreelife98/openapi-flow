@@ -10,7 +10,10 @@ import type {
   ApiServerObject,
 } from '../types/api-operation.js';
 import { apiOperationKeySchema } from './api-operation-key-schema.js';
-import { planningEvidenceTextSchema } from './planning-evidence-schema.js';
+import {
+  planningEvidenceTextSchema,
+  workflowNonemptySourceMessagesSchema,
+} from './planning-evidence-schema.js';
 
 export const apiBindingPlanningIdentitySchema = z.strictObject({
   scenario: planningEvidenceTextSchema,
@@ -47,6 +50,7 @@ export const apiBindingCallReasonsSchema = z.array(
 
 /** Nested OAS and native data are compared to a newly derived exact source snapshot. */
 export const apiBindingPlanningContextSchema = z.strictObject({
+  literalSourceMessages: workflowNonemptySourceMessagesSchema.optional(),
   scenario: planningEvidenceTextSchema,
   materials: z.array(z.custom<ApiBindingPlanningMaterial>()),
   nativeOutputs: z.array(z.custom<NativeOutputContract>()).optional(),

@@ -1,6 +1,12 @@
-import { createApiCatalog, resolveApiOperations } from '@openapi-flow/core';
+import { z } from 'zod';
+import {
+  createApiCatalog,
+  resolveApiOperations,
+  createNativeOutputContracts,
+} from '@openapi-flow/core';
 import {
   createResponseEvaluationCapability,
+  createJsonOutputCapability,
   createHttpRequestNode,
   createN8nNativeOutputSources,
   compilePlannedN8nWorkflow,
@@ -249,6 +255,72 @@ export async function createResponseEvaluationWorkflow(baseUrl) {
       edges: [
         { from: 'snapshot', output: 'main', to: 'evaluate', input: 'main' },
         { from: 'evaluate', output: 'main', to: 'echo', input: 'main' },
+      ],
+    },
+  }).workflow;
+}
+
+/** Engine regression: two checks consume one original native item and its shared contract. */
+export function createNativeResponseEvaluationWorkflow() {
+  const sourceCapability = createJsonOutputCapability({
+    name: 'fixture-native-values',
+    description: 'Original typed native values',
+    parametersSchema: z.strictObject({ a: z.number(), b: z.string() }),
+  });
+  const source = {
+    id: 'original',
+    capability: sourceCapability.name,
+    parameters: { a: 1, b: 'x' },
+  };
+  const nativeOutputs = createNativeOutputContracts({
+    nativeNodes: [source],
+    capabilities: [sourceCapability],
+  });
+  const evaluation = createResponseEvaluationCapability({
+    sources: { apiMaterials: [], nativeOutputs },
+  });
+  const parameters = {
+    checks: ['a', 'b'].map((field) => ({
+      kind: 'compare',
+      source: {
+        source: 'node-output',
+        nodeId: source.id,
+        pointer: '/' + field,
+      },
+      scope: 'value',
+      valuePointer: '',
+      measurement: 'value',
+      cases: [
+        {
+          operator: 'equals',
+          expected: source.parameters[field],
+          status: 'normal',
+        },
+      ],
+      otherwise: 'abnormal',
+    })),
+  };
+  const capabilities = [sourceCapability, evaluation];
+  return compilePlannedN8nWorkflow({
+    id: 'native-evaluation-two-checks',
+    name: 'Two checks of one native source',
+    materials: [],
+    apiNodes: [],
+    capabilities,
+    plan: {
+      nativeNodes: [
+        source,
+        { id: 'evaluate-native', capability: evaluation.name, parameters },
+      ],
+      starts: [source.id],
+      gaps: [],
+      edges: [
+        {
+          from: source.id,
+          output: 'main',
+          to: 'evaluate-native',
+          input: 'main',
+        },
       ],
     },
   }).workflow;

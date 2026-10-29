@@ -1,3 +1,4 @@
+import { isBindingPointerKeyAllowed } from './is-binding-pointer-key-allowed.js';
 import type {
   BindingPointerSelections,
   BindingPointerTemplate,
@@ -32,12 +33,7 @@ export function resolveBindingPointerTemplate(
     } else if (segment.kind === 'key') {
       if (
         typeof value !== 'string' ||
-        segment.excludedKeys?.includes(value) ||
-        segment.excludedPatterns?.some((pattern) =>
-          new RegExp(pattern).test(value),
-        ) ||
-        (segment.pattern !== undefined &&
-          !new RegExp(segment.pattern).test(value))
+        !isBindingPointerKeyAllowed(segment, value)
       )
         throw new Error(
           `Binding selection ${key} must be an allowed object key`,

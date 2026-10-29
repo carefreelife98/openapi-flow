@@ -21,3 +21,5 @@ export interface StaticSchemaProjectionBundle {
   projections: Record<string, BindingSchema>;
   definitions: Record<string, BindingSchema>;
 }
+
+export type SchemaResourceMapper = (schema: BindingSchema) => BindingSchema;

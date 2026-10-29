@@ -1,5 +1,45 @@
 # @openapi-flow/core
 
+## Unreleased: read-only workflow context for native repair
+
+Native parameter-repair descriptions include `workflowContext`, a compact view of
+the supplied source revision's API/native roles, declared ports, entrypoint,
+existing edges and gaps. It excludes schemas, payloads and setting values. This
+view remains available when the selected value-producer list is empty, as for a
+Merge control node. It grants no new value-reference authority: scoped producer
+contracts and parameter validation remain unchanged. Source-revision ports are
+not a claim that intermediate repair candidates have been adopted or that future
+edges exist. Parameter fingerprints include the new view; regenerate candidate
+receipts rather than rebase stored ones. Published 0.5.1 is unchanged.
+
+## Unreleased: verified keys and shared schema resources
+
+`createApiBindingKeyCatalog` verifies key/path proposals against supplied original
+messages, assigns scoped identities and retains original string values. It does
+not infer names from OAS examples or generated model explanations. Manual binding
+APIs retain their explicit pointer support.
+
+`deduplicateCanonicalSchemaResources` retains one identical identified resource
+and references its original canonical URI from repeated positions. Conflicting
+declarations with the same URI fail explicitly. Traversal visits schema positions
+only, preserving literal `$id` fields inside data. Source schemas are not mutated.
+This helper is used for combined evaluation output, not OAS intake rewriting.
+
+## Unreleased: sequential schema projection and native provenance
+
+`projectNativeValueSchema({ output, steps })` reads value pointers, array items
+and object entries in one original schema-resource context. It bundles only the
+final projection, preserving source data and reference resolution. A
+`require-array` step validates array availability without replacing the selected
+value schema. `NativeSchemaProjectionError.step` identifies failed array checks.
+Existing projection helpers remain available.
+
+`createNativeOutputContracts` also derives optional provenance from the actual
+registered capability and its input-reference hooks. Per-call binding discovery
+keeps that metadata and excludes native producers whose known lineage already
+requires the target API. Final graph validation remains mandatory. External
+contracts without provenance remain unknown. Published 0.5.1 is unchanged.
+
 0.4.2 adds `resolveWorkflowIntent`, `validateWorkflowIntent` and
 `formatWorkflowIntentScenario` for source-bound business scope before concrete
 material planning. Core validates references and assigns identities; it does not
