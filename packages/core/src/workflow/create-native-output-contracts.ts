@@ -2,6 +2,7 @@ import type {
   CreateNativeOutputContractsInput,
   NativeOutputContract,
 } from '../types/node-output.js';
+import { describeNativeOutputProvenance } from './describe-native-output-provenance.js';
 import { resolveNativeStructureParameters } from './resolve-native-structure-parameters.js';
 import { validateNativeOutputContracts } from '../bindings/validate-native-output-contracts.js';
 
@@ -25,7 +26,13 @@ export function createNativeOutputContracts({
       );
     const parameters = resolveNativeStructureParameters(planned, capability);
     return capability.outputSchema
-      ? [{ nodeId: planned.id, schema: capability.outputSchema(parameters) }]
+      ? [
+          {
+            nodeId: planned.id,
+            schema: capability.outputSchema(parameters),
+            provenance: describeNativeOutputProvenance(capability, parameters),
+          },
+        ]
       : [];
   });
   validateNativeOutputContracts(outputs);

@@ -1,4 +1,6 @@
 import type { NativeOutputContract } from '../types/node-output.js';
+import { nativeOutputProvenanceSchema } from '../schemas/native-output-provenance-schema.js';
+import { pointerTokens } from './json-pointer.js';
 import { isObject } from '../utils/is-object.js';
 
 /** Validate the declaration boundary; the adapter compiles the JSON Schemas. */
@@ -14,6 +16,23 @@ export function validateNativeOutputContracts(
     if (ids.has(output.nodeId))
       throw new Error('native outputs require unique node IDs');
     ids.add(output.nodeId);
+    if (output.provenance !== undefined) {
+      const provenance = nativeOutputProvenanceSchema.safeParse(
+        output.provenance,
+      );
+      if (!provenance.success)
+        throw new Error(
+          `nativeOutputs[${output.nodeId}].provenance is invalid`,
+          { cause: provenance.error },
+        );
+      for (const reference of provenance.data.references) {
+        if (!reference.nodeId.trim())
+          throw new Error(
+            `nativeOutputs[${output.nodeId}].provenance references require non-empty nodeId`,
+          );
+        if ('pointer' in reference) pointerTokens(reference.pointer);
+      }
+    }
     if (typeof output.schema !== 'boolean' && !isObject(output.schema))
       throw new Error(
         `nativeOutputs[${output.nodeId}].schema must be a JSON Schema object or boolean`,

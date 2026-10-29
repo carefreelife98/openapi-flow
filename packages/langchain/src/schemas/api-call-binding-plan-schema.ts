@@ -4,6 +4,7 @@ import {
   optionalPlanningExplanationSchema,
 } from '@openapi-flow/core';
 import type { ApiCallBindingPlanningDescription } from '@openapi-flow/core';
+import { createApiBindingKeyGenerationSchema } from './api-binding-key-generation-schema.js';
 import { apiBindingCallReasonSchema } from './api-binding-plan-schema.js';
 
 export const apiBindingCallExecutionSchema = z.object({
@@ -46,22 +47,26 @@ export function createApiBindingSourceDecisionSchema(
         'Only explicit response-to-request dependencies with no supplied producer. Never use this decision for absent independent runtime values.',
       ),
   });
+  const keys = createApiBindingKeyGenerationSchema(description);
+  const selected = z.strictObject({
+    kind: z.literal('selected-response-sources'),
+    sourceNodeIds: ids.length
+      ? z.array(z.enum(ids)).min(1)
+      : z.array(z.string()).max(0),
+  });
+  const partial = z.strictObject({
+    kind: z.literal('partially-missing-response-sources'),
+    sourceNodeIds: ids.length
+      ? z.array(z.enum(ids)).min(1)
+      : z.array(z.string()).max(0),
+    gaps: callGapsSchema(description).min(1),
+  });
   const available = ids.length
     ? [
-        z.strictObject({
-          kind: z.literal('selected-response-sources'),
-          sourceNodeIds: z
-            .array(z.enum(ids))
-            .min(1)
-            .describe(
-              'All plausible provided producers requested for this target, independent of inventory order. Code retrieves their original contracts.',
-            ),
-        }),
-        z.strictObject({
-          kind: z.literal('partially-missing-response-sources'),
-          sourceNodeIds: z.array(z.enum(ids)).min(1),
-          gaps: callGapsSchema(description).min(1),
-        }),
+        keys === undefined
+          ? selected
+          : selected.extend({ keySelections: keys }),
+        keys === undefined ? partial : partial.extend({ keySelections: keys }),
       ]
     : [];
   const schema = z.strictObject({

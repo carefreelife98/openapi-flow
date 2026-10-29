@@ -16,6 +16,11 @@ export type BindingPointerSegment =
     }
   | { kind: 'descendant' };
 
+export type BindingPointerKeySegment = Extract<
+  BindingPointerSegment,
+  { kind: 'key' }
+>;
+
 export interface BindingPointerTemplate {
   segments: BindingPointerSegment[];
   /** Possible JSON types, not a proof of assignability or runtime presence. */

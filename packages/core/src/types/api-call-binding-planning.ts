@@ -1,7 +1,9 @@
+import type { ApiBindingKeyProposal } from './api-binding-keys.js';
 import type { ApiBindingPlanningInput } from './api-binding-planning.js';
 import type { ApiBindingGap, BindingSchema } from './api-bindings.js';
 import type { ApiOperationKey } from './api-catalog.js';
 import type { OutputBinding } from './api-arguments.js';
+import type { NativeOutputProvenance } from './node-output.js';
 import type { JsonObject } from './openapi.js';
 
 export interface ApiCallBindingPlanningInput extends ApiBindingPlanningInput {
@@ -23,6 +25,7 @@ export interface ApiBindingSourceCandidate {
   tags?: string[];
   outputPointers: string[];
   schema?: BindingSchema;
+  provenance?: NativeOutputProvenance;
 }
 
 export interface ApiCallBindingPlanningDescription {
@@ -36,6 +39,7 @@ export interface ApiCallBindingPlanningDescription {
 export type ApiCallBindingGap = Omit<ApiBindingGap, 'callId'>;
 
 export interface ApiBindingSourceProposal {
+  keySelections?: ApiBindingKeyProposal[];
   sourceNodeIds: string[];
   gaps: ApiCallBindingGap[];
   reason?: string;

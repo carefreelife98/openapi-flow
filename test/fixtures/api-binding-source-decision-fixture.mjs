@@ -1,5 +1,9 @@
 /** Explicit model wire fixtures for every supported source-availability decision. */
 export function createApiBindingSourceDecisionFixture(proposal) {
+  const keys =
+    proposal.keySelections === undefined
+      ? {}
+      : { keySelections: proposal.keySelections };
   const reason = Object.hasOwn(proposal, 'reason')
     ? { reason: proposal.reason }
     : {};
@@ -7,6 +11,7 @@ export function createApiBindingSourceDecisionFixture(proposal) {
     return {
       decision: {
         kind: 'partially-missing-response-sources',
+        ...keys,
         sourceNodeIds: proposal.sourceNodeIds,
         gaps: proposal.gaps,
       },
@@ -16,6 +21,7 @@ export function createApiBindingSourceDecisionFixture(proposal) {
     return {
       decision: {
         kind: 'selected-response-sources',
+        ...keys,
         sourceNodeIds: proposal.sourceNodeIds,
       },
       ...reason,

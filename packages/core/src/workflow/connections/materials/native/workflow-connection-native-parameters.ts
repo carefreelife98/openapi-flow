@@ -24,6 +24,7 @@ import { resolveNativeStructureParameters } from '../../../resolve-native-struct
 import { validateNativeNodeProducerReferences } from '../../../planning/resolve-native-configuration-materials.js';
 import { createNativeOutputContracts } from '../../../create-native-output-contracts.js';
 import { resolveNativeMaterialSnapshot } from '../../../resolve-native-material-snapshot.js';
+import { describeNativeRepairWorkflowContext } from './describe-native-repair-workflow-context.js';
 
 function prepareConnectionNativeParameterTarget(
   input: WorkflowConnectionNativeParametersInput,
@@ -163,6 +164,7 @@ function prepareConnectionNativeParameterTarget(
   });
   const fields = {
     ...context,
+    workflowContext: describeNativeRepairWorkflowContext(description),
     apiMaterials: context.apiMaterials.filter((material) =>
       selected.has(material.nodeId),
     ),

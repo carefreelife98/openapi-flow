@@ -61,7 +61,6 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
         ? {
             literalInputs: { state: 'not-provided' },
             requestedInputs: ['/query/sort'],
-            enumIntentInputs: ['/query/sort'],
           }
         : {
             decisions: {
@@ -137,6 +136,13 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
     });
     assert.deepEqual(result.values, { query: { sort: 'VIEWS' } });
     assert.equal(requests.length, 2);
+    assert.equal(
+      Object.hasOwn(
+        requests[0].body.tools[0].function.parameters.properties,
+        'enumIntentInputs',
+      ),
+      false,
+    );
     assert.deepEqual(
       requests.map(({ body }) => body.tools[0].function.name),
       ['generate_api_arguments', 'select_api_argument_enums'],

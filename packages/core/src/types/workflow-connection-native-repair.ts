@@ -1,7 +1,11 @@
 import type { z } from 'zod';
 import type { ValidateWorkflowConnectionSourceRepairRequestInput } from './workflow-connection-material-repair.js';
 import type { WorkflowConnectionApiResponseContext } from './workflow-connection-material-repair.js';
-import type { WorkflowConnectionSessionDescription } from './workflow-connection-session.js';
+import type {
+  WorkflowConnectionSessionDescription,
+  WorkflowConnectionOperationContext,
+} from './workflow-connection-session.js';
+import type { WorkflowConnectionPlanningContext } from './workflow-connection-planning.js';
 import type { WorkflowRequirementFact } from './workflow-clarification.js';
 import type {
   NativePlanningApiMaterial,
@@ -13,7 +17,33 @@ import type {
 import type { NativeProducerDependencyTarget } from './native-producer-dependencies.js';
 import type { NativeInstanceDependencyProposal } from './native-instance-dependencies.js';
 import type { NativeOutputContract } from './node-output.js';
-import type { PlannedNativeNode, WorkflowCapability } from './workflow-plan.js';
+import type {
+  PlannedNativeNode,
+  WorkflowCapability,
+  WorkflowPlanNodeContract,
+} from './workflow-plan.js';
+
+export type WorkflowConnectionNativeNodePorts = Pick<
+  WorkflowPlanNodeContract,
+  'id' | 'inputs' | 'outputs' | 'waitsForAllInputs' | 'exclusiveOutputPorts'
+>;
+export interface WorkflowConnectionNativeApiOverview
+  extends
+    WorkflowConnectionNativeNodePorts,
+    Omit<WorkflowConnectionOperationContext, 'nodeId'> {}
+export interface WorkflowConnectionNativeNodeOverview
+  extends
+    WorkflowConnectionNativeNodePorts,
+    Pick<PlannedNativeNode, 'capability'>,
+    Pick<WorkflowCapability, 'description'> {}
+/** Read-only source-revision inventory; it grants no parameter reference authority. */
+export interface WorkflowConnectionNativeWorkflowContext extends Pick<
+  WorkflowConnectionPlanningContext,
+  'entrypoint' | 'edges' | 'gaps'
+> {
+  apiNodes: WorkflowConnectionNativeApiOverview[];
+  nativeNodes: WorkflowConnectionNativeNodeOverview[];
+}
 
 export interface WorkflowConnectionNativeRepairInput extends ValidateWorkflowConnectionSourceRepairRequestInput {
   includeExplanations?: boolean;
@@ -54,6 +84,7 @@ export interface WorkflowConnectionNativeParametersInput extends WorkflowConnect
   completedParameters?: ReadyNativeNodeParameters[];
 }
 export interface WorkflowConnectionNativeParametersDescription extends WorkflowConnectionNativeRepairContext {
+  workflowContext: WorkflowConnectionNativeWorkflowContext;
   target: PlannedNativeNode;
   capabilityDescription: string;
   sourceNodeIds: string[];

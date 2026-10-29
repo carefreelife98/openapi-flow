@@ -1,5 +1,63 @@
 # @openapi-flow/langchain
 
+## Unreleased: native repair separates flow context from reference authority
+
+`generateWorkflowConnectionNativeParameters` receives the code-derived read-only
+`workflowContext` alongside the original, scoped value-producer contracts. An
+empty `sourceNodeIds` list does not erase surrounding workflow roles and ports.
+The model still chooses only the target's remaining settings in one structured
+call; no fixed input count, old-setting substitution or extra review call is
+introduced. Local validation continues to reject references outside the selected
+producer scope, including identities visible only in the read-only overview.
+This candidate is not yet installed in Qoopilot or published on npm.
+
+## Unreleased candidate: verified binding key and path IDs
+
+When `literalSourceMessages` are supplied, the existing source-selection call can
+extract explicitly supplied dynamic keys or relative paths with their original
+text/JSON source identities. Core validates the original value and assigns a
+node-scoped ID. Field planning selects only offered `keyId` or `pathId` objects;
+code copies the verified original strings into the final pointer. Declared OAS
+properties remain fixed code-owned fields. Original schema and DAG checks remain.
+Without verified key sources, dynamic-name candidates are absent from model
+choices; manual core bindings still support explicit names and paths.
+
+This replaces the experimental exclusion-regex implementation and adds no model
+call or dependency. Source extraction still requires semantic model judgment;
+source membership does not prove that a key is relevant or exists at runtime.
+Actual model source and field calls both accepted the new schema. After correcting
+the host's omitted native-setting answer, one original price-call replay returned
+a valid collected-array binding in two calls without gaps. A separate all-API
+binding replay still failed: discovery selected one producer but attributed a key
+to another unselected producer. The independent owner choices remain a candidate
+design issue; neither replay is a full-scenario pass. Published 0.5.1 and installed
+host packages are unchanged.
+
+## Unreleased: native source provenance
+
+`createNativeOutputContracts` now includes optional `provenance` generated from
+registered capability names, descriptions and implementation-declared input
+references. Discovery and hydrated binding context retain the original output
+schema and this metadata. Per-call discovery excludes native outputs whose known
+input lineage already requires the target API, including transitive native
+consumers. The resolver also rejects attempts to select these excluded IDs.
+External contracts without provenance remain explicitly unknown; absence does
+not prove independence. Final type, reference and DAG checks remain required.
+Snapshot fingerprints include provenance: stored source selections must be
+replanned if their supplied provenance changes. Published 0.5.1 is unchanged.
+
+## Unreleased: code-owned enum dispatch
+
+With `generateApiArguments({ selectOasEnums: true })`, development source derives
+unanswered enum targets from the original OAS and `requestedInputs`. The literal
+model no longer returns a separate `enumIntentInputs` dispatch list. An omitted
+literal therefore cannot prevent an explicitly requested enum from reaching its
+ID-only selection stage merely because the model says another stage owns it.
+Display explanations never schedule work. Confirmed, bound and supplied values
+remain protected, and unrequested optional fields are not selected. The enum
+model can return `not-supplied`; code does not choose defaults or invent values.
+This change is not yet available in the published 0.5.1 packages.
+
 0.4.2 adds `planWorkflowIntent`, one independently callable semantic overview
 stage before API/native selection. Its roles distinguish current work, conditional
 possibilities and exclusions without concrete API IDs, values or ports. The host

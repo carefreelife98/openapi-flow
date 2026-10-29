@@ -1,4 +1,7 @@
-import type { BindingPointerTemplate } from '@openapi-flow/core';
+import type {
+  BindingPointerTemplate,
+  ApiBindingKeyCandidate,
+} from '@openapi-flow/core';
 
 export interface ApiBindingSourceField extends BindingPointerTemplate {
   id: string;
@@ -13,6 +16,7 @@ export interface ApiBindingCandidateReference {
   targetId: string;
 }
 export interface ApiBindingCandidateContext {
+  bindingKeyCandidates: ApiBindingKeyCandidate[];
   bindingCandidates: ApiBindingCandidateReference[];
   bindingSourceFields: ApiBindingSourceField[];
   bindingTargetFields: ApiBindingTargetField[];

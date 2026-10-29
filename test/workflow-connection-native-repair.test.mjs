@@ -41,6 +41,105 @@ function values(f, producerId = f.original.id, pointer = '/groups') {
   };
 }
 
+test('Merge repair receives the complete read-only workflow even when it has no parameter value producers', async () => {
+  const { source } = initialConnectionRecoveryFixture();
+  const target = source.nativeNodes.find(
+    (node) => node.capability === 'merge-append',
+  );
+  assert(target);
+  const before = globalThis.structuredClone({
+    ...source,
+    capabilities: undefined,
+  });
+  const input = {
+    source,
+    request: {
+      kind: 'replan-materials',
+      sourceFingerprint:
+        describeWorkflowConnectionGoals(source).sourceFingerprint,
+      request: {
+        kind: 'replan-materials',
+        targets: [{ stage: 'native-dependencies', nodeId: target.id }],
+        factIds: ['intent'],
+        reason:
+          'Reconsider the existing join using the original workflow roles.',
+      },
+    },
+  };
+  const dependencies = resolveWorkflowConnectionNativeDependencies({
+    ...input,
+    proposal: { sourcesByNodeId: { [target.id]: { sourceNodeIds: [] } } },
+  });
+  const description = describeWorkflowConnectionNativeParameters({
+    ...input,
+    nodeId: target.id,
+    dependencies,
+  });
+  assert.deepEqual(description.sourceNodeIds, []);
+  assert.deepEqual(description.apiMaterials, []);
+  assert.deepEqual(description.nativeNodes, []);
+  assert.deepEqual(description.outputs, []);
+  assert.deepEqual(
+    description.workflowContext.apiNodes.map((node) => node.id),
+    source.materials.map((material) => material.arguments.callId),
+  );
+  assert.deepEqual(
+    description.workflowContext.nativeNodes.map((node) => node.id),
+    source.nativeNodes.map((node) => node.id),
+  );
+  assert.deepEqual(description.workflowContext.edges, source.edges);
+  for (const node of description.workflowContext.apiNodes) {
+    assert.equal(
+      node.method,
+      source.materials.find((material) => material.arguments.callId === node.id)
+        .operation.method,
+    );
+    for (const field of ['values', 'responses', 'effective', 'parameters'])
+      assert.equal(Object.hasOwn(node, field), false);
+  }
+  for (const node of description.workflowContext.nativeNodes) {
+    assert.equal(Object.hasOwn(node, 'parameters'), false);
+    assert.equal(typeof node.description, 'string');
+  }
+  const model = recoveryQueueModel([
+    { decision: { status: 'provided', parameters: { numberInputs: 3 } } },
+  ]);
+  const result = await generateWorkflowConnectionNativeParameters({
+    ...input,
+    nodeId: target.id,
+    dependencies,
+    model,
+  });
+  assert.equal(result.status, 'ready');
+  assert.equal(result.node.parameters.numberInputs, 3);
+  assert.equal(model.requests.length, 1);
+  assert.deepEqual(
+    model.requests[0].payload.workflowContext,
+    description.workflowContext,
+  );
+  description.workflowContext.nativeNodes[0].inputs.push(
+    'changed returned view',
+  );
+  assert.deepEqual({ ...source, capabilities: undefined }, before);
+
+  const question = recoveryQueueModel([
+    {
+      decision: {
+        status: 'needs-clarification',
+        message: 'Which requested business outputs are in scope?',
+      },
+    },
+  ]);
+  const unresolved = await generateWorkflowConnectionNativeParameters({
+    ...input,
+    nodeId: target.id,
+    dependencies,
+    model: question,
+  });
+  assert.equal(unresolved.status, 'needs-clarification');
+  assert.equal(question.requests.length, 1);
+});
+
 test('native repair exposes only authorized existing target keys and actual supported producers', () => {
   const f = connectionNativeRepairFixture();
   const before = globalThis.structuredClone({
@@ -215,6 +314,11 @@ test('parameter-only repair keeps actual producer IDs and forbids producer subst
     nodeId: f.parent.id,
   });
   assert.deepEqual(context.sourceNodeIds, ['unrelated-existing']);
+  assert(
+    context.workflowContext.nativeNodes.some(
+      (node) => node.id === f.original.id,
+    ),
+  );
   const model = recoveryQueueModel([values(f)]);
   await assert.rejects(
     generateWorkflowConnectionNativeParameters({

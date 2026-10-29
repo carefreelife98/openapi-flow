@@ -305,6 +305,9 @@ export { describeApiBindingPlanning } from './bindings/planning/describe-api-bin
 export { createApiBindingPlanningRecord } from './bindings/planning/create-api-binding-planning-record.js';
 export { validateApiBindingPlanningRecord } from './bindings/planning/validate-api-binding-planning-record.js';
 export type * from './types/node-output.js';
+export type * from './types/native-schema-projection.js';
+export { NativeSchemaProjectionError } from './bindings/native-schema-projection-error.js';
+export { projectNativeValueSchema } from './bindings/project-native-value-schema.js';
 export { createNativeOutputContracts } from './workflow/create-native-output-contracts.js';
 export { createReviewableNodeContracts } from './workflow/create-reviewable-node-contracts.js';
 export { validateWorkflowEdges } from './workflow/validate-workflow-edges.js';
@@ -482,3 +485,13 @@ export {
   createWorkflowConnectionMaterialRevisionRequest,
   validateWorkflowConnectionMaterialRevisionRequest,
 } from './workflow/connections/materials/create-workflow-connection-material-revision-request.js';
+
+export { deduplicateCanonicalSchemaResources } from './bindings/resources/deduplicate-canonical-schema-resources.js';
+
+export type * from './types/api-binding-keys.js';
+export {
+  apiBindingKeySourceSchema,
+  apiBindingKeyProposalSchema,
+} from './schemas/api-binding-key-schema.js';
+export { createApiBindingKeyCatalog } from './bindings/candidates/create-api-binding-key-catalog.js';
+export { isBindingPointerKeyAllowed } from './bindings/candidates/is-binding-pointer-key-allowed.js';

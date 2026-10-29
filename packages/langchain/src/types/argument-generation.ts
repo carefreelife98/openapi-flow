@@ -85,6 +85,13 @@ export interface InterpretApiArgumentEnumsInput
   literalSources: ApiLiteralProposalSource[];
 }
 
+export interface RequestedApiEnumTargetsInput extends Omit<
+  ApiArgumentEnumContextInput,
+  'requestedInputs' | 'enumIntentInputs'
+> {
+  requestedInputs: string[];
+}
+
 export type ApiLiteralProvidedDecision = z.infer<
   ReturnType<typeof createApiLiteralProvidedSchema>
 >;

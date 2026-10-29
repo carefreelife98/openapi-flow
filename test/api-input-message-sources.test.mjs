@@ -377,7 +377,6 @@ test('generation composes literal and enum stages using the same original messag
             ],
           },
           requestedInputs: ['/body/sort'],
-          enumIntentInputs: ['/body/sort'],
           explanation: { reason: '원문 상품번호입니다.' },
         }
       : {
@@ -443,7 +442,6 @@ test('a change to original generation messages during the second enum call canno
       return {
         literalInputs: { state: 'not-provided' },
         requestedInputs: ['/body/value'],
-        enumIntentInputs: ['/body/value'],
       };
     const output = {
       decisions: {

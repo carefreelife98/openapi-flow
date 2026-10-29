@@ -4,6 +4,7 @@ import type {
   ApiCallBindingPlanningDescription,
   ApiCallBindingPlanningInput,
 } from '../../types/api-call-binding-planning.js';
+import { listNativeSourcesDependentOnApi } from './list-native-sources-dependent-on-api.js';
 import { describeApiBindingPlanning } from './describe-api-binding-planning.js';
 import { createApiRequestSchema } from '../../schemas/create-api-request-schema.js';
 import { apiCallBindingOptionsSchema } from '../../schemas/api-call-binding-planning-schema.js';
@@ -49,6 +50,10 @@ export function describeApiCallBindingPlanning(
         ],
       }),
     );
+  const downstream = listNativeSourcesDependentOnApi(
+    description.input.nativeOutputs ?? [],
+    options.callId,
+  );
   for (const output of description.input.nativeOutputs ?? [])
     candidates.push({
       kind: 'native',
@@ -56,6 +61,9 @@ export function describeApiCallBindingPlanning(
       // Native schemas are not flattened into invented field declarations.
       outputPointers: [],
       schema: structuredClone(output.schema),
+      ...(output.provenance === undefined
+        ? {}
+        : { provenance: structuredClone(output.provenance) }),
     });
   const snapshot: ApiCallBindingPlanningInput = {
     ...description.input,
@@ -69,7 +77,8 @@ export function describeApiCallBindingPlanning(
     target: candidates.find((candidate) => candidate.nodeId === target.callId)!,
     requestSchema: createApiRequestSchema(target),
     sourceCandidates: candidates.filter(
-      (candidate) => candidate.nodeId !== target.callId,
+      (candidate) =>
+        candidate.nodeId !== target.callId && !downstream.has(candidate.nodeId),
     ),
   };
 }

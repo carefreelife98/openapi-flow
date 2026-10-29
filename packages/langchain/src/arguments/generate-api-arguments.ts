@@ -27,6 +27,7 @@ import {
 } from '../prompts/api-arguments-prompt.js';
 import { parseStructuredOutput } from '../legacy/planning/parse-structured-output.js';
 import { interpretApiArgumentEnums } from './interpret-api-argument-enums.js';
+import { listRequestedApiEnumTargets } from './list-requested-api-enum-targets.js';
 import { invokeStructuredModel } from '../model/invoke-structured-model.js';
 import { resolveApiLiteralGenerationOutput } from './resolve-api-literal-generation-output.js';
 import { apiArgumentRejectionsSchema } from '../schemas/api-argument-rejection-schema.js';
@@ -108,7 +109,6 @@ export async function generateApiArguments(
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         literalMessages,
         true,
-        options.selectOasEnums === true,
       );
       const validationSchema = createApiLiteralGenerationOutputSchema(
         contract,
@@ -116,7 +116,6 @@ export async function generateApiArguments(
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         literalMessages,
         false,
-        options.selectOasEnums === true,
       );
       const sourceFingerprint = fingerprintApiArgumentSource(
         snapshot,
@@ -163,7 +162,6 @@ export async function generateApiArguments(
     ? {
         literalInputs: { state: 'not-provided' },
         requestedInputs: [],
-        ...(options.selectOasEnums === true ? { enumIntentInputs: [] } : {}),
       }
     : { values: {} };
   if (contract.hasLiteralInputs) {
@@ -289,14 +287,20 @@ export async function generateApiArguments(
           : {}),
       };
       if (options.selectOasEnums === true) {
-        if (parsed.enumIntentInputs === undefined)
+        if (requestedInputs === undefined)
           throw new Error(
-            'generateApiArguments requires explicit enumIntentInputs when selectOasEnums is true',
+            'generateApiArguments requires explicit requestedInputs when selectOasEnums is true',
           );
         if (literalSources === undefined)
           throw new Error(
             'generateApiArguments enum interpretation requires source-verified literalSources',
           );
+        const enumTargets = listRequestedApiEnumTargets({
+          ...snapshot,
+          proposal: { values: parsed.values },
+          literalSources,
+          requestedInputs,
+        });
         interpretingEnums = true;
         const interpreted = await interpretApiArgumentEnums({
           ...snapshot,
@@ -304,7 +308,7 @@ export async function generateApiArguments(
           arguments: result,
           proposal: { values: parsed.values },
           literalSources,
-          enumIntentInputs: parsed.enumIntentInputs,
+          enumIntentInputs: enumTargets,
           model: input.model,
           signal: input.signal,
         });

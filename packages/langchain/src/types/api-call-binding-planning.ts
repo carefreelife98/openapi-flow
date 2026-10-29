@@ -9,12 +9,29 @@ import type {
   WorkflowConnectionApiRepairContext,
 } from '@openapi-flow/core';
 import type { PlanApiBindingsInput } from './binding-planning.js';
+import type { ApiBindingGeneratedKeySelection } from './api-binding-key-generation.js';
 import type { ApiCallBindingRejection } from './api-call-binding-rejection.js';
 
-export type ApiBindingSourceDecisionOutput = z.infer<
+type ApiBindingSourceDecisionBase = z.infer<
   ReturnType<typeof createApiBindingSourceDecisionSchema>
-> &
-  Pick<ApiBindingSourceProposal, 'reason'>;
+>;
+type ApiBindingProvidedSourceKind = {
+  kind: 'selected-response-sources' | 'partially-missing-response-sources';
+};
+type ApiBindingKeySourceDecision = Extract<
+  ApiBindingSourceDecisionBase['decision'],
+  ApiBindingProvidedSourceKind
+> & { keySelections?: ApiBindingGeneratedKeySelection[] };
+type ApiBindingIndependentSourceDecision = Exclude<
+  ApiBindingSourceDecisionBase['decision'],
+  ApiBindingProvidedSourceKind
+> & { keySelections?: never };
+export type ApiBindingSourceDecisionOutput = Omit<
+  ApiBindingSourceDecisionBase,
+  'decision'
+> & {
+  decision: ApiBindingKeySourceDecision | ApiBindingIndependentSourceDecision;
+} & Pick<ApiBindingSourceProposal, 'reason'>;
 
 export interface SelectApiBindingSourcesInput extends ApiCallBindingPlanningInput {
   model: BaseChatModel;

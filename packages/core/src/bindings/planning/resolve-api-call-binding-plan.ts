@@ -18,6 +18,9 @@ export function resolveApiCallBindingPlan(
     ...description.input,
     proposal: {
       sourceNodeIds: input.sources.sourceNodeIds,
+      ...(input.sources.keySelections === undefined
+        ? {}
+        : { keySelections: input.sources.keySelections }),
       gaps: input.sources.gaps,
       ...(input.sources.reason === undefined
         ? {}

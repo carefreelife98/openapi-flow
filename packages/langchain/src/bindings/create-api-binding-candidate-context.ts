@@ -1,11 +1,16 @@
-import type { ApiBindingCandidateCatalog } from '@openapi-flow/core';
+import type {
+  ApiBindingCandidateCatalog,
+  ApiBindingKeyCandidate,
+} from '@openapi-flow/core';
 import type { ApiBindingCandidateContext } from '../types/api-binding-candidate-context.js';
 
 /** Send each field contract once; candidate IDs still identify a coupled source/target pair. */
 export function createApiBindingCandidateContext(
   catalog: ApiBindingCandidateCatalog,
+  keys: ApiBindingKeyCandidate[],
 ): ApiBindingCandidateContext {
   const context: ApiBindingCandidateContext = {
+    bindingKeyCandidates: structuredClone(keys),
     bindingCandidates: [],
     bindingSourceFields: [],
     bindingTargetFields: [],

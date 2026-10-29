@@ -7,6 +7,7 @@ import {
   apiBindingMaterialRoleSchema,
   apiBindingPlanningOperationSchema,
 } from '../../schemas/api-binding-planning-schema.js';
+import { workflowNonemptySourceMessagesSchema } from '../../schemas/planning-evidence-schema.js';
 import { createApiBindingSourceRegistry } from '../create-api-binding-source-registry.js';
 import { listApiResponsePointers } from '../../openapi/response/list-api-response-pointers.js';
 
@@ -42,12 +43,22 @@ export function describeApiBindingPlanning(
   const snapshot: ApiBindingPlanningInput = {
     scenario,
     materials,
+    ...(input.literalSourceMessages === undefined
+      ? {}
+      : {
+          literalSourceMessages: workflowNonemptySourceMessagesSchema.parse(
+            input.literalSourceMessages,
+          ),
+        }),
     ...(input.nativeOutputs === undefined
       ? {}
       : {
           nativeOutputs: input.nativeOutputs.map((output) => ({
             nodeId: output.nodeId,
             schema: structuredClone(output.schema),
+            ...(output.provenance === undefined
+              ? {}
+              : { provenance: structuredClone(output.provenance) }),
           })),
         }),
   };
@@ -55,6 +66,13 @@ export function describeApiBindingPlanning(
     input: snapshot,
     context: {
       scenario,
+      ...(snapshot.literalSourceMessages === undefined
+        ? {}
+        : {
+            literalSourceMessages: structuredClone(
+              snapshot.literalSourceMessages,
+            ),
+          }),
       ...(snapshot.nativeOutputs === undefined
         ? {}
         : { nativeOutputs: structuredClone(snapshot.nativeOutputs) }),

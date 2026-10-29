@@ -1,13 +1,14 @@
 import {
   createResponseValueSchema,
   createNativeValueSchema,
-  createNativeArrayItemSchema,
-  createNativeObjectEntrySchema,
+  projectNativeValueSchema,
+  NativeSchemaProjectionError,
   isSchemaProvablyEmpty,
 } from '@openapi-flow/core';
 import type {
   BindingSchema,
   WorkflowNativeMaterialSources,
+  NativeSchemaProjectionStep,
 } from '@openapi-flow/core';
 import type {
   ResponseEvaluationRule,
@@ -36,32 +37,40 @@ export function describeResponseEvaluationRule(
       throw new Error(
         `Evaluation requires actual native output ${reference.nodeId}`,
       );
-    schema = createNativeValueSchema(output, reference.pointer);
+    schema =
+      rule.kind === 'unassessed'
+        ? createNativeValueSchema(output, reference.pointer)
+        : output.schema;
   }
   if (rule.kind === 'unassessed') return { rule };
-  const root = { nodeId: reference.nodeId, schema };
-  const itemSchema =
-    rule.scope === 'value'
-      ? schema
-      : rule.scope === 'array-items'
-        ? createNativeArrayItemSchema(root, '')
-        : createNativeObjectEntrySchema(root, '');
-  const valueSchema = createNativeValueSchema(
-    { nodeId: reference.nodeId, schema: itemSchema },
-    rule.valuePointer,
-  );
-  if (rule.measurement === 'array-length') {
-    try {
-      createNativeArrayItemSchema(
-        { nodeId: reference.nodeId, schema: valueSchema },
-        '',
-      );
-    } catch (cause) {
+  const steps: NativeSchemaProjectionStep[] = [
+    {
+      kind: 'value',
+      pointer: reference.source === 'response' ? '' : reference.pointer,
+    },
+  ];
+  if (rule.scope === 'array-items') steps.push({ kind: 'array-items' });
+  else if (rule.scope === 'object-values')
+    steps.push({ kind: 'object-entries' });
+  steps.push({ kind: 'value', pointer: rule.valuePointer });
+  if (rule.measurement === 'array-length')
+    steps.push({ kind: 'require-array' });
+  let valueSchema: BindingSchema;
+  try {
+    valueSchema = projectNativeValueSchema({
+      output: { nodeId: reference.nodeId, schema },
+      steps,
+    });
+  } catch (cause) {
+    if (
+      cause instanceof NativeSchemaProjectionError &&
+      cause.step.kind === 'require-array'
+    )
       throw new Error(
         `Evaluation ${reference.nodeId}${reference.pointer}${rule.valuePointer} cannot measure a declared non-array`,
         { cause },
       );
-    }
+    throw cause;
   }
   if (
     rule.measurement === 'value' &&

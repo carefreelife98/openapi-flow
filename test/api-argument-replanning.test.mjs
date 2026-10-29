@@ -254,7 +254,6 @@ test('an enum interpretation rejection belongs to its own stage, not literal-val
             return {
               literalInputs: { state: 'not-provided' },
               requestedInputs: ['/body/order'],
-              enumIntentInputs: ['/body/order'],
             };
           assert.equal(options.name, 'select_api_argument_enums');
           return { answers: 'wrong shape' };
