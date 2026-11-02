@@ -70,7 +70,6 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
             return {
               literalInputs: {
                 state: 'provided',
-                values: { path: { id } },
                 literalSources: [
                   {
                     targetPointer: '/path/id',

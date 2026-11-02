@@ -136,7 +136,6 @@ test('newly unbound fields produce typed dependent work from actual OAS while or
     {
       literalInputs: {
         state: 'provided',
-        values: { query: { id: 'request-only-7' } },
         literalSources: [
           {
             targetPointer: '/query/id',

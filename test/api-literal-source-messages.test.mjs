@@ -45,7 +45,6 @@ function output(
   return {
     literalInputs: {
       state: 'provided',
-      values: { body: { id: '0007' } },
       literalSources: sources,
     },
     requestedInputs: [],
@@ -74,7 +73,10 @@ test('explicit original messages separate literal attribution from JSON prompt c
   assert.equal(choices.length, 2);
   for (const choice of choices) {
     assert.equal(Object.hasOwn(choice.properties, 'messageId'), false);
-    assert.equal(Object.hasOwn(choice.properties, 'sourceText'), false);
+    assert.equal(
+      Object.hasOwn(choice.properties, 'sourceText'),
+      choice.properties.sourceFormat.const === 'text',
+    );
   }
   validateApiLiteralGenerationRecord({
     ...source,
@@ -108,7 +110,6 @@ test('multiple actual source messages require exact supplied IDs and preserve ty
       messageId: 'answer',
     },
   ]);
-  proposed.literalInputs.values.body.count = 0;
   const result = await generateApiArguments({
     ...source,
     model: literalGenerationModel(proposed),

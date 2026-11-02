@@ -72,7 +72,6 @@ test('real ChatOpenAI wire schema selects source IDs only for multiple explicit 
       output = {
         literalInputs: {
           state: 'provided',
-          values: { body: { quantity: 2 } },
           literalSources: [
             {
               targetPointer: '/body/quantity',

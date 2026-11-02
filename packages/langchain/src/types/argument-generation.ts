@@ -6,7 +6,8 @@ import type {
   ApiLiteralProposalSource,
   OpenApiFlowError,
   WorkflowConnectionApiRepairContext,
-  ApiLiteralSourceSelection,
+  ApiLiteralValueSelection,
+  VerifiedApiLiteralProposalSource,
   ApiArgumentEnumContextInput,
 } from '@openapi-flow/core';
 import type { z } from 'zod';
@@ -49,11 +50,11 @@ export interface GenerateApiArgumentsInput extends ApiLiteralGenerationInput {
 /** Model source choice; the code owns sourceText in the resulting verified receipt. */
 export type ApiLiteralGenerationSource =
   | (Omit<
-      Extract<ApiLiteralSourceSelection, { sourceFormat: 'text' }>,
+      Extract<ApiLiteralValueSelection, { sourceFormat: 'text' }>,
       'messageId'
     > & { messageId?: string })
   | (Omit<
-      Extract<ApiLiteralSourceSelection, { sourceFormat: 'json' }>,
+      Extract<ApiLiteralValueSelection, { sourceFormat: 'json' }>,
       'messageId'
     > & { messageId?: string });
 
@@ -127,6 +128,6 @@ export interface ResolvedApiLiteralGenerationOutput
     ApiArgumentProposal,
     Pick<ApiArgumentEnumContextInput, 'enumIntentInputs'> {
   requestedInputs?: string[];
-  literalSources?: ApiLiteralGenerationSource[];
+  literalSources?: VerifiedApiLiteralProposalSource[];
   explanation?: z.infer<typeof apiLiteralGenerationReasonSchema>;
 }

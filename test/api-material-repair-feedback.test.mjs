@@ -82,7 +82,6 @@ function literalOutput(value) {
   return {
     literalInputs: {
       state: 'provided',
-      values: { query: { id: value } },
       literalSources: [
         {
           targetPointer: '/query/id',
@@ -700,6 +699,7 @@ test('a JSON envelope is not silently unwrapped into original messages for liter
   output.literalInputs.literalSources[0] = {
     targetPointer: '/query/id',
     sourceFormat: 'text',
+    sourceText: 'request-only-7',
   };
   const model = recoveryQueueModel([output]);
   await assert.rejects(

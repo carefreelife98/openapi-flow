@@ -70,3 +70,29 @@ test('malformed selected JSON is still rejected instead of being trimmed into a 
       /complete JSON literal/,
     );
 });
+
+test('assignment boundaries preserve exact numeric runs without decoding quoted strings or repairing malformed numbers', () => {
+  for (const literal of ['0', '-12', '3.25', '1e-3']) {
+    const text = `sequence=${literal}으로 조회`;
+    const result = readApiInputLiteralSource({
+      text,
+      sourceText: literal,
+      sourceFormat: 'json',
+      label: 'assigned number',
+    });
+    assert.equal(result.value, JSON.parse(literal));
+    assert.deepEqual(result.occurrences, [
+      { offset: text.indexOf(literal), length: literal.length },
+    ]);
+  }
+  for (const [whole, part] of [
+    ['012', '12'],
+    ['-12', '12'],
+    ['1e+', '1'],
+  ])
+    assert.deepEqual(
+      locateCompleteApiInputSource(`sequence=${whole}`, part),
+      [],
+    );
+  assert.deepEqual(locateCompleteApiInputSource('text="sequence=0"', '0'), []);
+});

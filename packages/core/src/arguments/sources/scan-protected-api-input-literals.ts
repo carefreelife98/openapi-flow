@@ -12,6 +12,12 @@ export function scanProtectedApiInputLiterals(
     const offset = scanner.getTokenOffset();
     const length = scanner.getTokenLength();
     const token = reply.slice(offset, offset + length);
+    // A prose assignment can be one unknown JSON scanner token. Resume at the
+    // explicit '=' boundary, never inside an identifier or a protected string.
+    if (!token.startsWith('"') && token.includes('=')) {
+      scanner.setPosition(offset + token.indexOf('=') + 1);
+      continue;
+    }
     // Protect complete number-like runs, including malformed JSON forms, so a
     // selected substring cannot silently drop a sign, leading zero or exponent.
     // A decimal point needs following digits; a prose full stop is not numeric.

@@ -264,7 +264,6 @@ test('provided typed literals keep their exact user source and the host evaluate
     ['0007', '0008'].map((value) => ({
       literalInputs: {
         state: 'provided',
-        values: { query: { id: value } },
         literalSources: [
           {
             targetPointer: '/query/id',

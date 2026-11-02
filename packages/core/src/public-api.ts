@@ -495,3 +495,6 @@ export {
 } from './schemas/api-binding-key-schema.js';
 export { createApiBindingKeyCatalog } from './bindings/candidates/create-api-binding-key-catalog.js';
 export { isBindingPointerKeyAllowed } from './bindings/candidates/is-binding-pointer-key-allowed.js';
+
+export { resolveApiLiteralValues } from './arguments/sources/resolve-api-literal-values.js';
+export { listApiRequestInputRoots } from './arguments/list-api-request-input-roots.js';

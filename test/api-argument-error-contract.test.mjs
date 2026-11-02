@@ -1,4 +1,3 @@
-import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OutputParserException } from '@langchain/core/output_parsers';
@@ -147,12 +146,11 @@ test('argument output shape and original-source validation failures remain disti
   const invalidSource = literalGenerationModel({
     literalInputs: {
       state: 'provided',
-      values: { body: { quantity: 2 } },
       literalSources: [
         {
           targetPointer: '/body/quantity',
-          sourceFormat: 'json',
-          candidateId: literalJsonCandidateId('5'),
+          sourceFormat: 'text',
+          sourceText: 'absent-source',
         },
       ],
     },

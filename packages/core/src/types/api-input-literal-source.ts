@@ -1,3 +1,4 @@
+import type { ApiArgumentGenerationInput } from './api-clarification.js';
 import type { JsonValue } from './api-arguments.js';
 import type { ApiInputAnswerSourceLocation } from './api-input-answer-extraction.js';
 import type { ApiArgumentValues } from './api-arguments.js';
@@ -69,4 +70,22 @@ export interface ReadApiInputLiteralSourceResult {
 
 export interface VerifyApiInputLiteralSourceInput extends ReadApiInputLiteralSourceInput {
   value: JsonValue;
+}
+
+/** A single original source is authoritative for each generated value. */
+export type ApiLiteralValueSelection =
+  | ApiJsonLiteralSourceSelection
+  | (ApiInputLiteralSource & {
+      sourceFormat: 'text';
+      targetPointer: string;
+      messageId: string;
+    });
+export interface ResolveApiLiteralValuesInput extends ApiArgumentGenerationInput {
+  callId: string;
+  messages: WorkflowSourceMessage[];
+  selections: ApiLiteralValueSelection[];
+}
+export interface ResolvedApiLiteralValues {
+  values: ApiArgumentValues;
+  literalSources: VerifiedApiLiteralProposalSource[];
 }

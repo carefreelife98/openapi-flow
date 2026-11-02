@@ -2961,7 +2961,10 @@ const compiledCollectionSources = createN8nNativeOutputSources({
   apiResponseContracts: { source: replacementOperation },
 });
 assert.deepEqual(
-  compiledCollectionSources.map(({ nodeId, schema }) => ({ nodeId, schema })),
+  compiledCollectionSources.map(({ nodeName, ...contract }) => {
+    assert.equal(typeof nodeName, 'string');
+    return contract;
+  }),
   currentMaterial.outputs,
 );
 const installedReviewInput = {

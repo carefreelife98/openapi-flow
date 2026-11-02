@@ -45,19 +45,11 @@ export function createApiLiteralProvidedSchema(
       .describe(
         'The user explicitly directs using these actual values for this call. Source occurrence alone does not turn an example, an unchosen alternative or a future input into a selected literal.',
       ),
-    values: contract.valuesSchema.refine(
-      (values) =>
-        Object.entries(values).some(
-          ([group, value]) =>
-            group === 'body' ||
-            (value !== null &&
-              typeof value === 'object' &&
-              Object.keys(value).length > 0),
-        ),
-      'Provided literals require an actual request value, not empty parameter-location containers.',
-    ),
-    literalSources: createApiLiteralSourceSelectionsSchema(messages).describe(
-      'Attribute each proposed literal to an original message without re-generating quotations. Select a JSON candidate for JSON values or text for an exact unquoted string. Code creates and verifies the source text.',
+    literalSources: createApiLiteralSourceSelectionsSchema(
+      messages,
+      contract,
+    ).describe(
+      'Select the original source for each requested literal. JSON candidate IDs are type-filtered at input roots. Code copies the selected typed value; never generate a separate values object. Dynamic descendants are OAS-validated without conversion.',
     ),
   });
 }

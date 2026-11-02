@@ -367,7 +367,6 @@ test('generation composes literal and enum stages using the same original messag
       ? {
           literalInputs: {
             state: 'provided',
-            values: { body: { id: '0007' } },
             literalSources: [
               {
                 targetPointer: '/body/id',

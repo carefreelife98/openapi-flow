@@ -1,3 +1,4 @@
+import { describeApiLiteralSourceChoices } from './describe-api-literal-source-choices.js';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   describeApiLiteralGeneration,
@@ -5,8 +6,6 @@ import {
   applyConfirmedApiInputs,
   createApiRequestSchema,
   inspectApiArgumentRequirements,
-  resolveApiLiteralSourceSelections,
-  describeApiLiteralJsonSources,
   runOpenApiFlowOperation,
   runOpenApiFlowAsyncOperation,
   isOpenApiFlowError,
@@ -35,7 +34,6 @@ import { fingerprintApiArgumentSource } from './fingerprint-api-argument-source.
 import { rethrowApiArgumentPlanningError } from './api-argument-planning-error.js';
 import { modelSignalSchema } from '../schemas/model-signal-schema.js';
 import { apiMaterialRepairPrompt } from '../prompts/api-material-repair-prompt.js';
-import { attributeApiLiteralGenerationSources } from './attribute-api-literal-generation-sources.js';
 import { assertApiArgumentGenerationSource } from './assert-api-argument-generation-source.js';
 import { serializeStructuredOutputSchema } from '../schemas/serialize-structured-output-schema.js';
 
@@ -54,7 +52,7 @@ export async function generateApiArguments(
     rejectedProposals,
     materialRepair,
     literalMessages,
-    literalJsonSources,
+    literalSourceChoices,
   } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
@@ -100,8 +98,8 @@ export async function generateApiArguments(
         snapshot.literalSourceMessages === undefined
           ? [{ id: 'scenario', text: snapshot.scenario }]
           : snapshot.literalSourceMessages;
-      const literalJsonSources = trackInputs
-        ? describeApiLiteralJsonSources(literalMessages)
+      const literalSourceChoices = trackInputs
+        ? describeApiLiteralSourceChoices(literalMessages, contract)
         : undefined;
       const schema = createApiLiteralGenerationOutputSchema(
         contract,
@@ -154,7 +152,7 @@ export async function generateApiArguments(
         rejectedProposals,
         materialRepair,
         literalMessages,
-        literalJsonSources,
+        literalSourceChoices,
       };
     },
   );
@@ -195,9 +193,9 @@ export async function generateApiArguments(
           new HumanMessage(
             JSON.stringify({
               ...context,
-              ...(literalJsonSources === undefined
+              ...(literalSourceChoices === undefined
                 ? {}
-                : { literalJsonSources }),
+                : { literalSourceChoices }),
               ...(rejectedProposals === undefined ? {} : { rejectedProposals }),
               ...(materialRepair === undefined ? {} : { materialRepair }),
               ...(options.selectOasEnums === true
@@ -235,24 +233,16 @@ export async function generateApiArguments(
         proposed,
         `model arguments for ${snapshot.callId}`,
       );
-      const parsed = resolveApiLiteralGenerationOutput(output);
+      const parsed = resolveApiLiteralGenerationOutput(output, {
+        ...snapshot,
+        messages: literalMessages,
+      });
       const values = applyConfirmedApiInputs({
         ...snapshot,
         values: parsed.values,
       });
       const requestedInputs = parsed.requestedInputs;
-      const literalSources =
-        parsed.literalSources !== undefined
-          ? resolveApiLiteralSourceSelections({
-              callId: snapshot.callId,
-              values: parsed.values,
-              selections: attributeApiLiteralGenerationSources(
-                snapshot,
-                parsed.literalSources,
-              ),
-              messages: literalMessages,
-            })
-          : undefined;
+      const literalSources = parsed.literalSources;
       const inspection = inspectApiArgumentRequirements({
         ...snapshot,
         values,

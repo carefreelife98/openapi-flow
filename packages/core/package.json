@@ -1,6 +1,6 @@
 {
   "name": "@openapi-flow/core",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "license": "MIT",
   "description": "Engine-independent OpenAPI catalogs, operation contracts and typed request schemas",
   "keywords": [

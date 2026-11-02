@@ -1,14 +1,14 @@
 import type {
   ApiLiteralGenerationInput,
-  ApiLiteralSourceSelection,
+  ApiLiteralValueSelection,
 } from '@openapi-flow/core';
 import type { ApiLiteralGenerationSource } from '../types/argument-generation.js';
 
 /** Single-source identity is code-owned; multi-source identity must be explicitly selected. */
 export function attributeApiLiteralGenerationSources(
-  input: ApiLiteralGenerationInput,
+  input: Pick<ApiLiteralGenerationInput, 'literalSourceMessages'>,
   sources: ApiLiteralGenerationSource[],
-): ApiLiteralSourceSelection[] {
+): ApiLiteralValueSelection[] {
   const messages = input.literalSourceMessages;
   if (messages === undefined)
     return sources.map((source) => ({ ...source, messageId: 'scenario' }));

@@ -1,4 +1,3 @@
-import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OpenApiFlowError } from '@openapi-flow/core';
@@ -169,12 +168,11 @@ test('rejected output is never a new literal source even when another original J
   const output = {
     literalInputs: {
       state: 'provided',
-      values: { body: { quantity: 99 } },
       literalSources: [
         {
           targetPointer: '/body/quantity',
-          sourceFormat: 'json',
-          candidateId: literalJsonCandidateId('2'),
+          sourceFormat: 'text',
+          sourceText: '99',
         },
       ],
     },

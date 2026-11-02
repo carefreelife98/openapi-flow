@@ -104,7 +104,6 @@ test('initial independent generation tracks requested optional inputs and reuses
   const llm = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007' } },
       literalSources: [idSource],
     },
     requestedInputs: ['/query/id', '/query/sort'],
@@ -176,7 +175,6 @@ test('ambiguous enum remains a real requested question; default and unrequested 
     {
       literalInputs: {
         state: 'provided',
-        values: { query: { id: '0007' } },
         literalSources: [idSource],
       },
       requestedInputs: ['/query/sort'],
@@ -190,7 +188,6 @@ test('ambiguous enum remains a real requested question; default and unrequested 
   const unrequested = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007' } },
       literalSources: [idSource],
     },
     requestedInputs: [],
@@ -216,7 +213,6 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
   const disabled = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007' } },
       literalSources: [idSource],
     },
     requestedInputs: ['/query/sort'],
@@ -227,7 +223,6 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
   const supplied = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007', sort: 'VIEWS' } },
       literalSources: [
         idSource,
         {
@@ -254,7 +249,6 @@ test('original JSON enum types are copied without coercion, including null and c
     const llm = model({
       literalInputs: {
         state: 'provided',
-        values: { query: { id: '0007' } },
         literalSources: [idSource],
       },
       requestedInputs: ['/query/sort'],
@@ -335,7 +329,7 @@ test('invalid first values and invalid enum choices fail without repair, another
   const invalid = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007', sort: 'invented' } },
+      values: { path: { id: 7 } },
       literalSources: [idSource],
     },
     requestedInputs: ['/query/sort'],
@@ -363,7 +357,6 @@ test('invalid first values and invalid enum choices fail without repair, another
       {
         literalInputs: {
           state: 'provided',
-          values: { query: { id: '0007' } },
           literalSources: [idSource],
         },
         requestedInputs: ['/query/sort'],
@@ -389,7 +382,6 @@ test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an
   const llm = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007', sort: 'VIEWS' } },
       literalSources: [
         idSource,
         {
@@ -609,7 +601,6 @@ test('code derives enum targets from requested paths without scheduling unrelate
   const llm = model({
     literalInputs: {
       state: 'provided',
-      values: { query: { id: '0007' } },
       literalSources: [idSource],
     },
     requestedInputs: ['/query/sort'],

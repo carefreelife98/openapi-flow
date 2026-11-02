@@ -60,7 +60,6 @@ for (const value of [{}, [], null, '', 0, false])
     const output = {
       literalInputs: {
         state: 'provided',
-        values: { body: value },
         literalSources: [
           {
             targetPointer: '/body',
@@ -95,7 +94,6 @@ test('partial typed values keep their source while unspecified siblings remain q
   const output = {
     literalInputs: {
       state: 'provided',
-      values: { body: { id: '0007' } },
       literalSources: [
         {
           targetPointer: '/body/id',
@@ -129,7 +127,6 @@ test('absence never repairs a supplied body, source-free empties, legacy tracked
     {
       literalInputs: {
         state: 'provided',
-        values: { body: {} },
         literalSources: [],
       },
       requestedInputs: ['/body'],
@@ -137,7 +134,6 @@ test('absence never repairs a supplied body, source-free empties, legacy tracked
     {
       literalInputs: {
         state: 'provided',
-        values: { query: {} },
         literalSources: [],
       },
       requestedInputs: [],
@@ -176,7 +172,6 @@ test('a provided empty body still needs an exact original source; availability i
   const output = {
     literalInputs: {
       state: 'provided',
-      values: { body: {} },
       literalSources: [
         {
           targetPointer: '/body',

@@ -1,48 +1,57 @@
+import { describeApiLiteralSourceChoices } from '../arguments/describe-api-literal-source-choices.js';
 import { z } from 'zod';
-import { describeApiLiteralJsonSources } from '@openapi-flow/core';
-import type { WorkflowSourceMessage } from '@openapi-flow/core';
+import { createApiRequestInputPointerSchema } from '@openapi-flow/core';
+import type {
+  WorkflowSourceMessage,
+  ApiArgumentGenerationContract,
+  JsonObject,
+} from '@openapi-flow/core';
 import type { ApiLiteralGenerationSource } from '../types/argument-generation.js';
 
-/** No model-rewritten sourceText. JSON choices are bounded to the selected original message. */
+/** Root choices are OAS-type filtered; dynamic descendants retain full runtime OAS validation. */
 export function createApiLiteralSourceSelectionsSchema(
   messages: WorkflowSourceMessage[],
+  contract: ApiArgumentGenerationContract,
 ): z.ZodType<ApiLiteralGenerationSource[]> {
-  const catalog = describeApiLiteralJsonSources(messages);
-  const identity = {
-    targetPointer: z
-      .string()
-      .describe(
-        'RFC 6901 pointer relative to values. Cover every proposed leaf or an explicitly supplied whole object/array. Never target a confirmed or bound value.',
-      ),
-  };
+  const requestSchema = z.toJSONSchema(contract.valuesSchema) as JsonObject;
   const textBase = z.strictObject({
-    ...identity,
-    sourceFormat: z
-      .literal('text')
+    targetPointer: createApiRequestInputPointerSchema(requestSchema),
+    sourceFormat: z.literal('text'),
+    sourceText: z
+      .string()
+      .min(1)
       .describe(
-        'An unquoted verbatim string. Code uses the exact proposed string as sourceText and checks the original message; do not generate a quotation again. Not for quoted JSON strings, numbers, booleans, null, objects or arrays.',
+        'Select one exact nonempty unquoted source span from the original message. Code verifies its complete occurrence and uses this text as the string value. Never also generate values, rewrite text, decode quoted JSON or choose a number for a numeric input.',
       ),
   });
   const text: z.ZodType<ApiLiteralGenerationSource> =
     messages.length > 1
-      ? textBase.extend({ messageId: z.enum(messages.map((item) => item.id)) })
+      ? textBase.extend({
+          messageId: z.enum(messages.map((entry) => entry.id)),
+        })
       : textBase;
-  const json: z.ZodType<ApiLiteralGenerationSource>[] = catalog
-    .filter((entry) => entry.json.length > 0)
-    .map((entry) => {
-      const candidate = z.strictObject({
-        ...identity,
-        sourceFormat: z.literal('json'),
-        candidateId: z
-          .enum(entry.json.map((item) => item.id))
-          .describe(
-            'Select the exact original JSON token from literalJsonSources in this message. Code copies it, parses it and verifies equality with the proposed value. Never generate sourceText.',
-          ),
-      });
-      return messages.length > 1
-        ? candidate.extend({ messageId: z.literal(entry.messageId) })
-        : candidate;
+  const choices: z.ZodType<ApiLiteralGenerationSource>[] = [text];
+  for (const group of describeApiLiteralSourceChoices(messages, contract)) {
+    if (!group.candidates.length) continue;
+    const targetPointer = group.descendants
+      ? z
+          .string()
+          .regex(
+            new RegExp(
+              `^${group.inputRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[\\s\\S]+$`,
+            ),
+          )
+      : z.literal(group.inputRoot);
+    const base = z.strictObject({
+      targetPointer,
+      sourceFormat: z.literal('json'),
+      candidateId: z.enum(group.candidates.map((candidate) => candidate.id)),
     });
-  const source = json.length ? z.union([text, ...json]) : text;
-  return z.array(source).min(1);
+    choices.push(
+      messages.length > 1
+        ? base.extend({ messageId: z.literal(group.messageId) })
+        : base,
+    );
+  }
+  return z.array(z.union(choices)).min(1);
 }
