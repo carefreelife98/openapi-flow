@@ -358,12 +358,16 @@ export function createIncrementalConnectionStages(
         ...(bundleId === undefined
           ? {}
           : { outline: state.outline!, bundleId }),
-        // Keep all rejections for budget accounting; only this material epoch is model feedback.
-        rejectedProposals: state.rejectedProposals.filter(
-          (item) =>
-            item.expected.sourceFingerprint ===
-            state.session!.sourceFingerprint,
-        ),
+        // Keep the full ledger for accounting; only the latest current-revision rejection is model feedback.
+        rejectedProposals: state.rejectedProposals
+          .filter(
+            (item) =>
+              item.expected.sourceFingerprint ===
+                state.session!.sourceFingerprint &&
+              item.expected.sessionId === state.session!.id &&
+              item.expected.revision === state.session!.revision,
+          )
+          .slice(-1),
         signal: createIncrementalConnectionSignal({
           state,
           policy: dependencies.policy,

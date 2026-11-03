@@ -37,3 +37,4 @@ export type {
 export type * from './types/incremental-material-arguments.js';
 export { planApiBindingCallWithRepair } from './graph/bindings/plan-api-binding-call-with-repair.js';
 export type * from './types/api-binding-call-repair.js';
+export { selectReadyConnectionBundle } from './graph/connections/select-ready-connection-bundle.js';

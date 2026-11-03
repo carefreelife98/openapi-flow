@@ -16,7 +16,13 @@ export async function invokeConnectionPlanningModel<Output extends object>(
       stage: 'input-validation',
       code: 'PLANNING_INPUT_INVALID',
     },
-    () => serializeStructuredOutputSchema(input.schema, 'draft-2020-12'),
+    () =>
+      serializeStructuredOutputSchema(
+        input.schema,
+        'draft-2020-12',
+        'output',
+        input.schemaReuse,
+      ),
   );
   const output = await invokeStructuredModel<Output>({
     model: input.model,

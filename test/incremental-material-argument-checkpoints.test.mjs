@@ -18,7 +18,7 @@ import {
 } from './fixtures/initial-connection-recovery-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 import { acceptedConnectionRecoveryFixture } from './fixtures/accepted-connection-recovery-fixture.mjs';
 
@@ -51,7 +51,7 @@ function createGraph(fixture, options = {}) {
     { decision: fixture.request },
     { goals: fixture.goals },
     {
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         fixture.source,
         incrementalConnectionPatch({
           addEdges: fixture.plan.edges,

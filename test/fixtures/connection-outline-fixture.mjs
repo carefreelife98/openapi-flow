@@ -1,7 +1,7 @@
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './incremental-connection-fixture.mjs';
 
 export function connectionOutlineProposal() {
@@ -45,7 +45,7 @@ export function connectionOutlineFixture() {
     ...fixture,
     patches,
     modelPatches: patches.map((patch) => ({
-      decision: incrementalConnectionModelPatch(fixture.source, patch),
+      decision: incrementalConnectionModelRegion(fixture.source, patch),
     })),
   };
 }

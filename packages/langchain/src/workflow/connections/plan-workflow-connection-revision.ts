@@ -17,17 +17,15 @@ import type {
 import { createWorkflowConnectionRevisionSchema } from '../../schemas/workflow-connection-revision-schema.js';
 import { modelSignalSchema } from '../../schemas/model-signal-schema.js';
 import { workflowConnectionRevisionRejectionSchema } from '../../schemas/workflow-connection-revision-rejection-schema.js';
+import { describeConnectionRevisionRegion } from './describe-connection-revision-region.js';
+import { resolveWorkflowConnectionRegionSelection } from './resolve-workflow-connection-region-selection.js';
 import { workflowConnectionRevisionPrompt } from '../../prompts/workflow-connection-revision-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
 import {
   validateConnectionProposal,
   WorkflowConnectionPlanningError,
 } from './workflow-connection-planning-error.js';
-import {
-  resolveConnectionGoalSelections,
-  resolveConnectionEdgeSelections,
-  resolveConnectionEndpointSelections,
-} from './resolve-connection-selections.js';
+import { resolveConnectionGoalSelections } from './resolve-connection-selections.js';
 
 /** One originating-stage decision. The caller owns repetition, material generation, budgets and adoption. */
 export async function planWorkflowConnectionRevision(
@@ -167,6 +165,7 @@ export async function planWorkflowConnectionRevision(
     operation,
     name: 'plan_workflow_connection_revision',
     schema,
+    schemaReuse: 'ref',
     sourceFingerprint: description.sourceFingerprint,
     messages: [
       new SystemMessage(workflowConnectionRevisionPrompt),
@@ -216,10 +215,6 @@ export async function planWorkflowConnectionRevision(
         validateWorkflowConnectionMaterialRepairReceipt({ ...input, receipt });
         return receipt;
       }
-      const addEdges = resolveConnectionEdgeSelections(
-        output.decision.graphChange.addEdges,
-        description.after.context.nodes,
-      );
       const revision = applyWorkflowConnectionRevision({
         ...input,
         proposal: {
@@ -227,18 +222,10 @@ export async function planWorkflowConnectionRevision(
             output.decision.goals,
             description.after.context.nodes,
           ),
-          graphChange: {
-            ...output.decision.graphChange,
-            addEdges,
-            addTerminals: resolveConnectionEndpointSelections(
-              output.decision.graphChange.addTerminals,
-              description.after.context.nodes,
-            ),
-            removeTerminals: resolveConnectionEndpointSelections(
-              output.decision.graphChange.removeTerminals,
-              description.before.context.nodes,
-            ),
-          },
+          graphChange: resolveWorkflowConnectionRegionSelection(
+            describeConnectionRevisionRegion(description),
+            output.decision.graphChange,
+          ),
         },
       });
       if (

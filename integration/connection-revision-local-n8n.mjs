@@ -19,7 +19,7 @@ import {
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from '../test/fixtures/incremental-connection-fixture.mjs';
 import { createFiveApiDagRuntime } from './fixtures/five-api-dag-runtime.mjs';
 
@@ -93,7 +93,7 @@ const output = {
           'The selected price binding requires the original detail result.',
       },
     ],
-    graphChange: incrementalConnectionModelPatch(
+    graphChange: incrementalConnectionModelRegion(
       after,
       incrementalConnectionPatch({
         removeEdgeIds: [removed.id],
@@ -101,6 +101,7 @@ const output = {
           { from: 'detail', output: 'main', to: 'price', input: 'main' },
         ],
       }),
+      before.session,
     ),
   },
 };

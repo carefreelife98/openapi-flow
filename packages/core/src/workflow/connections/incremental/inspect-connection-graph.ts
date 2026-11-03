@@ -62,6 +62,33 @@ export function inspectConnectionGraph({
       result.violations.push({
         code: 'INVALID_BOUNDARY',
         message: `Node ${id} cannot be an independent root`,
+        details: {
+          kind: 'root-precondition',
+          nodeId: id,
+          incomingEdges: node === undefined ? [] : incoming.get(id)!,
+          blockingConditions: [
+            ...(!node ? ['missing-node' as const] : []),
+            ...(node && incoming.get(id)!.length
+              ? ['incoming-edges' as const]
+              : []),
+            ...(node?.waitsForAllInputs ? ['all-input-join' as const] : []),
+            ...(node?.rejoinsExclusiveOutputs !== undefined
+              ? ['exclusive-rejoin' as const]
+              : []),
+            ...(node && node.references.length
+              ? ['response-references' as const]
+              : []),
+            ...(node && node.dependencyNodeIds.length
+              ? ['planned-dependencies' as const]
+              : []),
+            ...(node &&
+            Object.values(node.inputReferences ?? {}).some(
+              (refs) => refs.length,
+            )
+              ? ['input-references' as const]
+              : []),
+          ],
+        },
       });
   }
   for (const item of graph.terminals) {

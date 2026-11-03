@@ -684,7 +684,7 @@ test('mutually exclusive alternatives cannot close an all-input join, even in an
   assert.deepEqual(session.edges, []);
 });
 
-test('a structurally valid serial graph is incomplete when it violates confirmed independent execution', () => {
+test('a structurally valid serial graph is rejected when it contradicts confirmed independence', () => {
   const { source, goals, plan } = fixture();
   const session = createWorkflowConnectionSession({ ...source, goals });
   const edges = plan.edges.filter(
@@ -700,17 +700,10 @@ test('a structurally valid serial graph is incomplete when it violates confirmed
       addTerminals: [{ nodeId: 'summary', output: 'main' }],
     }),
   );
-  assert.equal(result.status, 'accepted', JSON.stringify(result));
-  assert.deepEqual(result.inspection.violations, []);
-  assert.equal(result.inspection.ready, false);
-  assert.deepEqual(result.inspection.unmetGoalIds, [
-    session.goals.find((goal) => goal.decision.kind === 'independent').id,
-  ]);
-  assert.throws(
-    () =>
-      finalizeWorkflowConnectionSession({ ...source, session: result.session }),
-    /incomplete/,
-  );
+  assert.equal(result.status, 'rejected', JSON.stringify(result));
+  assert.equal(result.violations[0].code, 'GOAL_CONTRADICTION');
+  assert.equal(result.violations[0].details.kind, 'independence');
+  assert.equal(session.revision, 0);
 });
 
 test('a bypass added to a finished draft candidate cannot destroy previously proven response availability', () => {

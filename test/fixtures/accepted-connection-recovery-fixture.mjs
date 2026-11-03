@@ -1,7 +1,7 @@
 import { initialConnectionRecoveryFixture } from './initial-connection-recovery-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './incremental-connection-fixture.mjs';
 
 export function acceptedConnectionRecoveryFixture() {
@@ -14,7 +14,7 @@ export function acceptedConnectionRecoveryFixture() {
     acceptedGoals: original.goals.filter((goal) => goal.kind !== 'independent'),
     firstEdges,
     firstPatch: {
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         original.broken,
         incrementalConnectionPatch({
           addEdges: firstEdges,
@@ -33,7 +33,7 @@ export function acceptedConnectionRecoveryFixture() {
       decision: {
         kind: 'revise-connections',
         goals: original.goals,
-        graphChange: incrementalConnectionModelPatch(
+        graphChange: incrementalConnectionModelRegion(
           original.source,
           incrementalConnectionPatch({
             addEdges: original.plan.edges.filter(
@@ -41,6 +41,7 @@ export function acceptedConnectionRecoveryFixture() {
             ),
             addTerminals: [{ nodeId: 'summary', output: 'main' }],
           }),
+          { edges: firstEdges, rootNodeIds: ['source'], terminals: [] },
         ),
       },
     },

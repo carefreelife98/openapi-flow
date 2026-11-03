@@ -23,7 +23,7 @@ import { acceptedConnectionRecoveryFixture } from './fixtures/accepted-connectio
 import { connectionGoalReviewOutput } from './fixtures/connection-goal-review-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 const policy = {
@@ -577,7 +577,7 @@ test('initial material recovery and later accepted revision share one chronologi
     { decision: fixture.request },
     { goals: fixture.goals },
     {
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         fixture.source,
         incrementalConnectionPatch({
           addEdges: fixture.plan.edges,

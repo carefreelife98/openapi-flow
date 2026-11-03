@@ -135,8 +135,37 @@ export const workflowConnectionViolationSchema = z.strictObject({
     'CLOSED_REGION_INVALID',
     'PROTECTED_EDGE',
     'NO_PROGRESS',
+    'GOAL_CONTRADICTION',
   ]),
   message: text,
+  details: z
+    .union([
+      z.strictObject({
+        kind: z.literal('root-precondition'),
+        nodeId: text,
+        incomingEdges: z.array(workflowDraftEdgeSchema),
+        blockingConditions: z
+          .array(
+            z.enum([
+              'missing-node',
+              'incoming-edges',
+              'all-input-join',
+              'exclusive-rejoin',
+              'response-references',
+              'planned-dependencies',
+              'input-references',
+            ]),
+          )
+          .min(1),
+      }),
+      z.strictObject({
+        kind: z.literal('independence'),
+        goalId: text,
+        from: text,
+        to: text,
+      }),
+    ])
+    .optional(),
 });
 export const workflowConnectionRejectedProposalSchema = z.strictObject({
   expected: workflowConnectionStepExpectationSchema,

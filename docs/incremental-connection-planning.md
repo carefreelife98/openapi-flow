@@ -1,4 +1,13 @@
-# Incremental connection planning (0.3.17)
+# Incremental connection planning
+
+## 0.7.0: desired local regions
+
+The step and revision model wire now selects node-local `set-region` intent.
+Core calculates the patch; direct Core patch callers and returned planning
+decisions keep their explicit patch types. Connection-step rejection feedback
+must match the exact current revision. See [the migration and contract](connection-region-intent.md).
+Product installation, end-to-end browser behavior and engine execution require
+separate consumer verification.
 
 ## 0.4.2 candidate: business intent before material planning
 
@@ -20,7 +29,11 @@ checks still run after concrete materials are available.
 
 ```ts
 const intent = await planWorkflowIntent({ scenario, messages, model });
-const planningScenario = formatWorkflowIntentScenario({ scenario, messages, plan: intent });
+const planningScenario = formatWorkflowIntentScenario({
+  scenario,
+  messages,
+  plan: intent,
+});
 ```
 
 The host owns where this one semantic call runs, its checkpoint, human feedback,
@@ -732,7 +745,7 @@ the decision nor runs a hidden planning loop.
 
 The decision distinguishes:
 
-- `patch`: one atomic connection bundle, with code-derived roots and terminals in the unreleased source adapter;
+- `set-region` on the model wire: complete desired incoming connections and explicit root/finish intent for owned nodes; code returns one calculated `patch`;
 - `request-completion`: ask code to inspect completion, not approve itself;
 - `request-native-material`: request an instance from the supplied capability
   registry without generating an ID or raw n8n JSON;
@@ -960,7 +973,8 @@ limits. `parameterOwnership` is required when augmentation is enabled. Invalid o
 unresolved native settings fail rather than receiving invented values. An already
 added capability/purpose produces no-progress feedback rather than duplicate
 material. Goals and accepted bundles remain intact. Historical rejections continue
-to count toward the budget; only current-source feedback is given to the model.
+to count toward the budget; only the latest exact-current-revision connection
+rejection is given to the next step model call.
 
 The progress projection contains identities, accepted edges, explicit roots,
 pending node IDs, readiness and counters. It does not serialize OAS, arguments,

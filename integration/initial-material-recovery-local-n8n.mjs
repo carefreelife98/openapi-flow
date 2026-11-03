@@ -26,7 +26,7 @@ import {
 } from '../test/fixtures/initial-connection-recovery-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from '../test/fixtures/incremental-connection-fixture.mjs';
 import { createFiveApiDagRuntime } from './fixtures/five-api-dag-runtime.mjs';
 import { connectionGoalReviewOutput } from '../test/fixtures/connection-goal-review-fixture.mjs';
@@ -100,7 +100,7 @@ const model = recoveryQueueModel([
       ]
     : [
         {
-          decision: incrementalConnectionModelPatch(
+          decision: incrementalConnectionModelRegion(
             fixture.source,
             incrementalConnectionPatch({
               addEdges: fixture.plan.edges,

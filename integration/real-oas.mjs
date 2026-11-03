@@ -1087,27 +1087,34 @@ test('incremental model contracts preserve each original OAS and explicit input 
     ...input,
     session,
   }).context.nodes.find((node) => node.id === 'merge').inputs;
-  const patch = {
-    kind: 'patch',
-    addEdges: [],
-    removeEdgeIds: [],
-    addRootNodeIds: ids,
-    removeRootNodeIds: [],
-    addTerminals: [],
-    removeTerminals: [],
-    ...basis,
-  };
   outputs.push(
-    { decision: patch },
     {
       decision: {
-        ...patch,
-        addRootNodeIds: [],
-        addTerminals: [{ nodeId: 'merge' }],
-        addEdges: ids.map((id, index) => ({
-          source: { nodeId: id },
-          target: { nodeId: 'merge', port: ports[index] },
+        kind: 'set-region',
+        nodes: ids.map((nodeId) => ({
+          nodeId,
+          incoming: [],
+          root: true,
+          finish: false,
         })),
+        ...basis,
+      },
+    },
+    {
+      decision: {
+        kind: 'set-region',
+        nodes: [
+          {
+            nodeId: 'merge',
+            incoming: ids.map((id, index) => ({
+              source: { nodeId: id },
+              input: ports[index],
+            })),
+            root: false,
+            finish: true,
+          },
+        ],
+        ...basis,
       },
     },
   );

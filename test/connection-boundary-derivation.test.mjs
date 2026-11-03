@@ -9,12 +9,12 @@ import {
 import { planWorkflowConnectionStep } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
   incrementalConnectionPatch,
 } from './fixtures/incremental-connection-fixture.mjs';
 import { connectionPlanningModel } from './fixtures/connection-planning-record-fixture.mjs';
-import { createWorkflowConnectionPatchSelectionSchema } from '../packages/langchain/dist/schemas/workflow-connection-step-schema.js';
-import { resolveConnectionEndpointSelections } from '../packages/langchain/dist/workflow/connections/resolve-connection-selections.js';
+import { createWorkflowConnectionRegionSelectionSchema } from '../packages/langchain/dist/schemas/workflow-connection-region-selection-schema.js';
+import { resolveWorkflowConnectionRegionSelection } from '../packages/langchain/dist/workflow/connections/resolve-workflow-connection-region-selection.js';
 
 test('model explicitly selects independent starts and finishes; code resolves unique output ports', async () => {
   const { source } = incrementalConnectionFixture();
@@ -33,7 +33,7 @@ test('model explicitly selects independent starts and finishes; code resolves un
     },
   ];
   const session = createWorkflowConnectionSession({ ...source, goals });
-  const raw = incrementalConnectionModelPatch(
+  const raw = incrementalConnectionModelRegion(
     source,
     incrementalConnectionPatch({
       addRootNodeIds: ['first', 'second', 'third'],
@@ -48,14 +48,9 @@ test('model explicitly selects independent starts and finishes; code resolves un
     session,
     model: connectionPlanningModel({ decision: raw }, ({ schema }) => {
       const patch = schema.properties.decision.anyOf.find(
-        (entry) => entry.properties.kind.const === 'patch',
+        (entry) => entry.properties.kind.const === 'set-region',
       );
-      for (const field of [
-        'addRootNodeIds',
-        'removeRootNodeIds',
-        'addTerminals',
-        'removeTerminals',
-      ])
+      for (const field of ['nodes'])
         assert.equal(Object.hasOwn(patch.properties, field), true);
     }),
   });
@@ -108,7 +103,7 @@ test('connecting a previous terminal reopens it in the same code-created atomic 
       ...source,
       session,
       model: connectionPlanningModel({
-        decision: incrementalConnectionModelPatch(source, proposed),
+        decision: incrementalConnectionModelRegion(source, proposed, session),
       }),
     });
     for (const terminal of planned.decision.addTerminals)
@@ -139,8 +134,15 @@ test('a fabricated terminal port is rejected instead of replaced with the unique
   const { source, goals } = incrementalConnectionFixture();
   const session = createWorkflowConnectionSession({ ...source, goals });
   const decision = {
-    ...incrementalConnectionModelPatch(source, incrementalConnectionPatch({})),
-    addTerminals: [{ nodeId: 'source', port: 'not-a-declared-output' }],
+    ...incrementalConnectionModelRegion(source, incrementalConnectionPatch({})),
+    nodes: [
+      {
+        nodeId: 'source',
+        incoming: [],
+        root: true,
+        finishOutputs: ['not-a-declared-output'],
+      },
+    ],
   };
   await assert.rejects(
     planWorkflowConnectionStep({
@@ -166,26 +168,23 @@ test('revision boundary removal uses the actual previous ports while new termina
     context: { ...before.context, nodes: revisedNodes },
     terminals: [{ nodeId: 'summary', output: 'main' }],
   };
-  const schema = createWorkflowConnectionPatchSelectionSchema(
-    description,
-    before.context.nodes,
-  );
+  const schema = createWorkflowConnectionRegionSelectionSchema(description);
   const selection = schema.parse({
-    ...incrementalConnectionModelPatch(source, incrementalConnectionPatch({})),
-    addTerminals: [{ nodeId: 'summary' }],
-    removeTerminals: [{ nodeId: 'summary' }],
+    kind: 'set-region',
+    nodes: [{ nodeId: 'summary', incoming: [], root: false, finish: true }],
+    factIds: ['intent'],
+    reason: 'Set the revised terminal intent.',
   });
-  assert.deepEqual(
-    resolveConnectionEndpointSelections(selection.addTerminals, revisedNodes),
-    [{ nodeId: 'summary', output: 'revised-output' }],
+  const delta = resolveWorkflowConnectionRegionSelection(
+    description,
+    selection,
   );
-  assert.deepEqual(
-    resolveConnectionEndpointSelections(
-      selection.removeTerminals,
-      before.context.nodes,
-    ),
-    [{ nodeId: 'summary', output: 'main' }],
-  );
+  assert.deepEqual(delta.addTerminals, [
+    { nodeId: 'summary', output: 'revised-output' },
+  ]);
+  assert.deepEqual(delta.removeTerminals, [
+    { nodeId: 'summary', output: 'main' },
+  ]);
   assert.deepEqual(
     before.context.nodes.find((node) => node.id === 'summary').outputs,
     ['main'],

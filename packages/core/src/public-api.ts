@@ -498,3 +498,13 @@ export { isBindingPointerKeyAllowed } from './bindings/candidates/is-binding-poi
 
 export { resolveApiLiteralValues } from './arguments/sources/resolve-api-literal-values.js';
 export { listApiRequestInputRoots } from './arguments/list-api-request-input-roots.js';
+export {
+  workflowConnectionRegionSchema,
+  workflowConnectionRegionNodeSchema,
+} from './schemas/workflow-connection-region-schema.js';
+export type * from './types/workflow-connection-region.js';
+export {
+  createWorkflowConnectionRegionPatch,
+  deriveWorkflowConnectionRegionPatch,
+} from './workflow/connections/incremental/create-workflow-connection-region-patch.js';
+export { describeWorkflowConnectionCandidates } from './workflow/connections/incremental/describe-workflow-connection-candidates.js';

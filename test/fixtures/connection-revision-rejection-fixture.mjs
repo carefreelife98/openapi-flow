@@ -8,7 +8,7 @@ import { planWorkflowConnectionRevision } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './incremental-connection-fixture.mjs';
 
 export function connectionRevisionRejectionFixture() {
@@ -51,13 +51,14 @@ export function connectionRevisionRejectionFixture() {
     (item) => item.arguments.callId === 'price',
   ).arguments.bindings[0].sourceNodeId = 'detail';
   const after = { ...source, materials };
-  const graphChange = incrementalConnectionModelPatch(
+  const graphChange = incrementalConnectionModelRegion(
     after,
     incrementalConnectionPatch({
       addEdges: [
         { from: 'detail', output: 'main', to: 'price', input: 'main' },
       ],
     }),
+    before.session,
   );
   const rejectedOutput = {
     decision: {
@@ -76,11 +77,12 @@ export function connectionRevisionRejectionFixture() {
     },
   };
   const correctedOutput = globalThis.structuredClone(rejectedOutput);
-  correctedOutput.decision.graphChange.removeEdgeIds = [
-    description.edgeCatalog.find(
-      ({ edge }) => edge.from === 'source' && edge.to === 'price',
-    ).id,
-  ];
+  const price = correctedOutput.decision.graphChange.nodes.find(
+    (node) => node.nodeId === 'price',
+  );
+  price.incoming = price.incoming.filter(
+    (edge) => edge.source.nodeId !== 'source',
+  );
   return {
     input: { before, after, expected: description.expected },
     rejectedOutput,

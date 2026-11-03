@@ -19,7 +19,7 @@ import {
 } from './fixtures/initial-connection-recovery-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 const policy = {
@@ -33,7 +33,7 @@ function successfulOutputs(fixture) {
     { decision: fixture.request },
     { goals: fixture.goals },
     {
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         fixture.source,
         incrementalConnectionPatch({
           addEdges: fixture.plan.edges,
@@ -147,7 +147,7 @@ test('a wrong goal can be repaired without invoking any material callback or rep
       { goals: invalid },
       { decision: { kind: 'goals', goals: fixture.goals } },
       {
-        decision: incrementalConnectionModelPatch(
+        decision: incrementalConnectionModelRegion(
           fixture.source,
           incrementalConnectionPatch({
             addEdges: fixture.plan.edges,

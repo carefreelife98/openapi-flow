@@ -8,128 +8,18 @@ import type {
   WorkflowConnectionStepDescription,
   WorkflowConnectionMaterialRepairStage,
   WorkflowCapability,
-  WorkflowPlanNodeContract,
 } from '@openapi-flow/core';
 import type {
   WorkflowConnectionStepModelOutput,
   WorkflowConnectionStepModelDecision,
-  WorkflowConnectionPatchContext,
-  WorkflowConnectionPatchSelection,
 } from '../types/incremental-connection-planning.js';
 import type { WorkflowConnectionOutlineBundleDescription } from '@openapi-flow/core';
 import { createConnectionMaterialRepairChoiceSchema } from './create-connection-material-repair-choice-schema.js';
+import { createWorkflowConnectionRegionSelectionSchema } from './workflow-connection-region-selection-schema.js';
 import {
   connectionChoicesSchema,
   connectionDecisionTextSchema as text,
-  connectionIdListSchema,
-  connectionPortSelectionListSchema,
 } from './connection-planning-field-schemas.js';
-
-export function createWorkflowConnectionPatchSelectionSchema(
-  description: WorkflowConnectionPatchContext,
-  removalNodes: WorkflowPlanNodeContract[],
-  outline?: WorkflowConnectionOutlineBundleDescription,
-): z.ZodType<WorkflowConnectionPatchSelection> {
-  const nodes = description.context.nodes;
-  const canConnect =
-    nodes.some((node) => node.outputs.length) &&
-    nodes.some((node) => node.inputs.length);
-  const edge = z.strictObject({
-    source: connectionPortSelectionListSchema(nodes, 'outputs').element,
-    target: connectionPortSelectionListSchema(nodes, 'inputs').element,
-  });
-  const scoped =
-    outline === undefined
-      ? []
-      : [
-          {
-            sources: nodes.filter((node) =>
-              outline.bundle.nodeIds.includes(node.id),
-            ),
-            targets: nodes,
-          },
-          {
-            sources: nodes,
-            targets: nodes.filter((node) =>
-              outline.bundle.nodeIds.includes(node.id),
-            ),
-          },
-        ]
-          .filter(
-            ({ sources, targets }) =>
-              sources.some((node) => node.outputs.length) &&
-              targets.some((node) => node.inputs.length),
-          )
-          .map(({ sources, targets }) =>
-            z.strictObject({
-              source: connectionPortSelectionListSchema(sources, 'outputs')
-                .element,
-              target: connectionPortSelectionListSchema(targets, 'inputs')
-                .element,
-            }),
-          );
-  const roots = nodes.filter(
-    (node) =>
-      !node.waitsForAllInputs &&
-      node.rejoinsExclusiveOutputs === undefined &&
-      !node.references.length &&
-      !node.dependencyNodeIds.length &&
-      !Object.values(node.inputReferences ?? {}).some(
-        (references) => references.length,
-      ),
-  );
-  const currentTerminalNodes = removalNodes.map((node) => ({
-    ...node,
-    outputs: node.outputs.filter((output) =>
-      description.terminals.some(
-        (terminal) => terminal.nodeId === node.id && terminal.output === output,
-      ),
-    ),
-  }));
-  return z.strictObject({
-    kind: z.literal('patch'),
-    addEdges: (outline !== undefined
-      ? scoped.length
-        ? z.array(connectionChoicesSchema(scoped))
-        : z.array(edge).max(0)
-      : canConnect
-        ? z.array(edge)
-        : z.array(edge).max(0)
-    ).describe(
-      'One atomic semantic bundle or repair, not a full graph replacement.',
-    ),
-    removeEdgeIds: connectionIdListSchema(
-      description.edgeCatalog
-        .filter(
-          (item) =>
-            item.editable &&
-            (outline === undefined ||
-              outline.bundle.nodeIds.includes(item.edge.from) ||
-              outline.bundle.nodeIds.includes(item.edge.to)),
-        )
-        .map((item) => item.id),
-    ),
-    addRootNodeIds: connectionIdListSchema(
-      roots.map((node) => node.id),
-    ).describe(
-      'Only explicitly intended independent starts in this patch. An unconnected node is not automatically a start.',
-    ),
-    removeRootNodeIds: connectionIdListSchema(description.rootNodeIds),
-    addTerminals: connectionPortSelectionListSchema(nodes, 'outputs').describe(
-      'Only outputs explicitly intended to finish here. Leave unfinished paths open.',
-    ),
-    removeTerminals: connectionPortSelectionListSchema(
-      currentTerminalNodes,
-      'outputs',
-    ).describe(
-      'Explicitly reopen a previously accepted terminal before continuing its path.',
-    ),
-    factIds: z
-      .array(z.enum(description.requirements.map((fact) => fact.id)))
-      .min(1),
-    reason: text,
-  });
-}
 
 export function createWorkflowConnectionStepSchema(
   description: WorkflowConnectionStepDescription,
@@ -155,7 +45,7 @@ export function createWorkflowConnectionStepSchema(
       )
     : z.array(workflowConnectionAssessmentSchema).max(0);
   const choices: z.ZodType<WorkflowConnectionStepModelDecision>[] = [
-    createWorkflowConnectionPatchSelectionSchema(description, nodes, outline),
+    createWorkflowConnectionRegionSelectionSchema(description, outline),
     z.strictObject({
       kind: z.literal('request-completion'),
       assessments,

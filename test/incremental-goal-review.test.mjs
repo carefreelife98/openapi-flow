@@ -11,7 +11,7 @@ import {
 } from './fixtures/initial-connection-recovery-fixture.mjs';
 import { connectionGoalReviewOutput } from './fixtures/connection-goal-review-fixture.mjs';
 import {
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
   incrementalConnectionPatch,
 } from './fixtures/incremental-connection-fixture.mjs';
 
@@ -21,7 +21,7 @@ const policy = {
   deadlineMs: 30000,
 };
 const edges = (fixture) => ({
-  decision: incrementalConnectionModelPatch(
+  decision: incrementalConnectionModelRegion(
     fixture.source,
     incrementalConnectionPatch({
       addEdges: fixture.plan.edges,

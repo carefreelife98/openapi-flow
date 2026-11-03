@@ -19,7 +19,7 @@ import {
 import {
   incrementalConnectionFixture as fixture,
   incrementalConnectionPatch as patch,
-  incrementalConnectionModelPatch as modelPatch,
+  incrementalConnectionModelRegion as modelPatch,
 } from './fixtures/incremental-connection-fixture.mjs';
 import { connectionPlanningModel } from './fixtures/connection-planning-record-fixture.mjs';
 
@@ -104,7 +104,7 @@ test('model steps select endpoints; code fills unique ports, validates atomic bu
   for (const proposal of [first, second]) {
     const before = globalThis.structuredClone(session);
     const model = modelFor(
-      { decision: modelPatch(source, proposal) },
+      { decision: modelPatch(source, proposal, session) },
       ({ schema }) => {
         assert.deepEqual(Object.keys(schema.properties), ['decision']);
       },
@@ -159,10 +159,10 @@ test('unknown endpoint IDs and redundant fixed ports fail without output repair 
   const session = createWorkflowConnectionSession({ ...source, goals });
   for (const change of [
     (value) => {
-      value.decision.addEdges[0].source.nodeId = 'unknown';
+      value.decision.nodes[0].incoming[0].source.nodeId = 'unknown';
     },
     (value) => {
-      value.decision.addEdges[0].source.port = 'main';
+      value.decision.nodes[0].incoming[0].source.port = 'main';
     },
     (value) => {
       value.expectedRevision = 0;
@@ -194,14 +194,14 @@ test('an all-input join requires an actual chosen port and rejects an absent cho
   const session = createWorkflowConnectionSession({ ...source, goals });
   const edge = plan.edges.find((edge) => edge.to === 'join');
   const output = { decision: modelPatch(source, patch({ addEdges: [edge] })) };
-  assert.equal(output.decision.addEdges[0].target.port, 'input1');
+  assert.equal(output.decision.nodes[0].incoming[0].input, 'input1');
   const accepted = await planWorkflowConnectionStep({
     ...source,
     session,
     model: modelFor(output),
   });
   assert.deepEqual(accepted.decision.addEdges, [edge]);
-  delete output.decision.addEdges[0].target.port;
+  delete output.decision.nodes[0].incoming[0].input;
   await assert.rejects(
     planWorkflowConnectionStep({
       ...source,
@@ -548,9 +548,7 @@ test('multiple actual output ports require a model choice; unique outputs remain
   });
   const session = createWorkflowConnectionSession({ ...source, goals });
   const decision = modelPatch(source, patch({}));
-  decision.addEdges = [
-    { source: { nodeId: 'switch', port: 'yes' }, target: { nodeId: 'source' } },
-  ];
+  decision.nodes[0].incoming = [{ source: { nodeId: 'switch', port: 'yes' } }];
   const result = await planWorkflowConnectionStep({
     ...source,
     session,
@@ -559,7 +557,7 @@ test('multiple actual output ports require a model choice; unique outputs remain
   assert.deepEqual(result.decision.addEdges, [
     { from: 'switch', output: 'yes', to: 'source', input: 'main' },
   ]);
-  delete decision.addEdges[0].source.port;
+  delete decision.nodes[0].incoming[0].source.port;
   await assert.rejects(
     planWorkflowConnectionStep({
       ...source,

@@ -14,7 +14,7 @@ import { workflowConnectionEdgeId } from '@openapi-flow/core';
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from '../test/fixtures/incremental-connection-fixture.mjs';
 import { createFiveApiDagRuntime } from './fixtures/five-api-dag-runtime.mjs';
 
@@ -259,7 +259,7 @@ if (
           ],
         },
         {
-          decision: incrementalConnectionModelPatch(
+          decision: incrementalConnectionModelRegion(
             source,
             incrementalConnectionPatch({
               addRootNodeIds: ['source'],
@@ -299,7 +299,7 @@ if (
             ],
           };
           return {
-            decision: incrementalConnectionModelPatch(
+            decision: incrementalConnectionModelRegion(
               expanded,
               incrementalConnectionPatch({
                 addEdges: plan.edges
@@ -318,7 +318,7 @@ if (
     : [
         { goals },
         {
-          decision: incrementalConnectionModelPatch(
+          decision: incrementalConnectionModelRegion(
             source,
             incrementalConnectionPatch({
               addRootNodeIds: ['source'],
@@ -327,7 +327,7 @@ if (
           ),
         },
         {
-          decision: incrementalConnectionModelPatch(
+          decision: incrementalConnectionModelRegion(
             source,
             incrementalConnectionPatch({
               addEdges: plan.edges.filter((edge) => edge.from !== 'source'),

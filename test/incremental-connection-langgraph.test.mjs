@@ -14,7 +14,7 @@ import { NativeNodePlanningError } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture as fixture,
   incrementalConnectionPatch as patch,
-  incrementalConnectionModelPatch as modelPatch,
+  incrementalConnectionModelRegion as modelPatch,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 const policy = {
@@ -22,6 +22,41 @@ const policy = {
   maxRejectedProposals: 3,
   deadlineMs: 30_000,
 };
+
+test('historical rejections stay in accounting but leave model feedback after an accepted revision', async () => {
+  const { source, goals, plan } = fixture();
+  const [first, final] = twoBundles(source, plan);
+  const invalid = {
+    decision: modelPatch(
+      source,
+      patch({
+        addRootNodeIds: ['source'],
+        addEdges: [
+          { from: 'source', output: 'main', to: 'source', input: 'main' },
+        ],
+      }),
+    ),
+  };
+  const model = queueModel([{ goals }, invalid, first, invalid, final]);
+  const result = await createIncrementalWorkflowConnectionGraph(
+    dependencies(source, model),
+  ).invoke({});
+  assert.equal(result.status, 'complete');
+  assert.equal(result.rejectedProposals.length, 2);
+  assert.deepEqual(
+    result.rejectedProposals.map((item) => item.expected.revision),
+    [0, 1],
+  );
+  assert.deepEqual(
+    model.requests[2].context.rejectedProposals,
+    result.rejectedProposals.slice(0, 1),
+  );
+  assert.deepEqual(model.requests[3].context.rejectedProposals, []);
+  assert.deepEqual(
+    model.requests[4].context.rejectedProposals,
+    result.rejectedProposals.slice(1),
+  );
+});
 
 function queueModel(outputs, inspect = () => {}) {
   const requests = [];
@@ -589,10 +624,7 @@ test('the host graph applies two coherent bundles automatically and publishes on
 test('a graph-invalid bundle is rejected atomically and its exact structured feedback drives the next automatic proposal', async () => {
   const { source, goals, plan } = fixture();
   const cycle = patch({
-    addEdges: [
-      { from: 'detail', output: 'main', to: 'price', input: 'main' },
-      { from: 'price', output: 'main', to: 'detail', input: 'main' },
-    ],
+    addEdges: [{ from: 'source', output: 'main', to: 'source', input: 'main' }],
   });
   const model = queueModel([
     { goals },

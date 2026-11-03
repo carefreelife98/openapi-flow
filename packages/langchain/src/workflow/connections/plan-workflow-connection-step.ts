@@ -8,6 +8,7 @@ import {
   workflowConnectionRejectedProposalSchema,
   runOpenApiFlowOperation,
   describeWorkflowConnectionOutlineBundle,
+  describeWorkflowConnectionCandidates,
 } from '@openapi-flow/core';
 import type { WorkflowConnectionPlanningDecision } from '@openapi-flow/core';
 import type {
@@ -21,10 +22,7 @@ import {
   workflowConnectionMaterialRevisionStepPrompt,
 } from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
-import {
-  resolveConnectionEdgeSelections,
-  resolveConnectionEndpointSelections,
-} from './resolve-connection-selections.js';
+import { resolveWorkflowConnectionRegionSelection } from './resolve-workflow-connection-region-selection.js';
 import {
   validateConnectionProposal,
   WorkflowConnectionPlanningError,
@@ -91,10 +89,10 @@ export async function planWorkflowConnectionStep(
             proposal.expected.sessionId !== description.expected.sessionId ||
             proposal.expected.sourceFingerprint !==
               description.expected.sourceFingerprint ||
-            proposal.expected.revision > description.expected.revision
+            proposal.expected.revision !== description.expected.revision
           )
             throw new Error(
-              'Rejected proposal must belong to this session/source and not a future revision',
+              'Rejected proposal feedback must belong to the exact current session/source/revision',
             );
         }
       }
@@ -191,6 +189,7 @@ export async function planWorkflowConnectionStep(
     operation,
     name: 'plan_workflow_connection_step',
     schema,
+    schemaReuse: 'ref',
     messages: [
       new SystemMessage(
         allowMaterialRevisions === true
@@ -200,6 +199,8 @@ export async function planWorkflowConnectionStep(
       new HumanMessage(
         JSON.stringify({
           ...description,
+          connectionCandidates:
+            describeWorkflowConnectionCandidates(description),
           ...(materialRepairStages === undefined
             ? {}
             : { materialRepairStages }),
@@ -240,28 +241,10 @@ export async function planWorkflowConnectionStep(
     },
     () => {
       const raw = output.decision;
-      const addEdges =
-        raw.kind === 'patch'
-          ? resolveConnectionEdgeSelections(
-              raw.addEdges,
-              description.context.nodes,
-            )
-          : [];
       const decision: WorkflowConnectionPlanningDecision =
-        raw.kind !== 'patch'
+        raw.kind !== 'set-region'
           ? raw
-          : {
-              ...raw,
-              addEdges,
-              addTerminals: resolveConnectionEndpointSelections(
-                raw.addTerminals,
-                description.context.nodes,
-              ),
-              removeTerminals: resolveConnectionEndpointSelections(
-                raw.removeTerminals,
-                description.context.nodes,
-              ),
-            };
+          : resolveWorkflowConnectionRegionSelection(description, raw);
       const checked = workflowConnectionPlanningDecisionSchema.parse(decision);
       if (checked.kind === 'replan-materials')
         createWorkflowConnectionMaterialRevisionRequest({

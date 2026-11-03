@@ -69,7 +69,7 @@ test('a real rejected bypass preserves raw model output and code-owned witnesses
   assert.equal(serialized.includes('graphChange'), false);
   assert.equal(serialized.includes('violations'), false);
   assert.equal(serialized.includes('sourceFingerprint'), false);
-  feedback.output.decision.graphChange.addEdges.length = 0;
+  feedback.output.decision.graphChange.nodes[0].incoming.length = 0;
   assert.deepEqual(
     error.output,
     rejectedOutput,

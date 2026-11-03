@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { MemorySaver } from '@langchain/langgraph';
 import {
   createWorkflowConnectionSession,
+  applyWorkflowConnectionStep,
   describeWorkflowConnectionStep,
   createWorkflowConnectionOutline,
   describeWorkflowConnectionOutline,
@@ -18,6 +19,7 @@ import {
 } from '@openapi-flow/langchain';
 import {
   createIncrementalWorkflowConnectionGraph,
+  selectReadyConnectionBundle,
   IncrementalConnectionLimitError,
 } from '@openapi-flow/example-langgraph-workflow';
 import { recoveryQueueModel } from './fixtures/initial-connection-recovery-fixture.mjs';
@@ -27,7 +29,7 @@ import {
 } from './fixtures/connection-outline-fixture.mjs';
 import {
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 const { Ajv2020 } = createRequire(import.meta.resolve('@openapi-flow/core'))(
@@ -468,7 +470,7 @@ test('adding actual native material invalidates the old outline and schedules a 
           to: edge.to === 'join' ? native.id : edge.to,
         }));
       return {
-        decision: incrementalConnectionModelPatch(
+        decision: incrementalConnectionModelRegion(
           source,
           incrementalConnectionPatch({
             addEdges,
@@ -503,4 +505,61 @@ test('adding actual native material invalidates the old outline and schedules a 
   assert.equal(model.requests.length, 7);
   assert.equal(state.materialExtensions.length, 1);
   assert.equal(Object.hasOwn(state, '__interrupt__'), false);
+});
+
+test('host scheduling moves past a blocked comparison to ready producer work without creating execution edges', () => {
+  const { input } = prepared();
+  input.session = createWorkflowConnectionSession({
+    ...input,
+    goals: [
+      ...input.session.goals.map((goal) => goal.decision),
+      {
+        kind: 'precedence',
+        before: 'join',
+        after: 'summary',
+        factIds: ['intent'],
+        reason: 'Summary requires the joined producers.',
+      },
+    ],
+  });
+  const outline = createWorkflowConnectionOutline({
+    ...input,
+    proposal: {
+      purpose: 'Schedule actual ready inputs.',
+      bundles: [
+        {
+          purpose: 'Source and eventual summary',
+          nodeIds: ['source', 'summary'],
+        },
+        {
+          purpose: 'Independent producers and join',
+          nodeIds: ['detail', 'price', 'stock', 'join'],
+        },
+      ],
+    },
+  });
+  const describe = (session) =>
+    describeWorkflowConnectionOutline({ ...input, session, outline });
+  const initial = describe(input.session);
+  const chosen = selectReadyConnectionBundle(initial);
+  assert.ok(
+    outline.bundles
+      .find((bundle) => bundle.id === chosen)
+      .nodeIds.includes('source'),
+  );
+  const accepted = applyWorkflowConnectionStep({
+    ...input,
+    expected: initial.step.expected,
+    proposal: incrementalConnectionPatch({ addRootNodeIds: ['source'] }),
+  });
+  assert.equal(accepted.status, 'accepted');
+  const next = describe(accepted.session);
+  const before = globalThis.structuredClone(next);
+  const selected = selectReadyConnectionBundle(next);
+  assert.deepEqual(
+    outline.bundles.find((bundle) => bundle.id === selected).nodeIds,
+    ['detail', 'price', 'stock', 'join'],
+  );
+  assert.deepEqual(next, before);
+  assert.deepEqual(accepted.session.edges, []);
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { WorkflowPlanNodeContract } from '@openapi-flow/core';
+import type { WorkflowConnectionPortCandidate } from '@openapi-flow/core';
 import type { WorkflowConnectionEndpointSelection } from '../types/incremental-connection-planning.js';
 
 export const connectionDecisionTextSchema = z
@@ -21,7 +21,7 @@ export function connectionIdListSchema(ids: string[]): z.ZodType<string[]> {
 
 /** A single port is a code-owned fact. Only a genuine port choice is generated. */
 export function connectionPortSelectionListSchema(
-  nodes: WorkflowPlanNodeContract[],
+  nodes: WorkflowConnectionPortCandidate[],
   direction: 'inputs' | 'outputs',
 ): z.ZodArray<z.ZodType<WorkflowConnectionEndpointSelection>> {
   const choices = nodes

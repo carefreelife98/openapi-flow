@@ -15,6 +15,7 @@ import {
   connectionGraphFingerprint,
 } from './connection-graph-identity.js';
 import { inspectConnectionGraph } from './inspect-connection-graph.js';
+import { inspectConnectionGoalContradictions } from './inspect-connection-goal-contradictions.js';
 
 export function validateConnectionStepReferences(
   input: WorkflowConnectionSessionInput,
@@ -112,6 +113,15 @@ export function validateWorkflowConnectionSession(
       throw new Error('Connection history contains an invalid accepted step', {
         cause: inspection.violations,
       });
+    const contradictions = inspectConnectionGoalContradictions({
+      goals: session.goals,
+      edges: graph.edges,
+    });
+    if (contradictions.length)
+      throw new Error(
+        'Connection history contradicts confirmed structural goals',
+        { cause: contradictions },
+      );
     const fingerprint = connectionGraphFingerprint(graph);
     if (visitedGraphFingerprints.has(fingerprint))
       throw new Error('Connection history repeats a previous planning state');

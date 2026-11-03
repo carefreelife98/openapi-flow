@@ -11,7 +11,7 @@ import type {
 } from '@openapi-flow/core';
 import type {
   WorkflowConnectionGoalSelection,
-  WorkflowConnectionPatchSelection,
+  WorkflowConnectionRegionSelection,
 } from './incremental-connection-planning.js';
 
 export interface PlanWorkflowConnectionRevisionInput extends WorkflowConnectionRevisionInput {
@@ -34,7 +34,7 @@ export interface CreateWorkflowConnectionRevisionRejectionInput extends Workflow
 export interface WorkflowConnectionRevisionSelection {
   kind: 'revise-connections';
   goals: WorkflowConnectionGoalSelection[];
-  graphChange: WorkflowConnectionPatchSelection;
+  graphChange: WorkflowConnectionRegionSelection;
 }
 export type WorkflowConnectionRevisionModelDecision =
   WorkflowConnectionRevisionSelection | WorkflowConnectionMaterialRepairRequest;

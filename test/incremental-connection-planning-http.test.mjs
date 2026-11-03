@@ -15,7 +15,7 @@ import {
 import {
   incrementalConnectionFixture as fixture,
   incrementalConnectionPatch as patch,
-  incrementalConnectionModelPatch as modelPatch,
+  incrementalConnectionModelRegion as modelPatch,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 const { Ajv2020 } = createRequire(

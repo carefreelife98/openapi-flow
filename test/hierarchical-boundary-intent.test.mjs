@@ -10,7 +10,7 @@ import { planWorkflowConnectionStep } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 import { connectionPlanningModel } from './fixtures/connection-planning-record-fixture.mjs';
 
@@ -46,7 +46,7 @@ test('a partial connection patch never places unrelated independent calls as roo
     ...source,
     session,
     model: connectionPlanningModel({
-      decision: incrementalConnectionModelPatch(source, proposal),
+      decision: incrementalConnectionModelRegion(source, proposal),
     }),
   });
   assert.deepEqual(planned.decision.addRootNodeIds, ['first']);
@@ -95,7 +95,7 @@ test('a scoped independent bundle does not conflict with unrelated automatically
     outline,
     bundleId,
     model: connectionPlanningModel({
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         source,
         incrementalConnectionPatch({
           addRootNodeIds: ['first'],
@@ -123,7 +123,7 @@ test('an empty model patch cannot finish or place missing nodes by inferring bou
     ...source,
     session,
     model: connectionPlanningModel({
-      decision: incrementalConnectionModelPatch(
+      decision: incrementalConnectionModelRegion(
         source,
         incrementalConnectionPatch({}),
       ),

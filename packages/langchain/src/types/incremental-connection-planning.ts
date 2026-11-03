@@ -1,5 +1,6 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { ZodType, z } from 'zod';
+import type { StructuredOutputSchemaReuse } from './structured-output-schema.js';
 import type { workflowConnectionGoalRejectionSchema } from '../schemas/workflow-connection-goal-rejection-schema.js';
 import type { BaseMessage } from '@langchain/core/messages';
 import type {
@@ -14,9 +15,9 @@ import type {
   WorkflowConnectionUserDecision,
   WorkflowConnectionRejectedProposal,
   WorkflowConnectionStepExpectation,
-  WorkflowConnectionStepDescription,
   WorkflowReviewedGoalCandidate,
   WorkflowConnectionOutline,
+  WorkflowConnectionRegion,
 } from '@openapi-flow/core';
 
 export interface PlanWorkflowConnectionGoalsInput extends WorkflowConnectionSessionSource {
@@ -35,6 +36,7 @@ export interface CreateWorkflowConnectionGoalRejectionInput extends WorkflowConn
 }
 export interface PlanWorkflowConnectionStepInput extends WorkflowConnectionSessionInput {
   model: BaseChatModel;
+  /** Feedback for this exact current revision; the host retains historical accounting separately. */
   rejectedProposals?: WorkflowConnectionRejectedProposal[];
   signal?: AbortSignal;
   outline?: WorkflowConnectionOutline;
@@ -42,7 +44,7 @@ export interface PlanWorkflowConnectionStepInput extends WorkflowConnectionSessi
   /** Explicit host opt-in to request changes to existing material. Omitted/false retains the original model contract. */
   allowMaterialRevisions?: boolean;
 }
-/** Default calls retain the original decision type as well as the original wire contract. */
+/** Default calls retain the non-repair decision type; graph intent uses the region wire. */
 export interface PlanWorkflowConnectionStepDefaultInput extends Omit<
   PlanWorkflowConnectionStepInput,
   'allowMaterialRevisions'
@@ -74,24 +76,27 @@ export interface WorkflowConnectionEdgeSelection {
   source: WorkflowConnectionEndpointSelection;
   target: WorkflowConnectionEndpointSelection;
 }
-export interface WorkflowConnectionPatchSelection extends Omit<
-  WorkflowConnectionPatch,
-  'addEdges' | 'addTerminals' | 'removeTerminals'
-> {
-  addEdges: WorkflowConnectionEdgeSelection[];
-  addTerminals: WorkflowConnectionEndpointSelection[];
-  removeTerminals: WorkflowConnectionEndpointSelection[];
+export interface WorkflowConnectionIncomingSelection {
+  source: WorkflowConnectionEndpointSelection;
+  input?: string;
 }
-export type WorkflowConnectionPatchContext = Pick<
-  WorkflowConnectionStepDescription,
-  'context' | 'requirements' | 'edgeCatalog' | 'rootNodeIds' | 'terminals'
->;
+export type WorkflowConnectionRegionNodeSelection = {
+  nodeId: WorkflowConnectionSessionInput['session']['rootNodeIds'][number];
+  incoming: WorkflowConnectionIncomingSelection[];
+  root: boolean;
+} & ({ finish: boolean } | { finishOutputs: string[] });
+export interface WorkflowConnectionRegionSelection extends Pick<
+  WorkflowConnectionRegion,
+  'kind' | 'factIds' | 'reason'
+> {
+  nodes: WorkflowConnectionRegionNodeSelection[];
+}
 export type WorkflowConnectionCompletionRequest = Exclude<
   WorkflowConnectionStepProposal,
   WorkflowConnectionPatch
 >;
 export type WorkflowConnectionStepModelDecision =
-  | WorkflowConnectionPatchSelection
+  | WorkflowConnectionRegionSelection
   | WorkflowConnectionCompletionRequest
   | WorkflowConnectionMaterialRequest
   | WorkflowConnectionMaterialRepairRequest
@@ -115,6 +120,7 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   operation: string;
   name: string;
   schema: ZodType<Output>;
+  schemaReuse?: StructuredOutputSchemaReuse;
   /** Optional distinct receiver validation when display-only fields must not gate execution. */
   validationSchema?: ZodType<Output>;
   messages: BaseMessage[];

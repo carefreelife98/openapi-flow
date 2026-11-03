@@ -14,6 +14,7 @@ import {
 } from './validate-workflow-connection-session.js';
 import { applyConnectionPatch } from './apply-connection-patch.js';
 import { inspectConnectionGraph } from './inspect-connection-graph.js';
+import { inspectConnectionGoalContradictions } from './inspect-connection-goal-contradictions.js';
 import {
   workflowConnectionEdgeId,
   connectionGraphFingerprint,
@@ -115,6 +116,12 @@ export function applyWorkflowConnectionStep(
       });
       if (checked.violations.length)
         return { status: 'rejected', violations: checked.violations };
+      const contradictions = inspectConnectionGoalContradictions({
+        goals: input.session.goals,
+        edges: next.edges,
+      });
+      if (contradictions.length)
+        return { status: 'rejected', violations: contradictions };
       const session = {
         ...structuredClone(input.session),
         ...next,

@@ -26,7 +26,7 @@ import { planWorkflowConnectionRevision } from '@openapi-flow/langchain';
 import {
   incrementalConnectionFixture,
   incrementalConnectionPatch,
-  incrementalConnectionModelPatch,
+  incrementalConnectionModelRegion,
 } from './fixtures/incremental-connection-fixture.mjs';
 
 function fixture() {
@@ -68,9 +68,10 @@ function revisionOutput(input) {
           reason: 'Summary needs the original detail result.',
         },
       ],
-      graphChange: incrementalConnectionModelPatch(
+      graphChange: incrementalConnectionModelRegion(
         input.source,
         incrementalConnectionPatch({}),
+        input.before.session,
       ),
     },
   };

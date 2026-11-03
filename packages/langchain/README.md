@@ -325,3 +325,12 @@ Discovery selection cannot produce `insufficient_contract` from metadata-only ca
 See the [workspace guide](https://github.com/carefreelife98/openapi-flow#independent-stages). Our code is MIT-licensed; dependency terms remain separate.
 
 Both graph planners accept optional `preparedNativeNodes`. These are fixed materials, not model output: their IDs/parameters and implementation-owned input/output ports are supplied explicitly while the model plans connections. Prepare such producers before binding/argument generation, deriving their schemas with core's `createNativeOutputContracts`. The model's `additionalNativeNodes` contains new nodes only, or `[]` if no addition is needed; the ambiguous old model field `nativeNodes` is not accepted as an alias. Repeating a prepared ID, guessing a producer, changing parameters through a coercing/defaulting schema or bypassing a required producer fails validation. Native output contracts must come from registered capability implementations, never model-generated declarations. Planning errors retain the raw model output, stage and original validation cause; hosts own persistence/privacy and retry policy.
+
+## 0.7.0: desired connection regions
+
+`planWorkflowConnectionStep` and the graph portion of
+`planWorkflowConnectionRevision` now use node-local `set-region` model output.
+Core derives additions/removals from the accepted graph. Old patch-shaped model
+outputs are rejected; returned Core decisions remain explicit patches. Step
+rejection feedback must belong to the exact current revision. See the
+[contract and migration](../../docs/connection-region-intent.md).
