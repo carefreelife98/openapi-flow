@@ -9,13 +9,13 @@ import {
   unionBindingSchemas,
 } from './combine-binding-schemas.js';
 import { schemaAllowsContainer } from './schema-allows-container.js';
-import type { SchemaResourceContext } from '../types/schema-resource.js';
+import type { SchemaPointerResources } from '../types/schema-resource.js';
 
 /** Resolve declared object fields, array items and composition alternatives. */
 export function schemasAtPointer(
   schema: BindingSchema,
   pointer: string,
-  resources?: SchemaResourceContext,
+  resources?: SchemaPointerResources,
 ): BindingSchema[] {
   const active = new Map<BindingSchema, Set<string>>();
   function visit(

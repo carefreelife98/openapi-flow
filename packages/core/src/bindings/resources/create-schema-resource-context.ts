@@ -12,6 +12,7 @@ import type {
 } from '../../types/schema-resource.js';
 import { isObject } from '../../utils/is-object.js';
 import { cloneSchemaResource } from './clone-schema-resource.js';
+import { listSchemaResources } from './list-schema-resources.js';
 import { jsonValuesEqual } from '../../utils/json-values-equal.js';
 
 /** Keep original resources; projected values reference their original locations. */
@@ -104,6 +105,8 @@ export function createSchemaResourceContext(
   index(root, '', rootUri);
   const ajv = new Ajv2020({ strict: false, discriminator: true });
   addFormats.default(ajv);
+  for (const resource of listSchemaResources(root).reverse())
+    if (resource.schema !== root) ajv.addSchema(resource.schema, resource.uri);
   ajv.addSchema(root);
   // Resolve/validate on the host. No remote fetch and no runtime schema compiler.
   ajv.getSchema(rootUri);

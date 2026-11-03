@@ -13,23 +13,63 @@ import { object } from '../openapi/common/parse-spec-utils.js';
 import { optionalRequestProperties } from '../schemas/operation-plan-schema.js';
 import { projectLiteralInputSchema } from '../schemas/project-literal-input-schema.js';
 import { bodyMediaSchema, parameterSchema } from './request-contract.js';
+import { createClosedSchemaPointerResolver } from '../bindings/resources/create-closed-schema-pointer-resolver.js';
+import type { SchemaPointerResources } from '../types/schema-resource.js';
 
-function requiredPointers(
+function collectRequiredPointers(
   schema: JsonObject | boolean,
   value: unknown,
   pointer: string,
   missing: string[],
   bound: string[],
+  resources: SchemaPointerResources,
+  pending: Map<JsonObject, Set<string>>,
 ): void {
   if (bound.includes(pointer) || typeof schema === 'boolean') return;
+  if (typeof schema.$ref === 'string') {
+    const paths = pending.get(schema) ?? new Set<string>();
+    if (paths.has(pointer))
+      throw new Error(
+        `Request ${pointer}: non-progressing schema reference cycle`,
+      );
+    paths.add(pointer);
+    pending.set(schema, paths);
+    const siblings = { ...schema };
+    delete siblings.$ref;
+    try {
+      collectRequiredPointers(
+        resources.resolve(schema),
+        value,
+        pointer,
+        missing,
+        bound,
+        resources,
+        pending,
+      );
+      collectRequiredPointers(
+        siblings,
+        value,
+        pointer,
+        missing,
+        bound,
+        resources,
+        pending,
+      );
+    } finally {
+      paths.delete(pointer);
+    }
+    return;
+  }
   if (Array.isArray(schema.allOf))
     for (const item of schema.allOf)
-      requiredPointers(
+      collectRequiredPointers(
         object(item, `${pointer}.allOf`),
         value,
         pointer,
         missing,
         bound,
+        resources,
+        pending,
       );
   if (Array.isArray(schema.required))
     for (const name of schema.required) {
@@ -58,7 +98,7 @@ function requiredPointers(
         !bound.some((target) => target.startsWith(childPointer + '/'))
       )
         continue;
-      requiredPointers(
+      collectRequiredPointers(
         typeof child === 'boolean'
           ? child
           : object(child, `${pointer}.${name}`),
@@ -66,6 +106,8 @@ function requiredPointers(
         childPointer,
         missing,
         bound,
+        resources,
+        pending,
       );
     }
   }
@@ -75,7 +117,7 @@ function requiredPointers(
     !Array.isArray(schema.items)
   )
     for (const [index, item] of value.entries()) {
-      requiredPointers(
+      collectRequiredPointers(
         typeof schema.items === 'boolean'
           ? schema.items
           : object(schema.items, `${pointer}.items`),
@@ -83,8 +125,28 @@ function requiredPointers(
         `${pointer}/${index}`,
         missing,
         bound,
+        resources,
+        pending,
       );
     }
+}
+
+function requiredPointers(
+  schema: JsonObject | boolean,
+  value: unknown,
+  pointer: string,
+  missing: string[],
+  bound: string[],
+): void {
+  collectRequiredPointers(
+    schema,
+    value,
+    pointer,
+    missing,
+    bound,
+    createClosedSchemaPointerResolver(schema),
+    new Map(),
+  );
 }
 
 export function validateApiArguments({

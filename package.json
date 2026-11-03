@@ -67,7 +67,8 @@
     "test:capability-gaps-local-n8n": "npm run build && node integration/capability-gaps-local-n8n.mjs",
     "test:live-model-local-n8n": "npm run build && node integration/live-model-local-n8n.mjs",
     "eval:selection": "npm run build && node examples/langgraph-workflow/dist/cli/evaluate-api-selection.js",
-    "eval:selection:legacy": "npm run build && node integration/evaluate-operation-selection.mjs"
+    "eval:selection:legacy": "npm run build && node integration/evaluate-operation-selection.mjs",
+    "test:recursive-oas-local-n8n": "npm run build && node integration/recursive-oas-local-n8n.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

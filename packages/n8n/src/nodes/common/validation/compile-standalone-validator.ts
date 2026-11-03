@@ -1,4 +1,5 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
+import { listSchemaResources } from '@openapi-flow/core';
 import { _ } from 'ajv/dist/compile/codegen/index.js';
 import addFormats from 'ajv-formats';
 import standaloneCode from 'ajv/dist/standalone/index.js';
@@ -25,6 +26,9 @@ export function compileStandaloneValidator({
     },
   });
   addFormats.default(ajv);
+  for (const resource of listSchemaResources(schema).reverse())
+    if (resource.schema !== schema)
+      ajv.addSchema(resource.schema, resource.uri);
   const compiled = standaloneCode.default(ajv, ajv.compile(schema));
   const built = buildSync({
     stdin: { contents: compiled, resolveDir: import.meta.dirname },

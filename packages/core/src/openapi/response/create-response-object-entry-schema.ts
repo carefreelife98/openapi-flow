@@ -1,7 +1,8 @@
 import type { ApiOperationContract } from '../../types/api-operation.js';
 import type { BindingSchema } from '../../types/api-bindings.js';
 import { responseBindingSchemas } from '../../bindings/response-binding-schema.js';
-import { schemasAtPointer } from '../../bindings/schema-at-pointer.js';
+import { projectSchemaPointer } from '../../bindings/project-schema-pointer.js';
+import { schemaReferenceContext } from '../../bindings/resources/schema-reference-context.js';
 import { schemaAllowsContainer } from '../../bindings/schema-allows-container.js';
 import { projectObjectEntryValueSchema } from '../../bindings/project-object-entry-value-schema.js';
 
@@ -21,12 +22,18 @@ export function createResponseObjectEntrySchema(
     .filter((schema) => schemaAllowsContainer(schema, 'object'))
     .flatMap((schema) => {
       if (childPointer !== undefined)
-        return schemasAtPointer(
+        return projectSchemaPointer(
           { type: 'object', allOf: [schema] },
           childPointer,
         );
-      const value = projectObjectEntryValueSchema(schema);
-      return value === false ? [] : [value];
+      const resources = schemaReferenceContext(schema);
+      const value = projectObjectEntryValueSchema(
+        resources ? resources.root : schema,
+        resources,
+      );
+      return value === false
+        ? []
+        : [resources ? resources.bundle(value) : value];
     });
   if (!values.length)
     throw new Error(

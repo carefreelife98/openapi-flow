@@ -23,3 +23,18 @@ export interface StaticSchemaProjectionBundle {
 }
 
 export type SchemaResourceMapper = (schema: BindingSchema) => BindingSchema;
+
+export type SchemaPointerResources = Pick<
+  SchemaResourceContext,
+  'reference' | 'resolve'
+>;
+
+export interface RequestSchemaPointer {
+  schema: BindingSchema;
+  pointer: string;
+}
+
+export interface SchemaResourceRegistration {
+  uri: string;
+  schema: BindingSchema;
+}

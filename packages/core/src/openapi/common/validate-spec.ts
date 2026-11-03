@@ -2,6 +2,7 @@ import { validate as resolveAndValidate } from '@scalar/openapi-parser';
 import { validate } from '@scalar/openapi-validator';
 import type { OpenApiDocument, ParsedDocument } from '../../types/openapi.js';
 import { object } from './parse-spec-utils.js';
+import { bundleResolvedOpenApiDocument } from './bundle-resolved-openapi-document.js';
 import {
   runOpenApiFlowOperation,
   runOpenApiFlowAsyncOperation,
@@ -64,7 +65,9 @@ async function resolveOpenApiDocumentReferences(
         result.errors.map((error) => error.message).join('; '),
     );
   }
-  const resolved = object(result.schema, 'spec validated schema');
+  const resolved = bundleResolvedOpenApiDocument(
+    object(result.schema, 'spec validated schema'),
+  );
   return {
     spec: resolved,
     paths:

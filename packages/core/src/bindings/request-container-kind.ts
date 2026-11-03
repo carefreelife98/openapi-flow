@@ -2,7 +2,9 @@ import type {
   ApiBindingMaterial,
   RequestContainerKind,
 } from '../types/api-bindings.js';
-import { requestBindingSchemas } from './request-binding-schema.js';
+import { requestSchemaPointer } from './request-schema-pointer.js';
+import { schemasAtPointer } from './schema-at-pointer.js';
+import { createClosedSchemaPointerResolver } from './resources/create-closed-schema-pointer-resolver.js';
 import { schemaAllowsContainer } from './schema-allows-container.js';
 
 /** Container identity comes from the OAS, never from a numeric property name. */
@@ -15,9 +17,18 @@ export function requestContainerKind(
   )
     return 'object';
   const kinds = new Set<string>();
-  for (const schema of requestBindingSchemas(material, pointer)) {
-    if (schemaAllowsContainer(schema, 'object')) kinds.add('object');
-    if (schemaAllowsContainer(schema, 'array')) kinds.add('array');
+  const selected = requestSchemaPointer(material, pointer);
+  const resources =
+    selected === undefined
+      ? undefined
+      : createClosedSchemaPointerResolver(selected.schema);
+  const schemas =
+    selected === undefined
+      ? []
+      : schemasAtPointer(selected.schema, selected.pointer, resources);
+  for (const schema of schemas) {
+    if (schemaAllowsContainer(schema, 'object', resources)) kinds.add('object');
+    if (schemaAllowsContainer(schema, 'array', resources)) kinds.add('array');
   }
   if (kinds.size !== 1)
     throw new Error(

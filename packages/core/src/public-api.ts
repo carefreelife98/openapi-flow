@@ -510,3 +510,6 @@ export {
 export { describeWorkflowConnectionCandidates } from './workflow/connections/incremental/describe-workflow-connection-candidates.js';
 
 export { WorkflowConnectionRegionValidationError } from './workflow/connections/incremental/workflow-connection-region-validation-error.js';
+
+export { listSchemaResources } from './bindings/resources/list-schema-resources.js';
+export type { SchemaResourceRegistration } from './types/schema-resource.js';
