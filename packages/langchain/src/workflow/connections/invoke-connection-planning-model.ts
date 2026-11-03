@@ -1,3 +1,4 @@
+import { createWorkflowConnectionProposalAttempt } from './create-workflow-connection-proposal-attempt.js';
 import { isDeepStrictEqual } from 'node:util';
 import { runOpenApiFlowOperation } from '@openapi-flow/core';
 import type { InvokeConnectionPlanningModelInput } from '../../types/incremental-connection-planning.js';
@@ -37,6 +38,14 @@ export async function invokeConnectionPlanningModel<Output extends object>(
   return validateConnectionProposal(
     {
       operation: input.operation,
+      ...(input.proposalContext === undefined
+        ? {}
+        : {
+            proposalAttempt: createWorkflowConnectionProposalAttempt({
+              ...input.proposalContext,
+              output,
+            }),
+          }),
       stage: 'model-output',
       code: 'MODEL_OUTPUT_INVALID',
       output,

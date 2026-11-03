@@ -50,7 +50,12 @@ test('the new automatic child graph has explicit loop and failure destinations w
     'publishRevision',
     'reserveModelCall',
   ]);
-  assert.deepEqual(targets('proposeBundle'), ['applyBundle', 'fail']);
+  assert.deepEqual(targets('proposeBundle'), ['publishProposalAttempt']);
+  assert.deepEqual(targets('publishProposalAttempt'), [
+    'applyBundle',
+    'fail',
+    'publishProgress',
+  ]);
   assert.deepEqual(targets('planOutline'), [
     'fail',
     'publishOutline',

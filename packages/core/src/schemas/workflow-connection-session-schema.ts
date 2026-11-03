@@ -1,3 +1,4 @@
+import { workflowConnectionRegionSchema } from './workflow-connection-region-schema.js';
 import { z } from 'zod';
 import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-material-repair-request-schema.js';
 import {
@@ -159,6 +160,22 @@ export const workflowConnectionViolationSchema = z.strictObject({
           .min(1),
       }),
       z.strictObject({
+        kind: z.literal('region-selection'),
+        rule: z.enum([
+          'duplicate-node',
+          'invalid-facts',
+          'retired-boundary',
+          'unknown-node',
+          'invalid-terminal',
+          'unknown-port',
+          'duplicate-connection',
+          'protected-edge',
+        ]),
+        nodeId: text.optional(),
+        connection: workflowDraftEdgeSchema.optional(),
+        indexes: z.array(z.int().nonnegative()).optional(),
+      }),
+      z.strictObject({
         kind: z.literal('independence'),
         goalId: text,
         from: text,
@@ -169,7 +186,10 @@ export const workflowConnectionViolationSchema = z.strictObject({
 });
 export const workflowConnectionRejectedProposalSchema = z.strictObject({
   expected: workflowConnectionStepExpectationSchema,
-  proposal: workflowConnectionPlanningDecisionSchema,
+  proposal: z.union([
+    workflowConnectionPlanningDecisionSchema,
+    workflowConnectionRegionSchema,
+  ]),
   violations: z.array(workflowConnectionViolationSchema).min(1),
 });
 export const workflowConnectionSessionSchema = z.strictObject({

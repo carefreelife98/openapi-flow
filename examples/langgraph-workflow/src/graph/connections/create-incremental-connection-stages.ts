@@ -11,6 +11,8 @@ import {
   applyWorkflowConnectionOutlineStep,
 } from '@openapi-flow/core';
 import {
+  createWorkflowConnectionStepRejection,
+  WorkflowConnectionPlanningError,
   planWorkflowConnectionGoals,
   planWorkflowConnectionStep,
   createWorkflowConnectionGoalRejection,
@@ -351,7 +353,7 @@ export function createIncrementalConnectionStages(
             'outlinePlanning.selectBundle must return an actual bundle ID',
           );
       }
-      const pending = await planWorkflowConnectionStep({
+      const planningInput = {
         ...source(state),
         session: state.session,
         model: dependencies.model,
@@ -373,10 +375,51 @@ export function createIncrementalConnectionStages(
           policy: dependencies.policy,
           config,
         }),
-      });
-      check(state, config);
-      return { pending, pendingBundleId: bundleId };
+      };
+      let proposalAttempt: IncrementalConnectionState['proposalAttempt'];
+      try {
+        const pending = await planWorkflowConnectionStep(planningInput);
+        proposalAttempt = pending.proposalAttempt;
+        check(state, config);
+        return { pending, pendingBundleId: bundleId, proposalAttempt };
+      } catch (error) {
+        if (error instanceof WorkflowConnectionPlanningError)
+          proposalAttempt = error.proposalAttempt;
+        let fatalError = error;
+        try {
+          const rejection = createWorkflowConnectionStepRejection({
+            ...planningInput,
+            error,
+          });
+          if (rejection !== undefined)
+            return {
+              proposalAttempt,
+              pending: undefined,
+              pendingBundleId: undefined,
+              rejectedProposals: [...state.rejectedProposals, rejection],
+              ...(dependencies.revisionPlanning === undefined
+                ? {}
+                : { nextModelStage: 'revision' as const }),
+            };
+        } catch (validationError) {
+          fatalError = validationError;
+        }
+        failure = { id: randomUUID(), error: fatalError };
+        return { failureId: failure.id, proposalAttempt, pending: undefined };
+      }
     });
+  }
+  async function publishProposalAttempt(
+    state: IncrementalConnectionState,
+  ): Promise<IncrementalConnectionUpdate> {
+    if (
+      state.proposalAttempt !== undefined &&
+      dependencies.recordProposalAttempt !== undefined
+    )
+      await dependencies.recordProposalAttempt(
+        structuredClone(state.proposalAttempt),
+      );
+    return {};
   }
   function apply(
     state: IncrementalConnectionState,
@@ -535,6 +578,7 @@ export function createIncrementalConnectionStages(
     reserve,
     goals,
     propose,
+    publishProposalAttempt,
     apply,
     publish,
     route,

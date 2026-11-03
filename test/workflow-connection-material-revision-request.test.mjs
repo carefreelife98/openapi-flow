@@ -168,7 +168,16 @@ test('explicit opt-in exposes only actual stage/node pairs and binds source/sess
       allowMaterialRevisions: true,
       model,
     });
-    assert.deepEqual(result, { expected, decision: output.decision });
+    assert.deepEqual(result, {
+      expected,
+      decision: output.decision,
+      proposalAttempt: {
+        id: result.proposalAttempt.id,
+        expected,
+        capture: { status: 'captured', output },
+      },
+    });
+    assert.match(result.proposalAttempt.id, /^[0-9a-f-]{36}$/);
     assert.equal(model.calls, 1);
     const request = createWorkflowConnectionMaterialRevisionRequest({
       ...source,

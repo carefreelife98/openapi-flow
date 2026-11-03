@@ -1,6 +1,10 @@
+import { randomUUID } from 'node:crypto';
+import { createWorkflowConnectionProposalAttempt } from './create-workflow-connection-proposal-attempt.js';
 import { isDeepStrictEqual } from 'node:util';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import {
+  deriveWorkflowConnectionRegionPatch,
+  WorkflowConnectionRegionValidationError,
   describeWorkflowConnectionStep,
   describeWorkflowConnectionGoals,
   createWorkflowConnectionMaterialRevisionRequest,
@@ -94,6 +98,26 @@ export async function planWorkflowConnectionStep(
             throw new Error(
               'Rejected proposal feedback must belong to the exact current session/source/revision',
             );
+          if (proposal.proposal.kind === 'set-region') {
+            let replayed: WorkflowConnectionRegionValidationError | undefined;
+            try {
+              deriveWorkflowConnectionRegionPatch({
+                description,
+                region: proposal.proposal,
+              });
+            } catch (error) {
+              if (!(error instanceof WorkflowConnectionRegionValidationError))
+                throw error;
+              replayed = error;
+            }
+            if (
+              !replayed ||
+              !isDeepStrictEqual(replayed.violations, proposal.violations)
+            )
+              throw new Error(
+                'Rejected region feedback must match current source validation',
+              );
+          }
         }
       }
       // An omitted optional registry has no augmentation choices; never infer an engine registry.
@@ -132,6 +156,10 @@ export async function planWorkflowConnectionStep(
         stage: 'input-validation',
         code: 'PLANNING_INPUT_INVALID',
         output,
+        proposalAttempt: createWorkflowConnectionProposalAttempt({
+          ...proposalContext,
+          output,
+        }),
         sourceFingerprint: description.expected.sourceFingerprint,
       },
       () => {
@@ -184,7 +212,12 @@ export async function planWorkflowConnectionStep(
         }
       },
     );
+  const proposalContext = {
+    id: randomUUID(),
+    expected: structuredClone(description.expected),
+  };
   const output = await invokeConnectionPlanningModel({
+    proposalContext,
     model: input.model,
     operation,
     name: 'plan_workflow_connection_step',
@@ -231,12 +264,17 @@ export async function planWorkflowConnectionStep(
       checkCurrent(error.output, error);
     throw error;
   });
+  const proposalAttempt = createWorkflowConnectionProposalAttempt({
+    ...proposalContext,
+    output,
+  });
   checkCurrent(output);
   return validateConnectionProposal(
     {
       operation,
       stage: 'contract-validation',
       code: 'WORKFLOW_GRAPH_PLANNING_FAILED',
+      proposalAttempt,
       output,
     },
     () => {
@@ -254,6 +292,7 @@ export async function planWorkflowConnectionStep(
         });
       return {
         expected: structuredClone(description.expected),
+        proposalAttempt,
         decision: checked,
       };
     },

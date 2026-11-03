@@ -1,5 +1,7 @@
 # 현재 대화형 워크플로우 설계 그래프
 
+릴리스 준비(2026-11-03, 0.7.1): 연결 상태를 patch로 바꾸는 단계의 규칙 위반을 구조화된 거절 계약으로 구분합니다. 원문 제안·시도 ID·호출 전 session/source/revision을 비공개 체크포인트에 보존하고, 별도 저장 단계 뒤에 기존 거절 예산과 현재 revision의 최근 피드백으로 진행합니다. 통신·입력 변경·wire 형식 오류는 실패로 유지합니다. 합성 중복 제안의 거절 후 완료·저장 장애 재개의 모델 미재호출·권한 제한 파일 저장을 집중 검사했습니다. 비공개 실제 OAS와 준비된 여섯 요청값의 연결 전용 시험은 실제 모델 12회·초기 목표 거절 4건 뒤 여섯 루트·7개 연결·SDK 오류 및 경고 0건을 완료했고 원문 제안 5건을 비공개 파일로 확보했습니다. 이번 실제 시험에 중복 연결 거절은 없었습니다. 타입·빌드·lint·포맷과 집중 20건을 통과했고 전체 1916건 중 1915건 통과·기존 Ajv 특수 키 1건 실패를 확인했습니다. 버전 정렬 후 타입·빌드·lint·포맷과 전체 1915/1916·기존 Ajv 1건 실패, 원본 OAS 59건, 독립 패키지 설치·공개 타입·컴파일을 확인했습니다. 합성 n8n 실행은 baseline 2회와 증분 계획 2회·로컬 요청 20건을 통과했습니다. high 6·moderate 11건은 미해결입니다. 공개 게시·제품 통합·브라우저 전체 생성·업무 실행·Cloud 배포 완료로 표시하지 않습니다.
+
 릴리스 준비(2026-11-03, 0.7.0): 노드별 연결 상태 선택·Core 증감 계산·현재 revision의 최근 오류 전달·독립성 위반 거절·진행 가능한 작업 선택을 세 패키지의 새 계약으로 정리했습니다. 버전 정렬 후 타입·빌드·lint·포맷, 전체 1908/1909와 기존 Ajv 특수 키 1건 실패, 원본 OAS 54건, 독립 archive 설치·타입·컴파일을 확인했습니다. 합성 연결·재계획·재료 복구는 baseline을 포함해 n8n 2.37.10에서 10회 실행·로컬 요청 50건을 통과했습니다. 감사 high 6·moderate 11건은 미해결입니다. 비공개 실제 모델의 준비된 여섯 API 연결 검사와 합성 엔진 검사는 구분하며, 공개 registry 설치·제품 화면 전체 생성·업무 서비스 실행·배포 완료로 표시하지 않습니다. 아래 topology는 실제 등록에서 추출하며 새 가상 단계는 추가하지 않았습니다.
 
 현재 보강(2026-11-03, 소스 수정·미게시): 증분 연결과 재계획 모델은 노드별 최종 입력 관계·루트·종료를 선택하고 Core가 현재 그래프와의 증감을 계산합니다. 모델에는 같은 revision의 최근 거절 한 건만 전달하며 전체 거절 이력과 예산 집계는 보존합니다. 독립 목표를 깨는 경로는 채택 전에 거절하고 루트 실패 조건을 구조화했습니다. 필요한 선행 관계에 반하는 후보를 제외하며 호스트는 지금 입력을 배치할 수 있는 묶음을 우선합니다. 제거된 native의 경계도 명시적으로 선택해 정리합니다. 집중 41건과 제품 전체 128파일·690테스트·정적 검사·빌드를 확인했습니다. OSS 전체 1909건 중 1908건이 통과했고 기존 Ajv 특수 키 1건은 실패했습니다. 비공개 여섯 API의 준비된 요청값을 사용한 소스 연결 검사에서 실제 모델 14회·거절 5건 후 여섯 루트·합류 후 비교·7개 연결과 n8n JSON·SDK 오류 및 경고 0건을 확인했습니다. 이는 전체 요청값 재생성·화면·업무 API·n8n 엔진 실행 성공을 뜻하지 않습니다. 공개 0.6.0·제품 의존성·기존 서버·Cloud는 유지하며 게시·배포하지 않았습니다.
@@ -305,7 +307,7 @@ flowchart TD
 
 ## 자동 연결 참고 자식 그래프 — 호스트 통합 검사 진행
 
-실제 컴파일한 독립 예시의 노드 29개(시작·종료 포함), 경로 67개입니다. 위 대화 그래프에 연결된 경로나 Qoopilot의 실제 전체 구조가 아닙니다. 기술적 제안 거절은 예산 내에서 자동 반복하지만 전송 오류는 자동 재시도하지 않습니다. nativeAugmentation을 명시하면 선택된 native의 설정·검증·추가 후 같은 세션을 이어갑니다. 옵션을 생략하면 native 요청을 부모로 반환하며 실제 업무 질문과 구분합니다. 과거 호스트의 실제 모델·SSE·최종 화면 검사는 당시 구현의 결과입니다. 이 미배포 개요·수정·개별 값 저장 노드가 제품 서버/화면에 연결됐다는 증거는 아니며 새 제품 통합·중간 프레임 렌더·원문 다섯 예제 품질 검사는 남아 있습니다.
+실제 컴파일한 독립 예시의 노드 30개(시작·종료 포함), 경로 69개입니다. 위 대화 그래프에 연결된 경로나 Qoopilot의 실제 전체 구조가 아닙니다. 기술적 제안 거절은 예산 내에서 자동 반복하지만 전송 오류는 자동 재시도하지 않습니다. nativeAugmentation을 명시하면 선택된 native의 설정·검증·추가 후 같은 세션을 이어갑니다. 옵션을 생략하면 native 요청을 부모로 반환하며 실제 업무 질문과 구분합니다. 과거 호스트의 실제 모델·SSE·최종 화면 검사는 당시 구현의 결과입니다. 이 미배포 개요·수정·개별 값 저장 노드가 제품 서버/화면에 연결됐다는 증거는 아니며 새 제품 통합·중간 프레임 렌더·원문 다섯 예제 품질 검사는 남아 있습니다.
 
 ```mermaid
 flowchart TD
@@ -331,15 +333,16 @@ flowchart TD
   incremental19["publishMaterialRecovery / 재계획 단계 요약 발행·저장 결과에서 재개"]
   incremental20["publishOutline / 저장한 전역 개요 발행·결과에서 재개"]
   incremental21["publishProgress / 검증된 상태 요약 발행·완료 조건 검사"]
-  incremental22["publishRevision / 수정 단계·영향 요약 발행·저장 결과에서 재개"]
-  incremental23["recoverGoalMaterial / LLM: 목표 수정 또는 원인 단계 재계획 선택"]
-  incremental24["replanOriginMaterial / 호스트: 예약된 모델로 원인 단계 실행"]
-  incremental25["reserveModelCall / 코드: 호출 예산 선점·체크포인트"]
-  incremental26["reviewInitialGoals / 별도 LLM: 원문 전체와 초기 목표·실제 매핑 검토"]
-  incremental27["reviewRevisedGoals / 별도 LLM: 수정 목표와 원문 요구 검토"]
-  incremental28["reviseAcceptedPlan / LLM: 수용 목표·재료·거절 연결을 함께 재검토"]
+  incremental22["publishProposalAttempt / 체크포인트 원문 제안의 비공개 저장"]
+  incremental23["publishRevision / 수정 단계·영향 요약 발행·저장 결과에서 재개"]
+  incremental24["recoverGoalMaterial / LLM: 목표 수정 또는 원인 단계 재계획 선택"]
+  incremental25["replanOriginMaterial / 호스트: 예약된 모델로 원인 단계 실행"]
+  incremental26["reserveModelCall / 코드: 호출 예산 선점·체크포인트"]
+  incremental27["reviewInitialGoals / 별도 LLM: 원문 전체와 초기 목표·실제 매핑 검토"]
+  incremental28["reviewRevisedGoals / 별도 LLM: 수정 목표와 원문 요구 검토"]
+  incremental29["reviseAcceptedPlan / LLM: 수용 목표·재료·거절 연결을 함께 재검토"]
   incremental1 --> incremental11
-  incremental2 --> incremental22
+  incremental2 --> incremental23
   incremental3 --> incremental21
   incremental4 --> incremental21
   incremental5 --> incremental19
@@ -351,60 +354,62 @@ flowchart TD
   incremental10 -.-> incremental4
   incremental10 -.-> incremental6
   incremental11 -.-> incremental21
-  incremental11 -.-> incremental25
+  incremental11 -.-> incremental26
   incremental12 -.-> incremental6
   incremental12 -.-> incremental21
-  incremental12 -.-> incremental25
+  incremental12 -.-> incremental26
   incremental13 -.-> incremental6
   incremental13 -.-> incremental10
-  incremental13 -.-> incremental25
+  incremental13 -.-> incremental26
   incremental14 -.-> incremental6
   incremental14 -.-> incremental20
-  incremental14 -.-> incremental25
+  incremental14 -.-> incremental26
   incremental15 -.-> incremental13
   incremental15 -.-> incremental21
-  incremental15 -.-> incremental25
-  incremental16 -.-> incremental3
-  incremental16 -.-> incremental6
+  incremental15 -.-> incremental26
+  incremental16 --> incremental22
   incremental17 --> incremental0
   incremental18 -.-> incremental8
-  incremental18 -.-> incremental25
+  incremental18 -.-> incremental26
   incremental19 -.-> incremental5
-  incremental19 -.-> incremental25
+  incremental19 -.-> incremental26
   incremental20 --> incremental21
   incremental21 -.-> incremental0
   incremental21 -.-> incremental7
   incremental21 -.-> incremental15
-  incremental21 -.-> incremental22
-  incremental21 -.-> incremental25
-  incremental22 -.-> incremental2
-  incremental22 -.-> incremental19
+  incremental21 -.-> incremental23
+  incremental21 -.-> incremental26
+  incremental22 -.-> incremental3
+  incremental22 -.-> incremental6
   incremental22 -.-> incremental21
-  incremental22 -.-> incremental25
-  incremental23 -.-> incremental6
+  incremental23 -.-> incremental2
   incremental23 -.-> incremental19
   incremental23 -.-> incremental21
-  incremental23 -.-> incremental25
+  incremental23 -.-> incremental26
   incremental24 -.-> incremental6
   incremental24 -.-> incremental19
-  incremental25 -.-> incremental9
-  incremental25 -.-> incremental10
-  incremental25 -.-> incremental12
-  incremental25 -.-> incremental13
-  incremental25 -.-> incremental14
-  incremental25 -.-> incremental16
-  incremental25 -.-> incremental23
-  incremental25 -.-> incremental24
-  incremental25 -.-> incremental26
-  incremental25 -.-> incremental27
-  incremental25 -.-> incremental28
-  incremental26 -.-> incremental6
-  incremental26 -.-> incremental21
+  incremental24 -.-> incremental21
+  incremental24 -.-> incremental26
+  incremental25 -.-> incremental6
+  incremental25 -.-> incremental19
+  incremental26 -.-> incremental9
+  incremental26 -.-> incremental10
+  incremental26 -.-> incremental12
+  incremental26 -.-> incremental13
+  incremental26 -.-> incremental14
+  incremental26 -.-> incremental16
+  incremental26 -.-> incremental24
   incremental26 -.-> incremental25
+  incremental26 -.-> incremental27
+  incremental26 -.-> incremental28
+  incremental26 -.-> incremental29
   incremental27 -.-> incremental6
-  incremental27 -.-> incremental22
+  incremental27 -.-> incremental21
+  incremental27 -.-> incremental26
   incremental28 -.-> incremental6
-  incremental28 -.-> incremental22
+  incremental28 -.-> incremental23
+  incremental29 -.-> incremental6
+  incremental29 -.-> incremental23
 ```
 
 ## 요청값 자동 재계획 참고 자식 그래프

@@ -199,6 +199,7 @@ export async function describeIncrementalConnectionGraph() {
     reserveModelCall: '코드: 호출 예산 선점·체크포인트',
     interpretGoals: 'LLM: 확정 요구를 연결 목표로 해석',
     proposeBundle: 'LLM: 최종 연결 상태 선택 / Core: 현재 그래프와 증감 계산',
+    publishProposalAttempt: '체크포인트 원문 제안의 비공개 저장',
     applyBundle: '코드: 묶음 검사·원자 적용 또는 거절',
     publishProgress: '검증된 상태 요약 발행·완료 조건 검사',
     finalize: '기존 전체 DAG 검사·계획 확정',
@@ -374,6 +375,8 @@ export async function buildConversationGraphDocument() {
   const nativeSelection = await describeNativeSelectionPlanningGraph();
   return [
     '# 현재 대화형 워크플로우 설계 그래프',
+    '',
+    '릴리스 준비(2026-11-03, 0.7.1): 연결 상태를 patch로 바꾸는 단계의 규칙 위반을 구조화된 거절 계약으로 구분합니다. 원문 제안·시도 ID·호출 전 session/source/revision을 비공개 체크포인트에 보존하고, 별도 저장 단계 뒤에 기존 거절 예산과 현재 revision의 최근 피드백으로 진행합니다. 통신·입력 변경·wire 형식 오류는 실패로 유지합니다. 합성 중복 제안의 거절 후 완료·저장 장애 재개의 모델 미재호출·권한 제한 파일 저장을 집중 검사했습니다. 비공개 실제 OAS와 준비된 여섯 요청값의 연결 전용 시험은 실제 모델 12회·초기 목표 거절 4건 뒤 여섯 루트·7개 연결·SDK 오류 및 경고 0건을 완료했고 원문 제안 5건을 비공개 파일로 확보했습니다. 이번 실제 시험에 중복 연결 거절은 없었습니다. 타입·빌드·lint·포맷과 집중 20건을 통과했고 전체 1916건 중 1915건 통과·기존 Ajv 특수 키 1건 실패를 확인했습니다. 버전 정렬 후 타입·빌드·lint·포맷과 전체 1915/1916·기존 Ajv 1건 실패, 원본 OAS 59건, 독립 패키지 설치·공개 타입·컴파일을 확인했습니다. 합성 n8n 실행은 baseline 2회와 증분 계획 2회·로컬 요청 20건을 통과했습니다. high 6·moderate 11건은 미해결입니다. 공개 게시·제품 통합·브라우저 전체 생성·업무 실행·Cloud 배포 완료로 표시하지 않습니다.',
     '',
     '릴리스 준비(2026-11-03, 0.7.0): 노드별 연결 상태 선택·Core 증감 계산·현재 revision의 최근 오류 전달·독립성 위반 거절·진행 가능한 작업 선택을 세 패키지의 새 계약으로 정리했습니다. 버전 정렬 후 타입·빌드·lint·포맷, 전체 1908/1909와 기존 Ajv 특수 키 1건 실패, 원본 OAS 54건, 독립 archive 설치·타입·컴파일을 확인했습니다. 합성 연결·재계획·재료 복구는 baseline을 포함해 n8n 2.37.10에서 10회 실행·로컬 요청 50건을 통과했습니다. 감사 high 6·moderate 11건은 미해결입니다. 비공개 실제 모델의 준비된 여섯 API 연결 검사와 합성 엔진 검사는 구분하며, 공개 registry 설치·제품 화면 전체 생성·업무 서비스 실행·배포 완료로 표시하지 않습니다. 아래 topology는 실제 등록에서 추출하며 새 가상 단계는 추가하지 않았습니다.',
     '',

@@ -114,3 +114,7 @@ export { planWorkflowIntent } from './workflow/plan-workflow-intent.js';
 export { createApiCallBindingRejection } from './bindings/create-api-call-binding-rejection.js';
 export { ApiCallBindingPlanningError } from './bindings/api-call-binding-planning-error.js';
 export type * from './types/api-call-binding-rejection.js';
+
+export { workflowConnectionProposalAttemptSchema } from './schemas/workflow-connection-proposal-attempt-schema.js';
+export type * from './types/workflow-connection-proposal-attempt.js';
+export { createWorkflowConnectionStepRejection } from './workflow/connections/create-workflow-connection-step-rejection.js';

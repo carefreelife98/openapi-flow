@@ -1,3 +1,7 @@
+import type {
+  WorkflowConnectionProposalAttempt,
+  WorkflowConnectionProposalContext,
+} from './workflow-connection-proposal-attempt.js';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { ZodType, z } from 'zod';
 import type { StructuredOutputSchemaReuse } from './structured-output-schema.js';
@@ -108,6 +112,7 @@ export interface PlanWorkflowConnectionStepResult<
   AllowMaterialRevisions extends boolean = false,
 > {
   expected: WorkflowConnectionStepExpectation;
+  proposalAttempt: WorkflowConnectionProposalAttempt;
   decision: AllowMaterialRevisions extends true
     ? WorkflowConnectionPlanningDecision
     : Exclude<
@@ -121,6 +126,7 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   name: string;
   schema: ZodType<Output>;
   schemaReuse?: StructuredOutputSchemaReuse;
+  proposalContext?: WorkflowConnectionProposalContext;
   /** Optional distinct receiver validation when display-only fields must not gate execution. */
   validationSchema?: ZodType<Output>;
   messages: BaseMessage[];
@@ -129,6 +135,7 @@ export interface InvokeConnectionPlanningModelInput<Output extends object> {
   signal?: AbortSignal;
 }
 export interface WorkflowConnectionPlanningFailure {
+  proposalAttempt?: WorkflowConnectionProposalAttempt;
   operation: string;
   stage: 'input-validation' | 'model-output' | 'contract-validation';
   code:

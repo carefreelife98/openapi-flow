@@ -1,8 +1,10 @@
+import type { WorkflowConnectionProposalAttempt } from '../../types/workflow-connection-proposal-attempt.js';
 import { OpenApiFlowError } from '@openapi-flow/core';
 import type { WorkflowConnectionPlanningFailure } from '../../types/incremental-connection-planning.js';
 
 /** Raw output is retained for a private host diagnostic, not in the public error projection. */
 export class WorkflowConnectionPlanningError extends OpenApiFlowError {
+  readonly proposalAttempt: WorkflowConnectionProposalAttempt | undefined;
   readonly output: unknown;
   readonly sourceFingerprint: string | undefined;
   readonly requestFingerprint: string | undefined;
@@ -18,6 +20,10 @@ export class WorkflowConnectionPlanningError extends OpenApiFlowError {
       },
       cause,
     });
+    this.proposalAttempt =
+      failure.proposalAttempt === undefined
+        ? undefined
+        : structuredClone(failure.proposalAttempt);
     this.output = failure.output;
     this.sourceFingerprint = failure.sourceFingerprint;
     this.requestFingerprint = failure.requestFingerprint;

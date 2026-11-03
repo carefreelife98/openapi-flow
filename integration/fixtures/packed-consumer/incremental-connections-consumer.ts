@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  WorkflowConnectionRegionValidationError,
   createWorkflowConnectionSession,
   describeWorkflowConnectionStep,
   applyWorkflowConnectionStep,
@@ -17,14 +18,19 @@ import type {
   WorkflowConnectionSessionSource,
   WorkflowConnectionSession,
   ReviewableWorkflowGraphPlan,
+  WorkflowConnectionRejectedProposal,
 } from '@openapi-flow/core';
 import {
+  createWorkflowConnectionStepRejection,
+  workflowConnectionProposalAttemptSchema,
   planWorkflowConnectionGoals,
   planWorkflowConnectionStep,
   createWorkflowConnectionGoalRejection,
   workflowConnectionGoalRejectionSchema,
 } from '@openapi-flow/langchain';
 import type {
+  WorkflowConnectionProposalAttempt,
+  CreateWorkflowConnectionStepRejectionInput,
   PlanWorkflowConnectionGoalsInput,
   PlanWorkflowConnectionStepInput,
   PlanWorkflowConnectionStepResult,
@@ -194,4 +200,21 @@ export function verifyConsumerGoalRejectionTypes(
   return rejection === undefined
     ? undefined
     : workflowConnectionGoalRejectionSchema.parse(rejection);
+}
+
+/** Public exports must remain usable by an independent strict TypeScript consumer. */
+export function readConsumerConnectionProposalAttempt(
+  result: PlanWorkflowConnectionStepResult,
+): WorkflowConnectionProposalAttempt {
+  return workflowConnectionProposalAttemptSchema.parse(result.proposalAttempt);
+}
+export function rejectConsumerConnectionRegion(
+  input: CreateWorkflowConnectionStepRejectionInput,
+): WorkflowConnectionRejectedProposal | undefined {
+  return createWorkflowConnectionStepRejection(input);
+}
+export function isConsumerRegionValidationError(
+  error: unknown,
+): error is WorkflowConnectionRegionValidationError {
+  return error instanceof WorkflowConnectionRegionValidationError;
 }

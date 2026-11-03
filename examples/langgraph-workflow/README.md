@@ -1094,3 +1094,5 @@ if (result.status === 'needs-review') {
 Start 분리는 생성 정책이지 보안 경계가 아니다. 사용자가 Start를 다시 연결하면 결손 이전의 실제 API는 호출될 수 있다. `active: false`도 수동 실행을 막지는 않는다. 부분 실행·편집·실행 승인과 credential 통제는 호스트가 맡는다. 결과에는 요청값·배포 주소·credential 참조·결손 설명이 포함될 수 있으므로 공유 전에 확인한다. 결손 보고가 API 부재나 전체 시나리오 충족을 증명하는 것은 아니다.
 
 `npm run test:workflow-review-local-n8n`은 공개 다중 OAS와 scripted model을 사용한다. 세 결손 단계와 독립 root 사례의 JSON을 로컬 n8n 2.37.10에 import·export해 실제 노드·설정·내부 연결을 확인한다. 분리된 상태에서는 Start만 실행되고 API 호출이 0건인지 검사한다. 한 사례는 의도적으로 Start를 다시 연결해 로컬 계약 서버가 선행 API 호출 1건만 받고 결손 노드에서 멈추는지 확인한다. 실제 LLM·실서비스·브라우저 부분 실행은 검증하지 않는다. JSON과 개인정보를 제외한 실행 요약은 `.local-artifacts/workflow-review/`에 저장한다.
+
+증분 연결의 원문 제안은 비공개 체크포인트와 선택적 저장 단계에서 보존합니다. 모델이 만든 연결 상태의 규칙 위반은 기존 거절 한도에 포함하며, 통신·입력 변경·wire 형식 오류는 실패로 유지합니다. [원문 보존과 거절 계약](../../docs/connection-proposal-attempts.md)을 참고하세요.

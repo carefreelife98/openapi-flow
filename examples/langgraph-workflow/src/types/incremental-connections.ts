@@ -4,6 +4,7 @@ import type {
 } from '@langchain/langgraph';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { RunnableConfig } from '@langchain/core/runnables';
+import type { WorkflowConnectionProposalAttempt } from '@openapi-flow/langchain';
 import type { z } from 'zod';
 import type { IncrementalConnectionRevisionPlanning } from './incremental-revisions.js';
 import type { IncrementalMaterialArgumentPlanning } from './incremental-material-arguments.js';
@@ -53,6 +54,10 @@ export interface IncrementalConnectionDependencies {
   policy: IncrementalConnectionPolicy;
   checkpointer?: BaseCheckpointSaver;
   observe?: (progress: IncrementalConnectionProgress) => void | Promise<void>;
+  /** Private idempotent sink; called after the model output is checkpointed. Never a public event. */
+  recordProposalAttempt?: (
+    attempt: WorkflowConnectionProposalAttempt,
+  ) => Promise<void>;
   nativeAugmentation?: IncrementalNativeAugmentationPolicy;
   materialRecovery?: IncrementalConnectionMaterialRecovery;
   /** Independent initial goal/material coverage judgment, not final graph correctness proof. */

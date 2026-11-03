@@ -1,0 +1,15 @@
+# Private incremental connection proposals
+
+`planWorkflowConnectionStep` returns a `proposalAttempt` with a code-generated ID and the expectation captured before the model call. Its `capture.output` is the decoded structured JSON returned by the model before port resolution or patch derivation. Array order, duplicates and omitted fixed-port fields remain unchanged. It is not the provider HTTP response, original JSON text, token stream, prompt or model reasoning.
+
+`WorkflowConnectionPlanningError.proposalAttempt` retains the same receipt for model-output and contract-validation failures. A transport failure before a decoded output exists has no receipt. Sensitive content is explicitly `withheld`; output that cannot be represented as JSON is `unavailable`. Neither status supplies a fabricated original.
+
+Core distinguishes `WorkflowConnectionRegionValidationError` from malformed source/configuration and transport errors. It carries the unadopted canonical region and structured violations. `createWorkflowConnectionStepRejection` accepts only the corresponding typed step error, validates its exact current session/source/revision, resolves the captured original selection again, and compares the resulting region and violations. Matching an error message is insufficient. Region feedback is replay-validated before another model call.
+
+The reference LangGraph checkpoints the receipt and any rejection before `publishProposalAttempt` invokes an optional private `recordProposalAttempt` runtime dependency. Rejected regions enter the existing full accounting ledger and bounded loop; only the latest rejection for the exact current revision reaches the next model call. No rejected edge is adopted or deduplicated. Source/configuration, malformed-wire and transport errors remain fatal.
+
+The file-store example requires an explicit absolute directory. It uses owner-only directory/file permissions, writes a complete temporary record before atomically linking its final attempt ID, and refuses to overwrite a different existing original. Repeating the same record is idempotent. A failed sink resumes from its checkpointed publication node without another model call. This requires the host's checkpointer to remain available; the reference memory saver does not survive process replacement.
+
+The receipt is server-private. Do not add it to public observers, browser state, SSE events, ordinary error logs, prompts or public downloads. Configure storage retention and access in the host. A host that does not install the private sink retains only the last receipt in its private checkpoint and does not have durable proposal history.
+
+Tests use synthetic contracts and explicitly cover rejection followed by correction, unchanged graph/revision on rejection, shared budgets, forged feedback, malformed output remaining fatal, sensitive capture withholding, publication failure/resume, and private idempotent files. These tests do not establish live-model quality, successful business API execution or engine execution.

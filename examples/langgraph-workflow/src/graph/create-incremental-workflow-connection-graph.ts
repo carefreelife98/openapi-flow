@@ -116,6 +116,7 @@ export function createIncrementalWorkflowConnectionGraph(
     .addNode('reserveModelCall', stages.reserve)
     .addNode('interpretGoals', stages.goals)
     .addNode('proposeBundle', stages.propose)
+    .addNode('publishProposalAttempt', stages.publishProposalAttempt)
     .addNode('applyBundle', stages.apply)
     .addNode('publishProgress', stages.publish)
     .addNode('finalize', stages.finalize)
@@ -211,10 +212,16 @@ export function createIncrementalWorkflowConnectionGraph(
             : 'reserveModelCall',
       ['fail', 'publishProgress', 'reserveModelCall'],
     )
+    .addEdge('proposeBundle', 'publishProposalAttempt')
     .addConditionalEdges(
-      'proposeBundle',
-      (state) => (state.failureId ? 'fail' : 'applyBundle'),
-      ['fail', 'applyBundle'],
+      'publishProposalAttempt',
+      (state) =>
+        state.failureId
+          ? 'fail'
+          : state.pending
+            ? 'applyBundle'
+            : 'publishProgress',
+      ['fail', 'applyBundle', 'publishProgress'],
     )
     .addConditionalEdges(
       'planOutline',

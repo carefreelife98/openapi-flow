@@ -27,6 +27,7 @@ import type {
   WorkflowReviewedConnectionRevision,
 } from '@openapi-flow/langchain';
 import {
+  workflowConnectionProposalAttemptSchema,
   workflowConnectionGoalRejectionSchema,
   workflowConnectionOutlineRejectionSchema,
 } from '@openapi-flow/langchain';
@@ -57,6 +58,7 @@ export const incrementalConnectionStateSchema = new StateSchema({
     .array(workflowConnectionGoalRejectionSchema)
     .optional(),
   pending: z.custom<PlanWorkflowConnectionStepResult>().optional(),
+  proposalAttempt: workflowConnectionProposalAttemptSchema.optional(),
   nextModelStage: z
     .enum([
       'goals',

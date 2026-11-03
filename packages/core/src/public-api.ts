@@ -508,3 +508,5 @@ export {
   deriveWorkflowConnectionRegionPatch,
 } from './workflow/connections/incremental/create-workflow-connection-region-patch.js';
 export { describeWorkflowConnectionCandidates } from './workflow/connections/incremental/describe-workflow-connection-candidates.js';
+
+export { WorkflowConnectionRegionValidationError } from './workflow/connections/incremental/workflow-connection-region-validation-error.js';

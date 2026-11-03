@@ -1,3 +1,4 @@
+import { WorkflowConnectionRegionValidationError } from './workflow-connection-region-validation-error.js';
 import { runOpenApiFlowOperation } from '../../../errors/run-openapi-flow-operation.js';
 import { workflowConnectionStepExpectationSchema } from '../../../schemas/workflow-connection-session-schema.js';
 import { workflowConnectionRegionSchema } from '../../../schemas/workflow-connection-region-schema.js';
@@ -79,7 +80,15 @@ function deriveRegion(
   const region = workflowConnectionRegionSchema.parse(input.region);
   const ids = region.nodes.map((node) => node.nodeId);
   if (new Set(ids).size !== ids.length)
-    throw new Error('Connection region.nodes contains duplicate nodeId');
+    throw new WorkflowConnectionRegionValidationError(region, {
+      code: 'INVALID_PROPOSAL',
+      message: 'Connection region.nodes contains duplicate nodeId',
+      details: {
+        kind: 'region-selection',
+        rule: 'duplicate-node',
+        nodeId: ids.find((id, index) => ids.indexOf(id) !== index)!,
+      },
+    });
   const scope = new Set(ids);
   const known = new Map(
     description.context.nodes.map((node) => [node.id, node]),
@@ -97,56 +106,108 @@ function deriveRegion(
     new Set(region.factIds).size !== region.factIds.length ||
     region.factIds.some((id) => !facts.has(id))
   )
-    throw new Error(
-      'Connection region.factIds must name distinct current requirement facts',
-    );
+    throw new WorkflowConnectionRegionValidationError(region, {
+      code: 'INVALID_PROPOSAL',
+      message:
+        'Connection region.factIds must name distinct current requirement facts',
+      details: { kind: 'region-selection', rule: 'invalid-facts' },
+    });
   for (const node of region.nodes) {
     if (retired.has(node.nodeId)) {
       if (node.incoming.length || node.root || node.terminalOutputs.length)
-        throw new Error(
-          `Connection region retired node ${node.nodeId} requires empty incoming, root=false and empty terminalOutputs`,
-        );
+        throw new WorkflowConnectionRegionValidationError(region, {
+          code: 'INVALID_BOUNDARY',
+          message: `Connection region retired node ${node.nodeId} requires empty incoming, root=false and empty terminalOutputs`,
+          details: {
+            kind: 'region-selection',
+            rule: 'retired-boundary',
+            nodeId: node.nodeId,
+          },
+        });
       continue;
     }
     const contract = known.get(node.nodeId);
     if (!contract)
-      throw new Error(
-        `Connection region.nodes names unknown nodeId ${node.nodeId}`,
-      );
+      throw new WorkflowConnectionRegionValidationError(region, {
+        code: 'INVALID_PROPOSAL',
+        message: `Connection region.nodes names unknown nodeId ${node.nodeId}`,
+        details: {
+          kind: 'region-selection',
+          rule: 'unknown-node',
+          nodeId: node.nodeId,
+        },
+      });
     if (
       new Set(node.terminalOutputs).size !== node.terminalOutputs.length ||
       node.terminalOutputs.some((port) => !contract.outputs.includes(port))
     )
-      throw new Error(
-        `Connection region.nodes[${node.nodeId}].terminalOutputs must name distinct declared outputs`,
-      );
+      throw new WorkflowConnectionRegionValidationError(region, {
+        code: 'INVALID_BOUNDARY',
+        message: `Connection region.nodes[${node.nodeId}].terminalOutputs must name distinct declared outputs`,
+        details: {
+          kind: 'region-selection',
+          rule: 'invalid-terminal',
+          nodeId: node.nodeId,
+        },
+      });
     for (const edge of node.incoming) {
       if (
         !known.get(edge.from)?.outputs.includes(edge.output) ||
         !contract.inputs.includes(edge.input)
       )
-        throw new Error(
-          `Connection region.nodes[${node.nodeId}].incoming names an unknown source or port`,
-        );
+        throw new WorkflowConnectionRegionValidationError(region, {
+          code: 'INVALID_EDGE',
+          message: `Connection region.nodes[${node.nodeId}].incoming names an unknown source or port`,
+          details: {
+            kind: 'region-selection',
+            rule: 'unknown-port',
+            nodeId: node.nodeId,
+            connection: { ...edge, to: node.nodeId },
+          },
+        });
     }
   }
   const desired = region.nodes.flatMap((node) =>
     node.incoming.map((edge) => ({ ...edge, to: node.nodeId })),
   );
   const desiredIds = desired.map(workflowConnectionEdgeId);
-  if (new Set(desiredIds).size !== desiredIds.length)
-    throw new Error(
-      'Connection region.nodes.incoming contains duplicate connections',
+  if (new Set(desiredIds).size !== desiredIds.length) {
+    const duplicate = desiredIds.find(
+      (id, index) => desiredIds.indexOf(id) !== index,
+    )!;
+    const indexes = desiredIds.flatMap((id, index) =>
+      id === duplicate ? [index] : [],
     );
+    const connection = desired[indexes[0]!]!;
+    throw new WorkflowConnectionRegionValidationError(region, {
+      code: 'INVALID_EDGE',
+      message:
+        'Connection region.nodes.incoming contains duplicate connections',
+      details: {
+        kind: 'region-selection',
+        rule: 'duplicate-connection',
+        nodeId: connection.to,
+        connection,
+        indexes,
+      },
+    });
+  }
   const desiredSet = new Set(desiredIds);
   const current = new Set(description.edgeCatalog.map((edge) => edge.id));
   const removed = description.edgeCatalog.filter(
     (edge) => scope.has(edge.edge.to) && !desiredSet.has(edge.id),
   );
   if (removed.some((edge) => !edge.editable))
-    throw new Error(
-      'Connection region.nodes.incoming omits a protected original connection',
-    );
+    throw new WorkflowConnectionRegionValidationError(region, {
+      code: 'PROTECTED_EDGE',
+      message:
+        'Connection region.nodes.incoming omits a protected original connection',
+      details: {
+        kind: 'region-selection',
+        rule: 'protected-edge',
+        connection: removed.find((edge) => !edge.editable)!.edge,
+      },
+    });
   const terminals = region.nodes.flatMap((node) =>
     node.terminalOutputs.map((output) => ({ nodeId: node.nodeId, output })),
   );
