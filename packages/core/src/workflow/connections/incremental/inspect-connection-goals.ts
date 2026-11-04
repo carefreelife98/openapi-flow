@@ -31,8 +31,8 @@ export function inspectConnectionGoals(
   return session.goals
     .filter(({ id, decision }) => {
       if (decision.kind === 'semantic')
-        return !session.assessments.some(
-          (item) => item.goalId === id && item.satisfied,
+        return session.assessments.some(
+          (item) => item.goalId === id && item.status === 'violated',
         );
       if (decision.kind === 'independent')
         return decision.nodeIds.some((left) =>

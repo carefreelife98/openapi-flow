@@ -1,4 +1,6 @@
 import type { z } from 'zod';
+import type { WorkflowConnectionEvidence } from './workflow-connection-evidence.js';
+import type { WorkflowSourceMessage } from './workflow-draft.js';
 import type {
   WorkflowConnectionPlanningInput,
   WorkflowConnectionPlanningDescription,
@@ -44,6 +46,10 @@ export type WorkflowConnectionStepProposal = z.infer<
 export type WorkflowConnectionPatch = z.infer<
   typeof workflowConnectionPatchSchema
 >;
+export type WorkflowConnectionCompletionProposal = Exclude<
+  WorkflowConnectionStepProposal,
+  WorkflowConnectionPatch
+>;
 export type WorkflowConnectionTerminal = z.infer<
   typeof workflowConnectionTerminalSchema
 >;
@@ -61,6 +67,8 @@ export type WorkflowConnectionPlanningDecision = z.infer<
 >;
 
 export interface WorkflowConnectionSessionSource extends WorkflowConnectionPlanningInput {
+  /** Authoritative original messages for existing literal attribution. Never substitute goal or repair prose. */
+  literalSourceMessages?: WorkflowSourceMessage[];
   requirements: WorkflowRequirementFact[];
   /** Only explicitly editable original edges may be removed. New session edges are editable. */
   editableEdgeIds?: string[];
@@ -80,6 +88,7 @@ export interface ExtendWorkflowConnectionSessionInput extends WorkflowConnection
   additionalNativeNodes: PlannedNativeNode[];
 }
 export interface WorkflowConnectionMaterialExtension {
+  previousSession: WorkflowConnectionSession;
   session: WorkflowConnectionSession;
   previous: WorkflowConnectionStepExpectation;
   addedNativeNodeIds: string[];
@@ -98,6 +107,8 @@ export interface WorkflowConnectionInspection {
   pendingNodeIds: string[];
   unmetGoalIds: string[];
   semanticAssessmentGoalIds: string[];
+  unassessedGoalIds: string[];
+  insufficientEvidenceGoalIds: string[];
   violations: WorkflowConnectionViolation[];
 }
 export type ApplyWorkflowConnectionStepResult =
@@ -140,6 +151,7 @@ export interface ApplyWorkflowConnectionPatchInput {
   protectedEdgeIds: Set<string>;
 }
 export interface WorkflowConnectionStepDescription {
+  evidence: WorkflowConnectionEvidence[];
   expected: WorkflowConnectionStepExpectation;
   context: WorkflowConnectionPlanningContext;
   apiOperations: WorkflowConnectionOperationContext[];
@@ -156,6 +168,7 @@ export interface WorkflowConnectionEdgeReference {
   editable: boolean;
 }
 export interface WorkflowConnectionGoalPlanningDescription {
+  evidence: WorkflowConnectionEvidence[];
   sourceFingerprint: string;
   context: WorkflowConnectionPlanningContext;
   apiOperations: WorkflowConnectionOperationContext[];

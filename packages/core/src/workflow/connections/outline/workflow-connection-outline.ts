@@ -144,16 +144,20 @@ export function describeWorkflowConnectionOutline(
       return {
         outline: structuredClone(outline),
         step,
-        globalUnmetGoalIds: step.inspection.unmetGoalIds.filter((id) =>
-          outline.globalGoalIds.includes(id),
-        ),
+        globalUnmetGoalIds: [
+          ...step.inspection.unmetGoalIds,
+          ...step.inspection.unassessedGoalIds,
+          ...step.inspection.insufficientEvidenceGoalIds,
+        ].filter((id) => outline.globalGoalIds.includes(id)),
         bundles: outline.bundles.map((bundle) => {
           const pendingNodeIds = step.inspection.pendingNodeIds.filter((id) =>
             bundle.nodeIds.includes(id),
           );
-          const unmetGoalIds = step.inspection.unmetGoalIds.filter((id) =>
-            bundle.goalIds.includes(id),
-          );
+          const unmetGoalIds = [
+            ...step.inspection.unmetGoalIds,
+            ...step.inspection.unassessedGoalIds,
+            ...step.inspection.insufficientEvidenceGoalIds,
+          ].filter((id) => bundle.goalIds.includes(id));
           const openBoundaries = step.inspection.openBoundaries.filter(
             (boundary) => bundle.nodeIds.includes(boundary.nodeId),
           );

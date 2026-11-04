@@ -7,7 +7,7 @@ export function createMergeAppendCapability(): N8nNativeCapability {
   return {
     name: 'merge-append',
     description:
-      'n8n Merge append: input1..inputN; main output. Waits for all independent incoming branches.',
+      'n8n Merge in append mode: input1..inputN; main output. Waits for all connected inputs, then outputs every input item unchanged, one input after another. Heterogeneous response objects and check-result objects remain separate items in one output stream; it does not merge their fields into one object.',
     parametersSchema: mergeParametersSchema,
     parameterReferenceSources: [],
     inputPorts: (parameters) =>

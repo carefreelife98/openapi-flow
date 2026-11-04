@@ -21,9 +21,9 @@ import { connectionEditPlan } from './fixtures/workflow-draft-connection-edit-fi
 
 test('planning inventory preserves pending context and exposes stable definitions without fabricated ready outputs', () => {
   const registry = resolveN8nNativePlanningFeatures();
-  assert.equal(registry.registrations.length, 18);
+  assert.equal(registry.registrations.length, 19);
   assert.equal(registry.capabilities.length, 8);
-  assert.equal(registry.planningCapabilities.length, 17);
+  assert.equal(registry.planningCapabilities.length, 18);
   assert.ok(
     registry.planningCapabilities.some(
       (entry) => entry.name === N8nNativeFeature.GatherApiResponses,
@@ -38,7 +38,7 @@ test('planning inventory preserves pending context and exposes stable definition
     registry.registrations.filter(
       (entry) => entry.status === 'requires-context',
     ).length,
-    10,
+    11,
   );
   const pendingFeatures = new Set(
     registry.registrations

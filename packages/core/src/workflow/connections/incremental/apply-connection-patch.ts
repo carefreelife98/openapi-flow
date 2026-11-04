@@ -40,6 +40,8 @@ export function applyConnectionPatch({
   next.edges.push(...structuredClone(proposal.addEdges));
   next.rootNodeIds.push(...proposal.addRootNodeIds);
   next.terminals.push(...structuredClone(proposal.addTerminals));
-  next.assessments = [];
+  next.assessments = next.assessments.filter(
+    (item) => item.scope === 'materials',
+  );
   return next;
 }

@@ -222,6 +222,7 @@ test('multiple original requirements each need their own row and quotes cannot b
       ...fixture.goals,
       {
         kind: 'semantic',
+        scope: 'workflow',
         factIds: [extra.id],
         reason: 'Preserve original values and types.',
       },

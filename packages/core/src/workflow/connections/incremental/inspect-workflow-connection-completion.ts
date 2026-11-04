@@ -25,9 +25,21 @@ export function inspectWorkflowConnectionCompletion(
         apiIds: new Set(source.context.readyCallIds),
       });
       const unmetGoalIds = inspectConnectionGoals(input.session, routeStates);
+      const unassessedGoalIds = input.session.goals
+        .filter(
+          (goal) =>
+            goal.decision.kind === 'semantic' &&
+            !input.session.assessments.some((item) => item.goalId === goal.id),
+        )
+        .map((goal) => goal.id);
+      const insufficientEvidenceGoalIds = input.session.assessments
+        .filter((item) => item.status === 'insufficient-evidence')
+        .map((item) => item.goalId);
       return {
         ...checked,
         unmetGoalIds,
+        unassessedGoalIds,
+        insufficientEvidenceGoalIds,
         semanticAssessmentGoalIds: input.session.goals
           .filter((goal) => goal.decision.kind === 'semantic')
           .map((goal) => goal.id),
@@ -35,7 +47,9 @@ export function inspectWorkflowConnectionCompletion(
           !checked.violations.length &&
           !checked.openBoundaries.length &&
           !checked.pendingNodeIds.length &&
-          !unmetGoalIds.length,
+          !unmetGoalIds.length &&
+          !unassessedGoalIds.length &&
+          !insufficientEvidenceGoalIds.length,
       };
     },
   );

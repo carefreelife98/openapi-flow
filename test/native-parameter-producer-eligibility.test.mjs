@@ -75,6 +75,7 @@ async function fixture() {
 const expectedKinds = {
   [N8nNativeFeature.If]: ['response', 'node-output'],
   [N8nNativeFeature.MergeAppend]: [],
+  [N8nNativeFeature.ComposeNativeOutputs]: ['node-output'],
   [N8nNativeFeature.AssertResponses]: ['response', 'node-output'],
   [N8nNativeFeature.EvaluateResponses]: ['response', 'node-output'],
   [N8nNativeFeature.StopAndError]: [],
@@ -135,12 +136,14 @@ test('standalone source choices distinguish actual API responses, native JSON an
       'right',
       'context',
       ...f.selection.instances
-        .filter((node) =>
-          f.capabilities.some(
-            (capability) =>
-              capability.name === node.capability &&
-              capability.outputSchema !== undefined,
-          ),
+        .filter(
+          (node) =>
+            node.id !== byFeature(N8nNativeFeature.AssertResponses).id &&
+            f.capabilities.some(
+              (capability) =>
+                capability.name === node.capability &&
+                capability.outputSchema !== undefined,
+            ),
         )
         .map((node) => node.id),
     ],
@@ -164,9 +167,11 @@ test('standalone source choices distinguish actual API responses, native JSON an
     'right',
     'prepared-if',
     byFeature(N8nNativeFeature.MergeAppend).id,
-    byFeature(N8nNativeFeature.AssertResponses).id,
   ])
     assert.ok(!nativeOnly.includes(id));
+  assert.ok(
+    nativeOnly.includes(byFeature(N8nNativeFeature.AssertResponses).id),
+  );
   const joinIds =
     context.sourceCandidatesByNodeId[
       byFeature(N8nNativeFeature.JoinApiItems).id

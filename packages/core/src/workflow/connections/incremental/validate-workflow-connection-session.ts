@@ -9,6 +9,7 @@ import { workflowConnectionSessionSchema } from '../../../schemas/workflow-conne
 import { describeConnectionSessionSource } from './describe-connection-session-source.js';
 import { resolveConnectionGoals } from './resolve-connection-goals.js';
 import { applyConnectionPatch } from './apply-connection-patch.js';
+import { applyConnectionAssessments } from './apply-connection-assessments.js';
 import {
   workflowConnectionEdgeId,
   connectionValueFingerprint,
@@ -16,11 +17,13 @@ import {
 } from './connection-graph-identity.js';
 import { inspectConnectionGraph } from './inspect-connection-graph.js';
 import { inspectConnectionGoalContradictions } from './inspect-connection-goal-contradictions.js';
+import { validateWorkflowConnectionAssessments } from '../requirements/validate-workflow-connection-assessments.js';
 
 export function validateConnectionStepReferences(
   input: WorkflowConnectionSessionInput,
   proposal: WorkflowConnectionStepProposal,
   nodeIds: Set<string>,
+  graph: WorkflowConnectionWorkingGraph,
 ): void {
   const facts = new Set(input.requirements.map((item) => item.id));
   if (proposal.kind === 'patch') {
@@ -43,12 +46,13 @@ export function validateConnectionStepReferences(
       ) ||
       item.nodeIds.some((id) => !nodeIds.has(id)) ||
       new Set(item.nodeIds).size !== item.nodeIds.length ||
-      (item.satisfied && !item.nodeIds.length)
+      (item.status === 'satisfied' && !item.nodeIds.length)
     )
       throw new Error(
         'Completion assessment requires a known semantic goal and actual node evidence',
       );
   }
+  validateWorkflowConnectionAssessments(input, proposal, graph);
 }
 
 /** Reconstruct from accepted receipts. Do not trust mutable state or stored checked flags. */
@@ -92,6 +96,7 @@ export function validateWorkflowConnectionSession(
       input,
       receipt.proposal,
       new Set(description.source.context.nodes.map((node) => node.id)),
+      graph,
     );
     graph =
       receipt.proposal.kind === 'patch'
@@ -100,10 +105,7 @@ export function validateWorkflowConnectionSession(
             proposal: receipt.proposal,
             protectedEdgeIds,
           })
-        : {
-            ...graph,
-            assessments: structuredClone(receipt.proposal.assessments),
-          };
+        : applyConnectionAssessments(graph, receipt.proposal);
     const inspection = inspectConnectionGraph({
       contracts: description.source.context.nodes,
       graph,

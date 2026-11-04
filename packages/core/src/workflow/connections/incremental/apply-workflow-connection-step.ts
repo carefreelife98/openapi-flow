@@ -13,6 +13,7 @@ import {
   validateConnectionStepReferences,
 } from './validate-workflow-connection-session.js';
 import { applyConnectionPatch } from './apply-connection-patch.js';
+import { applyConnectionAssessments } from './apply-connection-assessments.js';
 import { inspectConnectionGraph } from './inspect-connection-graph.js';
 import { inspectConnectionGoalContradictions } from './inspect-connection-goal-contradictions.js';
 import {
@@ -70,6 +71,7 @@ export function applyWorkflowConnectionStep(
           input,
           proposal,
           new Set(source.context.nodes.map((node) => node.id)),
+          before,
         );
         next =
           proposal.kind === 'patch'
@@ -82,10 +84,7 @@ export function applyWorkflowConnectionStep(
                     .filter((id) => !input.editableEdgeIds?.includes(id)),
                 ),
               })
-            : {
-                ...structuredClone(before),
-                assessments: structuredClone(proposal.assessments),
-              };
+            : applyConnectionAssessments(before, proposal);
       } catch (error) {
         return {
           status: 'rejected',

@@ -93,6 +93,9 @@ export const nativeFeatureParameters = {
     conditions: [literalCheck],
   },
   [N8nNativeFeature.MergeAppend]: { numberInputs: 2 },
+  [N8nNativeFeature.ComposeNativeOutputs]: {
+    fields: [{ name: 'context', sourceNodeId: 'context', pointer: '' }],
+  },
   [N8nNativeFeature.AssertResponses]: {
     checks: [{ ...literalCheck, message: 'Values differ' }],
   },

@@ -3,6 +3,7 @@ import {
   workflowConnectionAssessmentSchema,
   workflowConnectionMaterialRequestSchema,
   workflowConnectionUserDecisionSchema,
+  listWorkflowConnectionEvidencePointers,
 } from '@openapi-flow/core';
 import type {
   WorkflowConnectionStepDescription,
@@ -16,6 +17,7 @@ import type {
 import type { WorkflowConnectionOutlineBundleDescription } from '@openapi-flow/core';
 import { createConnectionMaterialRepairChoiceSchema } from './create-connection-material-repair-choice-schema.js';
 import { createWorkflowConnectionRegionSelectionSchema } from './workflow-connection-region-selection-schema.js';
+import { isWorkflowConnectionCompletionReview } from '../workflow/connections/is-workflow-connection-completion-review.js';
 import {
   connectionChoicesSchema,
   connectionDecisionTextSchema as text,
@@ -33,19 +35,55 @@ export function createWorkflowConnectionStepSchema(
   const factIds = z
     .array(z.enum(description.requirements.map((fact) => fact.id)))
     .min(1);
-  const semanticGoalIds = description.goals
-    .filter((goal) => goal.decision.kind === 'semantic')
-    .map((goal) => goal.id);
-  const assessments = semanticGoalIds.length
-    ? z.array(
-        workflowConnectionAssessmentSchema.extend({
-          goalId: z.enum(semanticGoalIds),
-          nodeIds: z.array(z.enum(ids)),
+  const assessments = z.strictObject(
+    Object.fromEntries(
+      description.goals
+        .filter((goal) => goal.decision.kind === 'semantic')
+        .map((goal) => {
+          if (goal.decision.kind !== 'semantic')
+            throw new Error('Completion review requires a semantic goal');
+          const decision = goal.decision;
+          return [
+            goal.id,
+            workflowConnectionAssessmentSchema
+              .omit({
+                evidenceRefs: true,
+                nodeIds: true,
+                goalId: true,
+                scope: true,
+              })
+              .extend({
+                evidence: z.strictObject(
+                  Object.fromEntries(
+                    description.evidence.map((item) => [
+                      item.id,
+                      item.kind === 'requirement'
+                        ? decision.factIds.includes(item.factId!)
+                          ? z.literal('/text')
+                          : z.null()
+                        : item.kind === 'material-inventory'
+                          ? z.literal('')
+                          : item.kind === 'graph'
+                            ? decision.scope === 'workflow'
+                              ? z.literal('')
+                              : z.null()
+                            : z
+                                .enum(
+                                  listWorkflowConnectionEvidencePointers(item),
+                                )
+                                .nullable(),
+                    ]),
+                  ),
+                ),
+              }),
+          ];
         }),
-      )
-    : z.array(workflowConnectionAssessmentSchema).max(0);
+    ),
+  );
   const choices: z.ZodType<WorkflowConnectionStepModelDecision>[] = [
-    createWorkflowConnectionRegionSelectionSchema(description, outline),
+    ...(isWorkflowConnectionCompletionReview(description)
+      ? []
+      : [createWorkflowConnectionRegionSelectionSchema(description, outline)]),
     z.strictObject({
       kind: z.literal('request-completion'),
       assessments,

@@ -6,6 +6,7 @@ import type {
 import { validateWorkflowConnectionSession } from './validate-workflow-connection-session.js';
 import { inspectWorkflowConnectionCompletion } from './inspect-workflow-connection-completion.js';
 import { workflowConnectionEdgeId } from './connection-graph-identity.js';
+import { describeWorkflowConnectionEvidence } from '../requirements/describe-workflow-connection-evidence.js';
 
 export function describeWorkflowConnectionStep(
   input: WorkflowConnectionSessionInput,
@@ -26,6 +27,14 @@ export function describeWorkflowConnectionStep(
           .filter((id) => !input.editableEdgeIds?.includes(id)),
       );
       return {
+        evidence: describeWorkflowConnectionEvidence({
+          source: input,
+          graph: {
+            edges: input.session.edges,
+            rootNodeIds: input.session.rootNodeIds,
+            terminals: input.session.terminals,
+          },
+        }),
         apiOperations,
         expected: {
           sessionId: input.session.id,

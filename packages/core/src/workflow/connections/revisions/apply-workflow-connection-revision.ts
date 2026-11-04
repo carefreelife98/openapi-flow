@@ -20,6 +20,7 @@ import {
   validateConnectionStepReferences,
 } from '../incremental/validate-workflow-connection-session.js';
 import { describeConnectionSessionSource } from '../incremental/describe-connection-session-source.js';
+import { describeWorkflowConnectionEvidence } from '../requirements/describe-workflow-connection-evidence.js';
 import { createWorkflowConnectionSession } from '../incremental/create-workflow-connection-session.js';
 import { applyWorkflowConnectionStep } from '../incremental/apply-workflow-connection-step.js';
 import { applyConnectionPatch } from '../incremental/apply-connection-patch.js';
@@ -71,6 +72,7 @@ function resolveRevision(
     input.before,
     proposal.graphChange,
     new Set(before.source.context.nodes.map((node) => node.id)),
+    input.before.session,
   );
   const graph = applyConnectionPatch({
     graph: {
@@ -118,6 +120,11 @@ function resolveRevision(
     }),
     id: sessionId,
   };
+  const currentEvidenceIds = new Set(
+    describeWorkflowConnectionEvidence({ source: nextSource, graph }).map(
+      (item) => item.id,
+    ),
+  );
   const impact = workflowConnectionRevisionImpactSchema.parse(
     analyzeWorkflowConnectionRevisionImpact({
       before,
@@ -127,6 +134,14 @@ function resolveRevision(
       graph,
     }),
   );
+  for (const assessment of input.before.session.assessments)
+    if (
+      assessment.evidenceRefs.some(
+        (reference) => !currentEvidenceIds.has(reference.evidenceId),
+      ) &&
+      !impact.invalidatedAssessmentGoalIds.includes(assessment.goalId)
+    )
+      impact.invalidatedAssessmentGoalIds.push(assessment.goalId);
   if (
     impact.affectedFactIds.some(
       (id) => !proposal.graphChange.factIds.includes(id),

@@ -490,3 +490,28 @@ test('the shared pre-IF boundary also rejects absent optional API values and inv
     /Numeric comparison requires numbers/,
   );
 });
+
+test('assertion success output has a truthful contract that downstream stages can reference', () => {
+  const value = { checks: [{ ...check, message: 'Mismatch' }] };
+  const outputs = createNativeOutputContracts({
+    nativeNodes: [
+      { id: 'compare', capability: assertion.name, parameters: value },
+    ],
+    capabilities: [assertion],
+  });
+  assert.equal(outputs.length, 1);
+  const validate = new Ajv2020({ strict: false }).compile(outputs[0].schema);
+  const fragment = compile(assertion, value);
+  const emitted = vm.runInNewContext(
+    `(function(){${fragment.exit.config.parameters.jsCode}})()`,
+    runtime([rows[0]]),
+  );
+  assert.equal(validate(JSON.parse(JSON.stringify(emitted[0].json))), true);
+  for (const invalid of [
+    { pass: false, assertionCount: 1 },
+    { pass: true, assertionCount: 2 },
+    { pass: true },
+    { pass: true, assertionCount: 1, extra: 0 },
+  ])
+    assert.equal(validate(invalid), false);
+});

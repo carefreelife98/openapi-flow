@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { modelConnectionAssessment } from './fixtures/connection-assessment-fixture.mjs';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import { URL } from 'node:url';
@@ -457,6 +458,7 @@ test('an omitted optional registry produces no native augmentation branch and ne
   const goals = [
     {
       kind: 'semantic',
+      scope: 'workflow',
       factIds: ['intent'],
       reason: 'Keep the supplied intent.',
     },
@@ -464,7 +466,14 @@ test('an omitted optional registry produces no native augmentation branch and ne
   const session = createWorkflowConnectionSession({ ...source, goals });
   const decision = {
     kind: 'request-completion',
-    assessments: [],
+    assessments: {
+      [session.goals[0].id]: modelConnectionAssessment(
+        describeWorkflowConnectionStep({ ...source, session }),
+        session.goals[0].id,
+        [],
+        'insufficient-evidence',
+      ),
+    },
     reason: 'Code must still inspect the open graph.',
   };
   const model = modelFor({ decision }, ({ schema, context }) => {
@@ -486,8 +495,8 @@ test('an omitted optional registry produces no native augmentation branch and ne
     expected: result.expected,
     proposal: result.decision,
   });
-  assert.equal(applied.status, 'rejected');
-  assert.equal(applied.violations[0].code, 'NO_PROGRESS');
+  assert.equal(applied.status, 'accepted');
+  assert.equal(applied.inspection.ready, false);
 });
 
 test('prior rejections are explicit validated input and are supplied without an internal retry loop', async () => {

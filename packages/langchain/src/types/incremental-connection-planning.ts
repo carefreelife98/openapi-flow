@@ -99,9 +99,22 @@ export type WorkflowConnectionCompletionRequest = Exclude<
   WorkflowConnectionStepProposal,
   WorkflowConnectionPatch
 >;
+export interface WorkflowConnectionAssessmentSelection extends Omit<
+  WorkflowConnectionCompletionRequest['assessments'][number],
+  'evidenceRefs' | 'nodeIds' | 'goalId' | 'scope'
+> {
+  /** One code-owned path or explicit non-selection per catalog entry. Duplicate references are unrepresentable. */
+  evidence: Record<string, string | null>;
+}
+export interface WorkflowConnectionCompletionSelection extends Omit<
+  WorkflowConnectionCompletionRequest,
+  'assessments'
+> {
+  assessments: Record<string, WorkflowConnectionAssessmentSelection>;
+}
 export type WorkflowConnectionStepModelDecision =
   | WorkflowConnectionRegionSelection
-  | WorkflowConnectionCompletionRequest
+  | WorkflowConnectionCompletionSelection
   | WorkflowConnectionMaterialRequest
   | WorkflowConnectionMaterialRepairRequest
   | WorkflowConnectionUserDecision;

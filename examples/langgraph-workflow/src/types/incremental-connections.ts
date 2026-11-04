@@ -121,7 +121,7 @@ export interface IncrementalNativeMaterialReceipt {
   result: ReadyNativeNodeParameters;
   extension: Pick<
     WorkflowConnectionMaterialExtension,
-    'previous' | 'addedNativeNodeIds'
+    'previous' | 'previousSession' | 'addedNativeNodeIds'
   >;
 }
 export interface IncrementalNativePlanningInput {

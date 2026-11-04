@@ -1,3 +1,7 @@
+import {
+  connectionAssessment,
+  modelConnectionAssessment,
+} from './fixtures/connection-assessment-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createIncrementalWorkflowConnectionGraph } from '@openapi-flow/example-langgraph-workflow';
@@ -31,6 +35,7 @@ function prepare() {
       },
       {
         kind: 'semantic',
+        scope: 'workflow',
         factIds: ['intent'],
         reason: 'The final summary must preserve the original results.',
       },
@@ -159,7 +164,7 @@ test('cross-bundle goals stay globally pending and semantic completion cannot be
   );
   assert.deepEqual(globalBundle.goalIds, outline.globalGoalIds);
   assert.deepEqual(graphDone.globalUnmetGoalIds, [semantic.id]);
-  assert.deepEqual(graphDone.step.inspection.unmetGoalIds, [semantic.id]);
+  assert.deepEqual(graphDone.step.inspection.unassessedGoalIds, [semantic.id]);
   assert.throws(
     () => finalizeWorkflowConnectionSession({ ...input, session }),
     /incomplete/,
@@ -186,9 +191,12 @@ test('cross-bundle goals stay globally pending and semantic completion cannot be
       kind: 'request-completion',
       assessments: [
         {
-          goalId: semantic.id,
-          satisfied: false,
-          nodeIds: ['summary'],
+          ...connectionAssessment(
+            graphDone.step,
+            semantic.id,
+            ['summary'],
+            'insufficient-evidence',
+          ),
           reason: 'The original-result meaning is not yet established.',
         },
       ],
@@ -223,9 +231,7 @@ test('cross-bundle goals stay globally pending and semantic completion cannot be
       kind: 'request-completion',
       assessments: [
         {
-          goalId: semantic.id,
-          satisfied: true,
-          nodeIds: ['summary'],
+          ...connectionAssessment(stillPending.step, semantic.id, ['summary']),
           reason: 'The summary preserves the original results.',
         },
       ],
@@ -290,25 +296,23 @@ test('the existing host step and assessment path can schedule code-owned global 
     fixture.proposal,
     ...fixture.modelPatches,
     ({ payload }) => {
-      assert.equal(payload.planningOutline.selectedBundle.scope, 'global');
+      assert.equal(Object.hasOwn(payload, 'planningOutline'), false);
       assert.deepEqual(payload.goals, fixture.input.session.goals);
-      assert.equal(payload.inspection.ready, false);
+      assert.equal(Object.hasOwn(payload, 'inspection'), false);
       const semantic = payload.goals.find(
         (goal) => goal.decision.kind === 'semantic',
       );
-      assert.deepEqual(payload.inspection.unmetGoalIds, [semantic.id]);
+      assert.equal(Object.hasOwn(payload, 'inspection'), false);
       return {
         decision: {
           kind: 'request-completion',
-          assessments: [
-            {
-              goalId: semantic.id,
-              satisfied: true,
-              nodeIds: ['summary'],
+          assessments: {
+            [semantic.id]: {
+              ...modelConnectionAssessment(payload, semantic.id, ['summary']),
               reason:
                 'Explicit model assessment of the original-result summary.',
             },
-          ],
+          },
           reason:
             'Assess the remaining original semantic goal against the complete graph.',
         },

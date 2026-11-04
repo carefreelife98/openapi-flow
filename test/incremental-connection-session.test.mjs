@@ -1,3 +1,4 @@
+import { sourceConnectionAssessment } from './fixtures/connection-assessment-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { z } from 'zod';
@@ -76,10 +77,11 @@ test('native augmentation preserves accepted bundles, goals and original API dat
     expected,
     additionalNativeNodes,
   });
-  assert.equal(extended.session.id, before.id);
+  assert.notEqual(extended.session.id, before.id);
+  assert.deepEqual(extended.previousSession, before);
   assert.equal(extended.session.revision, before.revision);
   assert.notEqual(extended.session.sourceFingerprint, before.sourceFingerprint);
-  for (const field of ['edges', 'goals', 'history', 'rootNodeIds', 'terminals'])
+  for (const field of ['edges', 'goals', 'rootNodeIds', 'terminals'])
     assert.deepEqual(extended.session[field], before[field]);
   assert.deepEqual(extended.previous, expected);
   assert.deepEqual(extended.addedNativeNodeIds, ['join']);
@@ -544,6 +546,7 @@ test('semantic assessments do not bypass open boundaries or pretend to be determ
   const { source, goals, plan } = fixture();
   goals.push({
     kind: 'semantic',
+    scope: 'workflow',
     factIds: ['intent'],
     reason: 'Review the business intent.',
   });
@@ -555,9 +558,7 @@ test('semantic assessments do not bypass open boundaries or pretend to be determ
     kind: 'request-completion',
     assessments: [
       {
-        goalId,
-        satisfied: true,
-        nodeIds: ['source'],
+        ...sourceConnectionAssessment(source, session, goalId, ['source']),
         reason: 'Source is present.',
       },
     ],
@@ -579,7 +580,7 @@ test('semantic assessments do not bypass open boundaries or pretend to be determ
   assert.equal(patched.status, 'accepted');
   assert.equal(patched.inspection.ready, false);
   assert.deepEqual(patched.session.assessments, []);
-  assert.deepEqual(patched.inspection.unmetGoalIds, [goalId]);
+  assert.deepEqual(patched.inspection.unassessedGoalIds, [goalId]);
 });
 
 test('goal proposals must cite every fact and use actual contract nodes and outputs', () => {

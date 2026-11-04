@@ -25,7 +25,11 @@ export function createWorkflowConnectionGoalsSchema(
     ),
   };
   const choices: z.ZodType<WorkflowConnectionGoalSelection>[] = [
-    z.strictObject({ kind: z.literal('semantic'), ...basis }),
+    z.strictObject({
+      kind: z.literal('semantic'),
+      scope: z.enum(['materials', 'workflow']),
+      ...basis,
+    }),
   ];
   if (ids.length > 1) {
     choices.push(

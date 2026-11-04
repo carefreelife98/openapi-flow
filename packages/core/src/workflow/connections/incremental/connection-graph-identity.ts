@@ -14,7 +14,17 @@ export function connectionGraphFingerprint(
       .sort(),
     assessments: graph.assessments
       .map((item) =>
-        JSON.stringify([item.goalId, item.satisfied, [...item.nodeIds].sort()]),
+        JSON.stringify([
+          item.goalId,
+          item.status,
+          item.scope,
+          [...item.nodeIds].sort(),
+          item.evidenceRefs
+            .map((ref) =>
+              JSON.stringify([ref.evidenceId, ref.pointer, ref.quote]),
+            )
+            .sort(),
+        ]),
       )
       .sort(),
   });

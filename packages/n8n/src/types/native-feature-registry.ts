@@ -10,6 +10,7 @@ import type { N8nNativeOutputSource } from './output-binding-source.js';
 export const N8nNativeFeature = Object.freeze({
   If: 'if',
   MergeAppend: 'merge-append',
+  ComposeNativeOutputs: 'compose-native-outputs',
   AssertResponses: 'assert-responses',
   EvaluateResponses: 'evaluate-responses',
   StopAndError: 'stop-and-error',

@@ -9,6 +9,8 @@ import { createApiResponseKeyJoinCapability } from '../key-join/create-api-respo
 import { apiResponseMapEntryDefinition } from '../maps/api-response-map-entry-definition.js';
 import { createApiResponseMapEntryCapability } from '../maps/create-api-response-map-entry-capability.js';
 import { createMergeAppendCapability } from '../merge-append-capability.js';
+import { createNativeOutputObjectCapability } from '../objects/create-native-output-object-capability.js';
+import { nativeOutputObjectDefinition } from '../objects/native-output-object-definition.js';
 import { createResponseAssertionCapability } from '../response-assertion-capability.js';
 import { createResponseEvaluationCapability } from '../evaluation/create-response-evaluation-capability.js';
 import { createStopAndErrorCapability } from '../stop-and-error-capability.js';
@@ -114,6 +116,23 @@ export const nativeFeatureDefinitions: Record<
   [N8nNativeFeature.MergeAppend]: {
     requirements: [],
     create: createMergeAppendCapability,
+  },
+  [N8nNativeFeature.ComposeNativeOutputs]: {
+    requirements: nativeFeatureMaterialRequirements(
+      nativeOutputObjectDefinition,
+    ),
+    createPlanning: () =>
+      createMaterialPlanningCapability(
+        nativeOutputObjectDefinition,
+        (sources) =>
+          createNativeOutputObjectCapability({
+            sources: sources.nativeOutputs,
+          }),
+      ),
+    create: (context) =>
+      createNativeOutputObjectCapability({
+        sources: context.nativeOutputSources!,
+      }),
   },
   [N8nNativeFeature.AssertResponses]: {
     requirements: [],

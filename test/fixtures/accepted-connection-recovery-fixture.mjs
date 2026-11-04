@@ -25,7 +25,7 @@ export function acceptedConnectionRecoveryFixture() {
     completion: {
       decision: {
         kind: 'request-completion',
-        assessments: [],
+        assessments: {},
         reason: 'Attempt to finish the current partial graph.',
       },
     },

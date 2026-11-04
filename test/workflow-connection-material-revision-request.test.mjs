@@ -82,7 +82,7 @@ test('material revisions are default-off with identical omitted/false wire schem
   const { source, session } = fixture();
   const decision = {
     kind: 'request-completion',
-    assessments: [],
+    assessments: {},
     reason: 'Inspect the graph.',
   };
   const calls = [];
@@ -105,7 +105,7 @@ test('material revisions are default-off with identical omitted/false wire schem
       ...options,
       model,
     });
-    assert.deepEqual(result.decision, decision);
+    assert.deepEqual(result.decision, { ...decision, assessments: [] });
     assert.equal(model.calls, 1);
   }
   assert.deepEqual(calls[0], calls[1]);
@@ -356,6 +356,7 @@ test('validation binds the original target scope while display reasons and actua
       ...goals,
       {
         kind: 'semantic',
+        scope: 'workflow',
         factIds: ['other'],
         reason: 'Inspect the second obligation later.',
       },

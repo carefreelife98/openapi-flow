@@ -83,6 +83,8 @@ export { createResponseCollectionCapability } from './nodes/native/create-respon
 export type * from './types/response-collection.js';
 export { createApiResponseObjectCapability } from './nodes/native/objects/create-api-response-object-capability.js';
 export { createNativeOutputProjectionCapability } from './nodes/native/objects/create-native-output-projection-capability.js';
+export { createNativeOutputObjectCapability } from './nodes/native/objects/create-native-output-object-capability.js';
+export type { NativeOutputObjectParameters } from './types/native-output-object.js';
 export type * from './types/native-output-projection.js';
 export type * from './types/api-response-object.js';
 export { createApiResponseResultsCapability } from './nodes/native/results/create-api-response-results-capability.js';

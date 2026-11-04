@@ -1,3 +1,4 @@
+import { sourceConnectionAssessment } from './fixtures/connection-assessment-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { z } from 'zod';
@@ -26,11 +27,13 @@ function prepared({ semantic = false } = {}) {
     decisions.push(
       {
         kind: 'semantic',
+        scope: 'materials',
         factIds: ['intent'],
         reason: 'Check the original price result.',
       },
       {
         kind: 'semantic',
+        scope: 'materials',
         factIds: ['intent'],
         reason: 'Check the original stock result.',
       },
@@ -62,11 +65,9 @@ function prepared({ semantic = false } = {}) {
         assessments: session.goals
           .filter((goal) => goal.decision.kind === 'semantic')
           .map((goal) => ({
-            goalId: goal.id,
-            satisfied: true,
-            nodeIds: [
+            ...sourceConnectionAssessment(source, session, goal.id, [
               goal.decision.reason.includes('price') ? 'price' : 'stock',
-            ],
+            ]),
             reason: goal.decision.reason,
           })),
       },
@@ -343,6 +344,7 @@ test('native output-contract changes invalidate their original evidence even whe
     ...fixture.goals,
     {
       kind: 'semantic',
+      scope: 'materials',
       factIds: ['intent'],
       reason: 'Check the declared independent output.',
     },
@@ -375,9 +377,9 @@ test('native output-contract changes invalidate their original evidence even whe
       reason: 'Assess this exact output contract.',
       assessments: [
         {
-          goalId,
-          satisfied: true,
-          nodeIds: ['independent-output'],
+          ...sourceConnectionAssessment(source, session, goalId, [
+            'independent-output',
+          ]),
           reason: 'The declared output matches.',
         },
       ],

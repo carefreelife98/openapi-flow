@@ -238,6 +238,7 @@ export function createIncrementalNativeStages(
           result,
           extension: {
             previous: extension.previous,
+            previousSession: extension.previousSession,
             addedNativeNodeIds: extension.addedNativeNodeIds,
           },
         },

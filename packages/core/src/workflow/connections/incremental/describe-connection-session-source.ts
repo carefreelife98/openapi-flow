@@ -4,6 +4,7 @@ import type {
   WorkflowConnectionSessionDescription,
 } from '../../../types/workflow-connection-session.js';
 import { describeWorkflowConnectionPlanning } from '../describe-workflow-connection-planning.js';
+import { validateWorkflowConnectionLiteralAttribution } from '../requirements/validate-workflow-connection-literal-attribution.js';
 import {
   connectionValueFingerprint,
   workflowConnectionEdgeId,
@@ -18,6 +19,7 @@ export function describeConnectionSessionSource(
   if (new Set(requirements.map((item) => item.id)).size !== requirements.length)
     throw new Error('connection requirements require distinct IDs');
   const source = describeWorkflowConnectionPlanning(input);
+  validateWorkflowConnectionLiteralAttribution(input);
   const originalIds = new Set(source.input.edges.map(workflowConnectionEdgeId));
   const editable = input.editableEdgeIds;
   if (
@@ -60,6 +62,22 @@ export function describeConnectionSessionSource(
       context: source.context,
       sources: source.sources,
       requirements,
+      literalAttributions: input.materials?.flatMap((material) =>
+        material.status === 'ready' &&
+        (material.arguments.literalSources !== undefined ||
+          material.arguments.enumInterpretation !== undefined)
+          ? [
+              {
+                callId: material.arguments.callId,
+                sources: material.arguments.literalSources,
+                enumInterpretation: material.arguments.enumInterpretation,
+              },
+            ]
+          : [],
+      ),
+      ...(input.literalSourceMessages === undefined
+        ? {}
+        : { literalSourceMessages: input.literalSourceMessages }),
       editableEdgeIds: editable,
     }),
   };

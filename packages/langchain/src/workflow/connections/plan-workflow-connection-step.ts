@@ -24,9 +24,12 @@ import { createWorkflowConnectionStepSchema } from '../../schemas/workflow-conne
 import {
   workflowConnectionStepPrompt,
   workflowConnectionMaterialRevisionStepPrompt,
+  workflowConnectionCompletionReviewPrompt,
 } from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
 import { resolveWorkflowConnectionRegionSelection } from './resolve-workflow-connection-region-selection.js';
+import { isWorkflowConnectionCompletionReview } from './is-workflow-connection-completion-review.js';
+import { resolveWorkflowConnectionCompletionSelection } from './resolve-workflow-connection-completion-selection.js';
 import {
   validateConnectionProposal,
   WorkflowConnectionPlanningError,
@@ -216,43 +219,63 @@ export async function planWorkflowConnectionStep(
     id: randomUUID(),
     expected: structuredClone(description.expected),
   };
+  const completionReview = isWorkflowConnectionCompletionReview(description);
+  const systemPrompt = completionReview
+    ? workflowConnectionCompletionReviewPrompt
+    : workflowConnectionStepPrompt;
   const output = await invokeConnectionPlanningModel({
     proposalContext,
     model: input.model,
     operation,
-    name: 'plan_workflow_connection_step',
+    name: completionReview
+      ? 'review_workflow_connection_completion'
+      : 'plan_workflow_connection_step',
     schema,
     schemaReuse: 'ref',
     messages: [
       new SystemMessage(
         allowMaterialRevisions === true
-          ? `${workflowConnectionStepPrompt}\n${workflowConnectionMaterialRevisionStepPrompt}`
-          : workflowConnectionStepPrompt,
+          ? `${systemPrompt}\n${workflowConnectionMaterialRevisionStepPrompt}`
+          : systemPrompt,
       ),
       new HumanMessage(
-        JSON.stringify({
-          ...description,
-          connectionCandidates:
-            describeWorkflowConnectionCandidates(description),
-          ...(materialRepairStages === undefined
-            ? {}
-            : { materialRepairStages }),
-          ...(outlineContext === undefined
-            ? {}
+        JSON.stringify(
+          completionReview
+            ? {
+                scope: 'configured-workflow-only',
+                requirements: description.requirements,
+                goals: description.goals,
+                apiOperations: description.apiOperations,
+                evidence: description.evidence,
+                availableNativeCapabilities: capabilityIndex,
+                ...(materialRepairStages === undefined
+                  ? {}
+                  : { materialRepairStages }),
+              }
             : {
-                planningOutline: {
-                  outline: outlineContext.outline,
-                  bundles: outlineContext.bundles,
-                  selectedBundle: outlineContext.bundle,
-                  requiredProducerIds: outlineContext.requiredProducerIds,
-                  crossingEdges: outlineContext.crossingEdges,
-                },
-              }),
-          availableNativeCapabilities: capabilityIndex,
-          ...(rejectedSnapshot === undefined
-            ? {}
-            : { rejectedProposals: rejectedSnapshot }),
-        }),
+                ...description,
+                connectionCandidates:
+                  describeWorkflowConnectionCandidates(description),
+                ...(materialRepairStages === undefined
+                  ? {}
+                  : { materialRepairStages }),
+                ...(outlineContext === undefined
+                  ? {}
+                  : {
+                      planningOutline: {
+                        outline: outlineContext.outline,
+                        bundles: outlineContext.bundles,
+                        selectedBundle: outlineContext.bundle,
+                        requiredProducerIds: outlineContext.requiredProducerIds,
+                        crossingEdges: outlineContext.crossingEdges,
+                      },
+                    }),
+                availableNativeCapabilities: capabilityIndex,
+                ...(rejectedSnapshot === undefined
+                  ? {}
+                  : { rejectedProposals: rejectedSnapshot }),
+              },
+        ),
       ),
     ],
     ...(input.signal === undefined ? {} : { signal: input.signal }),
@@ -280,9 +303,11 @@ export async function planWorkflowConnectionStep(
     () => {
       const raw = output.decision;
       const decision: WorkflowConnectionPlanningDecision =
-        raw.kind !== 'set-region'
-          ? raw
-          : resolveWorkflowConnectionRegionSelection(description, raw);
+        raw.kind === 'request-completion'
+          ? resolveWorkflowConnectionCompletionSelection(description, raw)
+          : raw.kind !== 'set-region'
+            ? raw
+            : resolveWorkflowConnectionRegionSelection(description, raw);
       const checked = workflowConnectionPlanningDecisionSchema.parse(decision);
       if (checked.kind === 'replan-materials')
         createWorkflowConnectionMaterialRevisionRequest({

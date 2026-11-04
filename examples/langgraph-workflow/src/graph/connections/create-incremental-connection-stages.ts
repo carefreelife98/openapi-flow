@@ -1,6 +1,8 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { randomUUID } from 'node:crypto';
 import {
+  assertWorkflowConnectionReviewCanContinue,
+  WorkflowConnectionCompletionEvidenceError,
   describeWorkflowConnectionStep,
   applyWorkflowConnectionStep,
   inspectWorkflowConnectionCompletion,
@@ -468,6 +470,12 @@ export function createIncrementalConnectionStages(
             outline: state.outline!,
             bundleId: state.pendingBundleId!,
           });
+    if (
+      result.status === 'rejected' &&
+      decision.kind === 'request-completion' &&
+      decision.assessments.length > 0
+    )
+      throw new WorkflowConnectionCompletionEvidenceError(result.violations);
     if (result.status === 'rejected')
       return {
         rejectedProposals: [
@@ -547,12 +555,12 @@ export function createIncrementalConnectionStages(
         );
       return 'propose';
     }
-    return inspectWorkflowConnectionCompletion({
+    const inspection = inspectWorkflowConnectionCompletion({
       ...source(state),
       session: state.session,
-    }).ready
-      ? 'finalize'
-      : 'propose';
+    });
+    assertWorkflowConnectionReviewCanContinue(inspection);
+    return inspection.ready ? 'finalize' : 'propose';
   }
   function finalize(
     state: IncrementalConnectionState,

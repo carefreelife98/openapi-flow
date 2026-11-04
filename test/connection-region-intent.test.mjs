@@ -54,7 +54,7 @@ function fixture(independent = false) {
   const goals = [
     {
       kind: independent ? 'independent' : 'semantic',
-      ...(independent ? { nodeIds: ['a', 'b'] } : {}),
+      ...(independent ? { nodeIds: ['a', 'b'] } : { scope: 'workflow' }),
       factIds: ['intent'],
       reason: 'Keep the declared intent.',
     },

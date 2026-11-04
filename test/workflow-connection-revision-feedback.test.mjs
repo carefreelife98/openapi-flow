@@ -1,3 +1,4 @@
+import { sourceModelConnectionAssessment } from './fixtures/connection-assessment-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -350,6 +351,7 @@ test('the existing automatic graph continues an incomplete revised candidate and
   const { input, correctedOutput } = connectionRevisionRejectionFixture();
   correctedOutput.decision.goals.push({
     kind: 'semantic',
+    scope: 'workflow',
     factIds: ['intent'],
     reason:
       'Preserve the original selected values and unchanged collection semantics.',
@@ -364,28 +366,34 @@ test('the existing automatic graph continues an incomplete revised candidate and
   const semantic = result.revision.session.goals.find(
     (goal) => goal.decision.kind === 'semantic',
   );
-  assert.deepEqual(result.revision.inspection.unmetGoalIds, [semantic.id]);
+  assert.deepEqual(result.revision.inspection.unassessedGoalIds, [semantic.id]);
   const source = { ...input.after, ...result.revision.sourceUpdate };
   const model = revisionFeedbackModel(
     {
       decision: {
         kind: 'request-completion',
-        assessments: [
-          {
-            goalId: semantic.id,
-            satisfied: true,
-            nodeIds: ['source', 'detail', 'price', 'stock', 'join', 'summary'],
+        assessments: {
+          [semantic.id]: {
+            ...sourceModelConnectionAssessment(
+              source,
+              result.revision.session,
+              semantic.id,
+              ['source', 'detail', 'price', 'stock', 'join', 'summary'],
+            ),
             reason:
               'The unchanged original mappings and native collector preserve the supplied intent.',
           },
-        ],
+        },
         reason:
           'Inspect the fully connected candidate with this semantic assessment.',
       },
     },
     ({ payload }) => {
-      assert.deepEqual(payload.inspection.unmetGoalIds, [semantic.id]);
-      assert.deepEqual(payload.context.edges, result.revision.session.edges);
+      assert.equal(Object.hasOwn(payload, 'inspection'), false);
+      assert.deepEqual(
+        payload.evidence.find((item) => item.kind === 'graph').value.edges,
+        result.revision.session.edges,
+      );
     },
   );
   let completedPublications = 0;

@@ -458,6 +458,19 @@ export {
   workflowReviewedGoalCandidateSchema,
 } from './schemas/workflow-connection-goal-review-schema.js';
 export { describeWorkflowConnectionConflictMaterials } from './workflow/connections/materials/describe-workflow-connection-conflict-materials.js';
+export { describeWorkflowConnectionEvidence } from './workflow/connections/requirements/describe-workflow-connection-evidence.js';
+export { listWorkflowConnectionEvidencePointers } from './workflow/connections/requirements/list-workflow-connection-evidence-pointers.js';
+export { WorkflowConnectionCompletionEvidenceError } from './workflow/connections/requirements/workflow-connection-completion-evidence-error.js';
+export {
+  WorkflowConnectionCompletionIncompleteError,
+  assertWorkflowConnectionReviewCanContinue,
+} from './workflow/connections/requirements/assert-workflow-connection-review-can-continue.js';
+export type {
+  WorkflowConnectionEvidence,
+  WorkflowConnectionEvidenceReference,
+  DescribeWorkflowConnectionEvidenceInput,
+} from './types/workflow-connection-evidence.js';
+export { workflowConnectionEvidenceReferenceSchema } from './schemas/workflow-connection-evidence-schema.js';
 export { selectWorkflowConnectionArgumentValues } from './workflow/connections/materials/select-workflow-connection-argument-values.js';
 export {
   applyWorkflowConnectionMaterialRepair,

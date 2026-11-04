@@ -8,7 +8,7 @@ import type {
   WorkflowConnectionMaterialExtension,
 } from '../../../types/workflow-connection-session.js';
 import { validateWorkflowConnectionSession } from './validate-workflow-connection-session.js';
-import { describeConnectionSessionSource } from './describe-connection-session-source.js';
+import { applyWorkflowConnectionRevision } from '../revisions/apply-workflow-connection-revision.js';
 
 /** Add validated native material, never replace API contracts, values, goals or prior receipts. */
 export function extendWorkflowConnectionSession(
@@ -53,15 +53,29 @@ export function extendWorkflowConnectionSession(
           ...additionalNativeNodes,
         ],
       };
-      const description = describeConnectionSessionSource(source);
-      const session = {
-        ...structuredClone(input.session),
-        sourceFingerprint: description.fingerprint,
-      };
-      // Replay every accepted step against the expanded contracts before committing the extension.
-      validateWorkflowConnectionSession({ ...source, session });
+      const revision = applyWorkflowConnectionRevision({
+        before: input,
+        after: source,
+        expected,
+        proposal: {
+          goals: input.session.goals.map((goal) => goal.decision),
+          graphChange: {
+            kind: 'patch',
+            addEdges: [],
+            removeEdgeIds: [],
+            addRootNodeIds: [],
+            removeRootNodeIds: [],
+            addTerminals: [],
+            removeTerminals: [],
+            factIds: input.requirements.map((fact) => fact.id),
+            reason:
+              'Retain executable wiring across an explicit native material extension.',
+          },
+        },
+      });
       return {
-        session,
+        session: revision.session,
+        previousSession: revision.previousSession,
         previous: expected,
         addedNativeNodeIds: additionalNativeNodes.map((node) => node.id),
       };

@@ -927,7 +927,8 @@ test('native material requests return to a parent without HITL; the parent can e
   assert.equal(result.rejectedProposals.length, 1);
   assert.deepEqual(model.requests[4].context.rejectedProposals, []);
   assert.deepEqual(result.plan.edges, plan.edges);
-  assert.deepEqual(result.session.history[0], pending.session.history[0]);
+  assert.deepEqual(extension.previousSession, pending.session);
+  assert.deepEqual(result.session.edges, plan.edges);
 });
 
 test('a true business decision is distinct from technical failure and never claims a complete workflow', async () => {

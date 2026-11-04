@@ -40,6 +40,10 @@ export function prepareWorkflowConnectionRevisionSource(
     !isDeepStrictEqual(input.before.requirements, input.after.requirements) ||
     input.before.scenario !== input.after.scenario ||
     !isDeepStrictEqual(
+      input.before.literalSourceMessages,
+      input.after.literalSourceMessages,
+    ) ||
+    !isDeepStrictEqual(
       before.source.input.entrypoint,
       after.source.input.entrypoint,
     )

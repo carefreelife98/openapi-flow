@@ -67,6 +67,7 @@ export function verifyConsumerIncrementalConnections(
     goals: [
       {
         kind: 'semantic',
+        scope: 'workflow',
         factIds: ['intent'],
         reason: 'The consumer supplies the independent-call requirement.',
       },
@@ -135,7 +136,22 @@ export function verifyConsumerIncrementalConnections(
       assessments: [
         {
           goalId: session.goals[0]!.id,
-          satisfied: true,
+          status: 'satisfied',
+          scope: 'workflow',
+          evidenceRefs: describeWorkflowConnectionStep({
+            ...source,
+            session,
+          }).evidence.map((item) =>
+            item.kind === 'requirement'
+              ? {
+                  evidenceId: item.id,
+                  pointer: '/text',
+                  quote: source.requirements.find(
+                    (fact) => fact.id === item.factId,
+                  )!.text,
+                }
+              : { evidenceId: item.id, pointer: '' },
+          ),
           nodeIds: [material.arguments.callId],
           reason: 'Explicit fixture assessment of the one supplied request.',
         },
@@ -166,7 +182,9 @@ export function verifyConsumerIncrementalConnections(
     expected: describeWorkflowConnectionStep({ ...source, session }).expected,
     additionalNativeNodes,
   });
-  assert.equal(extended.session.revision, session.revision);
+  assert.notEqual(extended.session.id, session.id);
+  assert.deepEqual(extended.previousSession, session);
+  assert.deepEqual(extended.session.assessments, []);
   assert.notEqual(
     extended.session.sourceFingerprint,
     session.sourceFingerprint,

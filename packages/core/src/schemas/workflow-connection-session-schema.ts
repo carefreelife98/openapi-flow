@@ -1,5 +1,6 @@
 import { workflowConnectionRegionSchema } from './workflow-connection-region-schema.js';
 import { z } from 'zod';
+import { workflowConnectionEvidenceReferenceSchema } from './workflow-connection-evidence-schema.js';
 import { workflowConnectionMaterialRepairRequestSchema } from './workflow-connection-material-repair-request-schema.js';
 import {
   planningEvidenceTextSchema as text,
@@ -69,7 +70,11 @@ export const workflowConnectionGoalProposalSchema = z.discriminatedUnion(
       nodeId: text,
       producerIds: z.array(text).min(2),
     }),
-    z.strictObject({ kind: z.literal('semantic'), ...goalBasis }),
+    z.strictObject({
+      kind: z.literal('semantic'),
+      scope: z.enum(['materials', 'workflow']),
+      ...goalBasis,
+    }),
   ],
 );
 export const workflowConnectionGoalSchema = z.strictObject({
@@ -82,7 +87,9 @@ export const workflowConnectionTerminalSchema = z.strictObject({
 });
 export const workflowConnectionAssessmentSchema = z.strictObject({
   goalId: text,
-  satisfied: z.boolean(),
+  status: z.enum(['satisfied', 'violated', 'insufficient-evidence']),
+  scope: z.enum(['materials', 'workflow']),
+  evidenceRefs: z.array(workflowConnectionEvidenceReferenceSchema),
   nodeIds: z.array(text),
   reason: text,
 });
