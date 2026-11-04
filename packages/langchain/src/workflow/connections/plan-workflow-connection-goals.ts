@@ -12,7 +12,10 @@ import type {
 import type { PlanWorkflowConnectionGoalsInput } from '../../types/incremental-connection-planning.js';
 import { createWorkflowConnectionGoalsSchema } from '../../schemas/workflow-connection-goals-schema.js';
 import { workflowConnectionGoalRejectionSchema } from '../../schemas/workflow-connection-goal-rejection-schema.js';
-import { workflowConnectionGoalsPrompt } from '../../prompts/incremental-workflow-connections-prompt.js';
+import {
+  workflowConnectionGoalsPrompt,
+  workflowContractConnectionGoalsPrompt,
+} from '../../prompts/incremental-workflow-connections-prompt.js';
 import { invokeConnectionPlanningModel } from './invoke-connection-planning-model.js';
 import { resolveConnectionGoalSelections } from './resolve-connection-selections.js';
 import {
@@ -92,7 +95,11 @@ export async function planWorkflowConnectionGoals(
     schema,
     sourceFingerprint: description.sourceFingerprint,
     messages: [
-      new SystemMessage(workflowConnectionGoalsPrompt),
+      new SystemMessage(
+        input.reviewBoundary === 'declared-contract'
+          ? workflowContractConnectionGoalsPrompt
+          : workflowConnectionGoalsPrompt,
+      ),
       new HumanMessage(
         JSON.stringify({
           ...description,

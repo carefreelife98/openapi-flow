@@ -8,6 +8,7 @@ import { workflowConnectionEdgeId } from './connection-graph-identity.js';
 import { inspectWorkflowNodeConstraints } from '../constraints/inspect-workflow-node-constraints.js';
 import { describeConnectionMaterialRepairStages } from '../materials/describe-connection-material-repair-stages.js';
 import { describeWorkflowConnectionEvidence } from '../requirements/describe-workflow-connection-evidence.js';
+import { connectionVerificationContract } from '../requirements/connection-verification-contract.js';
 
 /** Goal interpretation needs roles and contracts, not runtime capabilities or whole OAS documents. */
 export function describeWorkflowConnectionGoals(
@@ -24,6 +25,20 @@ export function describeWorkflowConnectionGoals(
       const { source, fingerprint, apiOperations } =
         describeConnectionSessionSource(input);
       return {
+        ...(input.reviewBoundary === undefined
+          ? {}
+          : {
+              reviewBoundary: input.reviewBoundary,
+              verificationContract: structuredClone(
+                connectionVerificationContract,
+              ),
+              availableCapabilities: source.sources.capabilities.map(
+                ({ materialSources, ...definition }) => {
+                  void materialSources;
+                  return structuredClone(definition);
+                },
+              ),
+            }),
         evidence: describeWorkflowConnectionEvidence({
           source: input,
           graph: { edges: source.input.edges, rootNodeIds: [], terminals: [] },

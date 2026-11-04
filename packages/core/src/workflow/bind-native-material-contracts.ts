@@ -30,5 +30,14 @@ export function bindNativeMaterialContracts(
     throw new Error(
       `Native material binding ${definition.name} must retain its declared parameterReferenceSources`,
     );
+  if (
+    !jsonValuesEqual(
+      bound.parameterValuePolicy,
+      definition.parameterValuePolicy,
+    )
+  )
+    throw new Error(
+      `Native material binding ${definition.name} must retain its declared parameterValuePolicy`,
+    );
   return bound;
 }

@@ -62,6 +62,7 @@ export type NativeMaterialFeatureDefinition = Pick<
   | 'name'
   | 'description'
   | 'parametersSchema'
+  | 'parameterValuePolicy'
   | 'createPlanningParametersSchema'
   | 'parametersFromProducerDependencies'
   | 'parameterReferenceSources'

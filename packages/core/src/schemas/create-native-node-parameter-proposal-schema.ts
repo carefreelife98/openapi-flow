@@ -4,6 +4,7 @@ import type {
   NativeParameterGenerationContract,
 } from '../types/native-node-planning.js';
 import { optionalPlanningExplanationSchema } from './optional-planning-explanation-schema.js';
+import { validateNativeParameterQuestion } from '../workflow/planning/validate-native-parameter-question.js';
 
 /** One shared value/question wire contract for initial configuration and existing-instance repair. */
 export function createNativeNodeParameterProposalSchema(
@@ -26,13 +27,34 @@ export function createNativeNodeParameterProposalSchema(
           ),
           ...reasons,
         }),
+        ...(contract.parameterValuePolicy === undefined ||
+        contract.parameterValuePolicy.businessInputPaths.length === 0
+          ? []
+          : [
+              z.strictObject({
+                status: z.literal('needs-clarification'),
+                fieldPointers: z
+                  .array(z.string().regex(/^(?:\/(?:[^~]|~[01])*)?$/u))
+                  .min(1)
+                  .describe(
+                    'Exact missing business input fields permitted by parameterValuePolicy. Never generated text or internal producer references.',
+                  ),
+                message: z
+                  .string()
+                  .min(1)
+                  .describe(
+                    'Ask only for missing business values required by this selected implementation. Internal references and contracts belong to needs-materials, never a user question.',
+                  ),
+                ...reasons,
+              }),
+            ]),
         z.strictObject({
-          status: z.literal('needs-clarification'),
+          status: z.literal('needs-materials'),
           message: z
             .string()
             .min(1)
             .describe(
-              'Ask only for missing settings or producer references required by this selected implementation contract, never for a prepared copy/output of the target being created.',
+              'Name the source and missing internal contract or reference. This is a system limitation, never a user question or permission to invent data.',
             ),
           ...reasons,
         }),
@@ -41,8 +63,25 @@ export function createNativeNodeParameterProposalSchema(
     .meta({
       $defs: contract.definitions,
     }) as z.ZodType<NativeNodeParameterProposal>;
-  if (requireExplanations) return schema;
-  return schema.transform((proposal) => {
+  const checked = schema.superRefine((proposal, ctx) => {
+    try {
+      validateNativeParameterQuestion(
+        proposal,
+        contract.parameterValuePolicy,
+        contract.literalParametersSchema,
+      );
+    } catch (error) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Invalid native business question',
+      });
+    }
+  });
+  if (requireExplanations) return checked;
+  return checked.transform((proposal) => {
     const decision = { ...proposal.decision };
     if (!includeExplanations || decision.reason === undefined)
       delete decision.reason;

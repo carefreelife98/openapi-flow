@@ -7,6 +7,9 @@ import type { WorkflowConnectionOutlineGoalAssociation } from '../../../types/wo
 
 function goalAnchors(decision: WorkflowConnectionGoalProposal): string[] {
   switch (decision.kind) {
+    case 'material-value':
+    case 'material-shape':
+      return [decision.nodeId];
     case 'precedence':
       return [decision.before, decision.after];
     case 'route':
@@ -14,6 +17,8 @@ function goalAnchors(decision: WorkflowConnectionGoalProposal): string[] {
     case 'join':
       return [decision.nodeId, ...decision.producerIds];
     case 'independent':
+    case 'operation-set':
+    case 'unsupported':
       return decision.nodeIds;
     case 'semantic':
       return [];

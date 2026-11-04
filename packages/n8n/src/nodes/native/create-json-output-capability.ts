@@ -16,6 +16,8 @@ export function createJsonOutputCapability(
   if (!input.name.trim() || !input.description.trim())
     throw new Error('JSON output capability requires name and description');
   const capability: N8nNativeCapability = {
+    // Every parameter of this typed literal producer is its actual business output, not a structural reference.
+    parameterValuePolicy: { businessInputPaths: [''], generatedTextPaths: [] },
     ...input,
     supportsRuntimeParameters: true,
     inputPorts: () => ['main'],

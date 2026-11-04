@@ -34,7 +34,12 @@ export interface WorkflowConnectionGoalReviewPolicy {
 }
 export interface WorkflowConnectionGoalReviewDescription extends Pick<
   WorkflowConnectionGoalPlanningDescription,
-  'sourceFingerprint' | 'requirements' | 'apiOperations'
+  | 'sourceFingerprint'
+  | 'requirements'
+  | 'apiOperations'
+  | 'reviewBoundary'
+  | 'availableCapabilities'
+  | 'verificationContract'
 > {
   scope: 'initial-goal-interpretation-before-connection-planning';
   sessionId: string;

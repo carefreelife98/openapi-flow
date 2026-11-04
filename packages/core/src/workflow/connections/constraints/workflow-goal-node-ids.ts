@@ -4,6 +4,9 @@ export function workflowGoalNodeIds(
   goal: WorkflowConnectionGoalProposal,
 ): string[] {
   switch (goal.kind) {
+    case 'material-value':
+    case 'material-shape':
+      return [goal.nodeId];
     case 'semantic':
       return [];
     case 'precedence':
@@ -13,6 +16,8 @@ export function workflowGoalNodeIds(
     case 'join':
       return [goal.nodeId, ...goal.producerIds];
     case 'independent':
+    case 'operation-set':
+    case 'unsupported':
       return goal.nodeIds;
   }
 }

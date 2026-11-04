@@ -48,7 +48,9 @@ function goalMeaning(goals: WorkflowConnectionSession['goals']): string {
         return connectionValueFingerprint({
           ...criteria,
           factIds: [...criteria.factIds].sort(),
-          ...(criteria.kind === 'independent'
+          ...(criteria.kind === 'independent' ||
+          criteria.kind === 'operation-set' ||
+          criteria.kind === 'unsupported'
             ? { nodeIds: [...criteria.nodeIds].sort() }
             : {}),
           ...(criteria.kind === 'join'

@@ -12,7 +12,10 @@ import type {
 } from '@openapi-flow/core';
 import type { GenerateWorkflowConnectionNativeParametersInput } from '../../types/workflow-connection-native-repair.js';
 import { invokeStructuredModel } from '../../model/invoke-structured-model.js';
-import { workflowConnectionNativeRepairPrompt } from '../../prompts/workflow-connection-native-repair-prompt.js';
+import {
+  workflowConnectionNativeRepairPrompt,
+  workflowConnectionNativeValueResponsibilityPrompt,
+} from '../../prompts/workflow-connection-native-repair-prompt.js';
 import { modelSignalSchema } from '../../schemas/model-signal-schema.js';
 import { WorkflowConnectionNativeRepairError } from './workflow-connection-native-repair-error.js';
 
@@ -70,7 +73,11 @@ export async function generateWorkflowConnectionNativeParameters(
     strict: true,
     signal: input.signal,
     messages: [
-      new SystemMessage(workflowConnectionNativeRepairPrompt),
+      new SystemMessage(
+        workflowConnectionNativeRepairPrompt +
+          '\n' +
+          workflowConnectionNativeValueResponsibilityPrompt,
+      ),
       new HumanMessage(JSON.stringify(context)),
     ],
   });

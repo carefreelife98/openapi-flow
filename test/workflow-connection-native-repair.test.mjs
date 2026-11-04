@@ -125,18 +125,21 @@ test('Merge repair receives the complete read-only workflow even when it has no 
   const question = recoveryQueueModel([
     {
       decision: {
-        status: 'needs-clarification',
-        message: 'Which requested business outputs are in scope?',
+        status: 'needs-materials',
+        message:
+          'Missing supported producer contract for the selected collection.',
       },
     },
   ]);
-  const unresolved = await generateWorkflowConnectionNativeParameters({
-    ...input,
-    nodeId: target.id,
-    dependencies,
-    model: question,
-  });
-  assert.equal(unresolved.status, 'needs-clarification');
+  await assert.rejects(
+    generateWorkflowConnectionNativeParameters({
+      ...input,
+      nodeId: target.id,
+      dependencies,
+      model: question,
+    }),
+    /missing system-owned material/,
+  );
   assert.equal(question.requests.length, 1);
 });
 
@@ -414,26 +417,27 @@ test('repair reasons and full request changes during either call reject their re
   }
 });
 
-test('an actual missing business choice returns an explicit source-bound question, not a fake ready node', async () => {
+test('a missing producer contract returns a technical limitation instead of asking for a schema', async () => {
   const f = connectionNativeRepairFixture();
   const dependencies = selected(f);
   const model = recoveryQueueModel([
     {
       decision: {
-        status: 'needs-clarification',
-        message: 'Which original group should this workflow use?',
+        status: 'needs-materials',
+        message:
+          'Selected producer is missing its declared group output schema.',
       },
     },
   ]);
-  const result = await generateWorkflowConnectionNativeParameters({
-    ...f,
-    nodeId: f.parent.id,
-    dependencies,
-    model,
-  });
-  assert.equal(result.status, 'needs-clarification');
-  assert.equal(result.nodeId, f.parent.id);
-  assert.equal(Object.hasOwn(result, 'node'), false);
+  await assert.rejects(
+    generateWorkflowConnectionNativeParameters({
+      ...f,
+      nodeId: f.parent.id,
+      dependencies,
+      model,
+    }),
+    /missing system-owned material/,
+  );
   assert.equal(model.requests.length, 1);
 });
 

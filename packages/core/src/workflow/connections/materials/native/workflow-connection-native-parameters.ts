@@ -17,6 +17,7 @@ import { bindNativeMaterialContracts } from '../../../bind-native-material-contr
 import { createWorkflowPlanningCapabilities } from '../../../create-workflow-planning-capabilities.js';
 import { createNativeParameterGenerationContract } from '../../../../schemas/create-native-parameter-generation-contract.js';
 import { createNativeNodeParameterProposalSchema } from '../../../../schemas/create-native-node-parameter-proposal-schema.js';
+import { NativeParameterMaterialUnavailableError } from '../../../planning/native-parameter-material-unavailable-error.js';
 import { nativeMaterialRequirementsSchema } from '../../../../schemas/native-material-requirements-schema.js';
 import { connectionValueFingerprint } from '../../incremental/connection-graph-identity.js';
 import { nativeParameterQuestionIdentity } from '../../../planning/native-parameter-question-identity.js';
@@ -176,6 +177,9 @@ function prepareConnectionNativeParameterTarget(
     outputs: sources.nativeOutputs,
     target,
     capabilityDescription: capability.description,
+    ...(contract.parameterValuePolicy === undefined
+      ? {}
+      : { parameterValuePolicy: contract.parameterValuePolicy }),
     sourceNodeIds,
     literalParametersSchema: contract.literalParametersSchema,
     hasLiteralParameters: contract.hasLiteralParameters,
@@ -273,6 +277,11 @@ function resolvePreparedConnectionNativeParameters(
   );
   if (!isDeepStrictEqual(proposal, input.proposal))
     throw new Error('Native repair parameters must not be normalized');
+  if (proposal.decision.status === 'needs-materials')
+    throw new NativeParameterMaterialUnavailableError(
+      input.nodeId,
+      proposal.decision.message,
+    );
   if (proposal.decision.status === 'needs-clarification')
     return {
       status: 'needs-clarification',

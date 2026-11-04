@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { ApiOperationContract } from './api-operation.js';
 import type { ApiCallArguments, JsonValueObject } from './api-arguments.js';
 import type { BindingSchema } from './api-bindings.js';
+import type { NativeParameterValuePolicy } from './native-parameter-value-policy.js';
 import type { WorkflowCapabilityPlanningContext } from './workflow-capability-planning.js';
 import type {
   WorkflowNativeReferenceBinding,
@@ -41,6 +42,8 @@ export interface WorkflowCapability {
   name: string;
   description: string;
   parametersSchema: z.ZodType<JsonValueObject>;
+  /** Explicit value responsibility. No role is inferred from field names. */
+  parameterValuePolicy?: NativeParameterValuePolicy;
   /** Supported parameter-reference kinds, not execution predecessors. Required by producer-choice planning; [] declares no references. */
   parameterReferenceSources?: WorkflowNativeParameterReference['source'][];
   /** Opt-in: ports, references and output schema do not depend on parameter values. */

@@ -6,6 +6,10 @@ export const nativeOutputObjectDefinition: NativeMaterialFeatureDefinition = {
   description:
     'Compose ONE named JSON object from unchanged fields of actual configured native JSON producers. Can include complete response bundles and check results as named fields. Code derives the exact output contract from each source. Input1..inputN correspond to distinct field sourceNodeIds in first-occurrence order; waits for every input. Requires exactly one item per source; ambiguous multiple items and missing fields fail. No calculations, merging fields, casting, fabricated values or API calls.',
   parametersSchema: nativeOutputObjectParametersSchema,
+  parameterValuePolicy: {
+    businessInputPaths: [],
+    generatedTextPaths: ['/fields/*/name'],
+  },
   referenceStructureSchema: nativeOutputObjectParametersSchema,
   materialRequirements: [{ field: 'nativeOutputs', minimumItems: 1 }],
   parameterReferenceSources: ['node-output'],

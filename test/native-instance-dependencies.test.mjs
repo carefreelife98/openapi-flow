@@ -524,7 +524,7 @@ test('selected OAS producers narrow both API value schemas and model-visible con
   assert.deepEqual(apiMaterials, original);
 });
 
-test('changed dependency choices invalidate old question fingerprints and altered receipts fail before model calls', async () => {
+test('changed dependency choices invalidate configuration fingerprints and altered receipts fail before model calls', async () => {
   const f = nativeDependencyFixture();
   const source = configureNativeDependency(f, f.source, nativeDependencyValues);
   const parent = configureNativeDependency(
@@ -534,30 +534,29 @@ test('changed dependency choices invalidate old question fingerprints and altere
     [source],
   );
   const input = nativeDependencyConfiguration(f, f.child, [source, parent]);
-  const question = resolveNativeNodeParameters({
-    ...input,
-    fingerprint: describeNativeNodeConfiguration(input).fingerprint,
-    proposal: {
-      decision: {
-        status: 'needs-clarification',
-        message: 'Which child array pointer?',
+  const fingerprint = describeNativeNodeConfiguration(input).fingerprint;
+  assert.throws(() =>
+    resolveNativeNodeParameters({
+      ...input,
+      fingerprint,
+      proposal: {
+        decision: {
+          status: 'needs-clarification',
+          fieldPointers: ['/pointer'],
+          message: 'Which child array pointer?',
+        },
       },
-    },
-  });
+    }),
+  );
   const changed = globalThis.structuredClone(f.proposal);
   changed.sourcesByNodeId[f.child.id].sourceNodeIds = [source.id];
   const dependencies = resolveNativeInstanceDependencies({
     ...selectedInput(f),
     proposal: changed,
   });
-  assert.throws(
-    () =>
-      describeNativeNodeConfiguration({
-        ...input,
-        dependencies,
-        replies: [{ question, text: 'Use /item/children.' }],
-      }),
-    /stale, out of order/,
+  assert.notEqual(
+    describeNativeNodeConfiguration({ ...input, dependencies }).fingerprint,
+    fingerprint,
   );
   const altered = globalThis.structuredClone(f.dependencies);
   altered.id += '-changed';
@@ -665,6 +664,7 @@ function hostModel(options = {}) {
                   options.ask && !input.replies?.length
                     ? {
                         status: 'needs-clarification',
+                        fieldPointers: ['/groups'],
                         message: '원본 groups 값을 알려주세요.',
                       }
                     : {

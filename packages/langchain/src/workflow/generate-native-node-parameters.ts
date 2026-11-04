@@ -80,6 +80,9 @@ export async function generateNativeNodeParameters(
               capability: {
                 name: capability.name,
                 description: capability.description,
+                ...(capability.parameterValuePolicy === undefined
+                  ? {}
+                  : { parameterValuePolicy: capability.parameterValuePolicy }),
               },
             },
             selectedRoles: description.selectedRoles,

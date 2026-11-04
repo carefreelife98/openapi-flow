@@ -43,9 +43,41 @@ export const connectionRequirementFactsSchema = z
   )
   .min(1);
 const goalBasis = { factIds, reason: text };
+export const workflowConnectionMaterialShapeGoalSchema = z.strictObject({
+  kind: z.literal('material-shape'),
+  nodeId: text,
+  materialKind: z.enum(['api-operation', 'api-arguments', 'native-material']),
+  pointer: z.string().regex(/^(?:\/(?:[^~]|~[01])*)?$/u),
+  container: z.enum(['array', 'object']),
+  size: z.int().nonnegative(),
+  ...goalBasis,
+});
+export const workflowConnectionMaterialValueGoalSchema = z.strictObject({
+  kind: z.literal('material-value'),
+  nodeId: text,
+  materialKind: z.enum(['api-operation', 'api-arguments', 'native-material']),
+  pointer: z.string().regex(/^(?:\/(?:[^~]|~[01])*)?$/u),
+  expected: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+  ...goalBasis,
+});
+export const workflowConnectionOperationSetGoalSchema = z.strictObject({
+  kind: z.literal('operation-set'),
+  nodeIds: z.array(text),
+  ...goalBasis,
+});
+export const workflowConnectionUnsupportedGoalSchema = z.strictObject({
+  kind: z.literal('unsupported'),
+  limitation: z.enum(['implementation', 'material', 'verification']),
+  nodeIds: z.array(text).min(1),
+  ...goalBasis,
+});
 export const workflowConnectionGoalProposalSchema = z.discriminatedUnion(
   'kind',
   [
+    workflowConnectionMaterialShapeGoalSchema,
+    workflowConnectionMaterialValueGoalSchema,
+    workflowConnectionOperationSetGoalSchema,
+    workflowConnectionUnsupportedGoalSchema,
     z.strictObject({
       kind: z.literal('precedence'),
       ...goalBasis,

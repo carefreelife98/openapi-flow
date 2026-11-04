@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nativeParameterValuePolicySchema } from './native-parameter-value-policy-schema.js';
 import type { JsonValueObject } from '../types/api-arguments.js';
 import type {
   NativeParameterGenerationInput,
@@ -15,6 +16,14 @@ export function createNativeParameterGenerationContract(
   input: NativeParameterGenerationInput,
 ): NativeParameterGenerationContract {
   const { capability, runtimeParameters, planningParametersSchema } = input;
+  const policy =
+    capability.parameterValuePolicy === undefined
+      ? {}
+      : {
+          parameterValuePolicy: nativeParameterValuePolicySchema.parse(
+            capability.parameterValuePolicy,
+          ),
+        };
   if (
     !planningParametersSchema ||
     typeof planningParametersSchema.safeParse !== 'function'
@@ -42,6 +51,7 @@ export function createNativeParameterGenerationContract(
     });
   if (runtimeParameters === undefined)
     return {
+      ...policy,
       literalParametersSchema: original,
       valuesSchema: planningParametersSchema,
       definitions: {},
@@ -52,6 +62,7 @@ export function createNativeParameterGenerationContract(
     };
   if (runtimeParameters === true)
     return {
+      ...policy,
       literalParametersSchema: false,
       valuesSchema: z.strictObject({}),
       definitions: {},
@@ -72,6 +83,7 @@ export function createNativeParameterGenerationContract(
   });
   const projection = wire.projections.parameters;
   return {
+    ...policy,
     literalParametersSchema: projected.schema,
     hasLiteralParameters: projected.hasLiteralValues,
     definitions: wire.definitions,

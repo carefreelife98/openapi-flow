@@ -296,7 +296,7 @@ test('an unresolved technical native setting is not fabricated or turned into a 
     { decision: request },
     {
       decision: {
-        status: 'needs-clarification',
+        status: 'needs-materials',
         message: 'The number of join inputs was not derived.',
       },
     },
@@ -314,11 +314,11 @@ test('an unresolved technical native setting is not fabricated or turned into a 
     graph.invoke({}, config),
     (error) =>
       error instanceof NativeNodePlanningError &&
-      error.failure.output.status === 'needs-clarification',
+      error.failure.output.decision.status === 'needs-materials',
   );
   const saved = await graph.getState(config);
   assert.deepEqual(saved.values.additionalNativeNodes, []);
-  assert.equal(saved.values.nativeConfiguration.status, 'needs-clarification');
+  assert.equal(saved.values.nativeConfiguration, undefined);
   assert.equal(saved.values.plan, undefined);
   assert.equal(saved.interrupts?.length ?? 0, 0);
   assert.equal(model.requests.length, 4);

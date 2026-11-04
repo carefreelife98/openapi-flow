@@ -6,6 +6,7 @@ import type {
 import { validateWorkflowConnectionSession } from './validate-workflow-connection-session.js';
 import { inspectConnectionGraph } from './inspect-connection-graph.js';
 import { inspectConnectionGoals } from './inspect-connection-goals.js';
+import { describeWorkflowConnectionEvidence } from '../requirements/describe-workflow-connection-evidence.js';
 
 export function inspectWorkflowConnectionCompletion(
   input: WorkflowConnectionSessionInput,
@@ -18,13 +19,28 @@ export function inspectWorkflowConnectionCompletion(
       code: 'PLANNING_INPUT_INVALID',
     },
     () => {
-      const { source } = validateWorkflowConnectionSession(input);
+      const { source, apiOperations } =
+        validateWorkflowConnectionSession(input);
       const { routeStates, ...checked } = inspectConnectionGraph({
         contracts: source.context.nodes,
         graph: input.session,
         apiIds: new Set(source.context.readyCallIds),
       });
-      const unmetGoalIds = inspectConnectionGoals(input.session, routeStates);
+      const unmetGoalIds = inspectConnectionGoals(
+        input.session,
+        routeStates,
+        apiOperations.map((operation) => operation.nodeId),
+        input.session.goals.some(
+          (goal) =>
+            goal.decision.kind === 'material-value' ||
+            goal.decision.kind === 'material-shape',
+        )
+          ? describeWorkflowConnectionEvidence({
+              source: input,
+              graph: input.session,
+            })
+          : [],
+      );
       const unassessedGoalIds = input.session.goals
         .filter(
           (goal) =>
@@ -40,6 +56,9 @@ export function inspectWorkflowConnectionCompletion(
         unmetGoalIds,
         unassessedGoalIds,
         insufficientEvidenceGoalIds,
+        unsupportedGoalIds: input.session.goals
+          .filter((goal) => goal.decision.kind === 'unsupported')
+          .map((goal) => goal.id),
         semanticAssessmentGoalIds: input.session.goals
           .filter((goal) => goal.decision.kind === 'semantic')
           .map((goal) => goal.id),

@@ -9,6 +9,16 @@ export const responseEvaluationDefinition: NativeMaterialFeatureDefinition = {
   description:
     'Evaluate scenario-defined comparisons and return per-check normal/warning/abnormal/undetermined data plus counts; a valid adverse result does not throw. Read supplied OAS responses or actual native outputs without coercion. value evaluates once; array-items/object-values report every original entry with its escaped source pointer. Missing optional values and empty iterated collections are undetermined. array-length is an explicit separate measurement. unassessed records missing decision rules. Invalid contracts, identities, references and operator types remain errors. Join independent branches before evaluation. This reports checks; it does not invent health thresholds, paginate, invoke APIs or classify arbitrary business data.',
   parametersSchema: responseEvaluationParametersSchema,
+  parameterValuePolicy: {
+    businessInputPaths: [
+      '/checks/*/measurement',
+      '/checks/*/cases/*/expected',
+      '/checks/*/cases/*/operator',
+      '/checks/*/cases/*/status',
+      '/checks/*/otherwise',
+    ],
+    generatedTextPaths: [],
+  },
   createPlanningParametersSchema: createResponseEvaluationPlanningSchema,
   referenceStructureSchema: responseEvaluationParametersSchema,
   parameterReferenceSources: ['response', 'node-output'],

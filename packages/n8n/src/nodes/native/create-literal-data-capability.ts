@@ -11,6 +11,10 @@ export function createLiteralDataCapability(): N8nNativeCapability {
     description:
       'Create explicit typed scalar result fields using n8n Edit Fields. Use for branch outcomes or skip explanations; not for replacing missing API inputs or inventing API responses. main input/output.',
     parametersSchema: literalDataParametersSchema,
+    parameterValuePolicy: {
+      businessInputPaths: ['/fields/*/value'],
+      generatedTextPaths: ['/fields/*/name'],
+    },
     inputPorts: () => ['main'],
     outputPorts: () => ['main'],
     responseReferences: () => [],

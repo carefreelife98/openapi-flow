@@ -1,4 +1,6 @@
 import type { WorkflowConnectionSession } from '../../../types/workflow-connection-session.js';
+import type { WorkflowConnectionEvidence } from '../../../types/workflow-connection-evidence.js';
+import { pointerValue } from '../../../bindings/json-pointer.js';
 import type {
   WorkflowPlanEdge,
   WorkflowTopologyRoutes,
@@ -27,9 +29,47 @@ export function connectionReaches(
 export function inspectConnectionGoals(
   session: WorkflowConnectionSession,
   routeStates: WorkflowTopologyRoutes,
+  apiNodeIds: string[],
+  evidence: WorkflowConnectionEvidence[],
 ): string[] {
   return session.goals
     .filter(({ id, decision }) => {
+      if (decision.kind === 'material-shape') {
+        const item = evidence.find(
+          (entry) =>
+            entry.nodeId === decision.nodeId &&
+            entry.kind === decision.materialKind,
+        );
+        if (!item)
+          throw new Error(
+            `Material-shape goal ${id}: missing current ${decision.materialKind} evidence for ${decision.nodeId}`,
+          );
+        const value = pointerValue(item.value, decision.pointer);
+        return (
+          value === null ||
+          typeof value !== 'object' ||
+          Array.isArray(value) !== (decision.container === 'array') ||
+          Object.keys(value).length !== decision.size
+        );
+      }
+      if (decision.kind === 'material-value') {
+        const item = evidence.find(
+          (entry) =>
+            entry.nodeId === decision.nodeId &&
+            entry.kind === decision.materialKind,
+        );
+        if (!item)
+          throw new Error(
+            `Material-value goal ${id}: missing current ${decision.materialKind} evidence for ${decision.nodeId}`,
+          );
+        return pointerValue(item.value, decision.pointer) !== decision.expected;
+      }
+      if (decision.kind === 'unsupported') return true;
+      if (decision.kind === 'operation-set')
+        return (
+          decision.nodeIds.length !== apiNodeIds.length ||
+          apiNodeIds.some((nodeId) => !decision.nodeIds.includes(nodeId))
+        );
       if (decision.kind === 'semantic')
         return session.assessments.some(
           (item) => item.goalId === id && item.status === 'violated',

@@ -61,6 +61,7 @@ export interface N8nNativeCapability extends WorkflowCapability {
 }
 
 export interface CreateJsonOutputCapabilityInput {
+  parameterValuePolicy?: WorkflowCapability['parameterValuePolicy'];
   name: string;
   description: string;
   parametersSchema: WorkflowCapability['parametersSchema'];

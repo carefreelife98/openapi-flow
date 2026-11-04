@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './connection-delivery-consumer.js';
 import './review-feedback-consumer.js';
 import './error-contract-consumer.js';
 import './hierarchical-planning-consumer.js';
@@ -1256,7 +1257,11 @@ const installedNativeQuestion = resolveNativeNodeParameters({
   ...stagedNativeConfiguration,
   fingerprint: installedNativeDescription.fingerprint,
   proposal: {
-    decision: { status: 'needs-clarification', message: 'What is enabled?' },
+    decision: {
+      status: 'needs-clarification',
+      fieldPointers: ['/enabled'],
+      message: 'What is enabled?',
+    },
   },
 });
 if (installedNativeQuestion.status !== 'needs-clarification')

@@ -244,6 +244,10 @@ export { WorkflowPlanningConstraintError } from './workflow/connections/constrai
 export {
   workflowConnectionSessionSchema,
   workflowConnectionGoalProposalSchema,
+  workflowConnectionMaterialShapeGoalSchema,
+  workflowConnectionMaterialValueGoalSchema,
+  workflowConnectionOperationSetGoalSchema,
+  workflowConnectionUnsupportedGoalSchema,
   workflowConnectionStepProposalSchema,
   connectionRequirementFactsSchema,
   workflowConnectionAssessmentSchema,
@@ -255,6 +259,12 @@ export {
   workflowConnectionStepExpectationSchema,
 } from './schemas/workflow-connection-session-schema.js';
 export { createWorkflowConnectionSession } from './workflow/connections/incremental/create-workflow-connection-session.js';
+export { workflowConnectionReviewBoundarySchema } from './schemas/workflow-connection-review-boundary-schema.js';
+export { inspectWorkflowConnectionDelivery } from './workflow/connections/incremental/inspect-workflow-connection-delivery.js';
+export type * from './types/workflow-connection-delivery.js';
+export type * from './types/native-parameter-value-policy.js';
+export { nativeParameterValuePolicySchema } from './schemas/native-parameter-value-policy-schema.js';
+export { NativeParameterMaterialUnavailableError } from './workflow/planning/native-parameter-material-unavailable-error.js';
 export { extendWorkflowConnectionSession } from './workflow/connections/incremental/extend-workflow-connection-session.js';
 export { describeWorkflowConnectionStep } from './workflow/connections/incremental/describe-workflow-connection-step.js';
 export { applyWorkflowConnectionStep } from './workflow/connections/incremental/apply-workflow-connection-step.js';
@@ -460,9 +470,13 @@ export {
 export { describeWorkflowConnectionConflictMaterials } from './workflow/connections/materials/describe-workflow-connection-conflict-materials.js';
 export { describeWorkflowConnectionEvidence } from './workflow/connections/requirements/describe-workflow-connection-evidence.js';
 export { listWorkflowConnectionEvidencePointers } from './workflow/connections/requirements/list-workflow-connection-evidence-pointers.js';
+export { listWorkflowConnectionMaterialValueChoices } from './workflow/connections/requirements/list-workflow-connection-material-value-choices.js';
+export { listWorkflowConnectionMaterialShapeChoices } from './workflow/connections/requirements/list-workflow-connection-material-value-choices.js';
+export type { WorkflowConnectionMaterialValueChoice } from './types/workflow-connection-evidence.js';
 export { WorkflowConnectionCompletionEvidenceError } from './workflow/connections/requirements/workflow-connection-completion-evidence-error.js';
 export {
   WorkflowConnectionCompletionIncompleteError,
+  WorkflowConnectionUnsupportedRequirementsError,
   assertWorkflowConnectionReviewCanContinue,
 } from './workflow/connections/requirements/assert-workflow-connection-review-can-continue.js';
 export type {

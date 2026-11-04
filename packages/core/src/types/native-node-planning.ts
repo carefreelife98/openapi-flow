@@ -42,6 +42,7 @@ export interface NativePlanningCapabilityMaterial {
   /** Only an emptiness proof; false does not establish that a value or required producer exists. */
   hasProvablyEmptyParameters: boolean;
   parameterReferenceSources?: WorkflowCapability['parameterReferenceSources'];
+  parameterValuePolicy?: WorkflowCapability['parameterValuePolicy'];
   parameterSources: ('literal' | 'workflow-input' | 'workflow-fields')[];
   materialRequirements?: WorkflowCapability['materialRequirements'];
   materialSources?: WorkflowNativeMaterialSources;
@@ -228,6 +229,7 @@ export interface NativeParameterGenerationInput {
 }
 
 export interface NativeParameterGenerationContract {
+  parameterValuePolicy?: WorkflowCapability['parameterValuePolicy'];
   literalParametersSchema: BindingSchema;
   valuesSchema: z.ZodType<JsonValueObject>;
   definitions: JsonObject;
@@ -236,7 +238,13 @@ export interface NativeParameterGenerationContract {
 
 export type NativeNodeParameterDecision =
   | { status: 'provided'; parameters: JsonValueObject; reason?: string }
-  | { status: 'needs-clarification'; message: string; reason?: string };
+  | {
+      status: 'needs-clarification';
+      message: string;
+      fieldPointers: string[];
+      reason?: string;
+    }
+  | { status: 'needs-materials'; message: string; reason?: string };
 
 export interface NativeNodeParameterProposal {
   decision: NativeNodeParameterDecision;

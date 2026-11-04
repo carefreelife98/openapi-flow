@@ -86,7 +86,13 @@ function nativeQuestion(input, message = 'What is enabled?') {
   return resolveNativeNodeParameters({
     ...input,
     fingerprint: describeNativeNodeConfiguration(input).fingerprint,
-    proposal: { decision: { status: 'needs-clarification', message } },
+    proposal: {
+      decision: {
+        status: 'needs-clarification',
+        fieldPointers: ['/enabled'],
+        message,
+      },
+    },
   });
 }
 
@@ -397,6 +403,7 @@ test('clarification returns the original decision without fabricating an executa
   const output = {
     decision: {
       status: 'needs-clarification',
+      fieldPointers: ['/enabled'],
       message: 'Which literal value is intended?',
     },
   };
@@ -535,7 +542,11 @@ test('native selection and configuration accept missing or malformed display tex
       const decision =
         status === 'provided'
           ? { status, parameters: { enabled: false } }
-          : { status, message: 'Which enabled value should be used?' };
+          : {
+              status,
+              fieldPointers: ['/enabled'],
+              message: 'Which enabled value should be used?',
+            };
       if (reason !== undefined) decision.reason = reason;
       const output = { decision };
       const previous = globalThis.structuredClone(output);
@@ -915,6 +926,7 @@ test('actual LangGraph HITL preserves selection and resumes only the requested v
             : {
                 decision: {
                   status: 'needs-clarification',
+                  fieldPointers: ['/enabled'],
                   message: 'What is enabled?',
                 },
               },

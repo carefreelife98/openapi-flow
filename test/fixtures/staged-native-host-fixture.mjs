@@ -125,6 +125,7 @@ export function scriptedStagedHostModel(options = {}) {
               return {
                 decision: {
                   status: 'needs-clarification',
+                  fieldPointers: ['/message'],
                   message: '어떤 메시지를 사용할까요?',
                   ...reasons,
                 },

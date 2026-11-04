@@ -108,7 +108,15 @@ export function inspectWorkflowNodeConstraints({
     });
   goals.forEach((goal, goalIndex) => {
     inspectGoalNodes(goal, nodes);
-    if (goal.kind === 'semantic' || goal.kind === 'independent') return;
+    if (
+      goal.kind === 'semantic' ||
+      goal.kind === 'material-value' ||
+      goal.kind === 'material-shape' ||
+      goal.kind === 'independent' ||
+      goal.kind === 'operation-set' ||
+      goal.kind === 'unsupported'
+    )
+      return;
     const origin = {
       kind: 'goal' as const,
       goalIndex,

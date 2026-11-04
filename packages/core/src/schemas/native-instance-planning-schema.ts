@@ -23,6 +23,7 @@ export const nativeNodeConfigurationRepliesSchema = z.array(
       proposal: z.strictObject({
         decision: z.strictObject({
           status: z.literal('needs-clarification'),
+          fieldPointers: z.array(z.string()).min(1),
           message: z.string().min(1),
           reason: z.string().min(1).optional(),
         }),

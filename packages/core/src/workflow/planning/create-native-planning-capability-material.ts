@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nativeParameterValuePolicySchema } from '../../schemas/native-parameter-value-policy-schema.js';
 import type { WorkflowCapability } from '../../types/workflow-plan.js';
 import type { NativePlanningCapabilityMaterial } from '../../types/native-node-planning.js';
 import { nativeMaterialRequirementsSchema } from '../../schemas/native-material-requirements-schema.js';
@@ -55,6 +56,13 @@ export function createNativePlanningCapabilityMaterial(
     name: capability.name,
     description: capability.description,
     parametersSchema,
+    ...(capability.parameterValuePolicy === undefined
+      ? {}
+      : {
+          parameterValuePolicy: nativeParameterValuePolicySchema.parse(
+            capability.parameterValuePolicy,
+          ),
+        }),
     hasProvablyEmptyParameters: isSchemaProvablyEmpty(parametersSchema),
     ...(capability.parameterReferenceSources === undefined
       ? {}

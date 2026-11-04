@@ -661,6 +661,7 @@ test('review plus one explicit fresh selection routes a missing setting to the e
     model: model({
       decision: {
         status: 'needs-clarification',
+        fieldPointers: ['/conditions/0/right/value'],
         message: 'What pending-connection threshold should be used?',
       },
     }),

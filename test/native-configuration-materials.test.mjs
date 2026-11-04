@@ -443,7 +443,7 @@ test('invalid pointers and unknown producer nodes fail before accepting executab
   );
 });
 
-test('configuration fingerprints reject changed completed values and retain original question receipts', () => {
+test('configuration fingerprints reject changed completed values and technical pointers are not business questions', () => {
   const f = fixture(),
     source = configure(f, f.source, { groups: [] });
   const input = {
@@ -453,38 +453,32 @@ test('configuration fingerprints reject changed completed values and retain orig
     configuredNodes: [source],
   };
   const fingerprint = describeNativeNodeConfiguration(input).fingerprint;
-  const question = resolveNativeNodeParameters({
-    ...input,
-    fingerprint,
-    proposal: {
-      decision: {
-        status: 'needs-clarification',
-        message: 'Which declared array should be split?',
+  assert.throws(() =>
+    resolveNativeNodeParameters({
+      ...input,
+      fingerprint,
+      proposal: {
+        decision: {
+          status: 'needs-clarification',
+          fieldPointers: ['/pointer'],
+          message: 'Which declared array should be split?',
+        },
       },
-    },
-  });
-  assert.equal(question.status, 'needs-clarification');
-  const answered = {
-    ...input,
-    replies: [{ question, text: 'Use /groups unchanged.' }],
-  };
-  const description = describeNativeNodeConfiguration(answered);
-  assert.deepEqual(description.replies, answered.replies);
-  const changed = {
-    ...answered,
-    configuredNodes: [
-      { ...source, parameters: { groups: [{ children: [false] }] } },
-    ],
-  };
-  assert.throws(
-    () => describeNativeNodeConfiguration(changed),
-    /stale, out of order/,
+    }),
+  );
+  const changed = [
+    { ...source, parameters: { groups: [{ children: [false] }] } },
+  ];
+  assert.notEqual(
+    describeNativeNodeConfiguration({ ...input, configuredNodes: changed })
+      .fingerprint,
+    fingerprint,
   );
   assert.throws(
     () =>
       resolveNativeNodeParameters({
         ...input,
-        configuredNodes: changed.configuredNodes,
+        configuredNodes: changed,
         fingerprint,
         proposal: {
           decision: {
@@ -560,6 +554,7 @@ for (const [name, create] of [
                       }
                     : {
                         status: 'needs-clarification',
+                        fieldPointers: ['/groups'],
                         message: '원본 groups 값을 알려주세요.',
                       },
                 };

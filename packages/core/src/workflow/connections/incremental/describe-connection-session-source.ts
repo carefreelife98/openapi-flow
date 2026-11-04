@@ -1,4 +1,5 @@
 import { connectionRequirementFactsSchema } from '../../../schemas/workflow-connection-session-schema.js';
+import { workflowConnectionReviewBoundarySchema } from '../../../schemas/workflow-connection-review-boundary-schema.js';
 import type {
   WorkflowConnectionSessionSource,
   WorkflowConnectionSessionDescription,
@@ -13,6 +14,8 @@ import {
 export function describeConnectionSessionSource(
   input: WorkflowConnectionSessionSource,
 ): WorkflowConnectionSessionDescription {
+  if (input.reviewBoundary !== undefined)
+    workflowConnectionReviewBoundarySchema.parse(input.reviewBoundary);
   const requirements = connectionRequirementFactsSchema.parse(
     input.requirements,
   );
@@ -59,6 +62,9 @@ export function describeConnectionSessionSource(
       });
     }),
     fingerprint: connectionValueFingerprint({
+      ...(input.reviewBoundary === undefined
+        ? {}
+        : { reviewBoundary: input.reviewBoundary }),
       context: source.context,
       sources: source.sources,
       requirements,

@@ -3,7 +3,15 @@ import type { workflowConnectionEvidenceReferenceSchema } from '../schemas/workf
 import type {
   WorkflowConnectionSessionSource,
   WorkflowConnectionWorkingGraph,
+  WorkflowConnectionGoalProposal,
 } from './workflow-connection-session.js';
+
+export interface WorkflowConnectionMaterialValueChoice extends Pick<
+  Extract<WorkflowConnectionGoalProposal, { kind: 'material-value' }>,
+  'nodeId' | 'materialKind'
+> {
+  pointers: string[];
+}
 
 export type WorkflowConnectionEvidenceReference = z.infer<
   typeof workflowConnectionEvidenceReferenceSchema

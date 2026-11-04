@@ -1,4 +1,22 @@
 import type { z } from 'zod';
+import type { workflowConnectionReviewBoundarySchema } from '../schemas/workflow-connection-review-boundary-schema.js';
+import type { WorkflowPlanningSourceEvidence } from './workflow-planning-materials.js';
+
+export type WorkflowConnectionReviewBoundary = z.infer<
+  typeof workflowConnectionReviewBoundarySchema
+>;
+export type WorkflowConnectionAvailableCapability = Omit<
+  WorkflowPlanningSourceEvidence['capabilities'][number],
+  'materialSources'
+>;
+export interface WorkflowConnectionVerificationContract {
+  target: 'generated-workflow-configuration';
+  basis: 'supplied-operation-contracts-and-registered-native-implementations';
+  checks: Record<
+    Exclude<WorkflowConnectionGoalProposal['kind'], 'semantic' | 'unsupported'>,
+    string
+  >;
+}
 import type { WorkflowConnectionEvidence } from './workflow-connection-evidence.js';
 import type { WorkflowSourceMessage } from './workflow-draft.js';
 import type {
@@ -67,6 +85,8 @@ export type WorkflowConnectionPlanningDecision = z.infer<
 >;
 
 export interface WorkflowConnectionSessionSource extends WorkflowConnectionPlanningInput {
+  /** Opt-in contract-scoped verification. Omission retains the separate legacy semantic-review contract. */
+  reviewBoundary?: WorkflowConnectionReviewBoundary;
   /** Authoritative original messages for existing literal attribution. Never substitute goal or repair prose. */
   literalSourceMessages?: WorkflowSourceMessage[];
   requirements: WorkflowRequirementFact[];
@@ -109,6 +129,7 @@ export interface WorkflowConnectionInspection {
   semanticAssessmentGoalIds: string[];
   unassessedGoalIds: string[];
   insufficientEvidenceGoalIds: string[];
+  unsupportedGoalIds: string[];
   violations: WorkflowConnectionViolation[];
 }
 export type ApplyWorkflowConnectionStepResult =
@@ -168,6 +189,9 @@ export interface WorkflowConnectionEdgeReference {
   editable: boolean;
 }
 export interface WorkflowConnectionGoalPlanningDescription {
+  reviewBoundary?: WorkflowConnectionReviewBoundary;
+  availableCapabilities?: WorkflowConnectionAvailableCapability[];
+  verificationContract?: WorkflowConnectionVerificationContract;
   evidence: WorkflowConnectionEvidence[];
   sourceFingerprint: string;
   context: WorkflowConnectionPlanningContext;

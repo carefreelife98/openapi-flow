@@ -31,6 +31,13 @@ export function captureNativePlanningCapability(
     name: capability.name,
     description: capability.description,
     parametersSchema: capability.parametersSchema,
+    ...(capability.parameterValuePolicy === undefined
+      ? {}
+      : {
+          parameterValuePolicy: structuredClone(
+            capability.parameterValuePolicy,
+          ),
+        }),
     ...(capability.parameterReferenceSources === undefined
       ? {}
       : {

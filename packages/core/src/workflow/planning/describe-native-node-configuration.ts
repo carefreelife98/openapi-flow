@@ -19,6 +19,7 @@ import {
 } from './resolve-native-configuration-materials.js';
 import { nativeParameterQuestionIdentity } from './native-parameter-question-identity.js';
 import { nativeNodeParameterExecutionProposal } from './native-planning-execution-proposal.js';
+import { NativeParameterMaterialUnavailableError } from './native-parameter-material-unavailable-error.js';
 
 export function describeNativeNodeConfiguration(
   input: NativeNodeConfigurationInput,
@@ -139,6 +140,11 @@ export function resolveNativeNodeParameters(
   )
     throw new Error(
       'Native parameters must validate without defaults, coercion or transformation',
+    );
+  if (proposal.decision.status === 'needs-materials')
+    throw new NativeParameterMaterialUnavailableError(
+      input.nodeId,
+      proposal.decision.message,
     );
   if (proposal.decision.status === 'needs-clarification')
     return {

@@ -23,6 +23,10 @@ export function createResponseAssertionCapability(
     description:
       'n8n Code: library-generated type-strict comparisons over supplied API responses or actual native JSON outputs. main input/output. Returns pass/assertionCount on success and can be the final node; no separate success/end node is needed. Failed checks throw their message and fail the workflow, without a failure output port. Join independent branches before comparing their outputs.',
     parametersSchema: assertionParametersSchema,
+    parameterValuePolicy: {
+      businessInputPaths: ['/checks/*/left/value', '/checks/*/right/value'],
+      generatedTextPaths: ['/checks/*/message'],
+    },
     outputSchema: createResponseAssertionOutputSchema,
     parameterReferenceSources: ['response', 'node-output'],
     createPlanningParametersSchema: createAssertionPlanningParametersSchema,

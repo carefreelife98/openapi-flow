@@ -25,6 +25,13 @@ export function describeWorkflowConnectionGoalReview(
   const step = describeWorkflowConnectionStep(input);
   const nodeIds = description.context.nodes.map((node) => node.id);
   return {
+    ...(description.reviewBoundary === undefined
+      ? {}
+      : {
+          reviewBoundary: description.reviewBoundary,
+          verificationContract: description.verificationContract,
+          availableCapabilities: description.availableCapabilities,
+        }),
     scope: 'initial-goal-interpretation-before-connection-planning',
     sourceFingerprint: description.sourceFingerprint,
     requirements: description.requirements,

@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import type { WorkflowConnectionGoalPlanningDescription } from '@openapi-flow/core';
+import {
+  listWorkflowConnectionMaterialValueChoices,
+  listWorkflowConnectionMaterialShapeChoices,
+  workflowConnectionMaterialShapeGoalSchema,
+  workflowConnectionMaterialValueGoalSchema,
+  workflowConnectionOperationSetGoalSchema,
+  workflowConnectionUnsupportedGoalSchema,
+} from '@openapi-flow/core';
 import type { WorkflowConnectionGoalSelection } from '../types/incremental-connection-planning.js';
 import {
   connectionChoicesSchema,
@@ -25,11 +33,60 @@ export function createWorkflowConnectionGoalsSchema(
     ),
   };
   const choices: z.ZodType<WorkflowConnectionGoalSelection>[] = [
-    z.strictObject({
-      kind: z.literal('semantic'),
-      scope: z.enum(['materials', 'workflow']),
+    ...listWorkflowConnectionMaterialShapeChoices(description.evidence).map(
+      (choice) =>
+        workflowConnectionMaterialShapeGoalSchema.extend({
+          nodeId: z.literal(choice.nodeId),
+          materialKind: z.literal(choice.materialKind),
+          pointer: z.enum(choice.pointers),
+          ...basis,
+        }),
+    ),
+    ...listWorkflowConnectionMaterialValueChoices(description.evidence).map(
+      (choice) =>
+        workflowConnectionMaterialValueGoalSchema.extend({
+          nodeId: z.literal(choice.nodeId),
+          materialKind: z.literal(choice.materialKind),
+          pointer: z.enum(choice.pointers),
+          ...basis,
+        }),
+    ),
+    workflowConnectionUnsupportedGoalSchema.extend({
+      nodeIds: z
+        .array(z.enum(ids))
+        .min(1)
+        .describe(
+          'Every affected supplied node. Use all nodes for a whole-workflow guarantee. Do not use this for an invented condition outside the original request.',
+        ),
       ...basis,
     }),
+    ...(description.apiOperations.length === 0
+      ? []
+      : [
+          workflowConnectionOperationSetGoalSchema.extend({
+            nodeIds: z
+              .array(
+                z.enum(
+                  description.apiOperations.map(
+                    (operation) => operation.nodeId,
+                  ),
+                ),
+              )
+              .describe(
+                'Exact complete permitted API call inventory, including repeated calls as distinct IDs. Code compares this set with all configured API calls. No claim about hidden server implementation.',
+              ),
+            ...basis,
+          }),
+        ]),
+    ...(description.reviewBoundary === 'declared-contract'
+      ? []
+      : [
+          z.strictObject({
+            kind: z.literal('semantic'),
+            scope: z.enum(['materials', 'workflow']),
+            ...basis,
+          }),
+        ]),
   ];
   if (ids.length > 1) {
     choices.push(

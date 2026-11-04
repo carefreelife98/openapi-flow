@@ -8,6 +8,10 @@ export const nativeOutputProjectionDefinition: NativeMaterialFeatureDefinition =
       'Official n8n Edit Fields: create one named summary object per incoming item from ONE actual native JSON producer, including a previous item join. Omit measurement to copy values unchanged. Explicit derived measurement fields may use utf16-code-units (string.length, not Unicode characters/graphemes) or array-items (array.length). Never infer a missing counting policy or replace an original field with a count; ask for the required unit in the value stage. Original fields can be copied beside derived counts. No casting, arbitrary code, classification labels or extra API calls. Code derives output contracts and validates actual input types. Multiple items remain multiple items; empty input remains empty.',
     materialRequirements: [{ field: 'nativeOutputs', minimumItems: 1 }],
     parametersSchema: nativeOutputProjectionParametersSchema,
+    parameterValuePolicy: {
+      businessInputPaths: ['/fields/*/measurement'],
+      generatedTextPaths: ['/fields/*/name'],
+    },
     referenceStructureSchema: nativeOutputProjectionParametersSchema,
     parameterReferenceSources: ['node-output'],
     parameterReferenceBindings: (value) => {

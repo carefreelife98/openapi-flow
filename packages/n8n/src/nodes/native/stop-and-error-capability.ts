@@ -11,6 +11,10 @@ export function createStopAndErrorCapability(): N8nNativeCapability {
     description:
       'n8n StopAndError: main input, no outputs. Fail the workflow with an explicit message.',
     parametersSchema: stopParametersSchema,
+    parameterValuePolicy: {
+      businessInputPaths: [],
+      generatedTextPaths: ['/message'],
+    },
     parameterReferenceSources: [],
     supportsRuntimeParameters: true,
     inputPorts: () => ['main'],

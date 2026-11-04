@@ -87,6 +87,7 @@ export interface WorkflowConnectionNativeParametersDescription extends WorkflowC
   workflowContext: WorkflowConnectionNativeWorkflowContext;
   target: PlannedNativeNode;
   capabilityDescription: string;
+  parameterValuePolicy?: WorkflowCapability['parameterValuePolicy'];
   sourceNodeIds: string[];
   literalParametersSchema: NativeParameterGenerationContract['literalParametersSchema'];
   hasLiteralParameters: boolean;
