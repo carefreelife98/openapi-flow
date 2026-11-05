@@ -1,7 +1,6 @@
 import type { ApiLiteralMessageJsonSources } from '@openapi-flow/core';
 export interface ApiLiteralSourceChoiceGroup {
   messageId: string;
-  inputRoot: string;
-  descendants: boolean;
+  targetPointer: string;
   candidates: ApiLiteralMessageJsonSources['json'];
 }

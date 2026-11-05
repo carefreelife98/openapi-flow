@@ -540,3 +540,6 @@ export { WorkflowConnectionRegionValidationError } from './workflow/connections/
 
 export { listSchemaResources } from './bindings/resources/list-schema-resources.js';
 export type { SchemaResourceRegistration } from './types/schema-resource.js';
+
+export type { ApiLiteralTargetContract } from './types/api-literal-target.js';
+export { describeApiLiteralTargets } from './arguments/sources/describe-api-literal-targets.js';

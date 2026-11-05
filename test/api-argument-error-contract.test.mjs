@@ -148,13 +148,13 @@ test('argument output shape and original-source validation failures remain disti
       state: 'provided',
       literalSources: [
         {
-          targetPointer: '/body/quantity',
+          targetPointer: '/body/tags/0',
           sourceFormat: 'text',
           sourceText: 'absent-source',
         },
       ],
     },
-    requestedInputs: ['/body/quantity'],
+    requestedInputs: ['/body/tags/0'],
   });
   await assert.rejects(
     generateApiArguments({
@@ -164,7 +164,7 @@ test('argument output shape and original-source validation failures remain disti
     }),
     expectDiagnostic('API_ARGUMENT_VALIDATION_FAILED', 'contract-validation'),
   );
-  assert.equal(invalidSource.calls.length, 1);
+  assert.equal(invalidSource.calls.length, 2);
 });
 
 test('argument boundaries preserve existing typed errors and successful values/options', async () => {

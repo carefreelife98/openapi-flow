@@ -73,7 +73,7 @@ function createGraph(fixture, options = {}) {
     model,
     checkpointer: new MemorySaver(),
     policy: {
-      maxModelInvocations: 6,
+      maxModelInvocations: 8,
       maxRejectedProposals: 3,
       deadlineMs: 30000,
       ...options.policy,
@@ -136,7 +136,7 @@ test('OAS-derived API tasks are separately checkpointed and an observer failure 
   assert.deepEqual(checkpoint.next, ['publishMaterialArguments']);
   const result = await run.graph.invoke(null, config);
   assert.equal(result.status, 'complete');
-  assert.equal(result.modelInvocations, 6);
+  assert.equal(result.modelInvocations, 8);
   assert.equal(run.argumentModel.requests.length, 2);
   assert.equal(run.callbacks(), 1);
   assert.equal(result.pendingMaterialArgumentWork, undefined);
@@ -184,7 +184,7 @@ test('a later API transport failure preserves earlier API output and does not re
     checkpoint.values.pendingMaterialArgumentWork.completedArguments[0].callId,
     'price',
   );
-  assert.equal(checkpoint.values.modelInvocations, 4);
+  assert.equal(checkpoint.values.modelInvocations, 6);
   await assert.rejects(run.graph.invoke(null, config));
   assert.equal(argumentModel.requests.length, 2);
   assert.equal(run.callbacks(), 1);
@@ -192,7 +192,7 @@ test('a later API transport failure preserves earlier API output and does not re
 
 test('each API task reserves the shared run budget before invoking the model', async () => {
   const run = createGraph(argumentFixture(), {
-    policy: { maxModelInvocations: 3 },
+    policy: { maxModelInvocations: 4 },
   });
   const config = { configurable: { thread_id: 'per-api-material-budget' } };
   await assert.rejects(
@@ -204,7 +204,7 @@ test('each API task reserves the shared run budget before invoking the model', a
     checkpoint.values.pendingMaterialArgumentWork.completedArguments.length,
     1,
   );
-  assert.equal(checkpoint.values.modelInvocations, 3);
+  assert.equal(checkpoint.values.modelInvocations, 4);
   assert.equal(run.argumentModel.requests.length, 1);
   assert.equal(run.callbacks(), 1);
 });
@@ -333,7 +333,7 @@ test('accepted-plan repair keeps the old graph while its API value is saved and 
     model,
     checkpointer: new MemorySaver(),
     policy: {
-      maxModelInvocations: 7,
+      maxModelInvocations: 8,
       maxRejectedProposals: 3,
       deadlineMs: 30000,
     },

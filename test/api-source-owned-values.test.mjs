@@ -100,7 +100,7 @@ test('source selection copies the original string and attached assignment number
   assert.deepEqual(result.values, resolved.values);
   assert.equal(
     Object.hasOwn(
-      model.calls[0].schema.properties.literalInputs.anyOf[1].properties,
+      model.calls[1].schema.properties.literalInputs.properties,
       'values',
     ),
     false,
@@ -170,8 +170,8 @@ test('the wire schema excludes numeric IDs for string roots and rejects the form
     Object.hasOwn(model.calls[0].payload, 'literalJsonSources'),
     false,
   );
-  const scoped = model.calls[0].payload.literalSourceChoices.find(
-    (group) => group.inputRoot === '/path/id' && !group.descendants,
+  const scoped = model.calls[1].payload.literalSourceChoices.find(
+    (group) => group.targetPointer === '/path/id',
   );
   assert.ok(
     scoped.candidates.every(
@@ -179,14 +179,14 @@ test('the wire schema excludes numeric IDs for string roots and rejects the form
     ),
   );
   assert.equal(
-    model.calls[0].payload.literalSourceChoices.some(
-      (group) => group.inputRoot === '/path/id' && group.descendants,
+    model.calls[1].payload.literalSourceChoices.some(
+      (group) => group.targetPointer !== '/path/id',
     ),
     false,
   );
   const alternatives =
-    model.calls[0].schema.properties.literalInputs.anyOf[1].properties
-      .literalSources.items.anyOf;
+    model.calls[1].schema.properties.literalInputs.properties.literalSources
+      .items.anyOf;
   const branch = alternatives.find(
     (x) =>
       x.properties.targetPointer.const === '/path/id' &&

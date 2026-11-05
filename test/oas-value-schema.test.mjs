@@ -308,3 +308,17 @@ test('an uncompileable value schema fails before model invocation with its sourc
     /items.body has an unsupported OAS schema dialect/,
   );
 });
+
+test('OAS validation keeps the concrete failing array-item path', () => {
+  const value = createOasValueSchema(
+    {
+      type: 'object',
+      properties: { ids: { type: 'array', items: { type: 'string' } } },
+    },
+    'draft-2020-12',
+    'request',
+  );
+  const result = value.safeParse({ ids: [101] });
+  assert.equal(result.success, false);
+  assert.deepEqual(result.error.issues[0].path, ['ids', '0']);
+});

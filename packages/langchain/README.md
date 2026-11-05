@@ -1,5 +1,24 @@
 # @openapi-flow/langchain
 
+## 0.10.0: OAS-scoped literal source selection
+
+Tracked `generateApiArguments` now selects concrete request destinations with
+`select_api_literal_targets` before `generate_api_arguments` selects their
+original sources. Core resolves each finite pointer against the remaining OAS
+input contract, including recursive and dynamic paths. Each JSON candidate must
+satisfy that destination's value schema. Text remains text: a numeric JSON token
+cannot become a string request value, and no coercion or hidden retry is added.
+The complete request and original source receipts are still validated afterward.
+
+The public input/result shape is unchanged. Custom structured-output models and
+test doubles must handle the new target-selection tool. Supplied literals use
+two explicit model calls; no-literal decisions use one; fully bound/confirmed
+inputs use none. Optional enum interpretation can add one call. Hosts must reserve
+that upper bound, distinguish reservations from actual HTTP requests, and replan
+old rejected outputs rather than replay them as the new target-stage protocol.
+Untracked legacy value generation retains its single-call protocol. Schema errors
+now retain the concrete failing property/item path. See the [0.10.0 release record](https://github.com/carefreelife98/openapi-flow/blob/v0.10.0/docs/releases/0.10.0.md) for publication and verification scope. Host installation and fresh complete workflow verification are separate steps.
+
 ## Unreleased: native repair separates flow context from reference authority
 
 `generateWorkflowConnectionNativeParameters` receives the code-derived read-only

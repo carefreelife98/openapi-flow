@@ -6,7 +6,10 @@ import { createRequire } from 'node:module';
 import { URL } from 'node:url';
 import { ChatOpenAI } from '@langchain/openai';
 import { generateApiArguments } from '@openapi-flow/langchain';
-import { literalGenerationFixture } from './fixtures/literal-generation-fixture.mjs';
+import {
+  literalTargetPlan,
+  literalGenerationFixture,
+} from './fixtures/literal-generation-fixture.mjs';
 
 const require = createRequire(
   new URL('../packages/core/package.json', import.meta.url),
@@ -41,7 +44,12 @@ test('real ChatOpenAI wire schema selects source IDs only for multiple explicit 
                   type: 'function',
                   function: {
                     name: body.tools[0].function.name,
-                    arguments: JSON.stringify(output),
+                    arguments: JSON.stringify(
+                      body.tools[0].function.name ===
+                        'select_api_literal_targets'
+                        ? literalTargetPlan(output)
+                        : output,
+                    ),
                   },
                 },
               ],
@@ -113,7 +121,7 @@ test('real ChatOpenAI wire schema selects source IDs only for multiple explicit 
         literalSourceMessages,
       );
     }
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 4);
   } finally {
     server.closeAllConnections();
     await new Promise((resolve, reject) =>
@@ -150,7 +158,12 @@ test('real ChatOpenAI literal schema preserves OAS value types/ownership and ask
                   type: 'function',
                   function: {
                     name: body.tools[0].function.name,
-                    arguments: JSON.stringify(output),
+                    arguments: JSON.stringify(
+                      body.tools[0].function.name ===
+                        'select_api_literal_targets'
+                        ? literalTargetPlan(output)
+                        : output,
+                    ),
                   },
                 },
               ],

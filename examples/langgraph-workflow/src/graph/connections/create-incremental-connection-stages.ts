@@ -254,7 +254,9 @@ export function createIncrementalConnectionStages(
     const reservations =
       state.nextModelStage === 'material-replan'
         ? dependencies.materialRecovery?.modelInvocations
-        : 1;
+        : state.nextModelStage === 'material-api-arguments'
+          ? 2
+          : 1;
     if (reservations === undefined)
       throw new Error(
         'Originating-stage reservation requires materialRecovery.modelInvocations',

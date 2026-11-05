@@ -1,3 +1,4 @@
+import { literalTargetPlan } from './fixtures/literal-generation-fixture.mjs';
 import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -68,6 +69,8 @@ function model(
         async invoke(messages) {
           const payload = JSON.parse(messages[1].content);
           calls.push({ schema, options, payload });
+          if (options.name === 'select_api_literal_targets')
+            return globalThis.structuredClone(literalTargetPlan(first));
           if (options.name === 'generate_api_arguments')
             return globalThis.structuredClone(first);
           assert.equal(options.name, 'select_api_argument_enums');
@@ -115,18 +118,68 @@ test('initial independent generation tracks requested optional inputs and reuses
   assert.deepEqual(result.unresolvedInputs, []);
   assert.deepEqual(
     llm.calls.map((call) => call.options.name),
-    ['generate_api_arguments', 'select_api_argument_enums'],
+    [
+      'select_api_literal_targets',
+      'generate_api_arguments',
+      'select_api_argument_enums',
+    ],
   );
-  assert.equal(llm.calls[1].payload.purpose, input.purpose);
-  assert.deepEqual(llm.calls[1].payload.sourceMessages, [
-    { id: 'scenario', text: input.scenario },
-  ]);
-  assert.equal(Object.hasOwn(llm.calls[1].payload, 'reply'), false);
-  assert.equal(Object.hasOwn(llm.calls[1].payload, 'sources'), false);
-  assert.equal(Object.hasOwn(llm.calls[1].payload, 'draft'), false);
-  assert.equal(Object.hasOwn(llm.calls[1].payload, 'plan'), false);
-  assert.equal(llm.calls[1].payload.questions.length, 1);
-  assert.equal(llm.calls[1].payload.questions[0].targetPointer, '/query/sort');
+  assert.equal(
+    llm.calls.find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.purpose,
+    input.purpose,
+  );
+  assert.deepEqual(
+    llm.calls.find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.sourceMessages,
+    [{ id: 'scenario', text: input.scenario }],
+  );
+  assert.equal(
+    Object.hasOwn(
+      llm.calls.find(
+        (call) => call.options.name === 'select_api_argument_enums',
+      ).payload,
+      'reply',
+    ),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(
+      llm.calls.find(
+        (call) => call.options.name === 'select_api_argument_enums',
+      ).payload,
+      'sources',
+    ),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(
+      llm.calls.find(
+        (call) => call.options.name === 'select_api_argument_enums',
+      ).payload,
+      'draft',
+    ),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(
+      llm.calls.find(
+        (call) => call.options.name === 'select_api_argument_enums',
+      ).payload,
+      'plan',
+    ),
+    false,
+  );
+  assert.equal(
+    llm.calls.find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.questions.length,
+    1,
+  );
+  assert.equal(
+    llm.calls.find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.questions[0].targetPointer,
+    '/query/sort',
+  );
   assert.deepEqual(result.literalGeneration.proposedValues, {
     query: { id: '0007' },
   });
@@ -197,7 +250,7 @@ test('ambiguous enum remains a real requested question; default and unrequested 
     scenario: '상품 "0007"을 조회해줘.',
     model: unrequested,
   });
-  assert.equal(unrequested.calls.length, 1);
+  assert.equal(unrequested.calls.length, 2);
   assert.equal(Object.hasOwn(untouched, 'enumInterpretation'), false);
   assert.equal(Object.hasOwn(untouched.values.query, 'sort'), false);
 });
@@ -218,7 +271,7 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
     requestedInputs: ['/query/sort'],
   });
   const result = await generateApiArguments({ ...input, model: disabled });
-  assert.equal(disabled.calls.length, 1);
+  assert.equal(disabled.calls.length, 2);
   assert.deepEqual(result.unresolvedInputs, ['/query/sort']);
   const supplied = model({
     literalInputs: {
@@ -240,7 +293,7 @@ test('semantic selection is opt-in and exact supplied enum literals do not cause
     scenario: '상품 "0007"을 sort "VIEWS"로 조회해줘.',
     model: supplied,
   });
-  assert.equal(supplied.calls.length, 1);
+  assert.equal(supplied.calls.length, 2);
   assert.equal(Object.hasOwn(literal, 'enumInterpretation'), false);
 });
 
@@ -338,7 +391,7 @@ test('invalid first values and invalid enum choices fail without repair, another
     generateApiArguments({ ...input, model: invalid }),
     /model arguments/,
   );
-  assert.equal(invalid.calls.length, 1);
+  assert.equal(invalid.calls.length, 2);
   for (const mutate of [
     (output) => {
       Object.values(output.decisions)[0].value = 'VIEWS';
@@ -367,7 +420,7 @@ test('invalid first values and invalid enum choices fail without repair, another
     await assert.rejects(
       generateApiArguments({ ...input, model: invalidChoice }),
     );
-    assert.equal(invalidChoice.calls.length, 2);
+    assert.equal(invalidChoice.calls.length, 3);
   }
   for (const option of ['selectOasEnums', 'trackRequestedInputs']) {
     const unused = model({ values: {} });
@@ -404,7 +457,7 @@ test('an OAS-valid enum cannot bypass semantic provenance by pretending to be an
     }),
     (error) => error.diagnostic.code === 'MODEL_OUTPUT_INVALID',
   );
-  assert.equal(llm.calls.length, 1);
+  assert.equal(llm.calls.length, 2);
 });
 
 test('an absent request body exposes only requested enum descendants and preserves unrelated missing inputs', async () => {
@@ -465,7 +518,8 @@ test('an absent request body exposes only requested enum descendants and preserv
   assert.deepEqual(result.values, { body: { preferences: { sort: 'VIEWS' } } });
   assert.deepEqual(result.unresolvedInputs, ['/body/id']);
   assert.equal(
-    llm.calls[1].payload.questions[0].targetPointer,
+    llm.calls.find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.questions[0].targetPointer,
     '/body/preferences/sort',
   );
   assert.equal(
@@ -545,7 +599,9 @@ test('an advertised enum target can still be explicitly not supplied without pro
   assert.deepEqual(result.unresolvedInputs, ['/query/id', '/query/sort']);
   assert.deepEqual(result.enumInterpretation.analysis.answers, []);
   assert.equal(llm.calls.length, 2);
-  const payload = llm.calls[1].payload;
+  const payload = llm.calls.find(
+    (call) => call.options.name === 'select_api_argument_enums',
+  ).payload;
   for (const field of ['reply', 'sources', 'messageSources'])
     assert.equal(Object.hasOwn(payload, field), false);
   assert.equal(Object.hasOwn(payload.sourceMessages[0], 'tokens'), false);
@@ -610,11 +666,17 @@ test('code derives enum targets from requested paths without scheduling unrelate
   assert.deepEqual(result.values, { query: { id: '0007', sort: 'VIEWS' } });
   assert.deepEqual(result.unresolvedInputs, ['/query/mode']);
   assert.deepEqual(
-    llm.calls[1].payload.questions.map((item) => item.targetPointer),
+    llm.calls
+      .find((call) => call.options.name === 'select_api_argument_enums')
+      .payload.questions.map((item) => item.targetPointer),
     ['/query/sort'],
   );
   assert.equal(
-    JSON.stringify(llm.calls[1].payload.enumChoices).includes('SAFE'),
+    JSON.stringify(
+      llm.calls.find(
+        (call) => call.options.name === 'select_api_argument_enums',
+      ).payload.enumChoices,
+    ).includes('SAFE'),
     false,
   );
   assert.throws(() =>

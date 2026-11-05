@@ -182,7 +182,7 @@ test('newly unbound fields produce typed dependent work from actual OAS while or
     ).arguments.values,
     { query: { id: 'request-only-7' } },
   );
-  assert.equal(model.requests.length, 1);
+  assert.equal(model.requests.length, 2);
   assert.deepEqual(adopted.receipt.workSource.request, receipt);
   for (const field of ['replacementFingerprint', 'apiArgumentTasks']) {
     const changed = globalThis.structuredClone(work);

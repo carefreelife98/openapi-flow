@@ -5,6 +5,7 @@ import {
 } from '@openapi-flow/core';
 import type {
   ApiArgumentGenerationContract,
+  ApiLiteralTargetContract,
   JsonObject,
   WorkflowSourceMessage,
 } from '@openapi-flow/core';
@@ -36,7 +37,7 @@ export const apiLiteralNotProvidedSchema = z.strictObject({
 });
 
 export function createApiLiteralProvidedSchema(
-  contract: ApiArgumentGenerationContract,
+  targets: ApiLiteralTargetContract[],
   messages: WorkflowSourceMessage[],
 ) {
   return z.strictObject({
@@ -47,9 +48,9 @@ export function createApiLiteralProvidedSchema(
       ),
     literalSources: createApiLiteralSourceSelectionsSchema(
       messages,
-      contract,
+      targets,
     ).describe(
-      'Select the original source for each requested literal. JSON candidate IDs are type-filtered at input roots. Code copies the selected typed value; never generate a separate values object. Dynamic descendants are OAS-validated without conversion.',
+      'Select the original source for each requested literal. JSON candidate IDs are filtered by each concrete target OAS contract. Code copies the selected typed value; never generate a separate values object. Only the previously selected concrete destinations are allowed; no conversion.',
     ),
   });
 }
@@ -64,14 +65,14 @@ export function createApiEnumIntentInputsSchema(requestSchema: JsonObject) {
 }
 
 export function createApiTrackedLiteralGenerationSchema(
-  contract: ApiArgumentGenerationContract,
+  targets: ApiLiteralTargetContract[],
   requestSchema: JsonObject,
   messages: WorkflowSourceMessage[],
   selectOasEnums = false,
 ) {
-  const provided = createApiLiteralProvidedSchema(contract, messages);
+  const provided = createApiLiteralProvidedSchema(targets, messages);
   const schema = z.strictObject({
-    literalInputs: z.union([apiLiteralNotProvidedSchema, provided]),
+    literalInputs: targets.length ? provided : apiLiteralNotProvidedSchema,
     requestedInputs: z
       .array(createApiRequestInputPointerSchema(requestSchema))
       .refine((pointers) => new Set(pointers).size === pointers.length)
@@ -87,14 +88,14 @@ export function createApiTrackedLiteralGenerationSchema(
 }
 
 export function createApiExplainedTrackedLiteralGenerationSchema(
-  contract: ApiArgumentGenerationContract,
+  targets: ApiLiteralTargetContract[],
   requestSchema: JsonObject,
   messages: WorkflowSourceMessage[],
   requireExplanations = true,
   selectOasEnums = false,
 ) {
   return createApiTrackedLiteralGenerationSchema(
-    contract,
+    targets,
     requestSchema,
     messages,
     selectOasEnums,
@@ -113,23 +114,24 @@ export function createApiLiteralGenerationOutputSchema(
   messages?: WorkflowSourceMessage[],
   requireExplanations = true,
   selectOasEnums = false,
+  targets?: ApiLiteralTargetContract[],
 ): ApiLiteralGenerationOutputSchema {
   z.boolean().parse(includeExplanations);
   if (requestSchema !== undefined) {
-    if (messages === undefined)
+    if (messages === undefined || targets === undefined)
       throw new Error(
         'Tracked literal generation requires original source messages',
       );
     return includeExplanations && contract.hasLiteralInputs
       ? createApiExplainedTrackedLiteralGenerationSchema(
-          contract,
+          targets,
           requestSchema,
           messages,
           requireExplanations,
           selectOasEnums,
         )
       : createApiTrackedLiteralGenerationSchema(
-          contract,
+          targets,
           requestSchema,
           messages,
           selectOasEnums,

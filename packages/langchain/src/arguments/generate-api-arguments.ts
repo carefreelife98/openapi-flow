@@ -1,4 +1,4 @@
-import { describeApiLiteralSourceChoices } from './describe-api-literal-source-choices.js';
+import { generateTrackedApiLiterals } from './generate-tracked-api-literals.js';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import {
   describeApiLiteralGeneration,
@@ -52,7 +52,6 @@ export async function generateApiArguments(
     rejectedProposals,
     materialRepair,
     literalMessages,
-    literalSourceChoices,
   } = runOpenApiFlowOperation(
     {
       owner: 'langchain',
@@ -98,15 +97,14 @@ export async function generateApiArguments(
         snapshot.literalSourceMessages === undefined
           ? [{ id: 'scenario', text: snapshot.scenario }]
           : snapshot.literalSourceMessages;
-      const literalSourceChoices = trackInputs
-        ? describeApiLiteralSourceChoices(literalMessages, contract)
-        : undefined;
       const schema = createApiLiteralGenerationOutputSchema(
         contract,
         options.includeExplanations === true,
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         literalMessages,
         true,
+        false,
+        [],
       );
       const validationSchema = createApiLiteralGenerationOutputSchema(
         contract,
@@ -114,6 +112,8 @@ export async function generateApiArguments(
         trackInputs ? createApiRequestSchema(snapshot) : undefined,
         literalMessages,
         false,
+        false,
+        [],
       );
       const sourceFingerprint = fingerprintApiArgumentSource(
         snapshot,
@@ -152,10 +152,10 @@ export async function generateApiArguments(
         rejectedProposals,
         materialRepair,
         literalMessages,
-        literalSourceChoices,
       };
     },
   );
+  let selectedValidationSchema = validationSchema;
   let proposed: ApiLiteralGenerationOutput = trackInputs
     ? {
         literalInputs: { state: 'not-provided' },
@@ -169,42 +169,60 @@ export async function generateApiArguments(
         'generateApiArguments.model must support structured output when literal inputs remain',
       );
     try {
-      proposed = await invokeStructuredModel<ApiLiteralGenerationOutput>({
-        model,
-        schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
-        operation: 'generateApiArguments',
-        name: 'generate_api_arguments',
-        method: 'functionCalling',
-        // Preserve the existing provider-default strictness of literal generation.
-        strict: undefined,
-        signal: input.signal,
-        messages: [
-          new SystemMessage(
-            [
-              apiArgumentsPrompt,
-              ...(rejectedProposals === undefined
-                ? []
-                : [apiArgumentReplanningPrompt]),
-              ...(materialRepair === undefined
-                ? []
-                : [apiMaterialRepairPrompt]),
-            ].join('\n'),
-          ),
-          new HumanMessage(
-            JSON.stringify({
-              ...context,
-              ...(literalSourceChoices === undefined
-                ? {}
-                : { literalSourceChoices }),
-              ...(rejectedProposals === undefined ? {} : { rejectedProposals }),
-              ...(materialRepair === undefined ? {} : { materialRepair }),
-              ...(options.selectOasEnums === true
-                ? { selectOasEnums: true }
-                : {}),
-            }),
-          ),
-        ],
-      });
+      if (trackInputs) {
+        const result = await generateTrackedApiLiterals({
+          input: snapshot,
+          contract,
+          context,
+          model,
+          messages: literalMessages,
+          options,
+          sourceFingerprint,
+          signal: input.signal,
+          rejectedProposals,
+          materialRepair,
+          assertSourceUnchanged: () =>
+            assertApiArgumentGenerationSource(input, snapshot, materialRepair),
+        });
+        proposed = result.proposal;
+        selectedValidationSchema = result.validationSchema;
+      } else {
+        proposed = await invokeStructuredModel<ApiLiteralGenerationOutput>({
+          model,
+          schema: serializeStructuredOutputSchema(schema, 'draft-2020-12'),
+          operation: 'generateApiArguments',
+          name: 'generate_api_arguments',
+          method: 'functionCalling',
+          // Preserve the existing provider-default strictness of literal generation.
+          strict: undefined,
+          signal: input.signal,
+          messages: [
+            new SystemMessage(
+              [
+                apiArgumentsPrompt,
+                ...(rejectedProposals === undefined
+                  ? []
+                  : [apiArgumentReplanningPrompt]),
+                ...(materialRepair === undefined
+                  ? []
+                  : [apiMaterialRepairPrompt]),
+              ].join('\n'),
+            ),
+            new HumanMessage(
+              JSON.stringify({
+                ...context,
+                ...(rejectedProposals === undefined
+                  ? {}
+                  : { rejectedProposals }),
+                ...(materialRepair === undefined ? {} : { materialRepair }),
+                ...(options.selectOasEnums === true
+                  ? { selectOasEnums: true }
+                  : {}),
+              }),
+            ),
+          ],
+        });
+      }
     } catch (error) {
       const cause = isOpenApiFlowError(error) ? error.cause : undefined;
       // The parser's documented raw output is retained as-is, never parsed/repaired from its message.
@@ -229,7 +247,7 @@ export async function generateApiArguments(
     async () => {
       assertApiArgumentGenerationSource(input, snapshot, materialRepair);
       const output = parseStructuredOutput<ApiLiteralGenerationOutput>(
-        validationSchema,
+        selectedValidationSchema,
         proposed,
         `model arguments for ${snapshot.callId}`,
       );

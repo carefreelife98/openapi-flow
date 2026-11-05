@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pointerTokens } from '../bindings/json-pointer.js';
 import type { JsonValue } from '../types/api-arguments.js';
 import type { OasValueValidator } from '../types/oas-value-validation.js';
 
@@ -19,6 +20,10 @@ export function createOasValueValidationSchema(
     for (const error of contract.validate(value).errors)
       context.addIssue({
         code: 'custom',
+        path:
+          typeof error.path === 'string'
+            ? pointerTokens(error.path)
+            : error.path,
         message: `${source} does not match the OAS schema: ${error.message}`,
       });
   }) as z.ZodType<JsonValue>;

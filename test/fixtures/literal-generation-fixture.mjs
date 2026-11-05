@@ -53,9 +53,37 @@ export function literalGenerationModel(output, observe = () => {}) {
           };
           calls.push(call);
           await observe(call);
-          return globalThis.structuredClone(output);
+          return globalThis.structuredClone(
+            options.name === 'select_api_literal_targets'
+              ? literalTargetPlan(output)
+              : output,
+          );
         },
       };
     },
+  };
+}
+
+// Adapt a recorded source-stage fixture to the explicit destination-stage protocol.
+// Malformed presence fixtures remain malformed; both model calls stay observable.
+export function literalTargetPlan(output) {
+  const literal = output?.literalInputs;
+  if (
+    literal?.state !== 'provided' ||
+    !Array.isArray(literal.literalSources) ||
+    !literal.literalSources.length
+  )
+    return output;
+  return {
+    literalInputs: {
+      state: 'provided',
+      targetPointers: literal.literalSources.map(
+        (source) => source.targetPointer,
+      ),
+    },
+    requestedInputs: output.requestedInputs,
+    ...(Object.hasOwn(output, 'explanation')
+      ? { explanation: output.explanation }
+      : {}),
   };
 }

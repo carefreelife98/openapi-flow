@@ -1,3 +1,4 @@
+import { literalTargetPlan } from './literal-generation-fixture.mjs';
 import assert from 'node:assert/strict';
 import {
   describeWorkflowConnectionGoals,
@@ -43,6 +44,7 @@ export function initialConnectionRecoveryFixture() {
 
 export function recoveryQueueModel(outputs, inspect = () => {}) {
   const requests = [];
+  let outputIndex = 0;
   return {
     requests,
     withStructuredOutput(schema, options) {
@@ -57,13 +59,19 @@ export function recoveryQueueModel(outputs, inspect = () => {}) {
           };
           requests.push(request);
           await inspect(request, index);
-          if (index >= outputs.length)
+          if (outputIndex >= outputs.length)
             throw new Error('Unexpected additional recovery model invocation');
           const output =
-            typeof outputs[index] === 'function'
-              ? await outputs[index](request)
-              : outputs[index];
+            typeof outputs[outputIndex] === 'function'
+              ? await outputs[outputIndex](request)
+              : outputs[outputIndex];
           if (output instanceof Error) throw output;
+          if (options?.name === 'select_api_literal_targets') {
+            const plan = literalTargetPlan(output);
+            if (plan === output) outputIndex++;
+            return globalThis.structuredClone(plan);
+          }
+          outputIndex++;
           return globalThis.structuredClone(output);
         },
       };
