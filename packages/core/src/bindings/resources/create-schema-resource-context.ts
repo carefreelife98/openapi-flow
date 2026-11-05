@@ -15,7 +15,19 @@ import { cloneSchemaResource } from './clone-schema-resource.js';
 import { listSchemaResources } from './list-schema-resources.js';
 import { jsonValuesEqual } from '../../utils/json-values-equal.js';
 
-/** Keep original resources; projected values reference their original locations. */
+// Content, not $id or JavaScript identity, owns preparation. Checkpoint restores and
+// material rebinding clone declarations; changed contents must always be revalidated.
+// Bound retained validators per process; eviction only discards reusable preparation.
+const preparedResources = new Map<string, SchemaResourceContext>();
+const maximumPreparedResources = 32;
+
+function freezeResource(value: unknown): void {
+  if (value === null || typeof value !== 'object') return;
+  for (const child of Object.values(value)) freezeResource(child);
+  Object.freeze(value);
+}
+
+/** Prepare an immutable resource once per exact JSON declaration. */
 export function createSchemaResourceContext(
   schema: BindingSchema,
 ): SchemaResourceContext {
@@ -33,10 +45,17 @@ export function createSchemaResourceContext(
   const document = cloneSchemaResource(schema);
   if (typeof document === 'boolean')
     throw new Error('Native schema resource must be an object');
+  const declaration = JSON.stringify(document);
+  const prepared = preparedResources.get(declaration);
+  if (prepared !== undefined) {
+    preparedResources.delete(declaration);
+    preparedResources.set(declaration, prepared);
+    return prepared;
+  }
   // JSON Schema permits an implementation-assigned initial retrieval URI.
   if (document.$id !== undefined && typeof document.$id !== 'string')
     throw new Error('Native schema.$id must be a URI-reference string');
-  const retrievalUri = `https://openapi-flow.invalid/schema/${createHash('sha256').update(JSON.stringify(document)).digest('hex')}`;
+  const retrievalUri = `https://openapi-flow.invalid/schema/${createHash('sha256').update(declaration).digest('hex')}`;
   const rootUri =
     typeof document.$id === 'string'
       ? uri.resolve(retrievalUri, document.$id)
@@ -110,6 +129,7 @@ export function createSchemaResourceContext(
   ajv.addSchema(root);
   // Resolve/validate on the host. No remote fetch and no runtime schema compiler.
   ajv.getSchema(rootUri);
+  freezeResource(root);
   function resolveReference(current: BindingSchema): BindingSchema {
     if (typeof current === 'boolean' || typeof current.$ref !== 'string')
       return current;
@@ -258,7 +278,7 @@ export function createSchemaResourceContext(
     );
     return { projections: relocated, definitions };
   }
-  return {
+  const context: SchemaResourceContext = {
     root,
     reference: (current) => {
       if (typeof current === 'boolean') return current;
@@ -270,14 +290,26 @@ export function createSchemaResourceContext(
       const type = declaredType(current);
       return {
         $ref: location.reference,
-        ...(type === undefined ? {} : { type }),
+        ...(type === undefined
+          ? {}
+          : { type: Array.isArray(type) ? [...type] : type }),
       };
     },
     resolve: resolveReference,
     bundleStaticProjections,
+    // Public schemas remain mutable JSON and must not expose cached resources.
     bundle: (projection) =>
-      typeof projection === 'boolean'
-        ? { $defs: { resource: root }, allOf: [projection] }
-        : { ...projection, $defs: { resource: root } },
+      cloneSchemaResource(
+        typeof projection === 'boolean'
+          ? { $defs: { resource: root }, allOf: [projection] }
+          : { ...projection, $defs: { resource: root } },
+      ),
   };
+  Object.freeze(context);
+  preparedResources.set(declaration, context);
+  if (preparedResources.size > maximumPreparedResources) {
+    const oldest = preparedResources.keys().next();
+    if (!oldest.done) preparedResources.delete(oldest.value);
+  }
+  return context;
 }

@@ -131,3 +131,40 @@ test('native object composition rejects unknown pointers, duplicate names, chang
     /matching actual compiled/,
   );
 });
+
+test('reference enumeration validates selections without preparing output schemas', () => {
+  const capability = fixture();
+  const require = createRequire(
+    new URL('../packages/core/package.json', import.meta.url),
+  );
+  const { Ajv2020 } = require('ajv/dist/2020.js');
+  const compile = Ajv2020.prototype._compileSchemaEnv;
+  let calls = 0;
+  Ajv2020.prototype._compileSchemaEnv = function (...args) {
+    calls++;
+    return compile.apply(this, args);
+  };
+  try {
+    assert.deepEqual(capability.nodeOutputReferences(parameters), [
+      { source: 'node-output', nodeId: 'responses', pointer: '/results' },
+      { source: 'node-output', nodeId: 'check', pointer: '' },
+    ]);
+    assert.throws(() =>
+      capability.nodeOutputReferences({
+        fields: [{ name: 'x', sourceNodeId: 'missing', pointer: '' }],
+      }),
+    );
+    assert.throws(() =>
+      capability.nodeOutputReferences({
+        fields: [{ name: 'x', sourceNodeId: 'check', pointer: '/missing' }],
+      }),
+    );
+    assert.equal(
+      calls,
+      0,
+      'reference enumeration must not compile output contracts',
+    );
+  } finally {
+    Ajv2020.prototype._compileSchemaEnv = compile;
+  }
+});

@@ -31,9 +31,14 @@ export function createNativeOutputObjectCapability(
       return {
         field,
         source,
-        schema: createNativeValueSchema(source, field.pointer),
       };
     });
+  const projectedFields = (value: JsonValueObject) =>
+    fields(value).map(({ field, source }) => ({
+      field,
+      source,
+      schema: createNativeValueSchema(source, field.pointer),
+    }));
   return defineMaterialBoundCapability({
     ...nativeOutputObjectDefinition,
     parametersSchema,
@@ -49,7 +54,7 @@ export function createNativeOutputObjectCapability(
         pointer: field.pointer,
       })),
     outputSchema: (value) => {
-      const selected = fields(value);
+      const selected = projectedFields(value);
       return deduplicateCanonicalSchemaResources({
         type: 'object',
         properties: Object.fromEntries(
@@ -60,7 +65,7 @@ export function createNativeOutputObjectCapability(
       });
     },
     compile: (input) => {
-      const selected = fields(input.planned.parameters);
+      const selected = projectedFields(input.planned.parameters);
       return compileNativeOutputObject({
         ...input,
         parameters: parametersSchema.parse(input.planned.parameters),
