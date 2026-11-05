@@ -363,37 +363,31 @@ test('generation composes literal and enum stages using the same original messag
     includeExplanations: true,
   };
   const model = modelWith((payload, options) =>
-    options.name === 'select_api_literal_targets'
+    options.name === 'generate_api_arguments'
       ? {
-          literalInputs: { state: 'provided', targetPointers: ['/body/id'] },
-          requestedInputs: ['/body/sort'],
-          explanation: { reason: '원문 상품번호의 요청 위치입니다.' },
-        }
-      : options.name === 'generate_api_arguments'
-        ? {
-            literalInputs: {
-              state: 'provided',
-              literalSources: [
-                {
-                  targetPointer: '/body/id',
-                  sourceFormat: 'json',
-                  candidateId: literalJsonCandidateId('"0007"'),
-                },
-              ],
-            },
-            requestedInputs: ['/body/sort'],
-            explanation: { reason: '원문 상품번호입니다.' },
-          }
-        : {
-            decisions: {
-              [payload.questions[0].id]: {
-                status: 'selected',
-                candidateId: payload.enumChoices[0].candidates.find(
-                  (item) => item.value === 'VIEWS',
-                ).id,
+          literalInputs: {
+            state: 'provided',
+            literalSources: [
+              {
+                targetPointer: '/body/id',
+                sourceFormat: 'json',
+                candidateId: literalJsonCandidateId('"0007"'),
               },
+            ],
+          },
+          requestedInputs: ['/body/sort'],
+          explanation: { reason: '원문 상품번호입니다.' },
+        }
+      : {
+          decisions: {
+            [payload.questions[0].id]: {
+              status: 'selected',
+              candidateId: payload.enumChoices[0].candidates.find(
+                (item) => item.value === 'VIEWS',
+              ).id,
             },
           },
+        },
   );
   const result = await generateApiArguments({ ...input, model });
   assert.deepEqual(result.values, { body: { id: '0007', sort: 'VIEWS' } });
@@ -405,11 +399,7 @@ test('generation composes literal and enum stages using the same original messag
   validateApiInputAnswerAnalysis(result.enumInterpretation);
   assert.deepEqual(
     model.calls.map((call) => call.options.name),
-    [
-      'select_api_literal_targets',
-      'generate_api_arguments',
-      'select_api_argument_enums',
-    ],
+    ['generate_api_arguments', 'select_api_argument_enums'],
   );
   assert.equal(Object.hasOwn(model.calls[1].payload, 'draft'), false);
 });
@@ -447,7 +437,7 @@ test('a change to original generation messages during the second enum call canno
     selectOasEnums: true,
   };
   const model = modelWith((payload, options) => {
-    if (options.name === 'select_api_literal_targets')
+    if (options.name === 'generate_api_arguments')
       return {
         literalInputs: { state: 'not-provided' },
         requestedInputs: ['/body/value'],

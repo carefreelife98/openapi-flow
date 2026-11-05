@@ -1,4 +1,3 @@
-import { literalTargetPlan } from './fixtures/literal-generation-fixture.mjs';
 import { candidateChoices } from './fixtures/api-binding-candidate-choice.mjs';
 import assert from 'node:assert/strict';
 import { literalJsonCandidateId } from './fixtures/api-literal-json-source-choice.mjs';
@@ -130,7 +129,7 @@ test('API argument recovery binds an explicit original literal context without c
   );
   assert.equal(result.values.query.id, 'request-only-7');
   assert.equal(result.literalSources[0].messageId, 'original-request');
-  assert.equal(model.requests.length, 2);
+  assert.equal(model.requests.length, 1);
   assert.equal(model.requests[0].payload.scenario, literalContext.scenario);
   assert.deepEqual(
     model.requests[0].payload.literalSourceMessages,
@@ -262,20 +261,20 @@ test('example argument recovery checkpoints source receipts, preserves repair fe
   const completed = await graph.invoke(null, config);
   assert.equal(completed.arguments.values.query.id, 'request-only-7');
   assert.equal(completed.arguments.literalSources[0].messageId, 'request');
-  assert.equal(model.requests.length, 4);
+  assert.equal(model.requests.length, 2);
   for (const request of model.requests)
     assert.deepEqual(
       request.payload.materialRepair,
       checkpoint.values.source.materialRepairDescription,
     );
-  assert.equal(model.requests[2].payload.rejectedProposals.length, 1);
+  assert.equal(model.requests[1].payload.rejectedProposals.length, 1);
   assert.equal(JSON.stringify(progress).includes('request-only-7'), false);
   source.materialRepair.literalContext.literalSourceMessages[0].id = 'changed';
   await assert.rejects(
     graph.invoke({}, config),
     /differs|source or policy changed/,
   );
-  assert.equal(model.requests.length, 4);
+  assert.equal(model.requests.length, 2);
 });
 
 test('Core derives feedback only for the exact requested stage, actual OAS, role, inventory and original scenario', () => {
@@ -667,7 +666,7 @@ test('repair-only values cannot be quoted as user literals, and rejection feedba
     }),
     undefined,
   );
-  assert.equal(model.requests.length, 2);
+  assert.equal(model.requests.length, 1);
 });
 
 test('literal generation rejects mutated recovery requests after one model response without a hidden retry', async () => {
@@ -711,7 +710,7 @@ test('a JSON envelope is not silently unwrapped into original messages for liter
     }),
     /complete literal/,
   );
-  assert.equal(model.requests.length, 2);
+  assert.equal(model.requests.length, 1);
   assert.equal(model.requests[0].payload.scenario, repair.source.scenario);
 });
 
@@ -726,7 +725,6 @@ test('real ChatOpenAI transport keeps recovery data separate in all three API pl
       },
     },
     { bindings: binding.proposedBindings, gaps: [] },
-    literalTargetPlan(literalOutput('request-only-7')),
     literalOutput('request-only-7'),
   ];
   const requests = [];
@@ -810,7 +808,6 @@ test('real ChatOpenAI transport keeps recovery data separate in all three API pl
       [
         'select_api_binding_sources',
         'plan_api_call_bindings',
-        'select_api_literal_targets',
         'generate_api_arguments',
       ],
     );

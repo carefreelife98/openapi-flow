@@ -1,5 +1,37 @@
 # @openapi-flow/langchain
 
+## 0.11.0: source-backed input construction
+
+Tracked `generateApiArguments` proposes destinations and original sources together
+in one `generate_api_arguments` call. It no longer freezes a destination-only
+`select_api_literal_targets` decision before asking for sources. A whole JSON
+container can be copied, or explicit leaf mappings can assemble arrays and
+objects. Source values are never regenerated, coerced or split from a list string.
+
+The provider schema validates source identity and proposal structure. Finite
+declared request roots retain destination-scoped JSON candidate filtering, and
+generic descendant choices cannot bypass those roots. This leaves unbound
+array/object construction paths open only for OAS roots admitting containers,
+rather than freezing an earlier selection. Scalar-only operations receive only
+destination-scoped candidates, not an unrelated global JSON catalog.
+Core checks each actual destination/value pair and the assembled request. It is deliberately not encoded as a contradictory
+string/container intersection or as a second, irrevocably scoped model task.
+Numeric candidates may remain visible in the original catalog, but are excluded
+from declared string-root choices and cannot be accepted for string descendants. A bad proposal remains possible; rejection
+is not a guarantee that the model will always interpret user intent correctly.
+
+Public input/result shapes are unchanged. Custom models and test doubles should
+return the complete existing `literalInputs`/`literalSources` proposal immediately
+and must not expect the old target-selection call. Fully bound/confirmed inputs
+use no model, tracked generation uses at most one literal call per attempt, and
+optional enum interpretation can add one call. The library adds no retries.
+Host-owned replanning can use `createApiArgumentRejection` for the unchanged source;
+transport, configuration and enum errors do not become literal-plan feedback.
+The example graph retains counters but forwards only the latest rejected proposal.
+
+Source-consumer checks, package publication and installed-host/browser
+verification are separate stages recorded in the release verification notes.
+
 ## 0.10.0: OAS-scoped literal source selection
 
 Tracked `generateApiArguments` now selects concrete request destinations with

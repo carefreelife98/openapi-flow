@@ -1,5 +1,21 @@
 # @openapi-flow/core
 
+## 0.11.0: validate complete literal construction plans
+
+`resolveApiLiteralValues` resolves all selected destinations before assignment,
+rejecting duplicate or overlapping paths. Each original source is checked against
+its concrete remaining OAS destination before code assembles the request. Final
+request and source-coverage validation remain in place. Finite selected pointers
+retain the original recursive/dynamic schema context; schemas are not unrolled.
+`listApiLiteralContainerTargets` identifies roots whose original OAS admits
+object/array construction, preserving reference context. Scalar-only roots do not
+expose generic descendant sources. A wrong message attribution reports exact
+original message IDs containing the selected complete source, as rejection facts;
+code never reassigns that source or substitutes another message.
+Text remains a string and JSON keeps its original type. No source conversion,
+list splitting, fabricated containers or overwrite recovery is introduced.
+
+
 ## Unreleased: read-only workflow context for native repair
 
 Native parameter-repair descriptions include `workflowContext`, a compact view of

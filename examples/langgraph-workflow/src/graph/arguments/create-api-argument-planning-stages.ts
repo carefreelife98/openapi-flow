@@ -190,7 +190,8 @@ export function createApiArgumentPlanningStages(
           result = await generateApiArguments({
             ...generation,
             model: dependencies.model,
-            rejectedProposals: state.rejectedProposals,
+            // Retain accounting in graph state, but expose only the immediately rejected proposal.
+            rejectedProposals: state.rejectedProposals.slice(-1),
             signal,
           });
         } catch (error) {

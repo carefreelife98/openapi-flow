@@ -8,7 +8,7 @@ import type {
 import { describeApiLiteralSourceChoices } from '../arguments/describe-api-literal-source-choices.js';
 
 /** An explicit destination scopes both source identity and source value type. */
-export function createApiLiteralSourceSelectionsSchema(
+export function createApiLiteralSourceChoiceSchemas(
   messages: WorkflowSourceMessage[],
   targets: ApiLiteralTargetContract[],
 ) {
@@ -19,6 +19,11 @@ export function createApiLiteralSourceSelectionsSchema(
       throw new Error(
         `Literal target ${target.targetPointer} has no OAS metadata`,
       );
+    const declared = metadata.type;
+    const permitsText =
+      declared === undefined ||
+      declared === 'string' ||
+      (Array.isArray(declared) && declared.includes('string'));
     const sourceText = z
       .string()
       .min(1)
@@ -29,18 +34,18 @@ export function createApiLiteralSourceSelectionsSchema(
             code: 'custom',
             message: `Text source does not satisfy ${target.targetPointer}`,
           });
-      })
-      .meta({ allOf: [{ type: 'string', minLength: 1 }, metadata] });
+      });
     const text = z.strictObject({
       targetPointer: z.literal(target.targetPointer),
       sourceFormat: z.literal('text'),
       sourceText,
     });
-    choices.push(
-      messages.length > 1
-        ? text.extend({ messageId: z.enum(messages.map((m) => m.id)) })
-        : text,
-    );
+    if (permitsText)
+      choices.push(
+        messages.length > 1
+          ? text.extend({ messageId: z.enum(messages.map((m) => m.id)) })
+          : text,
+      );
   }
   for (const group of describeApiLiteralSourceChoices(messages, targets)) {
     if (!group.candidates.length) continue;
@@ -55,6 +60,14 @@ export function createApiLiteralSourceSelectionsSchema(
         : json,
     );
   }
+  return choices;
+}
+
+export function createApiLiteralSourceSelectionsSchema(
+  messages: WorkflowSourceMessage[],
+  targets: ApiLiteralTargetContract[],
+) {
+  const choices = createApiLiteralSourceChoiceSchemas(messages, targets);
   if (!choices.length) return z.never();
   return z
     .array(z.union(choices))

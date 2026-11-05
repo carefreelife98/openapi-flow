@@ -100,7 +100,9 @@ test('source selection copies the original string and attached assignment number
   assert.deepEqual(result.values, resolved.values);
   assert.equal(
     Object.hasOwn(
-      model.calls[1].schema.properties.literalInputs.properties,
+      model.calls[0].schema.properties.literalInputs.anyOf.find(
+        (branch) => branch.properties?.state?.const === 'provided',
+      ).properties,
       'values',
     ),
     false,
@@ -147,7 +149,7 @@ test('numeric sources cannot become OAS strings; overlapping, stale and rewritte
   );
 });
 
-test('the wire schema excludes numeric IDs for string roots and rejects the former duplicated values contract', async () => {
+test('joint construction carries original candidates and validates destination types before acceptance', async () => {
   const f = await fixture();
   const source = {
     targetPointer: '/path/id',
@@ -166,37 +168,32 @@ test('the wire schema excludes numeric IDs for string roots and rejects the form
     trackRequestedInputs: true,
     model,
   });
+  assert.equal(model.calls.length, 1);
   assert.equal(
     Object.hasOwn(model.calls[0].payload, 'literalJsonSources'),
     false,
   );
-  const scoped = model.calls[1].payload.literalSourceChoices.find(
-    (group) => group.targetPointer === '/path/id',
-  );
+  const catalog = model.calls[0].payload.declaredLiteralSourceChoices;
   assert.ok(
-    scoped.candidates.every(
-      (candidate) => typeof JSON.parse(candidate.text) === 'string',
+    catalog.some((group) =>
+      group.candidates.some((candidate) => candidate.id === source.candidateId),
     ),
-  );
-  assert.equal(
-    model.calls[1].payload.literalSourceChoices.some(
-      (group) => group.targetPointer !== '/path/id',
-    ),
-    false,
-  );
-  const alternatives =
-    model.calls[1].schema.properties.literalInputs.properties.literalSources
-      .items.anyOf;
-  const branch = alternatives.find(
-    (x) =>
-      x.properties.targetPointer.const === '/path/id' &&
-      x.properties.sourceFormat.const === 'json',
   );
   const numeric = f.choices.find((x) => x.text === '12001').id;
-  assert.equal(branch.properties.candidateId.enum.includes(numeric), false);
-  assert.equal(
-    branch.properties.candidateId.enum.includes(source.candidateId),
-    true,
+  await assert.rejects(
+    generateApiArguments({
+      ...f,
+      scenario: f.messages[0].text,
+      literalSourceMessages: f.messages,
+      model: literalGenerationModel({
+        ...output,
+        literalInputs: {
+          state: 'provided',
+          literalSources: [{ ...source, candidateId: numeric }],
+        },
+      }),
+    }),
+    (error) => error.diagnostic.code === 'MODEL_OUTPUT_INVALID',
   );
   const old = literalGenerationModel({
     ...output,
@@ -215,4 +212,43 @@ test('the wire schema excludes numeric IDs for string roots and rejects the form
     }),
     (e) => e.diagnostic.code === 'MODEL_OUTPUT_INVALID',
   );
+});
+
+test('declared string roots keep destination-scoped wire filtering without freezing new construction paths', async () => {
+  const f = await fixture();
+  const quoted = f.choices.find((entry) => entry.text === '"12001"').id;
+  const numeric = f.choices.find((entry) => entry.text === '12001').id;
+  const output = {
+    literalInputs: {
+      state: 'provided',
+      literalSources: [
+        {
+          targetPointer: '/path/id',
+          sourceFormat: 'json',
+          candidateId: quoted,
+        },
+      ],
+    },
+    requestedInputs: [],
+  };
+  const { createValidator } = await import('@scalar/json-schema-validator');
+  const model = literalGenerationModel(output, ({ schema }) => {
+    const validate = createValidator(schema);
+    assert.equal(validate(output).valid, true);
+    const wrong = globalThis.structuredClone(output);
+    wrong.literalInputs.literalSources[0].candidateId = numeric;
+    assert.equal(
+      validate(wrong).valid,
+      false,
+      'generic construction must not bypass an already declared string target',
+    );
+  });
+  const result = await generateApiArguments({
+    ...f,
+    scenario: f.messages[0].text,
+    literalSourceMessages: f.messages,
+    model,
+  });
+  assert.equal(result.values.path.id, '12001');
+  assert.equal(model.calls.length, 1);
 });

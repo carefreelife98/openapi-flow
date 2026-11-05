@@ -62,13 +62,15 @@ test('explicit original messages separate literal attribution from JSON prompt c
   assert.deepEqual(result.unresolvedInputs, ['/body/count']);
   assert.equal(result.literalSources[0].messageId, 'request');
   assert.equal(result.literalSources[0].sourceText, '"0007"');
-  assert.equal(model.calls.length, 2);
+  assert.equal(model.calls.length, 1);
   assert.deepEqual(
     model.calls[0].payload.literalSourceMessages,
     source.literalSourceMessages,
   );
   assert.equal(model.calls[0].payload.scenario, source.scenario);
-  const provided = model.calls[1].schema.properties.literalInputs;
+  const provided = model.calls[0].schema.properties.literalInputs.anyOf.find(
+    (branch) => branch.properties?.state?.const === 'provided',
+  );
   const choices = provided.properties.literalSources.items.anyOf;
   assert.equal(choices.length, 2);
   for (const choice of choices) {
@@ -136,7 +138,7 @@ for (const messageId of [undefined, 'scenario', 'invented', 'answer'])
     ]);
     const model = literalGenerationModel(proposed);
     await assert.rejects(generateApiArguments({ ...source, model }));
-    assert.equal(model.calls.length, 2);
+    assert.equal(model.calls.length, 1);
   });
 
 for (const messages of [

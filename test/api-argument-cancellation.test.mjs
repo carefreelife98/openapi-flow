@@ -116,7 +116,7 @@ test('the optional enum interpretation stage receives the same cancellation sign
         async invoke(_messages, config) {
           calls++;
           assert.equal(config.signal, controller.signal);
-          if (options.name === 'select_api_literal_targets')
+          if (options.name === 'generate_api_arguments')
             return {
               literalInputs: { state: 'not-provided' },
               requestedInputs: ['/body/sort'],

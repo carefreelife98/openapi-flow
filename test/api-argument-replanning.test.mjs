@@ -23,9 +23,7 @@ async function rejected(input, output) {
   assert.ok(failure instanceof ApiArgumentPlanningError);
   assert.deepEqual(
     model.calls.map((call) => call.options.name),
-    output.literalInputs?.state === 'provided'
-      ? ['select_api_literal_targets', 'generate_api_arguments']
-      : ['generate_api_arguments'],
+    ['generate_api_arguments'],
     'Each semantic stage runs once without retry',
   );
   const rejection = createApiArgumentRejection({ ...input, error: failure });
@@ -185,16 +183,16 @@ test('rejected output is never a new literal source even when another original J
     requestedInputs: ['/body/quantity'],
   };
   const { rejection } = await rejected(input, output);
-  assert.equal(rejection.stage, 'model-output');
+  assert.equal(rejection.stage, 'contract-validation');
   const model = literalGenerationModel(output);
   await assert.rejects(
     generateApiArguments({ ...input, model, rejectedProposals: [rejection] }),
     (error) => {
-      assert.equal(error.diagnostic.code, 'MODEL_OUTPUT_INVALID');
+      assert.equal(error.diagnostic.code, 'API_ARGUMENT_VALIDATION_FAILED');
       return true;
     },
   );
-  assert.equal(model.calls.length, 2);
+  assert.equal(model.calls.length, 1);
   assert.equal(model.calls[0].payload.scenario.includes('99'), false);
 });
 
@@ -254,7 +252,7 @@ test('an enum interpretation rejection belongs to its own stage, not literal-val
       return {
         async invoke() {
           calls.push(options.name);
-          if (options.name === 'select_api_literal_targets')
+          if (options.name === 'generate_api_arguments')
             return {
               literalInputs: { state: 'not-provided' },
               requestedInputs: ['/body/order'],
@@ -272,7 +270,7 @@ test('an enum interpretation rejection belongs to its own stage, not literal-val
     return true;
   });
   assert.deepEqual(calls, [
-    'select_api_literal_targets',
+    'generate_api_arguments',
     'select_api_argument_enums',
   ]);
 });

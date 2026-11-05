@@ -60,17 +60,6 @@ function hostModel({ repeated = false, unanswered = false } = {}) {
               })),
               gaps: [],
             });
-          if (options.name === 'select_api_literal_targets')
-            return {
-              literalInputs: {
-                state: 'provided',
-                targetPointers: ['/path/id'],
-              },
-              requestedInputs: ['/query/sort'],
-              explanation: {
-                reason: '이 역할의 원문 식별자 위치를 선택했습니다.',
-              },
-            };
           if (options.name === 'generate_api_arguments') {
             assert.ok(schema.properties.requestedInputs);
             assert.ok(schema.properties.literalInputs);
@@ -153,7 +142,6 @@ test('single-call reference factory forwards enum options and preserves source-o
     model.calls.map((call) => call.name),
     [
       'select_api_operations',
-      'select_api_literal_targets',
       'generate_api_arguments',
       'select_api_argument_enums',
     ],

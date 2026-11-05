@@ -57,7 +57,7 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
       body.messages.find((message) => message.role === 'user').content,
     );
     const output =
-      wire.name === 'select_api_literal_targets'
+      wire.name === 'generate_api_arguments'
         ? {
             literalInputs: { state: 'not-provided' },
             requestedInputs: ['/query/sort'],
@@ -145,7 +145,7 @@ test('real ChatOpenAI transport exposes typed literal/source paths then only ori
     );
     assert.deepEqual(
       requests.map(({ body }) => body.tools[0].function.name),
-      ['select_api_literal_targets', 'select_api_argument_enums'],
+      ['generate_api_arguments', 'select_api_argument_enums'],
     );
     for (const { body, output } of requests) {
       const ajv = new Ajv2020({ strict: false });

@@ -20,11 +20,6 @@ async function run(schema, pointers, selections, inspect = () => {}) {
         return {
           async invoke() {
             stages.push(options.name);
-            if (options.name === 'select_api_literal_targets')
-              return {
-                literalInputs: { state: 'provided', targetPointers: pointers },
-                requestedInputs: [],
-              };
             assert.equal(options.name, 'generate_api_arguments');
             const output = {
               literalInputs: { state: 'provided', literalSources: selections },
@@ -50,7 +45,7 @@ const text = (targetPointer, sourceText) => ({
   sourceText,
 });
 
-test('string array and numeric array use distinct destination-scoped source choices in one OAS body', async () => {
+test('string and numeric array destinations retain their own types in one construction plan', async () => {
   const schema = {
     type: 'object',
     additionalProperties: false,
@@ -75,30 +70,21 @@ test('string array and numeric array use distinct destination-scoped source choi
     selections,
     (validate, valid) => {
       assert.equal(validate(valid).valid, true);
-      const wrong = globalThis.structuredClone(valid);
-      wrong.literalInputs.literalSources[0] = json(pointers[0], '101');
-      assert.equal(
-        validate(wrong).valid,
-        false,
-        'number candidate must not be an allowed source for a string array item',
-      );
-      const wrongText = globalThis.structuredClone(valid);
-      wrongText.literalInputs.literalSources[2] = text(pointers[2], '3');
-      assert.equal(
-        validate(wrongText).valid,
-        false,
-        'text must not become a numeric request value',
-      );
     },
   );
-  assert.deepEqual(stages, [
-    'select_api_literal_targets',
-    'generate_api_arguments',
-  ]);
+  assert.deepEqual(stages, ['generate_api_arguments']);
   assert.deepEqual(result.values.body, {
     productIds: ['101', '102'],
     quantities: [3],
   });
+  for (const wrong of [
+    [json(pointers[0], '101'), ...selections.slice(1)],
+    [...selections.slice(0, 2), text(pointers[2], '3')],
+  ])
+    await assert.rejects(
+      run(schema, pointers, wrong),
+      (error) => error.diagnostic.code === 'API_ARGUMENT_VALIDATION_FAILED',
+    );
 });
 
 test('recursive and dynamic input paths resolve their own string contracts without unrolling the OAS', async () => {
@@ -140,16 +126,13 @@ test('recursive and dynamic input paths resolve their own string contracts witho
     [text(pointers[0], '101'), text(pointers[1], '102')],
     (validate, valid) => {
       assert.equal(validate(valid).valid, true);
-      const invalid = globalThis.structuredClone(valid);
-      invalid.literalInputs.literalSources[0] = json(pointers[0], '101');
-      assert.equal(validate(invalid).valid, false);
     },
   );
   assert.equal(result.values.body.root.children[0].children[0].code, '101');
   assert.equal(result.values.body.labels['x/y'], '102');
 });
 
-test('a selected closed or overlapping target fails before source selection', async () => {
+test('a closed or overlapping destination rejects the entire source-backed construction plan', async () => {
   const schema = {
     type: 'object',
     additionalProperties: false,
@@ -160,6 +143,12 @@ test('a selected closed or overlapping target fails before source selection', as
     ['/body', '/body/code'],
     ['/body/code', '/body/code'],
   ]) {
-    await assert.rejects(run(schema, pointers, []));
+    await assert.rejects(
+      run(
+        schema,
+        pointers,
+        pointers.map((pointer) => text(pointer, '101')),
+      ),
+    );
   }
 });

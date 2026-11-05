@@ -164,7 +164,7 @@ test('argument output shape and original-source validation failures remain disti
     }),
     expectDiagnostic('API_ARGUMENT_VALIDATION_FAILED', 'contract-validation'),
   );
-  assert.equal(invalidSource.calls.length, 2);
+  assert.equal(invalidSource.calls.length, 1);
 });
 
 test('argument boundaries preserve existing typed errors and successful values/options', async () => {

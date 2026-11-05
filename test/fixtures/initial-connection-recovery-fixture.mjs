@@ -1,4 +1,3 @@
-import { literalTargetPlan } from './literal-generation-fixture.mjs';
 import assert from 'node:assert/strict';
 import {
   describeWorkflowConnectionGoals,
@@ -66,11 +65,6 @@ export function recoveryQueueModel(outputs, inspect = () => {}) {
               ? await outputs[outputIndex](request)
               : outputs[outputIndex];
           if (output instanceof Error) throw output;
-          if (options?.name === 'select_api_literal_targets') {
-            const plan = literalTargetPlan(output);
-            if (plan === output) outputIndex++;
-            return globalThis.structuredClone(plan);
-          }
           outputIndex++;
           return globalThis.structuredClone(output);
         },

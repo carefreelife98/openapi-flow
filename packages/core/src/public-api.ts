@@ -543,3 +543,5 @@ export type { SchemaResourceRegistration } from './types/schema-resource.js';
 
 export type { ApiLiteralTargetContract } from './types/api-literal-target.js';
 export { describeApiLiteralTargets } from './arguments/sources/describe-api-literal-targets.js';
+
+export { listApiLiteralContainerTargets } from './arguments/sources/list-api-literal-container-targets.js';
