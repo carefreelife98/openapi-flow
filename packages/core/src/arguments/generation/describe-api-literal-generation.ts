@@ -2,47 +2,16 @@ import type {
   ApiLiteralGenerationInput,
   ApiLiteralGenerationDescription,
 } from '../../types/api-literal-generation.js';
-import {
-  apiLiteralGenerationContextSchema,
-  apiLiteralGenerationIdentitySchema,
-} from '../../schemas/api-literal-generation-schema.js';
+import { apiLiteralGenerationContextSchema } from '../../schemas/api-literal-generation-schema.js';
 import { createApiArgumentGenerationContract } from '../../schemas/create-api-argument-generation-contract.js';
-import { apiOperationKeySchema } from '../../schemas/api-operation-key-schema.js';
+import { captureApiLiteralGenerationInput } from './capture-api-literal-generation-input.js';
 
 /** Snapshot only declared data fields, never the caller's model or unrelated stage metadata. */
 export function describeApiLiteralGeneration(
   input: ApiLiteralGenerationInput,
 ): ApiLiteralGenerationDescription {
-  const { callId, scenario, purpose, literalSourceMessages } =
-    apiLiteralGenerationIdentitySchema.parse({
-      callId: input.callId,
-      scenario: input.scenario,
-      literalSourceMessages: input.literalSourceMessages,
-      purpose: input.purpose,
-    });
-  if (
-    !input.operation ||
-    !apiOperationKeySchema.safeParse(input.operation.key).success
-  )
-    throw new Error('literal generation operation.key is missing or invalid');
-  if (!Array.isArray(input.bindings))
-    throw new Error('arguments.bindings must be an array');
-  const snapshot: ApiLiteralGenerationInput = {
-    callId,
-    scenario,
-    ...(literalSourceMessages === undefined
-      ? {}
-      : { literalSourceMessages: structuredClone(literalSourceMessages) }),
-    operation: structuredClone(input.operation),
-    bindings: structuredClone(input.bindings),
-    ...(purpose === undefined ? {} : { purpose }),
-    ...(input.requestMediaType === undefined
-      ? {}
-      : { requestMediaType: input.requestMediaType }),
-    ...(input.confirmedInputs === undefined
-      ? {}
-      : { confirmedInputs: structuredClone(input.confirmedInputs) }),
-  };
+  const snapshot = captureApiLiteralGenerationInput(input);
+  const { scenario } = snapshot;
   const contract = createApiArgumentGenerationContract(snapshot);
   const context = apiLiteralGenerationContextSchema.parse({
     scenario,

@@ -3,12 +3,27 @@ import type { ParseError } from 'jsonc-parser';
 import type {
   ApiInputSourceCatalog,
   ApiInputTextSourceToken,
+  ApiInputJsonSourceCandidate,
 } from '../../types/api-input-source-selection.js';
 import type { ApiInputAnswerSourceLocation } from '../../types/api-input-answer-extraction.js';
 import { scanProtectedApiInputLiterals } from './scan-protected-api-input-literals.js';
 
 /** Enumerate original literal spans and unquoted boundaries, never proposed values. */
 export function describeApiInputSources(reply: string): ApiInputSourceCatalog {
+  return enumerateApiInputSources(reply, true);
+}
+
+/** JSON-only consumers do not allocate a character-by-character text catalog. */
+export function describeApiInputJsonSources(
+  reply: string,
+): ApiInputJsonSourceCandidate[] {
+  return enumerateApiInputSources(reply, false).json;
+}
+
+function enumerateApiInputSources(
+  reply: string,
+  includeText: boolean,
+): ApiInputSourceCatalog {
   if (typeof reply !== 'string')
     throw new Error('API input sources require reply to be a string');
   const protectedLiterals = scanProtectedApiInputLiterals(reply);
@@ -51,12 +66,13 @@ export function describeApiInputSources(reply: string): ApiInputSourceCatalog {
         });
       else stack.length = 0;
     }
-    textTokens.push({
-      id: `text:${offset}:${length}`,
-      text: reply.slice(offset, offset + length),
-      offset,
-      length,
-    });
+    if (includeText)
+      textTokens.push({
+        id: `text:${offset}:${length}`,
+        text: reply.slice(offset, offset + length),
+        offset,
+        length,
+      });
     offset += length;
   }
   flushText();

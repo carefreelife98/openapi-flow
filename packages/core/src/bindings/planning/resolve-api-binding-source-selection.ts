@@ -1,9 +1,15 @@
 import type {
   ApiBindingSourceSelection,
   ResolveApiBindingSourceSelectionInput,
+  ApiCallBindingPlanningDescription,
+  ApiBindingSourceProposal,
+  ResolveWorkflowApiBindingSourcesInput,
 } from '../../types/api-call-binding-planning.js';
 import { apiBindingSourceProposalSchema } from '../../schemas/api-call-binding-planning-schema.js';
-import { describeApiCallBindingPlanning } from './describe-api-call-binding-planning.js';
+import {
+  describeApiCallBindingPlanning,
+  describeApiBindingCalls,
+} from './describe-api-call-binding-planning.js';
 import { createApiBindingKeyCatalog } from '../candidates/create-api-binding-key-catalog.js';
 import { validateApiBindingGaps } from '../validate-api-binding-gaps.js';
 
@@ -11,7 +17,37 @@ export function resolveApiBindingSourceSelection(
   input: ResolveApiBindingSourceSelectionInput,
 ): ApiBindingSourceSelection {
   const description = describeApiCallBindingPlanning(input);
-  const proposal = apiBindingSourceProposalSchema.parse(input.proposal);
+  return resolvePreparedApiBindingSourceSelection(description, input.proposal);
+}
+
+export function resolveWorkflowApiBindingSources(
+  input: ResolveWorkflowApiBindingSourcesInput,
+): ApiBindingSourceSelection[] {
+  const descriptions = describeApiBindingCalls(input);
+  if (
+    Object.keys(input.proposals).length !== descriptions.length ||
+    descriptions.some(
+      (description) =>
+        !Object.hasOwn(input.proposals, description.input.callId),
+    )
+  )
+    throw new Error(
+      'Workflow binding source proposals must cover exactly the supplied calls',
+    );
+  return descriptions.map((description) =>
+    resolvePreparedApiBindingSourceSelection(
+      description,
+      input.proposals[description.input.callId]!,
+    ),
+  );
+}
+
+function resolvePreparedApiBindingSourceSelection(
+  description: ApiCallBindingPlanningDescription,
+  original: ApiBindingSourceProposal,
+): ApiBindingSourceSelection {
+  const input = description.input;
+  const proposal = apiBindingSourceProposalSchema.parse(original);
   const allowed = new Set(
     description.sourceCandidates.map((item) => item.nodeId),
   );

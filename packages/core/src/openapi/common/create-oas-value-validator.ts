@@ -43,14 +43,27 @@ export function createOasValueValidator(
       .digest('hex')}`,
     ...assertions,
   };
+  // Embedded fields need distinct resource IDs even when their assertions are equal.
+  // Private standalone compilers can share by content; their IDs never enter a parent schema.
+  const compilationSchema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: `urn:openapi-flow:validation:${createHash('sha256')
+      .update(JSON.stringify([dialect, assertions]))
+      .digest('hex')}`,
+    ...assertions,
+  };
   let validate: OasValueValidation;
   try {
-    validate = compiledValidators.getOrCreate(schema, dialect, (snapshot) => {
-      const compiled = createValidator(snapshot);
-      // Scalar parses string documents as YAML; encode actual string values first.
-      return (value) =>
-        compiled(typeof value === 'string' ? JSON.stringify(value) : value);
-    });
+    validate = compiledValidators.getOrCreate(
+      compilationSchema,
+      dialect,
+      (snapshot) => {
+        const compiled = createValidator(snapshot);
+        // Scalar parses string documents as YAML; encode actual string values first.
+        return (value) =>
+          compiled(typeof value === 'string' ? JSON.stringify(value) : value);
+      },
+    );
   } catch (error) {
     throw new Error(`${source} cannot compile its OAS value schema`, {
       cause: error,

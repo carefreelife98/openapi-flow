@@ -34,6 +34,13 @@ export { WorkflowDraftApiCallPlanningError } from './draft/workflow-draft-api-ca
 export type { ClarifyWorkflowRequirementsInput } from './types/workflow-clarification.js';
 export { generateApiArguments } from './arguments/generate-api-arguments.js';
 export { generateWorkflowApiArguments } from './arguments/generate-workflow-api-arguments.js';
+export { generateWorkflowApiValues } from './arguments/generate-workflow-api-values.js';
+export { generateApiValues } from './arguments/generate-api-values.js';
+export type * from './types/workflow-api-values.js';
+export { selectWorkflowApiBindingSources } from './bindings/select-workflow-api-binding-sources.js';
+export type * from './types/workflow-api-binding-sources.js';
+export { analyzeApiValueAnswers } from './arguments/analyze-api-value-answers.js';
+export type * from './types/api-value-answers.js';
 export type * from './types/workflow-api-arguments.js';
 export { ApiArgumentPlanningError } from './arguments/api-argument-planning-error.js';
 export { createApiArgumentRejection } from './arguments/create-api-argument-rejection.js';

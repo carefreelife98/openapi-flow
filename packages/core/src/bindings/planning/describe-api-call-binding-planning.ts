@@ -3,7 +3,10 @@ import type {
   ApiBindingSourceCandidate,
   ApiCallBindingPlanningDescription,
   ApiCallBindingPlanningInput,
+  ApiCallBindingPlanningOptions,
+  WorkflowApiBindingPlanningInput,
 } from '../../types/api-call-binding-planning.js';
+import type { ApiBindingPlanningDescription } from '../../types/api-binding-planning.js';
 import { listNativeSourcesDependentOnApi } from './list-native-sources-dependent-on-api.js';
 import { describeApiBindingPlanning } from './describe-api-binding-planning.js';
 import { createApiRequestSchema } from '../../schemas/create-api-request-schema.js';
@@ -15,6 +18,50 @@ export function describeApiCallBindingPlanning(
 ): ApiCallBindingPlanningDescription {
   const options = apiCallBindingOptionsSchema.parse(input);
   const description = describeApiBindingPlanning(input);
+  return describePreparedApiCallBindingPlanning(description, options);
+}
+
+/** Prepare the shared OAS/source index once for all selected call instances. */
+export function describeApiBindingCalls(
+  input: WorkflowApiBindingPlanningInput,
+): ApiCallBindingPlanningDescription[] {
+  const description = describeApiBindingPlanning(input);
+  const selected = input.callIds;
+  if (
+    selected !== undefined &&
+    (!Array.isArray(selected) ||
+      new Set(selected).size !== selected.length ||
+      selected.some(
+        (id) =>
+          typeof id !== 'string' ||
+          !description.input.materials.some(
+            (material) => material.callId === id,
+          ),
+      ))
+  )
+    throw new Error(
+      'Workflow binding callIds must contain unique supplied call identities',
+    );
+  return description.input.materials
+    .filter(
+      (material) =>
+        selected === undefined || selected.includes(material.callId),
+    )
+    .map((material) =>
+      describePreparedApiCallBindingPlanning(
+        description,
+        apiCallBindingOptionsSchema.parse({
+          callId: material.callId,
+          includeExplanations: input.includeExplanations,
+        }),
+      ),
+    );
+}
+
+function describePreparedApiCallBindingPlanning(
+  description: ApiBindingPlanningDescription,
+  options: ApiCallBindingPlanningOptions,
+): ApiCallBindingPlanningDescription {
   const target = description.input.materials.find(
     (item) => item.callId === options.callId,
   );

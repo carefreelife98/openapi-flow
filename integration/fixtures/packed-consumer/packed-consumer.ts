@@ -1,3 +1,4 @@
+import './api-values-consumer.js';
 import assert from 'node:assert/strict';
 import './connection-delivery-consumer.js';
 import './review-feedback-consumer.js';

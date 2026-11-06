@@ -1,5 +1,18 @@
 # openapi-flow
 
+## 0.13.0
+
+The opt-in `generateWorkflowApiValues` and `generateApiValues` APIs propose actual
+OAS-typed values; Core owns exact original attribution and per-call validation.
+`analyzeApiValueAnswers` handles one original reply without lexical source choices.
+`selectWorkflowApiBindingSources` selects producers jointly and can plan only pending
+call IDs while retaining the complete source inventory. Existing APIs remain compatible.
+Value tools use non-strict function calling for partial OAS objects and unchanged
+local OAS validation; they do not claim provider-enforced strict output.
+See [candidate notes](docs/releases/0.13.0-notes.md) and the
+[verification record](docs/releases/0.13.0.md) for compatibility, tests and limitations.
+Publication, host installation and remote execution remain separate steps.
+
 ## 0.4.2
 
 This version separates optional presentation text from functional planning

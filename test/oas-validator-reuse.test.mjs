@@ -56,7 +56,9 @@ test('schema edits, source identities and dialect semantics do not reuse the wro
     'openapi-3.0',
     'reuse/other-source',
   );
-  assert.notEqual(differentSource.validate, nullable.validate);
+  // The public embedded resource remains source-scoped; standalone compiler identity is content-owned.
+  assert.notEqual(differentSource.schema.$id, nullable.schema.$id);
+  assert.equal(differentSource.validate, nullable.validate);
   schema.type = 'number';
   const changed = createOasValueValidator(
     schema,

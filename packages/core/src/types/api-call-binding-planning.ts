@@ -10,6 +10,17 @@ export interface ApiCallBindingPlanningInput extends ApiBindingPlanningInput {
   callId: string;
   includeExplanations?: boolean;
 }
+export type ApiCallBindingPlanningOptions = Pick<
+  ApiCallBindingPlanningInput,
+  'callId' | 'includeExplanations'
+>;
+export interface WorkflowApiBindingPlanningInput extends ApiBindingPlanningInput {
+  includeExplanations?: boolean;
+  callIds?: string[];
+}
+export interface ResolveWorkflowApiBindingSourcesInput extends WorkflowApiBindingPlanningInput {
+  proposals: Record<string, ApiBindingSourceProposal>;
+}
 
 /** Discovery index only; it never replaces an original response contract. */
 export interface ApiBindingSourceCandidate {

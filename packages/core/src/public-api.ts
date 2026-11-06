@@ -13,6 +13,17 @@ export { createApiSelectionExplanation } from './openapi/selection/evidence/crea
 export { validateApiSelectionExplanation } from './openapi/selection/evidence/validate-api-selection-explanation.js';
 export type * from './types/api-operation.js';
 export { createApiArgumentsSchema } from './schemas/create-api-arguments-schema.js';
+export {
+  compileWorkflowApiValues,
+  validateCompiledWorkflowApiValues,
+} from './arguments/generation/compile-workflow-api-values.js';
+export { fingerprintWorkflowApiValueContext } from './arguments/generation/fingerprint-workflow-api-value-context.js';
+export { workflowApiValuePlanSchema } from './schemas/workflow-api-value-plan-schema.js';
+export type * from './types/workflow-api-values.js';
+export { describeApiBindingCalls } from './bindings/planning/describe-api-call-binding-planning.js';
+export { resolveWorkflowApiBindingSources } from './bindings/planning/resolve-api-binding-source-selection.js';
+export { resolveApiValueAnswers } from './arguments/clarification/extraction/resolve-api-value-answers.js';
+export type * from './types/api-value-answers.js';
 export { createApiArgumentGenerationContract } from './schemas/create-api-argument-generation-contract.js';
 export type * from './types/api-argument-generation.js';
 export type * from './types/api-argument-enum.js';
