@@ -17,6 +17,18 @@ export { createApiArgumentGenerationContract } from './schemas/create-api-argume
 export type * from './types/api-argument-generation.js';
 export type * from './types/api-argument-enum.js';
 export type * from './types/api-input-literal-source.js';
+export type * from './types/workflow-api-arguments.js';
+export {
+  createWorkflowInputCatalog,
+  validateWorkflowInputCatalog,
+} from './arguments/sources/create-workflow-input-catalog.js';
+export { resolveWorkflowInputSelection } from './arguments/sources/resolve-workflow-input-selection.js';
+export { compileWorkflowApiArguments } from './arguments/generation/compile-workflow-api-arguments.js';
+export { describeWorkflowApiArgumentTargets } from './arguments/generation/describe-workflow-api-argument-targets.js';
+export { describeWorkflowInputSourceChoices } from './arguments/sources/describe-workflow-input-source-choices.js';
+export { validateCompiledWorkflowApiArguments } from './arguments/generation/validate-compiled-workflow-api-arguments.js';
+export { fingerprintWorkflowApiArgumentContext } from './arguments/generation/fingerprint-workflow-api-argument-context.js';
+export { workflowApiArgumentPlanSchema } from './schemas/workflow-api-argument-plan-schema.js';
 export { apiInputLiteralSourceSchema } from './schemas/api-input-literal-source-schema.js';
 export { resolveApiLiteralProposalSources } from './arguments/sources/resolve-api-literal-proposal-sources.js';
 export { describeApiLiteralJsonSources } from './arguments/sources/describe-api-literal-json-sources.js';

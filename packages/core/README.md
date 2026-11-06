@@ -1,5 +1,30 @@
 # @openapi-flow/core
 
+## 0.12.0: shared workflow input planning
+
+`createWorkflowInputCatalog` prepares one immutable original-message catalog for
+all calls in a planning revision. A source ID owns its original message and lexical
+region. `resolveWorkflowInputSelection` extracts a selected JSON value or exact
+unquoted text range; callers never supply a replacement value or message identity.
+JSON retains its original type and text remains a string.
+
+`describeWorkflowApiArgumentTargets` exposes finite OAS declaration templates,
+including explicit array indices, dynamic keys and recursive descendants.
+`compileWorkflowApiArguments` resolves those templates and original sources,
+deduplicates verified inputs, and applies the existing concrete-target, assembly,
+binding, confirmed-input and final request checks. Type projections only narrow
+choices; the original OAS still decides whether a concrete assignment is valid.
+The result retains independently checked calls and per-call validation rejections.
+Missing values stay missing-input requirements.
+
+Plans carry a code-attached fingerprint covering originals, scenario, calls, OAS,
+roles, bindings and confirmed inputs. `validateCompiledWorkflowApiArguments`
+replays serialized receipts against an independent current context, including
+semantic enum evidence. Hosts must retain only validated receipts and supply
+only pending calls when replanning. These APIs do not implement a retry loop or
+change the existing single-call APIs. They do not guarantee business intent or
+the availability of a model or remote API.
+
 ## 0.11.0: validate complete literal construction plans
 
 `resolveApiLiteralValues` resolves all selected destinations before assignment,

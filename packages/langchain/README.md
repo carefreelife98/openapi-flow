@@ -1,5 +1,31 @@
 # @openapi-flow/langchain
 
+## 0.12.0: one input plan for all pending workflow calls
+
+`generateWorkflowApiArguments` accepts Core's shared original-source catalog and
+the selected call contexts. One `generate_workflow_api_arguments` proposal maps
+code-owned OAS target templates to typed source references for every pending
+call. The model does not generate literal values, message IDs, quotations, source
+fingerprints or a separate shared-input index. A strict function-calling schema
+excludes numeric JSON sources from declared string targets, including string
+array items. Recursive/open descendants remain conservatively typed and receive
+the full concrete OAS check in Core.
+
+The library makes one literal planning call per invocation. Optional semantic
+enum interpretation is a separate stage and may add calls. Fully bound/confirmed
+inputs use no model. No hidden retries, type coercion or source reassignment are
+added. A host owns visible bounded replanning, current-source rejection feedback
+and retention of previously returned, validated batches. Transport, authentication
+and configuration failures remain errors; a call interrupted before returning a
+complete batch has no accepted receipt. Existing `generateApiArguments` consumers
+retain their current single-call protocol.
+
+The model must support strict function-calling structured output. Typed reference
+choices prevent invalid source/type combinations in a conforming proposal, but do
+not prove that the selected substring or optional input expresses the user's intent.
+Whole-proposal syntax failures can still reject the current batch; earlier
+validated batches remain the host's responsibility.
+
 ## 0.11.0: source-backed input construction
 
 Tracked `generateApiArguments` proposes destinations and original sources together

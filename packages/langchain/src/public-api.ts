@@ -33,6 +33,8 @@ export { generateWorkflowDraftApiCallArguments } from './draft/generate-workflow
 export { WorkflowDraftApiCallPlanningError } from './draft/workflow-draft-api-call-planning-error.js';
 export type { ClarifyWorkflowRequirementsInput } from './types/workflow-clarification.js';
 export { generateApiArguments } from './arguments/generate-api-arguments.js';
+export { generateWorkflowApiArguments } from './arguments/generate-workflow-api-arguments.js';
+export type * from './types/workflow-api-arguments.js';
 export { ApiArgumentPlanningError } from './arguments/api-argument-planning-error.js';
 export { createApiArgumentRejection } from './arguments/create-api-argument-rejection.js';
 export { apiArgumentRejectionSchema } from './schemas/api-argument-rejection-schema.js';
