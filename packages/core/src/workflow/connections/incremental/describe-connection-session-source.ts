@@ -1,3 +1,4 @@
+import { preparedConnectionSourceDescription } from './prepared-connection-source.js';
 import { connectionRequirementFactsSchema } from '../../../schemas/workflow-connection-session-schema.js';
 import { workflowConnectionReviewBoundarySchema } from '../../../schemas/workflow-connection-review-boundary-schema.js';
 import type {
@@ -14,6 +15,8 @@ import {
 export function describeConnectionSessionSource(
   input: WorkflowConnectionSessionSource,
 ): WorkflowConnectionSessionDescription {
+  const prepared = preparedConnectionSourceDescription(input);
+  if (prepared !== undefined) return prepared;
   if (input.reviewBoundary !== undefined)
     workflowConnectionReviewBoundarySchema.parse(input.reviewBoundary);
   const requirements = connectionRequirementFactsSchema.parse(

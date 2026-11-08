@@ -801,3 +801,14 @@ Do not copy private OAS documents or secrets into this repository. Types/interfa
 ## Licensing
 
 Our code is MIT-licensed. `@openapi-flow/n8n` depends separately on `@n8n/workflow-sdk` under n8n's [Sustainable Use License](https://docs.n8n.io/n8n-community-license/); our MIT license does not change those terms. Core and the LangChain adapter do not depend on that SDK. See the package-specific third-party notices.
+
+
+## Structured execution programs (0.14.0)
+
+Hosts can opt into `planWorkflowExecutionProgram` and `reviewWorkflowExecutionProgram` from `@openapi-flow/langchain`. Supply an explicit prepared material source, requirements, original source messages, capabilities and `{ maxDepth, maxBlocks }` limits. Use `createN8nWorkflowProgramControls` from `@openapi-flow/n8n` for compiler-owned barriers/rejoins. `prepareWorkflowExecutionProgramSource` from Core captures an immutable runtime revision; checkpoint only serializable source data, never that runtime view or its capability/control functions.
+
+The model returns an `execution-program` with `node`, `empty`, `sequence`, `parallel` and `branch` blocks. Parallel joins are an existing prepared node, a generated barrier, or terminal `none`. `empty` forwards the current path; it cannot rewind control to an earlier producer. Core resolves and validates the program against the original source. It does not infer a missing value, add arbitrary model edges or silently omit prepared nodes. Review the source-bound result independently before adoption. Material repair is routed to the original settings owner, followed by a fresh program and review. A host must bound model calls, rejected proposals and time explicitly.
+
+`createWorkflowProgramDeliveryDraft` provides a checked dependency-closed projection for partial delivery. `describeWorkflowDraftExecutionProgram` and the `executionProgram` edit assembly option allow one source-bound revision without model edge deltas. Existing connection APIs remain available; do not mix both authorities in one edit.
+
+See [0.14.0 verification](docs/releases/0.14.0.md) for runtime scope and the existing Ajv limitation. This is a finite workflow-level program, not a claim of general stream, item iteration or loop support.

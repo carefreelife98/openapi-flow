@@ -115,3 +115,5 @@ export type {
 export { createLiteralDataCapability } from './nodes/native/create-literal-data-capability.js';
 export { literalDataParametersSchema } from './schemas/literal-data-schema.js';
 export type { NativeCondition } from './types/native-capability.js';
+export { createN8nWorkflowProgramControls } from './workflow/program/create-n8n-workflow-program-controls.js';
+export type * from './types/workflow-execution-program.js';

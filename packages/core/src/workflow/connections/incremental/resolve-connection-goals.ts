@@ -5,6 +5,7 @@ import type {
 } from '../../../types/workflow-connection-session.js';
 import type { WorkflowPlanNodeContract } from '../../../types/workflow-plan.js';
 import { workflowConnectionGoalProposalSchema } from '../../../schemas/workflow-connection-session-schema.js';
+import { validateMaterialGoalConsistency } from '../requirements/validate-material-goal-consistency.js';
 import {
   connectionValueFingerprint,
   workflowConnectionEdgeId,
@@ -121,6 +122,7 @@ export function resolveConnectionGoals(
     throw new Error('Connection goals omit a confirmed requirement');
   if (new Set(goals.map((goal) => goal.id)).size !== goals.length)
     throw new Error('Duplicate connection goals');
+  validateMaterialGoalConsistency(goals.map((goal) => goal.decision));
   const inspection = inspectWorkflowNodeConstraints({
     contracts,
     goals: goals.map((goal) => goal.decision),

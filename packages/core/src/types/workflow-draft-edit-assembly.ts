@@ -1,3 +1,4 @@
+import type { WorkflowDraftProgramAssembly } from './workflow-execution-program.js';
 import type {
   ApiArgumentValues,
   JsonValue,
@@ -106,6 +107,7 @@ export interface PrepareWorkflowDraftEditInput extends WorkflowDraftEditInput {
   producerDependencies?: WorkflowDraftNativeDependencies;
 }
 export interface AssembleWorkflowDraftEditInput extends PrepareWorkflowDraftEditInput {
+  executionProgram?: WorkflowDraftProgramAssembly;
   /** Omission means preserve all existing connections unchanged. */
   connections?: WorkflowDraftEditConnectionChange[];
 }

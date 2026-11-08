@@ -568,3 +568,24 @@ export type { ApiLiteralTargetContract } from './types/api-literal-target.js';
 export { describeApiLiteralTargets } from './arguments/sources/describe-api-literal-targets.js';
 
 export { listApiLiteralContainerTargets } from './arguments/sources/list-api-literal-container-targets.js';
+export type * from './types/workflow-execution-program.js';
+export { describeResolvedWorkflowExecutionProgram } from './workflow/program/describe-resolved-workflow-execution-program.js';
+export { createWorkflowProgramMaterialRepair } from './workflow/program/create-workflow-program-material-repair.js';
+export {
+  workflowExecutionBlockSchema,
+  workflowExecutionProgramSchema,
+  workflowProgramLimitsSchema,
+} from './schemas/workflow-execution-program-schema.js';
+export { describeWorkflowExecutionProgram } from './workflow/program/describe-workflow-execution-program.js';
+export {
+  resolveWorkflowExecutionProgram,
+  validateWorkflowExecutionProgram,
+  reviseWorkflowExecutionProgram,
+} from './workflow/program/resolve-workflow-execution-program.js';
+export { inspectWorkflowProgramDelivery } from './workflow/program/inspect-workflow-program-delivery.js';
+
+export { describeWorkflowDraftExecutionProgram } from './workflow/program/describe-workflow-draft-execution-program.js';
+
+export { createWorkflowProgramDeliveryDraft } from './workflow/program/create-workflow-program-delivery-draft.js';
+
+export { prepareWorkflowExecutionProgramSource } from './workflow/program/prepare-workflow-execution-program-source.js';

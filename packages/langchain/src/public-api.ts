@@ -127,3 +127,7 @@ export type * from './types/api-call-binding-rejection.js';
 export { workflowConnectionProposalAttemptSchema } from './schemas/workflow-connection-proposal-attempt-schema.js';
 export type * from './types/workflow-connection-proposal-attempt.js';
 export { createWorkflowConnectionStepRejection } from './workflow/connections/create-workflow-connection-step-rejection.js';
+export { planWorkflowExecutionProgram } from './workflow/program/plan-workflow-execution-program.js';
+export { reviewWorkflowExecutionProgram } from './workflow/program/review-workflow-execution-program.js';
+export { WorkflowProgramPlanningError } from './workflow/program/workflow-program-planning-error.js';
+export type * from './types/workflow-execution-program.js';

@@ -1,3 +1,4 @@
+import { deriveWorkflowDraftProgramChanges } from '../../workflow/program/derive-workflow-draft-program-changes.js';
 import type {
   AssembleWorkflowDraftEditInput,
   AssembledWorkflowDraftEdit,
@@ -34,7 +35,19 @@ export function assembleWorkflowDraftEdit(
     .array()
     .optional()
     .parse(input.connections);
-  const changes = [...prepared.changes];
+  if (input.executionProgram !== undefined && input.connections !== undefined)
+    throw new Error(
+      'Draft edit requires one connection authority: executionProgram or connections',
+    );
+  const changes = [
+    ...prepared.changes,
+    ...(input.executionProgram === undefined
+      ? []
+      : deriveWorkflowDraftProgramChanges({
+          ...input,
+          ...input.executionProgram,
+        })),
+  ];
   for (const connection of connections === undefined ? [] : connections) {
     if (
       connection.stepIds.some(
@@ -60,7 +73,18 @@ export function assembleWorkflowDraftEdit(
   try {
     const result = applyDraftChangeSet({
       draft: input.draft,
-      context: createWorkflowDraftEditCandidateContext(input),
+      context: {
+        ...createWorkflowDraftEditCandidateContext(input),
+        capabilities: [
+          ...input.context.capabilities.filter(
+            (capability) =>
+              !input.executionProgram?.controls?.capabilities.some(
+                (control) => control.name === capability.name,
+              ),
+          ),
+          ...(input.executionProgram?.controls?.capabilities ?? []),
+        ],
+      },
       changeSet,
     });
     return {
