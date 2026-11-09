@@ -22,16 +22,32 @@ export function requireNativeParameterReferenceSources(
 }
 
 /** Only potential output kinds are exposed here, not fabricated future schemas. */
-export function describePendingNativeProducer(
-  nodeId: string,
+export function nativeCapabilityOutputReferenceSources(
   capability: WorkflowCapability,
-): NativeParameterProducerCandidate {
+): WorkflowNativeParameterReference['source'][] {
+  if (
+    capability.outputSchema !== undefined &&
+    typeof capability.outputSchema !== 'function'
+  )
+    throw new Error(
+      `Native capability ${capability.name}.outputSchema must be a function when declared`,
+    );
   const referenceSources: WorkflowNativeParameterReference['source'][] = [];
   if (typeof capability.outputSchema === 'function')
     referenceSources.push('node-output');
   if (capability.exclusiveOutputPorts)
     referenceSources.push('exclusive-output');
-  return { nodeId, referenceSources };
+  return referenceSources;
+}
+
+export function describePendingNativeProducer(
+  nodeId: string,
+  capability: WorkflowCapability,
+): NativeParameterProducerCandidate {
+  return {
+    nodeId,
+    referenceSources: nativeCapabilityOutputReferenceSources(capability),
+  };
 }
 
 export function selectNativeParameterProducers(

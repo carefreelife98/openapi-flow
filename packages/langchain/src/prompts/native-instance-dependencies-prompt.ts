@@ -1,5 +1,5 @@
 export const nativeInstanceDependenciesPrompt = `Choose the producer materials each selected native instance may access while generating its settings.
-Use only its sourceCandidatesByNodeId values. Refer to the scenario, actual API contracts, implementation descriptions and selected role purposes.
+Use only its sourceCandidatesByNodeId values. parameterReferenceSources are consumed input protocols; potentialOutputReferenceSources are possible produced protocols, not ready schemas. Exclusive control paths and untyped output ports do not supply JSON values. Refer to the scenario, actual API contracts, implementation descriptions and selected role purposes.
 An empty sourceNodeIds list means an independent instance with no producer references. Do not add dependencies merely to order work or because roles share field names.
 Selected future roles have identities, not ready output contracts. Do not invent schemas, values, ports, pointers or n8n connections here. Value generation will wait for the actual selected producer configuration.
 Choose parent and child roles consistently with the scenario; the choice graph must be acyclic. Never make a producer depend on its own consumer.

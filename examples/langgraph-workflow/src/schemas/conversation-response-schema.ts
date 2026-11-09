@@ -29,7 +29,7 @@ export function createOperationChoiceResponseSchema(
     if (!offered.length)
       throw new Error('operation choice requires offered candidates');
     const operation = offered.length === 1 ? offered[0] : z.union(offered);
-    return question.kind === 'operation-choice'
+    return question.kind !== 'operation-multiple-choice'
       ? z.strictObject({ questionId: z.literal(question.id), operation })
       : z.strictObject({
           questionId: z.literal(question.id),

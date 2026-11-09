@@ -5,6 +5,7 @@ import type { NativePlanningCapabilityMaterial } from '../../types/native-node-p
 import { nativeMaterialRequirementsSchema } from '../../schemas/native-material-requirements-schema.js';
 import { nativeParameterReferenceSourcesSchema } from '../../schemas/native-parameter-reference-sources-schema.js';
 import { isSchemaProvablyEmpty } from '../../bindings/is-schema-provably-empty.js';
+import { nativeCapabilityOutputReferenceSources } from './select-native-parameter-producers.js';
 
 /** Serializable generation contract only; executable implementations remain host supplied. */
 export function createNativePlanningCapabilityMaterial(
@@ -55,6 +56,8 @@ export function createNativePlanningCapabilityMaterial(
   return {
     name: capability.name,
     description: capability.description,
+    potentialOutputReferenceSources:
+      nativeCapabilityOutputReferenceSources(capability),
     parametersSchema,
     ...(capability.parameterValuePolicy === undefined
       ? {}

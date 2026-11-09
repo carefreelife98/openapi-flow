@@ -42,6 +42,10 @@ export interface NativePlanningCapabilityMaterial {
   /** Only an emptiness proof; false does not establish that a value or required producer exists. */
   hasProvablyEmptyParameters: boolean;
   parameterReferenceSources?: WorkflowCapability['parameterReferenceSources'];
+  /** Potential reference protocols only; actual schemas still require configured producers. */
+  potentialOutputReferenceSources: NonNullable<
+    WorkflowCapability['parameterReferenceSources']
+  >;
   parameterValuePolicy?: WorkflowCapability['parameterValuePolicy'];
   parameterSources: ('literal' | 'workflow-input' | 'workflow-fields')[];
   materialRequirements?: WorkflowCapability['materialRequirements'];

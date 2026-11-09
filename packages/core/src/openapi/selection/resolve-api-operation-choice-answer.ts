@@ -19,7 +19,10 @@ export function resolveApiOperationChoiceAnswer(
       `Operation answer questionId does not match ${question.id}`,
     );
   let keys: ApiOperationKey[];
-  if (question.kind === 'operation-choice') {
+  if (
+    question.kind === 'operation-choice' ||
+    question.kind === 'operation-call-choice'
+  ) {
     if (!('operation' in answer))
       throw new Error(
         `Operation question ${question.id} requires one operation`,
@@ -44,7 +47,7 @@ export function resolveApiOperationChoiceAnswer(
     );
   }
   const seen: ApiOperationKey[] = [];
-  return keys.map((key) => {
+  const selected = keys.map((key) => {
     if (seen.some((previous) => apiOperationKeyEquals(previous, key)))
       throw new Error(
         `Operation answer ${question.id} contains a duplicate selection`,
@@ -59,4 +62,14 @@ export function resolveApiOperationChoiceAnswer(
     seen.push(key);
     return { key: structuredClone(candidate.key), purpose: question.purpose };
   });
+  if (question.kind === 'operation-call-choice') {
+    const [operation] = selected;
+    if (!operation)
+      throw new Error(`Operation question ${question.id} has no selected API`);
+    return question.callPurposes.map((purpose) => ({
+      key: structuredClone(operation.key),
+      purpose,
+    }));
+  }
+  return selected;
 }

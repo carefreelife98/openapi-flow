@@ -86,6 +86,16 @@ export async function generateNativeNodeParameters(
               },
             },
             selectedRoles: description.selectedRoles,
+            selectedCapabilities: description.context.capabilities
+              .filter((capability) =>
+                description.selectedRoles.some(
+                  (role) => role.capability === capability.name,
+                ),
+              )
+              .map(({ name, potentialOutputReferenceSources }) => ({
+                name,
+                potentialOutputReferenceSources,
+              })),
             parametersSchema: description.instance.literalParametersSchema,
             runtimeParameters: description.instance.runtimeParameters,
             apiMaterials: description.context.apiMaterials,

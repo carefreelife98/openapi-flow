@@ -94,8 +94,17 @@ export interface ApiOperationMultipleChoice extends Omit<
   maxSelections: number;
 }
 
+/** One interchangeable API definition applied to explicitly declared call instances. */
+export interface ApiOperationCallChoice extends Omit<
+  ApiOperationChoice,
+  'kind'
+> {
+  kind: 'operation-call-choice';
+  callPurposes: string[];
+}
+
 export type ApiSelectionQuestion =
-  ApiOperationChoice | ApiOperationMultipleChoice;
+  ApiOperationChoice | ApiOperationMultipleChoice | ApiOperationCallChoice;
 
 export interface ApiSelectionAnalysis {
   selection: ApiSelection;

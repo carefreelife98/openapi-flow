@@ -38,6 +38,29 @@ export async function verifyConsumerApiChoices(catalog: ApiCatalog) {
   });
   assert.equal(result.selection.operations.length, 2);
   assert.equal(result.questions.length, 0);
+  const shared: ApiSelectionQuestion = {
+    kind: 'operation-call-choice',
+    id: 'consumer-shared-call-choice',
+    message: 'Which API should all three requested calls use?',
+    purpose: 'Look up three requested items',
+    candidates,
+    callPurposes: ['Item A', 'Item B', 'Item C'],
+  };
+  validateApiSelectionQuestion(shared);
+  const instances = resolveApiOperationChoiceAnswer({
+    question: shared,
+    answer: { questionId: shared.id, operation: candidates[0]!.key },
+  });
+  assert.equal(instances.length, 3);
+  assert.deepEqual(
+    instances.map((entry) => entry.purpose),
+    shared.callPurposes,
+  );
+  assert(
+    instances.every(
+      (entry) => entry.key.operationRef === candidates[0]!.key.operationRef,
+    ),
+  );
   assert.throws(() =>
     resolveApiOperationChoiceAnswer({
       question,

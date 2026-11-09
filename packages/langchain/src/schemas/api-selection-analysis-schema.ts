@@ -28,6 +28,19 @@ export function createApiSelectionAnalysisSchema(
       .min(2)
       .describe('Distinct supplied alternatives; exactly one will be chosen.'),
   });
+  const calls = single.extend({
+    kind: z
+      .literal('call-choice')
+      .describe(
+        'Choose one API alternative to use for every explicitly declared call instance.',
+      ),
+    callPurposes: z
+      .array(z.string().trim().min(1))
+      .min(2)
+      .describe(
+        'One specific purpose per user-requested call instance. All use the chosen API; this is not a subset of API alternatives.',
+      ),
+  });
   const multiple = single.extend({
     kind: z
       .literal('multiple-choice')
@@ -66,6 +79,11 @@ export function createApiSelectionAnalysisSchema(
       .array(
         // Literal kinds remain disjoint; z.union emits the provider-supported anyOf.
         z.union([
+          withApiSelectionExplanation(
+            calls,
+            includeExplanations,
+            requireExplanations,
+          ),
           withApiSelectionExplanation(
             single,
             includeExplanations,

@@ -114,7 +114,9 @@ export async function analyzeApiSelection(
                     question.minSelections,
                     question.maxSelections,
                   ]
-                : []),
+                : question.kind === 'call-choice'
+                  ? ['call-choice', question.callPurposes]
+                  : []),
             ]),
           )
           .digest('hex'),
@@ -137,12 +139,18 @@ export async function analyzeApiSelection(
       const result: ApiSelectionQuestion =
         question.kind === 'single-choice'
           ? { ...common, kind: 'operation-choice' }
-          : {
-              ...common,
-              kind: 'operation-multiple-choice',
-              minSelections: question.minSelections,
-              maxSelections: question.maxSelections,
-            };
+          : question.kind === 'call-choice'
+            ? {
+                ...common,
+                kind: 'operation-call-choice',
+                callPurposes: structuredClone(question.callPurposes),
+              }
+            : {
+                ...common,
+                kind: 'operation-multiple-choice',
+                minSelections: question.minSelections,
+                maxSelections: question.maxSelections,
+              };
       validateApiSelectionQuestion(result);
       return result;
     },
